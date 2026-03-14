@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运行日志 - ClawPilot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95' },
+                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    },
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        .glass-effect { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .nav-item { position: relative; transition: all 0.2s ease; }
+        .nav-item::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 0; background: linear-gradient(180deg, #8b5cf6, #06b6d4); border-radius: 0 3px 3px 0; transition: height 0.2s ease; }
+        .nav-item.active::before, .nav-item:hover::before { height: 60%; }
+        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+        .log-entry { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        .scroll-hide::-webkit-scrollbar { display: none; }
+        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
+            <div class="p-6 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg tracking-tight">ClawPilot</h1>
+                        <p class="text-xs text-slate-400">OpenClaw 控制台</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto scroll-hide">
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">核心功能</div>
+                <a href="index.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    <span>OPC 管理中心</span>
+                </a>
+                <a href="agents.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <span>Agent 设计器</span>
+                </a>
+                <a href="providers.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <span>模型管理</span>
+                </a>
+                <a href="bindings.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                    <span>飞书频道绑定</span>
+                </a>
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-3 px-3">部署与监控</div>
+                <a href="deploy.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    <span>一键部署</span>
+                </a>
+                <a href="logs.html" class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-100 bg-primary-500/10">
+                    <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="font-medium">运行日志</span>
+                </a>
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-3 px-3">高级功能</div>
+                <a href="market.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    <span>模板市场</span>
+                    <span class="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO</span>
+                </a>
+                <a href="sync.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <span>云同步</span>
+                    <span class="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO</span>
+                </a>
+            </nav>
+            <div class="p-4 border-t border-slate-800">
+                <div class="glass-effect rounded-xl p-4">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-2 h-2 rounded-full bg-green-500 pulse-ring"></div>
+                        <span class="text-sm font-medium text-green-400">OpenClaw 运行中</span>
+                    </div>
+                    <button class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">重启服务</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-hidden flex flex-col">
+            <header class="h-16 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between px-6">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-xl font-semibold">运行日志</h2>
+                    <span class="text-sm text-slate-500">/</span>
+                    <span class="text-sm text-slate-400">实时流</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-sm text-slate-300">实时</span>
+                    </div>
+                    <button class="p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    </button>
+                    <button class="p-2 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-hidden flex">
+                <!-- Log Stream -->
+                <div class="flex-1 p-6 overflow-y-auto">
+                    <div class="glass-effect rounded-2xl p-4 font-mono text-sm">
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:18] [INFO] OpenClaw v2.1.0 starting...</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:18] [INFO] Loading configuration from ~/.openclaw/</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:19] [INFO] OPC "产品经理团队" loaded (5 agents)</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:19] [INFO] Agent "product_manager" initialized with qwen-max</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:19] [INFO] Agent "ux_designer" initialized with deepseek-v3</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:19] [INFO] Agent "data_analyst" initialized with qwen-max</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:20] [INFO] Agent "tech_writer" initialized with qwen-plus</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:20] [INFO] Agent "qa_engineer" initialized with deepseek-coder</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:20] [INFO] Feishu channel connected: 产品讨论组 (oc_1234567890abcdef)</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:32:21] [INFO] Feishu channel connected: 设计交流群 (oc_abcdef1234567890)</div>
+                        <div class="log-entry text-emerald-400 mb-1">[2024-03-13 14:32:21] [SUCCESS] All systems operational</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:35:42] [DISPATCH] [产品讨论组] Message from user_123456789: "@产品经理 帮我分析一下这个功能"</div>
+                        <div class="log-entry text-primary-400 mb-1">[2024-03-13 14:35:42] [AGENT] [product_manager] Received message, processing...</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:35:43] [LLM] Calling qwen-max (streaming)</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:35:45] [LLM] Response received, 342 tokens</div>
+                        <div class="log-entry text-cyan-400 mb-1">[2024-03-13 14:35:45] [REPLY] [product_manager] -> [产品讨论组]: "我来帮你分析这个功能需求..."</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:36:12] [DISPATCH] [设计交流群] Message from user_987654321: "@UX设计师 这个交互流程有问题"</div>
+                        <div class="log-entry text-primary-400 mb-1">[2024-03-13 14:36:12] [AGENT] [ux_designer] Received message, processing...</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:36:13] [LLM] Calling deepseek-v3 (streaming)</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:36:16] [LLM] Response received, 512 tokens</div>
+                        <div class="log-entry text-cyan-400 mb-1">[2024-03-13 14:36:16] [REPLY] [ux_designer] -> [设计交流群]: "你说得对，这个交互确实存在问题..."</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:38:28] [DISPATCH] [产品讨论组] Message from user_555666777: "@数据分析师 看下昨天的数据"</div>
+                        <div class="log-entry text-primary-400 mb-1">[2024-03-13 14:38:28] [AGENT] [data_analyst] Received message, processing...</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:38:29] [TOOL] [data_analyst] Using tool: code_interpreter</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:38:32] [TOOL] Execution completed successfully</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:38:32] [LLM] Calling qwen-max (streaming)</div>
+                        <div class="log-entry text-cyan-400 mb-1">[2024-03-13 14:38:35] [REPLY] [data_analyst] -> [产品讨论组]: "根据昨天的数据分析..."</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:40:15] [DISPATCH] [产品讨论组] Message from user_111222333: "帮我写个PRD"</div>
+                        <div class="log-entry text-primary-400 mb-1">[2024-03-13 14:40:15] [AGENT] [product_manager] Received message, processing...</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:40:16] [LLM] Calling qwen-max (streaming)</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:40:28] [LLM] Response received, 2048 tokens</div>
+                        <div class="log-entry text-cyan-400 mb-1">[2024-03-13 14:40:28] [REPLY] [product_manager] -> [产品讨论组]: "我来为你生成一份PRD文档..."</div>
+                        <div class="log-entry text-amber-400 mb-1">[2024-03-13 14:42:03] [WARN] [data_analyst] Tool execution timeout, retrying...</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:42:05] [TOOL] [data_analyst] Retry successful</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:45:22] [DISPATCH] [设计交流群] Message from user_444555666: "@所有人 开会了"</div>
+                        <div class="log-entry text-slate-500 mb-1">[2024-03-13 14:45:22] [INFO] Message contains @all, ignoring</div>
+                    </div>
+                </div>
+
+                <!-- Log Filters -->
+                <div class="w-64 border-l border-slate-800 p-4 space-y-4">
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">日志级别</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500">
+                            <span class="text-sm text-slate-300">INFO</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-amber-500 focus:ring-amber-500">
+                            <span class="text-sm text-slate-300">WARN</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-rose-500 focus:ring-rose-500">
+                            <span class="text-sm text-slate-300">ERROR</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500 focus:ring-primary-500">
+                            <span class="text-sm text-slate-300">DISPATCH</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-cyan-500 focus:ring-cyan-500">
+                            <span class="text-sm text-slate-300">REPLY</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-violet-500 focus:ring-violet-500">
+                            <span class="text-sm text-slate-300">LLM</span>
+                        </label>
+                    </div>
+
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mt-6">Agent 筛选</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500">
+                            <span class="text-sm text-slate-300">产品经理</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500">
+                            <span class="text-sm text-slate-300">UX设计师</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500">
+                            <span class="text-sm text-slate-300">数据分析师</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500">
+                            <span class="text-sm text-slate-300">技术文档工程师</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500">
+                            <span class="text-sm text-slate-300">质量保证工程师</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
