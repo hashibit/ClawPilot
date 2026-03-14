@@ -39,6 +39,10 @@
         .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .drag-zone { border: 2px dashed rgba(139, 92, 246, 0.3); }
         .drag-zone.drag-over { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
+        .agent-item { transition: opacity 0.15s, transform 0.15s, border-color 0.15s; }
+        .agent-item.dragging { opacity: 0.4; transform: scale(0.97); }
+        .agent-item.drag-over-top { border-top: 2px solid #8b5cf6 !important; }
+        .agent-item.drag-over-bottom { border-bottom: 2px solid #8b5cf6 !important; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
@@ -60,7 +64,7 @@
                 <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">核心功能</div>
                 <a href="index.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    <span>OPC 管理中心</span>
+                    <span>我的集团</span>
                 </a>
                 <a href="agents.html" class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-100 bg-primary-500/10">
                     <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -111,9 +115,16 @@
             <!-- Header -->
             <header class="h-16 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between px-6">
                 <div class="flex items-center gap-4">
-                    <h2 class="text-xl font-semibold">Agent 设计器</h2>
+                    <h2 class="text-xl font-semibold">智能体管理</h2>
                     <span class="text-sm text-slate-500">/</span>
-                    <span class="text-sm text-slate-400">产品经理团队</span>
+                    <div class="relative">
+                        <select id="company-select" class="appearance-none text-sm text-slate-200 bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:border-primary-500 cursor-pointer hover:border-slate-600 transition-colors">
+                            <option value="pm">互联网公司</option>
+                            <option value="dev">手机助手公司</option>
+                            <option value="content">自媒体公司</option>
+                        </select>
+                        <svg class="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
                 </div>
                 <div class="flex items-center gap-3">
                     <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors">
@@ -133,21 +144,28 @@
                     <!-- Left: Agent List -->
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">团队成员 (5)</h3>
+                            <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">智能体 (<span id="agent-count">5</span>)</h3>
                             <button class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                             </button>
                         </div>
-                        <div class="space-y-2">
+                        <div id="agent-list" class="space-y-2">
                             <!-- Agent 1 -->
-                            <div class="glass-effect rounded-xl p-4 cursor-pointer ring-2 ring-primary-500/50">
-                                <div class="flex items-center gap-3 mb-3">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-lg font-bold">PM</div>
-                                    <div class="flex-1">
-                                        <h4 class="font-semibold text-slate-100">产品经理</h4>
+                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer ring-2 ring-primary-500/50" draggable="true">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                    </div>
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-lg font-bold shrink-0">PM</div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <h4 class="font-semibold text-slate-100">产品经理</h4>
+                                            <span class="default-badge text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
+                                        </div>
                                         <p class="text-xs text-slate-400">Product Manager</p>
                                     </div>
-                                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
                                 </div>
                                 <p class="text-sm text-slate-400 mb-3 line-clamp-2">负责产品规划、需求分析和项目管理，协调各团队成员推进项目进度。</p>
                                 <div class="flex items-center gap-2 flex-wrap">
@@ -156,11 +174,19 @@
                                 </div>
                             </div>
                             <!-- Agent 2 -->
-                            <div class="glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors">
-                                <div class="flex items-center gap-3 mb-3">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-lg font-bold">UX</div>
-                                    <div class="flex-1">
-                                        <h4 class="font-semibold text-slate-100">UX设计师</h4>
+                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                    </div>
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-lg font-bold shrink-0">UX</div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-100">UX设计师</h4>
+                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
+                                        </div>
                                         <p class="text-xs text-slate-400">UX Designer</p>
                                     </div>
                                 </div>
@@ -171,11 +197,19 @@
                                 </div>
                             </div>
                             <!-- Agent 3 -->
-                            <div class="glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors">
-                                <div class="flex items-center gap-3 mb-3">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-lg font-bold">DA</div>
-                                    <div class="flex-1">
-                                        <h4 class="font-semibold text-slate-100">数据分析师</h4>
+                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                    </div>
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-lg font-bold shrink-0">DA</div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-100">数据分析师</h4>
+                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
+                                        </div>
                                         <p class="text-xs text-slate-400">Data Analyst</p>
                                     </div>
                                 </div>
@@ -186,11 +220,19 @@
                                 </div>
                             </div>
                             <!-- Agent 4 -->
-                            <div class="glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors">
-                                <div class="flex items-center gap-3 mb-3">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-lg font-bold">DO</div>
-                                    <div class="flex-1">
-                                        <h4 class="font-semibold text-slate-100">技术文档工程师</h4>
+                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                    </div>
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-lg font-bold shrink-0">DO</div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-100">技术文档工程师</h4>
+                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
+                                        </div>
                                         <p class="text-xs text-slate-400">Tech Writer</p>
                                     </div>
                                 </div>
@@ -201,11 +243,19 @@
                                 </div>
                             </div>
                             <!-- Agent 5 -->
-                            <div class="glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors">
-                                <div class="flex items-center gap-3 mb-3">
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center text-lg font-bold">QA</div>
-                                    <div class="flex-1">
-                                        <h4 class="font-semibold text-slate-100">质量保证工程师</h4>
+                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
+                                    </div>
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center text-lg font-bold shrink-0">QA</div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="font-semibold text-slate-100">质量保证工程师</h4>
+                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
+                                        </div>
                                         <p class="text-xs text-slate-400">QA Engineer</p>
                                     </div>
                                 </div>
@@ -271,28 +321,23 @@
                                 <!-- Model Selection -->
                                 <div>
                                     <label class="block text-sm font-medium text-slate-400 mb-2">使用模型</label>
-                                    <div class="grid grid-cols-3 gap-3">
-                                        <label class="flex items-center gap-3 p-4 bg-slate-900 border-2 border-primary-500 rounded-xl cursor-pointer">
-                                            <input type="radio" name="model" checked class="w-4 h-4 text-primary-500">
-                                            <div>
-                                                <div class="font-medium text-slate-100">Qwen-Max</div>
-                                                <div class="text-xs text-slate-500">阿里云百炼 · 128K</div>
-                                            </div>
-                                        </label>
-                                        <label class="flex items-center gap-3 p-4 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-600">
-                                            <input type="radio" name="model" class="w-4 h-4 text-primary-500">
-                                            <div>
-                                                <div class="font-medium text-slate-100">DeepSeek-V3</div>
-                                                <div class="text-xs text-slate-500">火山方舟 · 64K</div>
-                                            </div>
-                                        </label>
-                                        <label class="flex items-center gap-3 p-4 bg-slate-900 border border-slate-700 rounded-xl cursor-pointer hover:border-slate-600">
-                                            <input type="radio" name="model" class="w-4 h-4 text-primary-500">
-                                            <div>
-                                                <div class="font-medium text-slate-100">Qwen-Plus</div>
-                                                <div class="text-xs text-slate-500">阿里云百炼 · 32K</div>
-                                            </div>
-                                        </label>
+                                    <div class="relative">
+                                        <select class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 appearance-none pr-10 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 cursor-pointer">
+                                            <optgroup label="阿里云百炼">
+                                                <option value="bailian-qwen-max" selected>百炼[qwen-max]</option>
+                                                <option value="bailian-qwen-plus">百炼[qwen-plus]</option>
+                                                <option value="bailian-qwen-turbo">百炼[qwen-turbo]</option>
+                                                <option value="bailian-qwen3-plus">百炼[qwen3.5-plus]</option>
+                                                <option value="bailian-qwen-long">百炼[qwen-long]</option>
+                                            </optgroup>
+                                            <optgroup label="火山方舟">
+                                                <option value="volcengine-deepseek-v3">火山方舟[deepseek-v3]</option>
+                                                <option value="volcengine-deepseek-r1">火山方舟[deepseek-r1]</option>
+                                                <option value="volcengine-deepseek-coder">火山方舟[deepseek-coder]</option>
+                                                <option value="volcengine-doubao-pro">火山方舟[doubao-pro-32k]</option>
+                                            </optgroup>
+                                        </select>
+                                        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                     </div>
                                 </div>
 
@@ -408,5 +453,83 @@
             </div>
         </main>
     </div>
+    <script>
+        const agentList = document.getElementById('agent-list');
+        let dragSrc = null;
+
+        function updateDefaultBadge() {
+            const items = agentList.querySelectorAll('.agent-item');
+            items.forEach((item, i) => {
+                const badge = item.querySelector('.default-badge');
+                if (!badge) return;
+                if (i === 0) badge.classList.remove('hidden');
+                else badge.classList.add('hidden');
+            });
+            document.getElementById('agent-count').textContent = items.length;
+        }
+
+        function initDraggable() {
+            agentList.querySelectorAll('.agent-item').forEach(item => {
+                item.addEventListener('dragstart', function (e) {
+                    dragSrc = this;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', '');
+                    setTimeout(() => this.classList.add('dragging'), 0);
+                });
+                item.addEventListener('dragend', function () {
+                    this.classList.remove('dragging');
+                    agentList.querySelectorAll('.agent-item').forEach(el => {
+                        el.classList.remove('drag-over-top', 'drag-over-bottom');
+                    });
+                    updateDefaultBadge();
+                });
+                item.addEventListener('dragover', function (e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    agentList.querySelectorAll('.agent-item').forEach(el => {
+                        el.classList.remove('drag-over-top', 'drag-over-bottom');
+                    });
+                    const rect = this.getBoundingClientRect();
+                    if (e.clientY < rect.top + rect.height / 2) {
+                        this.classList.add('drag-over-top');
+                    } else {
+                        this.classList.add('drag-over-bottom');
+                    }
+                });
+                item.addEventListener('dragleave', function () {
+                    this.classList.remove('drag-over-top', 'drag-over-bottom');
+                });
+                item.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.classList.remove('drag-over-top', 'drag-over-bottom');
+                    if (dragSrc && dragSrc !== this) {
+                        const rect = this.getBoundingClientRect();
+                        if (e.clientY < rect.top + rect.height / 2) {
+                            agentList.insertBefore(dragSrc, this);
+                        } else {
+                            agentList.insertBefore(dragSrc, this.nextSibling);
+                        }
+                    }
+                });
+            });
+            updateDefaultBadge();
+        }
+
+        // Company data for switching
+        const companyData = {
+            pm: { count: 5, label: '互联网公司' },
+            dev: { count: 4, label: '手机助手公司' },
+            content: { count: 3, label: '自媒体公司' }
+        };
+
+        document.getElementById('company-select').addEventListener('change', function () {
+            // In a real app, reload agents from backend. Here show count hint.
+            const info = companyData[this.value];
+            if (info) document.getElementById('agent-count').textContent = info.count;
+        });
+
+        initDraggable();
+    </script>
 </body>
 </html>
