@@ -44,8 +44,8 @@ body {
   text-decoration: none; color: rgba(255,255,255,0.7);
 }
 .nav-item:hover { background: rgba(255,255,255,0.08); color: #FFFFFF; }
-.nav-item.active { background: rgba(139,92,246,0.22); color: #FFFFFF; }
-.nav-item.active .nav-icon { color: #a78bfa; }
+.nav-item.active { background: rgba(10, 132, 255, 0.5); color: #FFFFFF; }
+.nav-item.active .nav-icon { color: #60a5fa; }
 .nav-icon { color: rgba(255,255,255,0.5); flex-shrink: 0; }
 
 /* ── Section label ────────────────────────────────────── */
@@ -58,7 +58,7 @@ body {
 /* ── List rows ────────────────────────────────────────── */
 .list-row { display: flex; align-items: center; gap: 10px; padding: 12px 12px; cursor: pointer; transition: background 0.1s; }
 .list-row:hover { background: rgba(255,255,255,0.06); }
-.list-row.selected { background: rgba(255,255,255,0.15); }
+.list-row.selected { background: rgba(10, 132, 255, 0.5); }
 
 /* ── Grouped settings ─────────────────────────────────── */
 .group { background: #2C2C2E; border-radius: 10px; overflow: hidden; }
