@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据概览 - ClawPilot</title>
+    <link rel="stylesheet" href="base.css">
+    <style>
+        .stat-card { background:#2C2C2E;border-radius:10px;padding:14px 16px;border:1px solid rgba(255,255,255,0.08); }
+        .stat-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:12px; }
+        .stat-value { font-size:28px;font-weight:600;color:#FFFFFF;line-height:1.2; }
+        .stat-label { font-size:12px;color:rgba(255,255,255,0.6);margin-top:4px; }
+        .stat-change { font-size:11px;margin-top:4px;display:flex;align-items:center;gap:3px; }
+        .stat-change.up { color:#34c759; }
+        .stat-change.down { color:#f43f5e; }
+        .stat-change.neutral { color:rgba(255,255,255,0.5); }
+        .chart-placeholder { height:200px;background:rgba(255,255,255,0.03);border-radius:10px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:13px; }
+        .trend-bar { height:4px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:8px;overflow:hidden; }
+        .trend-fill { height:100%;background:#8b5cf6;border-radius:2px;transition:width 0.3s; }
+        .activity-row { display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06); }
+        .activity-row:last-child { border-bottom:none; }
+        .activity-icon { width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar">
+    <div class="toolbar" style="gap:8px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="13" height="13" fill="none" stroke="white" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <span style="font-size:15px;font-weight:600;color:#FFFFFF;">ClawPilot</span>
+    </div>
+    <nav style="flex:1;padding:6px 8px;overflow-y:auto;">
+        <div class="section-label">核心功能</div>
+        <a href="index.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span style="font-size:13px;">我的集团</span>
+        </a>
+        <a href="overview.html" class="nav-item active">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span style="font-size:13px;">数据概览</span>
+        </a>
+        <a href="agents.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            <span style="font-size:13px;">智能体管理</span>
+        </a>
+        <a href="providers.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+            <span style="font-size:13px;">模型管理</span>
+        </a>
+        <a href="bindings.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            <span style="font-size:13px;">飞书频道绑定</span>
+        </a>
+
+        <div class="section-label" style="margin-top:6px;">部署与监控</div>
+        <a href="deploy.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <span style="font-size:13px;">一键部署</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span style="font-size:13px;">运行日志</span>
+        </a>
+
+        <div class="section-label" style="margin-top:6px;">高级功能</div>
+        <a href="market.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <span style="font-size:13px;">模板市场</span>
+            <span style="margin-left:auto;font-size:10px;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:4px;">PRO</span>
+        </a>
+        <a href="sync.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span style="font-size:13px;">云同步</span>
+            <span style="margin-left:auto;font-size:10px;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:4px;">PRO</span>
+        </a>
+    </nav>
+    <div style="padding:10px 10px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span class="pulse-dot" style="width:7px;height:7px;border-radius:50%;background:#34c759;display:inline-block;"></span>
+                <span style="font-size:12px;color:#34c759;font-weight:500;">OpenClaw 运行中</span>
+            </div>
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:7px;">PID 28471 · 3小时42分</div>
+        <button class="tbtn tbtn-ghost" style="width:100%;text-align:center;">重启服务</button>
+    </div>
+</aside>
+
+<main style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="toolbar" style="justify-content:space-between;">
+        <span style="font-size:15px;font-weight:600;">数据概览</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <button class="tbtn tbtn-ghost" style="font-size:12px;">今天</button>
+            <button class="tbtn tbtn-ghost" style="font-size:12px;">本周</button>
+            <button class="tbtn tbtn-accent" style="font-size:12px;">本月</button>
+        </div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:18px;">
+
+        <!-- 统计卡片 -->
+        <section>
+            <div class="section-label" style="padding:0 0 7px;">核心指标</div>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <div class="stat-value">8</div>
+                    <div class="stat-label">OPC 公司总数</div>
+                    <div class="stat-change neutral">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/></svg>
+                        无变化
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">24</div>
+                    <div class="stat-label">智能体总数</div>
+                    <div class="stat-change up">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                        +3 本月
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">12</div>
+                    <div class="stat-label">飞书频道</div>
+                    <div class="stat-change up">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                        +2 本月
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">1,284</div>
+                    <div class="stat-label">今日消息</div>
+                    <div class="stat-change up">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+                        ↑ 12% vs 昨日
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 消息趋势 -->
+        <section>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+                <span class="section-label" style="padding:0;">消息趋势</span>
+                <button style="font-size:11px;color:#a78bfa;background:none;border:none;cursor:pointer;padding:0;">查看详情</button>
+            </div>
+            <div class="stat-card">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="flex:1;">
+                        <div style="font-size:24px;font-weight:600;color:#FFFFFF;">1,284</div>
+                        <div class="stat-label">今日消息</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:13px;color:#34c759;font-weight:500;">+12%</div>
+                        <div class="stat-label">较昨日</div>
+                    </div>
+                </div>
+                <div class="trend-bar">
+                    <div class="trend-fill" style="width:68%;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 消息量对比 -->
+        <section>
+            <div class="section-label" style="padding:0 0 7px;">各公司消息量（7天）</div>
+            <div class="stat-card">
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:80px;font-size:12px;color:rgba(255,255,255,0.8);">互联网公司</div>
+                        <div style="flex:1;">
+                            <div class="trend-bar"><div class="trend-fill" style="width:85%;background:#8b5cf6;"></div></div>
+                        </div>
+                        <div style="width:60px;text-align:right;font-size:12px;color:#FFFFFF;font-weight:500;">2,847</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:80px;font-size:12px;color:rgba(255,255,255,0.8);">手机助手</div>
+                        <div style="flex:1;">
+                            <div class="trend-bar"><div class="trend-fill" style="width:52%;background:#06b6d4;"></div></div>
+                        </div>
+                        <div style="width:60px;text-align:right;font-size:12px;color:#FFFFFF;font-weight:500;">1,742</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:80px;font-size:12px;color:rgba(255,255,255,0.8);">自媒体公司</div>
+                        <div style="flex:1;">
+                            <div class="trend-bar"><div class="trend-fill" style="width:35%;background:#f59e0b;"></div></div>
+                        </div>
+                        <div style="width:60px;text-align:right;font-size:12px;color:#FFFFFF;font-weight:500;">1,185</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:80px;font-size:12px;color:rgba(255,255,255,0.8);">其他公司</div>
+                        <div style="flex:1;">
+                            <div class="trend-bar"><div class="trend-fill" style="width:28%;background:#10b981;"></div></div>
+                        </div>
+                        <div style="width:60px;text-align:right;font-size:12px;color:#FFFFFF;font-weight:500;">942</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 活跃度 -->
+        <section>
+            <div class="section-label" style="padding:0 0 7px;">活跃智能体（今日）</div>
+            <div class="stat-card">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">PM</div>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">产品经理</div>
+                        <div class="trend-bar"><div class="trend-fill" style="width:92%;background:#8b5cf6;"></div></div>
+                    </div>
+                    <div style="font-size:12px;color:#FFFFFF;font-weight:500;">342</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">UX</div>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">UX设计师</div>
+                        <div class="trend-bar"><div class="trend-fill" style="width:78%;background:#06b6d4;"></div></div>
+                    </div>
+                    <div style="font-size:12px;color:#FFFFFF;font-weight:500;">289</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">DA</div>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">数据分析师</div>
+                        <div class="trend-bar"><div class="trend-fill" style="width:65%;background:#f59e0b;"></div></div>
+                    </div>
+                    <div style="font-size:12px;color:#FFFFFF;font-weight:500;">241</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#f43f5e,#ec4899);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">QA</div>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">质量保证</div>
+                        <div class="trend-bar"><div class="trend-fill" style="width:41%;background:#f43f5e;"></div></div>
+                    </div>
+                    <div style="font-size:12px;color:#FFFFFF;font-weight:500;">152</div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+</main>
+
+</body>
+</html>
