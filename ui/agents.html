@@ -23,6 +23,9 @@
         .company-select { background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#EBEBF5;font-size:12px;padding:3px 22px 3px 8px;-webkit-appearance:none;appearance:none;cursor:pointer;outline:none;font-family:inherit; }
         .company-select:hover { background:rgba(255,255,255,0.10); }
         .guardrail-col { flex:1;background:#2C2C2E;border-radius:8px;padding:9px 10px; }
+        .soul-tab { font-size:11px;padding:3px 9px;border-radius:5px;border:none;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(235,235,245,0.5);font-family:inherit;transition:background 0.1s,color 0.1s; }
+        .soul-tab:hover { background:rgba(255,255,255,0.1);color:rgba(235,235,245,0.8); }
+        .soul-tab.active { background:rgba(139,92,246,0.22);color:#a78bfa; }
     </style>
 </head>
 <body>
@@ -102,8 +105,8 @@
 ════════════════════════════════════════════════════ -->
 <div class="list-pane">
 
-    <!-- Toolbar: company selector + new button -->
-    <div class="toolbar" style="justify-content:space-between;gap:6px;">
+    <!-- Toolbar: company selector -->
+    <div class="toolbar" style="gap:6px;">
         <div style="position:relative;flex:1;min-width:0;">
             <select id="company-select" class="company-select" style="width:100%;">
                 <option value="pm">互联网公司</option>
@@ -112,7 +115,6 @@
             </select>
             <svg style="position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </div>
-        <button class="tbtn tbtn-accent" style="padding:2px 8px;font-size:11px;white-space:nowrap;">+ 新建</button>
     </div>
 
     <!-- Section label -->
@@ -189,15 +191,16 @@
             </div>
         </div>
 
-        <!-- Add agent -->
-        <div style="padding:8px 10px 4px;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;">
-            <button style="width:100%;display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:none;border:none;cursor:pointer;color:#636366;font-size:12px;transition:background 0.1s;"
-                onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(235,235,245,0.8)'"
-                onmouseout="this.style.background='none';this.style.color='#636366'">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                添加智能体
-            </button>
-        </div>
+    </div>
+
+    <!-- Add agent footer -->
+    <div style="padding:8px 10px;border-top:1px solid rgba(255,255,255,0.06);flex-shrink:0;">
+        <button style="width:100%;display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:none;border:none;cursor:pointer;color:#636366;font-size:12px;transition:background 0.1s;"
+            onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(235,235,245,0.8)'"
+            onmouseout="this.style.background='none';this.style.color='#636366'">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+            添加智能体
+        </button>
     </div>
 </div>
 
@@ -253,9 +256,9 @@
             </div>
         </section>
 
-        <!-- 模型配置 -->
+        <!-- 模型与工具 -->
         <section>
-            <div class="section-label" style="padding:0 0 5px;">模型配置</div>
+            <div class="section-label" style="padding:0 0 5px;">模型与工具</div>
             <div class="group">
                 <div class="group-row" style="gap:10px;">
                     <span class="group-label">使用模型</span>
@@ -278,24 +281,8 @@
                         <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                 </div>
-                <div class="group-row" style="gap:10px;">
-                    <span class="group-label">最大 Token</span>
-                    <input type="number" value="4096" class="field-input" style="flex:1;">
-                </div>
-                <div class="group-row" style="gap:10px;">
-                    <span class="group-label">温度</span>
-                    <input type="number" value="0.7" step="0.1" min="0" max="2" class="field-input" style="flex:1;">
-                </div>
-            </div>
-        </section>
-
-        <!-- 工具权限 -->
-        <section>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
-                <span class="section-label" style="padding:0;">工具权限</span>
-                <button style="font-size:11px;color:#a78bfa;background:none;border:none;cursor:pointer;padding:0;">+ 添加工具</button>
-            </div>
-            <div class="group">
+                <!-- Tool list -->
+                <div style="padding:5px 12px 2px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:#636366;text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.06);">工具权限</div>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check" checked>
                     <div style="flex:1;">
@@ -307,7 +294,7 @@
                     <input type="checkbox" class="mac-check" checked>
                     <div style="flex:1;">
                         <div style="font-size:12px;font-weight:500;color:#EBEBF5;">code_interpreter</div>
-                        <div style="font-size:11px;color:#636366;">代码执行，数据分析</div>
+                        <div style="font-size:11px;color:#636366;">代码执行与数据分析</div>
                     </div>
                 </label>
                 <label class="tool-row">
@@ -315,6 +302,76 @@
                     <div style="flex:1;">
                         <div style="font-size:12px;font-weight:500;color:#EBEBF5;">file_reader</div>
                         <div style="font-size:11px;color:#636366;">读取本地文件内容</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check" checked>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">feishu_message</div>
+                        <div style="font-size:11px;color:#636366;">发送飞书消息与卡片</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check">
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">image_analysis</div>
+                        <div style="font-size:11px;color:#636366;">分析图片内容与提取文字</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check">
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">http_request</div>
+                        <div style="font-size:11px;color:#636366;">调用外部 HTTP API</div>
+                    </div>
+                </label>
+            </div>
+        </section>
+
+        <!-- 技能配置 -->
+        <section>
+            <div class="section-label" style="padding:0 0 5px;">技能配置</div>
+            <div class="group">
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check" checked>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">多轮对话记忆</div>
+                        <div style="font-size:11px;color:#636366;">在会话中保留上下文，支持连续追问</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check" checked>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">主动发言</div>
+                        <div style="font-size:11px;color:#636366;">在满足触发条件时主动发起消息</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check">
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">定时心跳</div>
+                        <div style="font-size:11px;color:#636366;">按计划定期执行 HEARTBEAT 任务</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check">
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">群聊 @ 响应</div>
+                        <div style="font-size:11px;color:#636366;">在群聊中被 @ 时才回复</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check" checked>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">私聊直接响应</div>
+                        <div style="font-size:11px;color:#636366;">在私聊频道中响应所有消息</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check">
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">消息路由协调</div>
+                        <div style="font-size:11px;color:#636366;">作为路由 Agent 将消息分发给合适的成员</div>
                     </div>
                 </label>
             </div>
@@ -354,45 +411,46 @@
             </div>
         </section>
 
-        <!-- SOUL.md -->
+        <!-- 人格配置 -->
         <section>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
-                <span class="section-label" style="padding:0;">SOUL.md</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+                <span class="section-label" style="padding:0;">人格配置</span>
                 <div style="display:flex;gap:5px;">
                     <button class="tbtn tbtn-ghost" style="padding:1px 8px;font-size:11px;">导入</button>
                     <button class="tbtn tbtn-ghost" style="padding:1px 8px;font-size:11px;">导出</button>
                 </div>
             </div>
+            <!-- File tabs -->
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="soul-tabs">
+                <button class="soul-tab active" onclick="showSoulFile('SOUL')">SOUL</button>
+                <button class="soul-tab" onclick="showSoulFile('IDENTITY')">IDENTITY</button>
+                <button class="soul-tab" onclick="showSoulFile('AGENTS')">AGENTS</button>
+                <button class="soul-tab" onclick="showSoulFile('USER')">USER</button>
+                <button class="soul-tab" onclick="showSoulFile('MEMORY')">MEMORY</button>
+                <button class="soul-tab" onclick="showSoulFile('HEARTBEAT')">HEARTBEAT</button>
+                <button class="soul-tab" onclick="showSoulFile('TOOLS')">TOOLS</button>
+            </div>
+            <!-- File description -->
+            <div id="soul-filedesc" style="font-size:11px;color:#636366;margin-bottom:7px;line-height:1.5;">定义 Agent 的人格、沟通风格与行为边界，每次会话开始时加载。</div>
+            <!-- Editor -->
             <div style="border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);">
-                <!-- Fake title bar -->
-                <div style="height:26px;background:#2C2C2E;display:flex;align-items:center;padding:0 10px;gap:5px;border-bottom:1px solid rgba(255,255,255,0.08);">
-                    <span style="width:9px;height:9px;border-radius:50%;background:#FF5F57;"></span>
-                    <span style="width:9px;height:9px;border-radius:50%;background:#FFBD2E;"></span>
-                    <span style="width:9px;height:9px;border-radius:50%;background:#28C840;"></span>
-                    <span style="font-size:11px;color:#636366;margin-left:6px;">SOUL.md</span>
+                <div style="height:26px;background:#2C2C2E;display:flex;align-items:center;padding:0 10px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <span style="font-size:11px;color:#636366;font-family:'SF Mono','Menlo',monospace;" id="soul-filename">SOUL.md</span>
                 </div>
-                <textarea class="field-textarea" rows="14" spellcheck="false"># 产品经理
+                <textarea class="field-textarea" id="soul-editor" rows="14" spellcheck="false"># 产品经理
 
-## 角色定位
-你是一位资深的产品经理，拥有10年SaaS产品经验，擅长敏捷开发和用户中心设计。
+## 人格设定
+你是一位资深产品经理，拥有10年SaaS产品经验，擅长敏捷开发与用户中心设计。
 
-## 核心能力
-- 需求分析与用户调研
-- 产品规划与路线图制定
-- PRD文档编写
-- 竞品分析与市场研究
-- 数据驱动决策
-
-## 工作原则
-1. 始终以用户需求为核心
-2. 数据说话，避免主观臆断
-3. 保持对行业趋势的敏感度
-4. 注重团队协作与沟通
-
-## 响应风格
+## 沟通风格
 - 专业、清晰、结构化
-- 使用产品术语时需解释
-- 提供可操作的建议</textarea>
+- 使用产品术语时附带解释
+- 提供可落地的具体建议
+
+## 行为边界
+- 聚焦于产品、需求与项目管理领域
+- 不编写代码实现，不执行系统命令
+- 遇到超出范围的问题礼貌说明并引导</textarea>
             </div>
         </section>
 
@@ -488,6 +546,112 @@
     });
 
     initDraggable();
+
+    // Soul file tab switching
+    const soulFiles = {
+        SOUL: {
+            desc: '定义 Agent 的人格、沟通风格与行为边界，每次会话开始时加载。',
+            content: `# 产品经理
+
+## 人格设定
+你是一位资深产品经理，拥有10年SaaS产品经验，擅长敏捷开发与用户中心设计。
+
+## 沟通风格
+- 专业、清晰、结构化
+- 使用产品术语时附带解释
+- 提供可落地的具体建议
+
+## 行为边界
+- 聚焦于产品、需求与项目管理领域
+- 不编写代码实现，不执行系统命令
+- 遇到超出范围的问题礼貌说明并引导`
+        },
+        IDENTITY: {
+            desc: '建立 Agent 的名称、人格标签与 emoji，初始化时自动创建。',
+            content: `# Identity
+
+name: 产品经理
+emoji: 📋
+role: Product Manager
+personality: 专业、理性、富有同理心`
+        },
+        AGENTS: {
+            desc: '描述 Agent 如何使用记忆、与其他 Agent 协作的行为指南，每次会话加载。',
+            content: `# Agents Operating Instructions
+
+## 记忆使用
+- 每次会话开始时读取 MEMORY.md 中的关键信息
+- 会话结束后更新重要结论到 MEMORY.md
+
+## 协作原则
+- 遇到技术实现问题，转交给开发类 Agent
+- 遇到数据分析需求，协调数据分析师 Agent
+- 保持跨 Agent 消息的简洁与结构化`
+        },
+        USER: {
+            desc: '记录用户身份信息与偏好沟通风格，每次会话加载。',
+            content: `# User Profile
+
+## 用户信息
+name: Jiechen
+role: 创始人 & 产品负责人
+timezone: Asia/Shanghai
+
+## 沟通偏好
+- 喜欢直接给出结论，然后再展开
+- 偏好 Markdown 格式输出
+- 不需要过多客套语`
+        },
+        MEMORY: {
+            desc: '可选的长期记忆文件，仅在主要私人会话中加载，不在共享上下文中使用。',
+            content: `# Memory
+
+## 项目背景
+- 当前产品：ClawPilot，AI Agent 管理平台
+- 目标用户：中小团队技术负责人与产品经理
+
+## 关键决策记录
+- 2024-03: 确定以飞书作为首个接入渠道
+- 2024-05: 采用 OPC（一人公司）模式作为核心概念
+
+## 待跟进事项
+- [ ] 用户访谈：收集对模板市场的反馈`
+        },
+        HEARTBEAT: {
+            desc: '可选的心跳任务清单，用于定时自动执行，设计上极为简短以节省 token。',
+            content: `# Heartbeat
+
+- 检查今日待处理需求列表
+- 确认是否有新的用户反馈需要回复
+- 更新项目进度摘要`
+        },
+        TOOLS: {
+            desc: '关于本地工具与使用惯例的说明文档，仅供参考，不直接控制工具访问权限。',
+            content: `# Tools Guide
+
+## web_search
+使用场景：竞品调研、行业资讯、技术文档查阅
+注意：优先搜索中文资料，引用时注明来源
+
+## feishu_message
+使用场景：发送通知、日报、卡片消息
+格式约定：正式通知使用卡片格式，日常回复使用文本
+
+## code_interpreter
+使用场景：数据统计、图表生成、简单脚本
+注意：不用于执行系统级操作`
+        }
+    };
+
+    function showSoulFile(key) {
+        document.querySelectorAll('.soul-tab').forEach(t => t.classList.remove('active'));
+        const tabs = document.querySelectorAll('#soul-tabs .soul-tab');
+        const keys = Object.keys(soulFiles);
+        tabs[keys.indexOf(key)].classList.add('active');
+        document.getElementById('soul-filename').textContent = key + '.md';
+        document.getElementById('soul-filedesc').textContent = soulFiles[key].desc;
+        document.getElementById('soul-editor').value = soulFiles[key].content;
+    }
 </script>
 </body>
 </html>
