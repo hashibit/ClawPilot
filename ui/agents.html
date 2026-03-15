@@ -3,426 +3,379 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent 设计器 - ClawPilot</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd',
-                            400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9',
-                            800: '#5b21b6', 900: '#4c1d95',
-                        },
-                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' }
-                    },
-                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-                }
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>智能体管理 - ClawPilot</title>
+    <link rel="stylesheet" href="base.css">
     <style>
-        * { font-family: 'Inter', system-ui, sans-serif; }
-        .glass-effect { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .nav-item { position: relative; transition: all 0.2s ease; }
-        .nav-item::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 0; background: linear-gradient(180deg, #8b5cf6, #06b6d4); border-radius: 0 3px 3px 0; transition: height 0.2s ease; }
-        .nav-item.active::before, .nav-item:hover::before { height: 60%; }
-        .agent-avatar { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
-        .card-hover { transition: all 0.3s ease; }
-        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -12px rgba(139, 92, 246, 0.25); }
-        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
-        .scroll-hide::-webkit-scrollbar { display: none; }
-        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .drag-zone { border: 2px dashed rgba(139, 92, 246, 0.3); }
-        .drag-zone.drag-over { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); }
-        .agent-item { transition: opacity 0.15s, transform 0.15s, border-color 0.15s; }
-        .agent-item.dragging { opacity: 0.4; transform: scale(0.97); }
-        .agent-item.drag-over-top { border-top: 2px solid #8b5cf6 !important; }
-        .agent-item.drag-over-bottom { border-bottom: 2px solid #8b5cf6 !important; }
+        .field-textarea { width:100%;padding:8px 10px;background:#1C1C1E;border:none;border-radius:0;color:#EBEBF5;font-size:12px;line-height:1.6;font-family:'SF Mono','Menlo','Monaco',monospace;outline:none;resize:none; }
+        .tool-row { display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer; }
+        .tool-row + .tool-row { border-top:1px solid rgba(255,255,255,0.06); }
+        .tool-row:hover { background:rgba(255,255,255,0.03); }
+        .agent-row { display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;transition:background 0.1s; }
+        .agent-row:hover { background:rgba(255,255,255,0.04); }
+        .agent-row.selected { background:rgba(139,92,246,0.2); }
+        .agent-row.dragging { opacity:0.4; }
+        .agent-row.drag-over-top { border-top:2px solid #8b5cf6; }
+        .agent-row.drag-over-bottom { border-bottom:2px solid #8b5cf6; }
+        .drag-handle { display:flex;flex-direction:column;gap:2px;padding:2px;cursor:grab;flex-shrink:0; }
+        .drag-handle:active { cursor:grabbing; }
+        .drag-handle span { display:block;width:12px;height:1.5px;background:rgba(255,255,255,0.2);border-radius:1px; }
+        .drag-handle:hover span { background:rgba(255,255,255,0.5); }
+        .company-select { background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#EBEBF5;font-size:12px;padding:3px 22px 3px 8px;-webkit-appearance:none;appearance:none;cursor:pointer;outline:none;font-family:inherit; }
+        .company-select:hover { background:rgba(255,255,255,0.10); }
+        .guardrail-col { flex:1;background:#2C2C2E;border-radius:8px;padding:9px 10px; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-    <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
-            <div class="p-6 border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-lg tracking-tight">ClawPilot</h1>
-                        <p class="text-xs text-slate-400">OpenClaw 控制台</p>
-                    </div>
-                </div>
-            </div>
-            <nav class="flex-1 p-4 space-y-1 overflow-y-auto scroll-hide">
-                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">核心功能</div>
-                <a href="index.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    <span>我的集团</span>
-                </a>
-                <a href="agents.html" class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-100 bg-primary-500/10">
-                    <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    <span class="font-medium">Agent 设计器</span>
-                </a>
-                <a href="providers.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    <span>模型管理</span>
-                </a>
-                <a href="bindings.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                    <span>飞书频道绑定</span>
-                </a>
-                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-3 px-3">部署与监控</div>
-                <a href="deploy.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                    <span>一键部署</span>
-                </a>
-                <a href="logs.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span>运行日志</span>
-                </a>
-                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-3 px-3">高级功能</div>
-                <a href="market.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    <span>模板市场</span>
-                    <span class="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO</span>
-                </a>
-                <a href="sync.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    <span>云同步</span>
-                    <span class="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO</span>
-                </a>
-            </nav>
-            <div class="p-4 border-t border-slate-800">
-                <div class="glass-effect rounded-xl p-4">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-2 h-2 rounded-full bg-green-500 pulse-ring"></div>
-                        <span class="text-sm font-medium text-green-400">OpenClaw 运行中</span>
-                    </div>
-                    <button class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">重启服务</button>
-                </div>
-            </div>
-        </aside>
+<body>
 
-        <!-- Main Content -->
-        <main class="flex-1 overflow-hidden flex flex-col">
-            <!-- Header -->
-            <header class="h-16 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between px-6">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-xl font-semibold">智能体管理</h2>
-                    <span class="text-sm text-slate-500">/</span>
-                    <div class="relative">
-                        <select id="company-select" class="appearance-none text-sm text-slate-200 bg-slate-800 border border-slate-700 rounded-lg pl-3 pr-8 py-1.5 focus:outline-none focus:border-primary-500 cursor-pointer hover:border-slate-600 transition-colors">
-                            <option value="pm">互联网公司</option>
-                            <option value="dev">手机助手公司</option>
-                            <option value="content">自媒体公司</option>
+<!-- ═══════════════════════════════════════════════════
+     COL 1 — Sidebar Navigation
+════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+
+    <!-- App title -->
+    <div class="toolbar" style="gap:8px; padding:0 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        <span style="width:10px;height:10px;border-radius:50%;background:#FF5F57;flex-shrink:0;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:#FFBD2E;flex-shrink:0;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:#28C840;flex-shrink:0;"></span>
+        <div style="width:1px;height:16px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
+        <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="13" height="13" fill="none" stroke="white" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <span style="font-size:13px;font-weight:600;color:#EBEBF5;">ClawPilot</span>
+    </div>
+
+    <!-- Navigation -->
+    <nav style="flex:1;padding:6px 8px;overflow-y:auto;">
+        <div class="section-label">核心功能</div>
+        <a href="index.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span style="font-size:13px;">我的集团</span>
+        </a>
+        <a href="agents.html" class="nav-item active">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            <span style="font-size:13px;">智能体管理</span>
+        </a>
+        <a href="providers.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+            <span style="font-size:13px;">模型管理</span>
+        </a>
+        <a href="bindings.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            <span style="font-size:13px;">飞书频道绑定</span>
+        </a>
+
+        <div class="section-label" style="margin-top:6px;">部署与监控</div>
+        <a href="deploy.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <span style="font-size:13px;">一键部署</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span style="font-size:13px;">运行日志</span>
+        </a>
+
+        <div class="section-label" style="margin-top:6px;">高级功能</div>
+        <a href="market.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <span style="font-size:13px;">模板市场</span>
+            <span style="margin-left:auto;font-size:10px;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:4px;">PRO</span>
+        </a>
+        <a href="sync.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span style="font-size:13px;">云同步</span>
+            <span style="margin-left:auto;font-size:10px;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:4px;">PRO</span>
+        </a>
+    </nav>
+
+    <!-- Status footer -->
+    <div style="padding:10px 10px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span class="pulse-dot" style="width:7px;height:7px;border-radius:50%;background:#34c759;display:inline-block;"></span>
+                <span style="font-size:12px;color:#34c759;font-weight:500;">OpenClaw 运行中</span>
+            </div>
+        </div>
+        <div style="font-size:11px;color:#636366;margin-bottom:7px;">PID 28471 · 3小时42分</div>
+        <button class="tbtn tbtn-ghost" style="width:100%;text-align:center;">重启服务</button>
+    </div>
+</aside>
+
+
+<!-- ═══════════════════════════════════════════════════
+     COL 2 — Agent List
+════════════════════════════════════════════════════ -->
+<div class="list-pane">
+
+    <!-- Toolbar: company selector + new button -->
+    <div class="toolbar" style="justify-content:space-between;gap:6px;">
+        <div style="position:relative;flex:1;min-width:0;">
+            <select id="company-select" class="company-select" style="width:100%;">
+                <option value="pm">互联网公司</option>
+                <option value="dev">手机助手公司</option>
+                <option value="content">自媒体公司</option>
+            </select>
+            <svg style="position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <button class="tbtn tbtn-accent" style="padding:2px 8px;font-size:11px;white-space:nowrap;">+ 新建</button>
+    </div>
+
+    <!-- Section label -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px 3px;">
+        <span class="section-label" style="padding:0;">智能体 (<span id="agent-count">5</span>)</span>
+        <span style="font-size:11px;color:#636366;">拖拽排序</span>
+    </div>
+
+    <!-- Agent list -->
+    <div id="agent-list" style="flex:1;overflow-y:auto;">
+
+        <!-- Agent 1 (selected) -->
+        <div class="agent-row selected" id="agent-1" draggable="true" onclick="selectAgent('agent-1','产品经理','PM','from-violet-500 to-fuchsia-500')">
+            <div class="drag-handle"><span></span><span></span><span></span></div>
+            <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">PM</div>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="font-size:12px;font-weight:500;color:#EBEBF5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">产品经理</span>
+                    <span class="default-badge" style="font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
+                </div>
+                <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">百炼[qwen-max] · 3 工具</div>
+            </div>
+        </div>
+
+        <!-- Agent 2 -->
+        <div class="agent-row" id="agent-2" draggable="true" onclick="selectAgent('agent-2','UX设计师','UX','from-cyan-500 to-blue-500')">
+            <div class="drag-handle"><span></span><span></span><span></span></div>
+            <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">UX</div>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">UX设计师</span>
+                    <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
+                </div>
+                <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">火山方舟[deepseek-v3] · 2 工具</div>
+            </div>
+        </div>
+
+        <!-- Agent 3 -->
+        <div class="agent-row" id="agent-3" draggable="true" onclick="selectAgent('agent-3','数据分析师','DA','from-amber-500 to-orange-500')">
+            <div class="drag-handle"><span></span><span></span><span></span></div>
+            <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">DA</div>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">数据分析师</span>
+                    <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
+                </div>
+                <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">百炼[qwen-max] · 4 工具</div>
+            </div>
+        </div>
+
+        <!-- Agent 4 -->
+        <div class="agent-row" id="agent-4" draggable="true" onclick="selectAgent('agent-4','技术文档工程师','DO','from-emerald-500 to-teal-500')">
+            <div class="drag-handle"><span></span><span></span><span></span></div>
+            <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#10b981,#14b8a6);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">DO</div>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">技术文档工程师</span>
+                    <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
+                </div>
+                <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">百炼[qwen-plus] · 2 工具</div>
+            </div>
+        </div>
+
+        <!-- Agent 5 -->
+        <div class="agent-row" id="agent-5" draggable="true" onclick="selectAgent('agent-5','质量保证工程师','QA','from-rose-500 to-pink-500')">
+            <div class="drag-handle"><span></span><span></span><span></span></div>
+            <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#f43f5e,#ec4899);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">QA</div>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">质量保证工程师</span>
+                    <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
+                </div>
+                <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">火山方舟[deepseek-coder] · 3 工具</div>
+            </div>
+        </div>
+
+        <!-- Add agent -->
+        <div style="padding:8px 10px 4px;border-top:1px solid rgba(255,255,255,0.06);margin-top:4px;">
+            <button style="width:100%;display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:none;border:none;cursor:pointer;color:#636366;font-size:12px;transition:background 0.1s;"
+                onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(235,235,245,0.8)'"
+                onmouseout="this.style.background='none';this.style.color='#636366'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                添加智能体
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     COL 3 — Agent Editor
+════════════════════════════════════════════════════ -->
+<main class="detail-pane">
+
+    <!-- Toolbar -->
+    <div class="toolbar" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div id="detail-avatar" style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0;">PM</div>
+            <span id="detail-name" style="font-size:13px;font-weight:600;color:#EBEBF5;">产品经理</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <button class="tbtn tbtn-ghost">取消</button>
+            <button class="tbtn tbtn-accent">保存</button>
+        </div>
+    </div>
+
+    <!-- Scrollable editor content -->
+    <div style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px;">
+
+        <!-- AI Quick Generate -->
+        <section>
+            <div class="section-label" style="padding:0 0 5px;">AI 快速生成</div>
+            <div style="display:flex;gap:7px;align-items:center;">
+                <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#8b5cf6,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="14" height="14" fill="none" stroke="white" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <input type="text" placeholder="用一句话描述智能体，AI 自动生成完整配置…" class="field-input" style="flex:1;">
+                <button class="tbtn tbtn-accent" style="white-space:nowrap;">生成配置</button>
+            </div>
+        </section>
+
+        <!-- 基本信息 -->
+        <section>
+            <div class="section-label" style="padding:0 0 5px;">基本信息</div>
+            <div class="group">
+                <div class="group-row" style="gap:10px;">
+                    <span class="group-label">显示名称</span>
+                    <input type="text" value="产品经理" class="field-input" style="flex:1;">
+                </div>
+                <div class="group-row" style="gap:10px;">
+                    <span class="group-label">英文标识</span>
+                    <input type="text" value="product_manager" class="field-input" style="flex:1;font-family:'SF Mono','Menlo',monospace;">
+                </div>
+                <div class="group-row" style="gap:10px;align-items:flex-start;">
+                    <span class="group-label" style="padding-top:2px;">简介</span>
+                    <textarea class="field-input" rows="2" style="flex:1;padding:5px 9px;line-height:1.5;resize:none;">负责产品规划、需求分析和项目管理的产品经理</textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- 模型配置 -->
+        <section>
+            <div class="section-label" style="padding:0 0 5px;">模型配置</div>
+            <div class="group">
+                <div class="group-row" style="gap:10px;">
+                    <span class="group-label">使用模型</span>
+                    <div style="position:relative;flex:1;">
+                        <select class="field-input" style="width:100%;padding-right:24px;">
+                            <optgroup label="阿里云百炼">
+                                <option value="bailian-qwen-max" selected>百炼[qwen-max]</option>
+                                <option value="bailian-qwen-plus">百炼[qwen-plus]</option>
+                                <option value="bailian-qwen-turbo">百炼[qwen-turbo]</option>
+                                <option value="bailian-qwen3-plus">百炼[qwen3.5-plus]</option>
+                                <option value="bailian-qwen-long">百炼[qwen-long]</option>
+                            </optgroup>
+                            <optgroup label="火山方舟">
+                                <option value="volcengine-deepseek-v3">火山方舟[deepseek-v3]</option>
+                                <option value="volcengine-deepseek-r1">火山方舟[deepseek-r1]</option>
+                                <option value="volcengine-deepseek-coder">火山方舟[deepseek-coder]</option>
+                                <option value="volcengine-doubao-pro">火山方舟[doubao-pro-32k]</option>
+                            </optgroup>
                         </select>
-                        <svg class="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-slate-100 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        <span class="text-sm">预览</span>
-                    </button>
-                    <button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                        <span class="text-sm font-medium">新建 Agent</span>
-                    </button>
+                <div class="group-row" style="gap:10px;">
+                    <span class="group-label">最大 Token</span>
+                    <input type="number" value="4096" class="field-input" style="flex:1;">
                 </div>
-            </header>
+                <div class="group-row" style="gap:10px;">
+                    <span class="group-label">温度</span>
+                    <input type="number" value="0.7" step="0.1" min="0" max="2" class="field-input" style="flex:1;">
+                </div>
+            </div>
+        </section>
 
-            <!-- Content -->
-            <div class="flex-1 overflow-y-auto p-6">
-                <div class="grid grid-cols-3 gap-6">
-                    <!-- Left: Agent List -->
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">智能体 (<span id="agent-count">5</span>)</h3>
-                            <button class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-                            </button>
-                        </div>
-                        <div id="agent-list" class="space-y-2">
-                            <!-- Agent 1 -->
-                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer ring-2 ring-primary-500/50" draggable="true">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-lg font-bold shrink-0">PM</div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center gap-2 flex-wrap">
-                                            <h4 class="font-semibold text-slate-100">产品经理</h4>
-                                            <span class="default-badge text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400">Product Manager</p>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-slate-400 mb-3 line-clamp-2">负责产品规划、需求分析和项目管理，协调各团队成员推进项目进度。</p>
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="px-2 py-0.5 bg-primary-500/20 text-primary-400 text-xs rounded">qwen-max</span>
-                                    <span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded">3 工具</span>
-                                </div>
-                            </div>
-                            <!-- Agent 2 -->
-                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center text-lg font-bold shrink-0">UX</div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-semibold text-slate-100">UX设计师</h4>
-                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400">UX Designer</p>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-slate-400 mb-3 line-clamp-2">负责用户体验设计、交互流程设计和原型制作。</p>
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 text-xs rounded">deepseek-v3</span>
-                                    <span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded">2 工具</span>
-                                </div>
-                            </div>
-                            <!-- Agent 3 -->
-                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-lg font-bold shrink-0">DA</div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-semibold text-slate-100">数据分析师</h4>
-                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400">Data Analyst</p>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-slate-400 mb-3 line-clamp-2">负责数据分析、用户行为研究和产品数据监控。</p>
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="px-2 py-0.5 bg-primary-500/20 text-primary-400 text-xs rounded">qwen-max</span>
-                                    <span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded">4 工具</span>
-                                </div>
-                            </div>
-                            <!-- Agent 4 -->
-                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-lg font-bold shrink-0">DO</div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-semibold text-slate-100">技术文档工程师</h4>
-                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400">Tech Writer</p>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-slate-400 mb-3 line-clamp-2">负责编写技术文档、API文档和用户手册。</p>
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="px-2 py-0.5 bg-primary-500/20 text-primary-400 text-xs rounded">qwen-plus</span>
-                                    <span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded">2 工具</span>
-                                </div>
-                            </div>
-                            <!-- Agent 5 -->
-                            <div class="agent-item glass-effect rounded-xl p-4 cursor-pointer hover:bg-slate-800/50 transition-colors" draggable="true">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <div class="drag-handle flex flex-col gap-1 px-1 py-0.5 text-slate-600 hover:text-slate-400 cursor-grab active:cursor-grabbing shrink-0">
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                        <span class="block w-3.5 h-0.5 bg-current rounded"></span>
-                                    </div>
-                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center text-lg font-bold shrink-0">QA</div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center gap-2">
-                                            <h4 class="font-semibold text-slate-100">质量保证工程师</h4>
-                                            <span class="default-badge hidden text-xs bg-primary-500/20 text-primary-400 px-2 py-0.5 rounded-full whitespace-nowrap">默认响应</span>
-                                        </div>
-                                        <p class="text-xs text-slate-400">QA Engineer</p>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-slate-400 mb-3 line-clamp-2">负责测试计划制定、测试用例编写和质量评估。</p>
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="px-2 py-0.5 bg-cyan-500/20 text-cyan-400 text-xs rounded">deepseek-coder</span>
-                                    <span class="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded">3 工具</span>
-                                </div>
-                            </div>
-                        </div>
+        <!-- 工具权限 -->
+        <section>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                <span class="section-label" style="padding:0;">工具权限</span>
+                <button style="font-size:11px;color:#a78bfa;background:none;border:none;cursor:pointer;padding:0;">+ 添加工具</button>
+            </div>
+            <div class="group">
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check" checked>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">web_search</div>
+                        <div style="font-size:11px;color:#636366;">网络搜索，获取实时信息</div>
                     </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check" checked>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">code_interpreter</div>
+                        <div style="font-size:11px;color:#636366;">代码执行，数据分析</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check">
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">file_reader</div>
+                        <div style="font-size:11px;color:#636366;">读取本地文件内容</div>
+                    </div>
+                </label>
+            </div>
+        </section>
 
-                    <!-- Center: Agent Editor -->
-                    <div class="col-span-2 space-y-6">
-                        <!-- Quick Generate -->
-                        <div class="glass-effect rounded-2xl p-6">
-                            <div class="flex items-center gap-3 mb-4">
-                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center">
-                                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-slate-100">AI 快速生成</h3>
-                                    <p class="text-sm text-slate-400">用一句话描述，AI 自动生成完整配置</p>
-                                </div>
-                            </div>
-                            <div class="flex gap-3">
-                                <input type="text" placeholder="例如：一位擅长敏捷开发的资深产品经理，有10年SaaS产品经验..." class="flex-1 px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-                                <button class="px-6 py-3 bg-primary-500 hover:bg-primary-600 rounded-xl font-medium transition-colors flex items-center gap-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                    生成配置
-                                </button>
-                            </div>
-                        </div>
+        <!-- 护栏规则 -->
+        <section>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                <span class="section-label" style="padding:0;">护栏规则</span>
+                <button style="font-size:11px;color:#a78bfa;background:none;border:none;cursor:pointer;padding:0;">可视化配置</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <div class="guardrail-col">
+                    <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;">
+                        <svg fill="none" stroke="#34c759" stroke-width="2.5" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        <span style="font-size:11px;font-weight:500;color:#34c759;">允许范围</span>
+                    </div>
+                    <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:3px;">
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 回答产品相关问题</li>
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 生成 PRD 文档</li>
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 分析竞品功能</li>
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 制定项目计划</li>
+                    </ul>
+                </div>
+                <div class="guardrail-col">
+                    <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px;">
+                        <svg fill="none" stroke="#f43f5e" stroke-width="2.5" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span style="font-size:11px;font-weight:500;color:#f43f5e;">禁止范围</span>
+                    </div>
+                    <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:3px;">
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 编写代码实现</li>
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 执行系统命令</li>
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 访问敏感数据</li>
+                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 修改配置文件</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
 
-                        <!-- Agent Details Form -->
-                        <div class="glass-effect rounded-2xl p-6">
-                            <div class="flex items-center justify-between mb-6">
-                                <h3 class="text-lg font-semibold">Agent 配置</h3>
-                                <div class="flex items-center gap-2">
-                                    <button class="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors">取消</button>
-                                    <button class="px-4 py-1.5 text-sm bg-primary-500 hover:bg-primary-600 rounded-lg font-medium transition-colors">保存</button>
-                                </div>
-                            </div>
-
-                            <div class="space-y-6">
-                                <!-- Basic Info -->
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-400 mb-2">显示名称</label>
-                                        <input type="text" value="产品经理" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-primary-500">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-400 mb-2">英文名</label>
-                                        <input type="text" value="product_manager" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-primary-500">
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-400 mb-2">一句话描述</label>
-                                    <input type="text" value="负责产品规划、需求分析和项目管理的产品经理" class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:border-primary-500">
-                                </div>
-
-                                <!-- Model Selection -->
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-400 mb-2">使用模型</label>
-                                    <div class="relative">
-                                        <select class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 appearance-none pr-10 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 cursor-pointer">
-                                            <optgroup label="阿里云百炼">
-                                                <option value="bailian-qwen-max" selected>百炼[qwen-max]</option>
-                                                <option value="bailian-qwen-plus">百炼[qwen-plus]</option>
-                                                <option value="bailian-qwen-turbo">百炼[qwen-turbo]</option>
-                                                <option value="bailian-qwen3-plus">百炼[qwen3.5-plus]</option>
-                                                <option value="bailian-qwen-long">百炼[qwen-long]</option>
-                                            </optgroup>
-                                            <optgroup label="火山方舟">
-                                                <option value="volcengine-deepseek-v3">火山方舟[deepseek-v3]</option>
-                                                <option value="volcengine-deepseek-r1">火山方舟[deepseek-r1]</option>
-                                                <option value="volcengine-deepseek-coder">火山方舟[deepseek-coder]</option>
-                                                <option value="volcengine-doubao-pro">火山方舟[doubao-pro-32k]</option>
-                                            </optgroup>
-                                        </select>
-                                        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                                    </div>
-                                </div>
-
-                                <!-- Tools -->
-                                <div>
-                                    <label class="block text-sm font-medium text-slate-400 mb-3">工具权限</label>
-                                    <div class="space-y-2">
-                                        <label class="flex items-center gap-3 p-3 bg-slate-900 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors">
-                                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500 focus:ring-primary-500">
-                                            <div class="flex-1">
-                                                <div class="font-medium text-slate-200">web_search</div>
-                                                <div class="text-xs text-slate-500">网络搜索，获取实时信息</div>
-                                            </div>
-                                        </label>
-                                        <label class="flex items-center gap-3 p-3 bg-slate-900 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors">
-                                            <input type="checkbox" checked class="w-4 h-4 rounded border-slate-600 text-primary-500 focus:ring-primary-500">
-                                            <div class="flex-1">
-                                                <div class="font-medium text-slate-200">code_interpreter</div>
-                                                <div class="text-xs text-slate-500">代码执行，数据分析</div>
-                                            </div>
-                                        </label>
-                                        <label class="flex items-center gap-3 p-3 bg-slate-900 rounded-lg cursor-pointer hover:bg-slate-800 transition-colors">
-                                            <input type="checkbox" class="w-4 h-4 rounded border-slate-600 text-primary-500 focus:ring-primary-500">
-                                            <div class="flex-1">
-                                                <div class="font-medium text-slate-200">file_reader</div>
-                                                <div class="text-xs text-slate-500">读取本地文件内容</div>
-                                            </div>
-                                        </label>
-                                        <button class="w-full py-3 border border-dashed border-slate-700 rounded-lg text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors text-sm">
-                                            + 添加更多工具
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Guardrails -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-3">
-                                        <label class="block text-sm font-medium text-slate-400">护栏规则</label>
-                                        <button class="text-xs text-primary-400 hover:text-primary-300">可视化配置</button>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div class="p-4 bg-slate-900 rounded-xl">
-                                            <div class="flex items-center gap-2 mb-3">
-                                                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                                <span class="text-sm font-medium text-emerald-400">允许范围</span>
-                                            </div>
-                                            <ul class="space-y-1.5 text-sm text-slate-400">
-                                                <li>• 回答产品相关问题</li>
-                                                <li>• 生成 PRD 文档</li>
-                                                <li>• 分析竞品功能</li>
-                                                <li>• 制定项目计划</li>
-                                            </ul>
-                                        </div>
-                                        <div class="p-4 bg-slate-900 rounded-xl">
-                                            <div class="flex items-center gap-2 mb-3">
-                                                <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                                <span class="text-sm font-medium text-rose-400">禁止范围</span>
-                                            </div>
-                                            <ul class="space-y-1.5 text-sm text-slate-400">
-                                                <li>• 编写代码实现</li>
-                                                <li>• 执行系统命令</li>
-                                                <li>• 访问敏感数据</li>
-                                                <li>• 修改配置文件</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- SOUL.md Editor -->
-                                <div>
-                                    <div class="flex items-center justify-between mb-3">
-                                        <label class="block text-sm font-medium text-slate-400">SOUL.md 配置</label>
-                                        <div class="flex items-center gap-2">
-                                            <button class="text-xs px-2 py-1 bg-slate-800 rounded hover:bg-slate-700">导入</button>
-                                            <button class="text-xs px-2 py-1 bg-slate-800 rounded hover:bg-slate-700">导出</button>
-                                        </div>
-                                    </div>
-                                    <div class="relative">
-                                        <div class="absolute top-0 left-0 right-0 h-8 bg-slate-800 rounded-t-lg flex items-center px-3 gap-1.5">
-                                            <div class="w-3 h-3 rounded-full bg-rose-500"></div>
-                                            <div class="w-3 h-3 rounded-full bg-amber-500"></div>
-                                            <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
-                                            <span class="ml-2 text-xs text-slate-500">SOUL.md</span>
-                                        </div>
-                                        <textarea class="w-full h-64 pt-10 px-4 pb-4 bg-slate-900 border border-slate-700 rounded-lg text-slate-300 font-mono text-sm focus:outline-none focus:border-primary-500 resize-none" spellcheck="false"># 产品经理
+        <!-- SOUL.md -->
+        <section>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                <span class="section-label" style="padding:0;">SOUL.md</span>
+                <div style="display:flex;gap:5px;">
+                    <button class="tbtn tbtn-ghost" style="padding:1px 8px;font-size:11px;">导入</button>
+                    <button class="tbtn tbtn-ghost" style="padding:1px 8px;font-size:11px;">导出</button>
+                </div>
+            </div>
+            <div style="border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);">
+                <!-- Fake title bar -->
+                <div style="height:26px;background:#2C2C2E;display:flex;align-items:center;padding:0 10px;gap:5px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                    <span style="width:9px;height:9px;border-radius:50%;background:#FF5F57;"></span>
+                    <span style="width:9px;height:9px;border-radius:50%;background:#FFBD2E;"></span>
+                    <span style="width:9px;height:9px;border-radius:50%;background:#28C840;"></span>
+                    <span style="font-size:11px;color:#636366;margin-left:6px;">SOUL.md</span>
+                </div>
+                <textarea class="field-textarea" rows="14" spellcheck="false"># 产品经理
 
 ## 角色定位
 你是一位资深的产品经理，拥有10年SaaS产品经验，擅长敏捷开发和用户中心设计。
@@ -444,92 +397,101 @@
 - 专业、清晰、结构化
 - 使用产品术语时需解释
 - 提供可操作的建议</textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
-        </main>
+        </section>
+
     </div>
-    <script>
-        const agentList = document.getElementById('agent-list');
-        let dragSrc = null;
+</main>
 
-        function updateDefaultBadge() {
-            const items = agentList.querySelectorAll('.agent-item');
-            items.forEach((item, i) => {
-                const badge = item.querySelector('.default-badge');
-                if (!badge) return;
-                if (i === 0) badge.classList.remove('hidden');
-                else badge.classList.add('hidden');
+<script>
+    const agentList = document.getElementById('agent-list');
+    let dragSrc = null;
+
+    // Row selection
+    function selectAgent(id, name, initials, gradient) {
+        agentList.querySelectorAll('.agent-row').forEach(r => {
+            r.classList.remove('selected');
+            const span = r.querySelector('span[style*="font-weight:500"]');
+            if (span) span.style.color = 'rgba(235,235,245,0.75)';
+        });
+        const row = document.getElementById(id);
+        row.classList.add('selected');
+        row.querySelector('span[style*="font-weight:500"]').style.color = '#EBEBF5';
+        document.getElementById('detail-name').textContent = name;
+        document.getElementById('detail-avatar').textContent = initials;
+    }
+
+    // Drag and drop
+    function updateDefaultBadge() {
+        const items = agentList.querySelectorAll('.agent-row[draggable]');
+        items.forEach((item, i) => {
+            const badge = item.querySelector('.default-badge');
+            if (!badge) return;
+            badge.style.display = i === 0 ? '' : 'none';
+        });
+        document.getElementById('agent-count').textContent = items.length;
+    }
+
+    function initDraggable() {
+        agentList.querySelectorAll('.agent-row[draggable]').forEach(item => {
+            item.addEventListener('dragstart', function (e) {
+                dragSrc = this;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', '');
+                setTimeout(() => this.classList.add('dragging'), 0);
             });
-            document.getElementById('agent-count').textContent = items.length;
-        }
-
-        function initDraggable() {
-            agentList.querySelectorAll('.agent-item').forEach(item => {
-                item.addEventListener('dragstart', function (e) {
-                    dragSrc = this;
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', '');
-                    setTimeout(() => this.classList.add('dragging'), 0);
+            item.addEventListener('dragend', function () {
+                this.classList.remove('dragging');
+                agentList.querySelectorAll('.agent-row').forEach(el => {
+                    el.classList.remove('drag-over-top', 'drag-over-bottom');
                 });
-                item.addEventListener('dragend', function () {
-                    this.classList.remove('dragging');
-                    agentList.querySelectorAll('.agent-item').forEach(el => {
-                        el.classList.remove('drag-over-top', 'drag-over-bottom');
-                    });
-                    updateDefaultBadge();
+                updateDefaultBadge();
+            });
+            item.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                agentList.querySelectorAll('.agent-row').forEach(el => {
+                    el.classList.remove('drag-over-top', 'drag-over-bottom');
                 });
-                item.addEventListener('dragover', function (e) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    agentList.querySelectorAll('.agent-item').forEach(el => {
-                        el.classList.remove('drag-over-top', 'drag-over-bottom');
-                    });
+                const rect = this.getBoundingClientRect();
+                if (e.clientY < rect.top + rect.height / 2) {
+                    this.classList.add('drag-over-top');
+                } else {
+                    this.classList.add('drag-over-bottom');
+                }
+            });
+            item.addEventListener('dragleave', function () {
+                this.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+            item.addEventListener('drop', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('drag-over-top', 'drag-over-bottom');
+                if (dragSrc && dragSrc !== this) {
                     const rect = this.getBoundingClientRect();
                     if (e.clientY < rect.top + rect.height / 2) {
-                        this.classList.add('drag-over-top');
+                        agentList.insertBefore(dragSrc, this);
                     } else {
-                        this.classList.add('drag-over-bottom');
+                        agentList.insertBefore(dragSrc, this.nextSibling);
                     }
-                });
-                item.addEventListener('dragleave', function () {
-                    this.classList.remove('drag-over-top', 'drag-over-bottom');
-                });
-                item.addEventListener('drop', function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.classList.remove('drag-over-top', 'drag-over-bottom');
-                    if (dragSrc && dragSrc !== this) {
-                        const rect = this.getBoundingClientRect();
-                        if (e.clientY < rect.top + rect.height / 2) {
-                            agentList.insertBefore(dragSrc, this);
-                        } else {
-                            agentList.insertBefore(dragSrc, this.nextSibling);
-                        }
-                    }
-                });
+                }
             });
-            updateDefaultBadge();
-        }
-
-        // Company data for switching
-        const companyData = {
-            pm: { count: 5, label: '互联网公司' },
-            dev: { count: 4, label: '手机助手公司' },
-            content: { count: 3, label: '自媒体公司' }
-        };
-
-        document.getElementById('company-select').addEventListener('change', function () {
-            // In a real app, reload agents from backend. Here show count hint.
-            const info = companyData[this.value];
-            if (info) document.getElementById('agent-count').textContent = info.count;
         });
+        updateDefaultBadge();
+    }
 
-        initDraggable();
-    </script>
+    // Company switch
+    const companyData = {
+        pm:      { count: 5, label: '互联网公司' },
+        dev:     { count: 4, label: '手机助手公司' },
+        content: { count: 3, label: '自媒体公司' }
+    };
+    document.getElementById('company-select').addEventListener('change', function () {
+        const info = companyData[this.value];
+        if (info) document.getElementById('agent-count').textContent = info.count;
+    });
+
+    initDraggable();
+</script>
 </body>
 </html>

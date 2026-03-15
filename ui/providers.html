@@ -4,360 +4,176 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>模型管理 - ClawPilot</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        primary: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95' },
-                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' }
-                    },
-                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
-                }
-            }
-        }
-    </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="base.css">
     <style>
-        * { font-family: 'Inter', system-ui, sans-serif; }
-        .glass-effect { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .nav-item { position: relative; transition: all 0.2s ease; }
-        .nav-item::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 0; background: linear-gradient(180deg, #8b5cf6, #06b6d4); border-radius: 0 3px 3px 0; transition: height 0.2s ease; }
-        .nav-item.active::before, .nav-item:hover::before { height: 60%; }
-        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
-        .provider-card { transition: all 0.3s ease; }
-        .provider-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.2); }
-        .api-status-connected { background: linear-gradient(135deg, #10b981, #059669); }
-        .api-status-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
-        .scroll-hide::-webkit-scrollbar { display: none; }
-        .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .provider-card { background:#2C2C2E;border-radius:10px;overflow:hidden; }
+        .tag { font-size:10px;padding:1px 6px;border-radius:4px; }
+        table { width:100%;border-collapse:collapse; }
+        th { font-size:11px;font-weight:500;color:#636366;text-align:left;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.08); }
+        td { font-size:12px;color:rgba(235,235,245,0.85);padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.05); }
+        tr:last-child td { border-bottom:none; }
+        tr:hover td { background:rgba(255,255,255,0.03); }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
-    <div class="flex h-screen overflow-hidden">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
-            <div class="p-6 border-b border-slate-800">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-cyan-500 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-lg tracking-tight">ClawPilot</h1>
-                        <p class="text-xs text-slate-400">OpenClaw 控制台</p>
-                    </div>
-                </div>
-            </div>
-            <nav class="flex-1 p-4 space-y-1 overflow-y-auto scroll-hide">
-                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">核心功能</div>
-                <a href="index.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    <span>OPC 管理中心</span>
-                </a>
-                <a href="agents.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    <span>Agent 设计器</span>
-                </a>
-                <a href="providers.html" class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-100 bg-primary-500/10">
-                    <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    <span class="font-medium">模型管理</span>
-                </a>
-                <a href="bindings.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                    <span>飞书频道绑定</span>
-                </a>
-                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-3 px-3">部署与监控</div>
-                <a href="deploy.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                    <span>一键部署</span>
-                </a>
-                <a href="logs.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span>运行日志</span>
-                </a>
-                <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mt-6 mb-3 px-3">高级功能</div>
-                <a href="market.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    <span>模板市场</span>
-                    <span class="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO</span>
-                </a>
-                <a href="sync.html" class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800/50">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    <span>云同步</span>
-                    <span class="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">PRO</span>
-                </a>
-            </nav>
-            <div class="p-4 border-t border-slate-800">
-                <div class="glass-effect rounded-xl p-4">
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="w-2 h-2 rounded-full bg-green-500 pulse-ring"></div>
-                        <span class="text-sm font-medium text-green-400">OpenClaw 运行中</span>
-                    </div>
-                    <button class="w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">重启服务</button>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 overflow-hidden flex flex-col">
-            <header class="h-16 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between px-6">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-xl font-semibold">模型管理</h2>
-                </div>
-            </header>
-
-            <div class="flex-1 overflow-y-auto p-6">
-                <!-- Provider Cards -->
-                <div class="grid grid-cols-3 gap-6 mb-8">
-                    <!-- Aliyun Bailian -->
-                    <div class="provider-card glass-effect rounded-2xl p-6">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
-                                <span class="text-2xl font-bold text-white">阿</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-medium rounded-full">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                    已连接
-                                </span>
-                            </div>
-                        </div>
-                        <h3 class="text-lg font-semibold mb-1">阿里云百炼</h3>
-                        <p class="text-sm text-slate-400 mb-4">Aliyun Bailian Coding Plan</p>
-                        <div class="space-y-2 mb-4">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-500">可用模型</span>
-                                <span class="text-slate-300">5 个</span>
-                            </div>
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-500">API Key</span>
-                                <span class="text-slate-300">sk-****8f2a</span>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="flex-1 py-2 bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 rounded-lg text-sm font-medium transition-colors">测试连接</button>
-                            <button class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">编辑配置</button>
-                        </div>
-                    </div>
-
-                    <!-- Volcano Engine -->
-                    <div class="provider-card glass-effect rounded-2xl p-6">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                                <span class="text-2xl font-bold text-white">火</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="flex items-center gap-1.5 px-2 py-1 bg-slate-700/50 text-slate-400 text-xs font-medium rounded-full">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-                                    未配置
-                                </span>
-                            </div>
-                        </div>
-                        <h3 class="text-lg font-semibold mb-1">火山方舟</h3>
-                        <p class="text-sm text-slate-400 mb-4">Volcano Engine Coding Plan</p>
-                        <div class="space-y-2 mb-4">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-500">可用模型</span>
-                                <span class="text-slate-500">-</span>
-                            </div>
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-500">API Key</span>
-                                <span class="text-slate-500">未设置</span>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="flex-1 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-sm font-medium transition-colors">添加配置</button>
-                            <button class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors" title="购买向导">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- MiniMax -->
-                    <div class="provider-card glass-effect rounded-2xl p-6">
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-                                <span class="text-2xl font-bold text-white">M</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="flex items-center gap-1.5 px-2 py-1 bg-slate-700/50 text-slate-400 text-xs font-medium rounded-full">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-                                    未配置
-                                </span>
-                            </div>
-                        </div>
-                        <h3 class="text-lg font-semibold mb-1">MiniMax</h3>
-                        <p class="text-sm text-slate-400 mb-4">MiniMax Coding Plan</p>
-                        <div class="space-y-2 mb-4">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-500">可用模型</span>
-                                <span class="text-slate-500">-</span>
-                            </div>
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="text-slate-500">API Key</span>
-                                <span class="text-slate-500">未设置</span>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="flex-1 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-sm font-medium transition-colors">添加配置</button>
-                            <button class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors" title="购买向导">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Models Comparison Table -->
-                <div class="glass-effect rounded-2xl p-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-lg font-semibold">模型对比</h3>
-                        <div class="flex items-center gap-3">
-                            <button class="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800 transition-colors">
-                                <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-                                筛选
-                            </button>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="border-b border-slate-800">
-                                    <th class="text-left py-3 px-4 text-sm font-medium text-slate-400">模型名称</th>
-                                    <th class="text-left py-3 px-4 text-sm font-medium text-slate-400">提供商</th>
-                                    <th class="text-left py-3 px-4 text-sm font-medium text-slate-400">上下文窗口</th>
-                                    <th class="text-left py-3 px-4 text-sm font-medium text-slate-400">输入价格</th>
-                                    <th class="text-left py-3 px-4 text-sm font-medium text-slate-400">输出价格</th>
-                                    <th class="text-left py-3 px-4 text-sm font-medium text-slate-400">能力标签</th>
-                                    <th class="text-center py-3 px-4 text-sm font-medium text-slate-400">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
-                                    <td class="py-4 px-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center">
-                                                <span class="text-sm font-bold text-primary-400">Q</span>
-                                            </div>
-                                            <span class="font-medium text-slate-100">qwen-max</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-slate-400">阿里云百炼</td>
-                                    <td class="py-4 px-4 text-slate-300">128K</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.02/1K tokens</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.06/1K tokens</td>
-                                    <td class="py-4 px-4">
-                                        <div class="flex gap-1 flex-wrap">
-                                            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded">推理</span>
-                                            <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">代码</span>
-                                            <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded">长文本</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-center">
-                                        <button class="text-sm text-primary-400 hover:text-primary-300">设为默认</button>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
-                                    <td class="py-4 px-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg bg-primary-500/20 flex items-center justify-center">
-                                                <span class="text-sm font-bold text-primary-400">Q</span>
-                                            </div>
-                                            <span class="font-medium text-slate-100">qwen-plus</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-slate-400">阿里云百炼</td>
-                                    <td class="py-4 px-4 text-slate-300">32K</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.008/1K tokens</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.02/1K tokens</td>
-                                    <td class="py-4 px-4">
-                                        <div class="flex gap-1 flex-wrap">
-                                            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded">推理</span>
-                                            <span class="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs rounded">对话</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-center">
-                                        <button class="text-sm text-slate-500">设为默认</button>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
-                                    <td class="py-4 px-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                                                <span class="text-sm font-bold text-cyan-400">D</span>
-                                            </div>
-                                            <span class="font-medium text-slate-100">deepseek-v3</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-slate-400">火山方舟</td>
-                                    <td class="py-4 px-4 text-slate-300">64K</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.008/1K tokens</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.016/1K tokens</td>
-                                    <td class="py-4 px-4">
-                                        <div class="flex gap-1 flex-wrap">
-                                            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded">推理</span>
-                                            <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">代码</span>
-                                            <span class="px-2 py-0.5 bg-rose-500/20 text-rose-400 text-xs rounded">数学</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-center">
-                                        <button class="text-sm text-slate-500">未配置</button>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
-                                    <td class="py-4 px-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                                                <span class="text-sm font-bold text-cyan-400">D</span>
-                                            </div>
-                                            <span class="font-medium text-slate-100">deepseek-coder</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-slate-400">火山方舟</td>
-                                    <td class="py-4 px-4 text-slate-300">16K</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.008/1K tokens</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.016/1K tokens</td>
-                                    <td class="py-4 px-4">
-                                        <div class="flex gap-1 flex-wrap">
-                                            <span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">代码</span>
-                                            <span class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-xs rounded">补全</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-center">
-                                        <button class="text-sm text-slate-500">未配置</button>
-                                    </td>
-                                </tr>
-                                <tr class="border-b border-slate-800/50 hover:bg-slate-800/30">
-                                    <td class="py-4 px-4">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                                                <span class="text-sm font-bold text-violet-400">M</span>
-                                            </div>
-                                            <span class="font-medium text-slate-100">MiniMax-Text-01</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-slate-400">MiniMax</td>
-                                    <td class="py-4 px-4 text-slate-300">256K</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.01/1K tokens</td>
-                                    <td class="py-4 px-4 text-slate-300">¥0.03/1K tokens</td>
-                                    <td class="py-4 px-4">
-                                        <div class="flex gap-1 flex-wrap">
-                                            <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded">推理</span>
-                                            <span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded">长文本</span>
-                                        </div>
-                                    </td>
-                                    <td class="py-4 px-4 text-center">
-                                        <button class="text-sm text-slate-500">未配置</button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </main>
+<body>
+<aside class="sidebar">
+    <div class="toolbar" style="gap:8px;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <span style="width:10px;height:10px;border-radius:50%;background:#FF5F57;flex-shrink:0;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:#FFBD2E;flex-shrink:0;"></span>
+        <span style="width:10px;height:10px;border-radius:50%;background:#28C840;flex-shrink:0;"></span>
+        <div style="width:1px;height:16px;background:rgba(255,255,255,0.08);margin:0 4px;"></div>
+        <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="13" height="13" fill="none" stroke="white" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <span style="font-size:13px;font-weight:600;color:#EBEBF5;">ClawPilot</span>
     </div>
+    <nav style="flex:1;padding:6px 8px;overflow-y:auto;">
+        <div class="section-label">核心功能</div>
+        <a href="index.html" class="nav-item"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg><span style="font-size:13px;">我的集团</span></a>
+        <a href="agents.html" class="nav-item"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg><span style="font-size:13px;">智能体管理</span></a>
+        <a href="providers.html" class="nav-item active"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg><span style="font-size:13px;">模型管理</span></a>
+        <a href="bindings.html" class="nav-item"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg><span style="font-size:13px;">飞书频道绑定</span></a>
+        <div class="section-label" style="margin-top:6px;">部署与监控</div>
+        <a href="deploy.html" class="nav-item"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg><span style="font-size:13px;">一键部署</span></a>
+        <a href="logs.html" class="nav-item"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><span style="font-size:13px;">运行日志</span></a>
+        <div class="section-label" style="margin-top:6px;">高级功能</div>
+        <a href="market.html" class="nav-item"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg><span style="font-size:13px;">模板市场</span><span style="margin-left:auto;font-size:10px;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:4px;">PRO</span></a>
+        <a href="sync.html" class="nav-item"><svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg><span style="font-size:13px;">云同步</span><span style="margin-left:auto;font-size:10px;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:4px;">PRO</span></a>
+    </nav>
+    <div style="padding:10px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span class="pulse-dot" style="width:7px;height:7px;border-radius:50%;background:#34c759;display:inline-block;"></span><span style="font-size:12px;color:#34c759;font-weight:500;">OpenClaw 运行中</span></div>
+        <div style="font-size:11px;color:#636366;margin-bottom:7px;">PID 28471 · 3小时42分</div>
+        <button class="tbtn tbtn-ghost" style="width:100%;text-align:center;">重启服务</button>
+    </div>
+</aside>
+
+<main style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="toolbar" style="justify-content:space-between;">
+        <span style="font-size:13px;font-weight:600;">模型管理</span>
+        <button class="tbtn tbtn-accent">+ 添加 Provider</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;">
+
+        <!-- Provider Cards -->
+        <section>
+            <div class="section-label" style="padding:0 0 7px;">Provider 配置</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+
+                <!-- Aliyun -->
+                <div class="provider-card" style="padding:12px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#f97316,#ef4444);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;flex-shrink:0;">阿</div>
+                            <div>
+                                <div style="font-size:12px;font-weight:600;color:#EBEBF5;">阿里云百炼</div>
+                                <div style="font-size:11px;color:#636366;">Aliyun Bailian</div>
+                            </div>
+                        </div>
+                        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(52,199,89,0.15);color:#34c759;">已连接</span>
+                    </div>
+                    <div class="group" style="margin-bottom:8px;">
+                        <div class="group-row"><span class="group-label">可用模型</span><span class="group-value">5 个</span></div>
+                        <div class="group-row"><span class="group-label">API Key</span><span class="group-value" style="font-family:monospace;font-size:11px;">sk-****8f2a</span></div>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="tbtn tbtn-accent" style="flex:1;text-align:center;">测试连接</button>
+                        <button class="tbtn tbtn-ghost" style="flex:1;text-align:center;">编辑配置</button>
+                    </div>
+                </div>
+
+                <!-- Volcano -->
+                <div class="provider-card" style="padding:12px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#3b82f6,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;flex-shrink:0;">火</div>
+                            <div>
+                                <div style="font-size:12px;font-weight:600;color:#EBEBF5;">火山方舟</div>
+                                <div style="font-size:11px;color:#636366;">Volcano Engine</div>
+                            </div>
+                        </div>
+                        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:#636366;">未配置</span>
+                    </div>
+                    <div class="group" style="margin-bottom:8px;">
+                        <div class="group-row"><span class="group-label">可用模型</span><span class="group-value" style="color:#636366;">—</span></div>
+                        <div class="group-row"><span class="group-label">API Key</span><span class="group-value" style="color:#636366;">未设置</span></div>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="tbtn tbtn-accent" style="flex:1;text-align:center;">添加配置</button>
+                        <button class="tbtn tbtn-ghost" style="padding:3px 8px;"><svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+                    </div>
+                </div>
+
+                <!-- MiniMax -->
+                <div class="provider-card" style="padding:12px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:white;flex-shrink:0;">M</div>
+                            <div>
+                                <div style="font-size:12px;font-weight:600;color:#EBEBF5;">MiniMax</div>
+                                <div style="font-size:11px;color:#636366;">MiniMax API</div>
+                            </div>
+                        </div>
+                        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:rgba(255,255,255,0.06);color:#636366;">未配置</span>
+                    </div>
+                    <div class="group" style="margin-bottom:8px;">
+                        <div class="group-row"><span class="group-label">可用模型</span><span class="group-value" style="color:#636366;">—</span></div>
+                        <div class="group-row"><span class="group-label">API Key</span><span class="group-value" style="color:#636366;">未设置</span></div>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="tbtn tbtn-accent" style="flex:1;text-align:center;">添加配置</button>
+                        <button class="tbtn tbtn-ghost" style="padding:3px 8px;"><svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Model Table -->
+        <section>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+                <span class="section-label" style="padding:0;">模型对比</span>
+                <button class="tbtn tbtn-ghost" style="padding:2px 8px;font-size:11px;">筛选</button>
+            </div>
+            <div class="group">
+                <table>
+                    <thead>
+                        <tr><th>模型名称</th><th>提供商</th><th>上下文</th><th>输入价格</th><th>输出价格</th><th>能力</th><th style="text-align:center;">操作</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><div style="display:flex;align-items:center;gap:7px;"><div style="width:22px;height:22px;border-radius:6px;background:rgba(139,92,246,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#a78bfa;flex-shrink:0;">Q</div><span style="font-weight:500;">qwen-max</span></div></td>
+                            <td style="color:#636366;">阿里云百炼</td><td>128K</td><td>¥0.02/1K</td><td>¥0.06/1K</td>
+                            <td><span class="tag" style="background:rgba(52,199,89,0.15);color:#34c759;">推理</span> <span class="tag" style="background:rgba(59,130,246,0.15);color:#60a5fa;">代码</span></td>
+                            <td style="text-align:center;"><button style="font-size:11px;color:#a78bfa;background:none;border:none;cursor:pointer;">设为默认</button></td>
+                        </tr>
+                        <tr>
+                            <td><div style="display:flex;align-items:center;gap:7px;"><div style="width:22px;height:22px;border-radius:6px;background:rgba(139,92,246,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#a78bfa;flex-shrink:0;">Q</div><span style="font-weight:500;">qwen-plus</span></div></td>
+                            <td style="color:#636366;">阿里云百炼</td><td>32K</td><td>¥0.008/1K</td><td>¥0.02/1K</td>
+                            <td><span class="tag" style="background:rgba(52,199,89,0.15);color:#34c759;">推理</span></td>
+                            <td style="text-align:center;"><button style="font-size:11px;color:#636366;background:none;border:none;cursor:pointer;">设为默认</button></td>
+                        </tr>
+                        <tr>
+                            <td><div style="display:flex;align-items:center;gap:7px;"><div style="width:22px;height:22px;border-radius:6px;background:rgba(6,182,212,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#06b6d4;flex-shrink:0;">D</div><span style="font-weight:500;">deepseek-v3</span></div></td>
+                            <td style="color:#636366;">火山方舟</td><td>64K</td><td>¥0.008/1K</td><td>¥0.016/1K</td>
+                            <td><span class="tag" style="background:rgba(52,199,89,0.15);color:#34c759;">推理</span> <span class="tag" style="background:rgba(59,130,246,0.15);color:#60a5fa;">代码</span></td>
+                            <td style="text-align:center;"><button style="font-size:11px;color:#636366;background:none;border:none;cursor:pointer;">未配置</button></td>
+                        </tr>
+                        <tr>
+                            <td><div style="display:flex;align-items:center;gap:7px;"><div style="width:22px;height:22px;border-radius:6px;background:rgba(6,182,212,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#06b6d4;flex-shrink:0;">D</div><span style="font-weight:500;">deepseek-coder</span></div></td>
+                            <td style="color:#636366;">火山方舟</td><td>16K</td><td>¥0.008/1K</td><td>¥0.016/1K</td>
+                            <td><span class="tag" style="background:rgba(59,130,246,0.15);color:#60a5fa;">代码</span></td>
+                            <td style="text-align:center;"><button style="font-size:11px;color:#636366;background:none;border:none;cursor:pointer;">未配置</button></td>
+                        </tr>
+                        <tr>
+                            <td><div style="display:flex;align-items:center;gap:7px;"><div style="width:22px;height:22px;border-radius:6px;background:rgba(139,92,246,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#a78bfa;flex-shrink:0;">M</div><span style="font-weight:500;">MiniMax-Text-01</span></div></td>
+                            <td style="color:#636366;">MiniMax</td><td>256K</td><td>¥0.01/1K</td><td>¥0.03/1K</td>
+                            <td><span class="tag" style="background:rgba(245,158,11,0.15);color:#f59e0b;">长文本</span></td>
+                            <td style="text-align:center;"><button style="font-size:11px;color:#636366;background:none;border:none;cursor:pointer;">未配置</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</main>
 </body>
 </html>

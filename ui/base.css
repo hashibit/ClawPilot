@@ -1,0 +1,108 @@
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
+  background: #1C1C1E; color: #EBEBF5; font-size: 13px;
+  line-height: 1.4; overflow: hidden;
+  display: flex;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+
+/* ── Layout Panes ─────────────────────────────────────── */
+.sidebar {
+  width: 204px; background: #2C2C2E;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.list-pane {
+  width: 240px; background: #1C1C1E;
+  border-right: 1px solid rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
+}
+.detail-pane {
+  flex: 1; background: #1C1C1E;
+  display: flex; flex-direction: column; overflow: hidden; min-width: 0;
+}
+
+/* ── Toolbar ──────────────────────────────────────────── */
+.toolbar {
+  height: 38px; flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; padding: 0 12px;
+}
+
+/* ── Navigation ───────────────────────────────────────── */
+.nav-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 8px; border-radius: 6px;
+  cursor: pointer; transition: background 0.1s;
+  text-decoration: none; color: rgba(235,235,245,0.75);
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #EBEBF5; }
+.nav-item.active { background: rgba(139,92,246,0.22); color: #EBEBF5; }
+.nav-item.active .nav-icon { color: #a78bfa; }
+.nav-icon { color: #636366; flex-shrink: 0; }
+
+/* ── Section label ────────────────────────────────────── */
+.section-label {
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: #636366; padding: 8px 8px 3px;
+}
+
+/* ── List rows ────────────────────────────────────────── */
+.list-row { display: flex; align-items: center; gap: 9px; padding: 7px 12px; cursor: pointer; transition: background 0.1s; }
+.list-row:hover { background: rgba(255,255,255,0.04); }
+.list-row.selected { background: rgba(139,92,246,0.2); }
+
+/* ── Grouped settings ─────────────────────────────────── */
+.group { background: #2C2C2E; border-radius: 10px; overflow: hidden; }
+.group-row { display: flex; align-items: center; padding: 8px 12px; }
+.group-row + .group-row { border-top: 1px solid rgba(255,255,255,0.06); }
+.group-label { font-size: 12px; color: #8E8E93; min-width: 72px; flex-shrink: 0; }
+.group-value { font-size: 12px; font-weight: 500; color: #EBEBF5; }
+
+/* ── Pulse animation ──────────────────────────────────── */
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ── Buttons ──────────────────────────────────────────── */
+.tbtn {
+  font-size: 12px; padding: 3px 10px; border-radius: 6px;
+  cursor: pointer; transition: background 0.1s;
+  border: none; font-family: inherit;
+}
+.tbtn-ghost { background: rgba(255,255,255,0.08); color: rgba(235,235,245,0.8); }
+.tbtn-ghost:hover { background: rgba(255,255,255,0.13); }
+.tbtn-accent { background: rgba(139,92,246,0.2); color: #a78bfa; }
+.tbtn-accent:hover { background: rgba(139,92,246,0.3); }
+.tbtn-success { background: rgba(52,199,89,0.15); color: #34c759; }
+.tbtn-success:hover { background: rgba(52,199,89,0.25); }
+.tbtn-danger { background: rgba(244,63,94,0.12); color: #f43f5e; }
+.tbtn-danger:hover { background: rgba(244,63,94,0.2); }
+
+/* ── Form inputs ──────────────────────────────────────── */
+.field-input {
+  width: 100%; padding: 5px 9px;
+  background: #3A3A3C; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px; color: #EBEBF5; font-size: 12px;
+  font-family: inherit; outline: none; transition: border-color 0.15s;
+}
+.field-input:focus { border-color: rgba(139,92,246,0.6); }
+.field-input::placeholder { color: #48484A; }
+select.field-input { -webkit-appearance: none; appearance: none; cursor: pointer; }
+
+/* ── Checkbox ─────────────────────────────────────────── */
+input[type="checkbox"].mac-check {
+  width: 14px; height: 14px; border-radius: 4px;
+  accent-color: #8b5cf6; flex-shrink: 0; cursor: pointer;
+}
+
+/* ── Icon sizes ───────────────────────────────────────── */
+.ic-16 { width: 16px; height: 16px; }
+.ic-14 { width: 14px; height: 14px; }
