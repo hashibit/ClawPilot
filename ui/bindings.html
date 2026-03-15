@@ -6,183 +6,10 @@
     <title>飞书频道绑定 - ClawPilot</title>
     <link rel="stylesheet" href="base.css">
     <link rel="stylesheet" href="pages.css">
-    <style>
-        /* Company Card */
-        .company-card {
-            background: #2C2C2E;
-            border-radius: 12px;
-            padding: 16px;
-            border: 2px solid transparent;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .company-card:hover {
-            border-color: rgba(139,92,246,0.3);
-            background: rgba(44,44,46,0.8);
-        }
-        .company-card.active {
-            border-color: #8b5cf6;
-            background: rgba(44,44,46,0.9);
-        }
-
-        /* Robot Connection */
-        .robot-connector {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            margin: 12px 0;
-        }
-        .robot-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 700;
-            color: white;
-            flex-shrink: 0;
-        }
-        .connector-line {
-            width: 24px;
-            height: 2px;
-            background: rgba(255,255,255,0.1);
-            position: relative;
-        }
-        .connector-line::before {
-            content: '';
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 6px;
-            height: 6px;
-            background: #636366;
-            border-radius: 50%;
-        }
-        .robot-info {
-            flex: 1;
-        }
-        .robot-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 10px;
-        }
-        .robot-status.connected {
-            background: rgba(52,199,89,0.15);
-            color: #34c759;
-        }
-        .robot-status.disconnected {
-            background: rgba(244,63,94,0.12);
-            color: #f43f5e;
-        }
-
-        /* Binding Graph */
-        .binding-graph {
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            padding: 16px;
-        }
-        .binding-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            border: 1px solid rgba(255,255,255,0.05);
-            transition: all 0.15s;
-        }
-        .binding-item:hover {
-            background: rgba(255,255,255,0.04);
-            border-color: rgba(139,92,246,0.2);
-        }
-        .binding-item.selected {
-            background: rgba(139,92,246,0.12);
-            border-color: rgba(139,92,246,0.4);
-        }
-        .binding-icon {
-            width: 28px;
-            height: 28px;
-            border-radius: 7px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .binding-icon.group {
-            background: rgba(59,130,246,0.2);
-        }
-        .binding-icon.group svg {
-            stroke: #60a5fa;
-        }
-        .binding-icon.dm {
-            background: rgba(52,199,89,0.2);
-            border-radius: 50%;
-        }
-        .binding-icon.dm svg {
-            stroke: #34c759;
-        }
-        .binding-arrow {
-            color: #636366;
-            flex-shrink: 0;
-        }
-        .agent-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 3px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            background: rgba(139,92,246,0.15);
-            color: #a78bfa;
-            font-weight: 500;
-        }
-        .trigger-badge {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            background: rgba(255,255,255,0.06);
-            color: #636366;
-        }
-        .binding-status {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-        .binding-status.active { background: #34c759; }
-        .binding-status.inactive { background: #48484A; }
-
-        /* Empty State */
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            color: #636366;
-            text-align: center;
-        }
-        .empty-state svg {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 12px;
-            opacity: 0.4;
-        }
-    </style>
 </head>
 <body>
 
-<!-- Sidebar -->
+<!-- COL 1 — Sidebar Navigation -->
 <aside class="sidebar">
     <div class="toolbar" style="gap:8px; padding:0 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
         <div class="logo-box">
@@ -234,204 +61,252 @@
         </a>
     </nav>
     <div style="padding:10px 10px;border-top:1px solid rgba(255,255,255,0.08);">
-        <div class="flex-between mb-2">
-            <div class="flex-center gap-6">
-                <span class="pulse-dot" style="width:7px;height:7px;border-radius:50%;background:#34c759;"></span>
-                <span class="text-xs text-medium" style="color:#34c759;">OpenClaw 运行中</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span class="pulse-dot" style="width:7px;height:7px;border-radius:50%;background:#34c759;display:inline-block;"></span>
+                <span style="font-size:12px;color:#34c759;font-weight:500;">OpenClaw 运行中</span>
             </div>
         </div>
-        <div class="text-xxs text-dimmer mb-4" style="margin-bottom:7px;">PID 28471 · 3小时42分</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:7px;">PID 28471 · 3小时42分</div>
         <button class="tbtn tbtn-ghost" style="width:100%;text-align:center;">重启服务</button>
     </div>
 </aside>
 
-<!-- Main Content -->
-<main style="flex:1; display:flex; flex-direction:column; overflow:hidden; background:#000000;">
+<!-- COL 2 — Company List -->
+<div class="list-pane">
     <div class="toolbar" style="justify-content:space-between;">
-        <span class="text-bold" style="font-size:15px;">飞书频道绑定配置</span>
-        <button class="tbtn tbtn-accent">+ 新建 OPC 公司</button>
+        <span style="font-size:15px;font-weight:600;color:#FFFFFF;">OPC 公司</span>
     </div>
 
-    <div style="flex:1; overflow-y:auto; padding:16px;">
-        <div style="max-width:1200px; margin:0 auto;">
+    <div style="flex:1;overflow-y:auto;">
+        <div class="section-label" style="padding:8px 12px 3px;">运行中</div>
 
-            <!-- Section Label -->
-            <div class="section-label" style="padding:0 0 10px;">OPC 公司 → 飞书机器人 关联</div>
-
-            <!-- Company Cards Grid -->
-            <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; margin-bottom:24px;">
-
-                <!-- Company 1 -->
-                <div class="company-card active" onclick="selectCompany('pm')">
-                    <div class="flex-between" style="margin-bottom:12px;">
-                        <div class="flex-center gap-10">
-                            <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#8b5cf6,#06b6d4);">I</div>
-                            <div>
-                                <div class="text-bold" style="font-size:14px;color:#EBEBF5;">互联网公司</div>
-                                <div class="text-xs text-dimmer">5 智能体 · 3 频道绑定</div>
-                            </div>
-                        </div>
-                        <button class="tbtn tbtn-ghost" style="padding:2px 8px;font-size:11px;">配置</button>
-                    </div>
-
-                    <!-- Robot Connection -->
-                    <div class="robot-connector">
-                        <div class="robot-avatar">飞</div>
-                        <div class="connector-line"></div>
-                        <div class="robot-info">
-                            <div class="text-xs text-medium" style="color:#EBEBF5;">飞书机器人</div>
-                            <div class="text-xxs text-dimmer">App ID: cli_abc123***</div>
-                        </div>
-                        <div class="robot-status connected">
-                            <span class="pulse-dot" style="width:6px;height:6px;background:current;"></span>
-                            已连接
-                        </div>
-                    </div>
+        <div class="list-row selected" id="row-1" onclick="selectCompany('row-1','互联网公司')">
+            <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#8b5cf6,#06b6d4);">I</div>
+            <div style="flex:1;min-width:0;">
+                <div class="flex-center gap-5">
+                    <span class="text-sm text-medium">互联网公司</span>
+                    <span class="pulse-dot" style="width:6px;height:6px;border-radius:50%;background:#34c759;"></span>
                 </div>
-
-                <!-- Company 2 -->
-                <div class="company-card" onclick="selectCompany('dev')">
-                    <div class="flex-between" style="margin-bottom:12px;">
-                        <div class="flex-center gap-10">
-                            <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#10b981,#06b6d4);">M</div>
-                            <div>
-                                <div class="text-bold" style="font-size:14px;color:#EBEBF5;">手机助手公司</div>
-                                <div class="text-xs text-dimmer">4 智能体 · 1 频道绑定</div>
-                            </div>
-                        </div>
-                        <button class="tbtn tbtn-ghost" style="padding:2px 8px;font-size:11px;">配置</button>
-                    </div>
-
-                    <div class="robot-connector">
-                        <div class="robot-avatar" style="background:linear-gradient(135deg,#f59e0b,#f97316);">飞</div>
-                        <div class="connector-line"></div>
-                        <div class="robot-info">
-                            <div class="text-xs text-medium" style="color:#EBEBF5;">飞书机器人</div>
-                            <div class="text-xxs text-dimmer">App ID: cli_def456***</div>
-                        </div>
-                        <div class="robot-status connected">
-                            <span class="pulse-dot" style="width:6px;height:6px;background:current;"></span>
-                            已连接
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Company 3 -->
-                <div class="company-card" onclick="selectCompany('content')">
-                    <div class="flex-between" style="margin-bottom:12px;">
-                        <div class="flex-center gap-10">
-                            <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#f43f5e,#ec4899);">Z</div>
-                            <div>
-                                <div class="text-bold" style="font-size:14px;color:#EBEBF5;">自媒体公司</div>
-                                <div class="text-xs text-dimmer">3 智能体 · 未配置机器人</div>
-                            </div>
-                        </div>
-                        <button class="tbtn tbtn-ghost" style="padding:2px 8px;font-size:11px;">配置</button>
-                    </div>
-
-                    <div class="robot-connector">
-                        <div class="robot-avatar" style="background:rgba(255,255,255,0.1);">?</div>
-                        <div class="connector-line" style="opacity:0.3;"></div>
-                        <div class="robot-info">
-                            <div class="text-xs text-medium" style="color:rgba(255,255,255,0.5);">未配置飞书机器人</div>
-                            <div class="text-xxs text-dimmer">点击"配置"按钮关联机器人</div>
-                        </div>
-                        <div class="robot-status disconnected">未连接</div>
-                    </div>
-                </div>
-
+                <div class="text-xs text-dim">5 智能体 · 3 群聊</div>
             </div>
+            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:#8b5cf6;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </div>
 
-            <!-- Binding Details for Selected Company -->
-            <div class="section-label" style="padding:0 0 10px; display:flex; align-items:center; justify-content:space-between;">
-                <span id="binding-title">互联网公司 - 频道路由配置</span>
-                <button class="tbtn tbtn-accent" style="padding:2px 8px;font-size:11px;">+ 添加绑定</button>
+        <div class="list-row" id="row-2" onclick="selectCompany('row-2','手机助手公司')">
+            <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#10b981,#06b6d4);">M</div>
+            <div style="flex:1;min-width:0;">
+                <div class="flex-center gap-5">
+                    <span class="text-sm text-medium text-dim">手机助手公司</span>
+                    <span style="width:6px;height:6px;border-radius:50%;background:#48484A;"></span>
+                </div>
+                <div class="text-xs text-dim">4 智能体 · 1 群聊</div>
             </div>
+            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:rgba(255,255,255,0.3);"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </div>
 
-            <div class="binding-graph">
-                <div class="binding-item selected" onclick="selectBinding('ch1')">
-                    <div class="binding-icon group">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </div>
-                    <div style="flex:1; min-width:0;">
-                        <div class="text-sm text-medium">产品讨论组</div>
-                        <div class="text-xxs text-dimmer">oc_1234567890abcdef</div>
-                    </div>
-                    <svg class="binding-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    <span class="agent-pill">产品经理</span>
-                    <span class="trigger-badge">@ 提及</span>
-                    <span class="binding-status active"></span>
-                    <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
-                </div>
+        <div class="section-label" style="padding:10px 12px 3px;">已停止</div>
 
-                <div class="binding-item" onclick="selectBinding('ch2')">
-                    <div class="binding-icon group">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </div>
-                    <div style="flex:1; min-width:0;">
-                        <div class="text-sm text-medium">设计交流群</div>
-                        <div class="text-xxs text-dimmer">oc_9876543210fedcba</div>
-                    </div>
-                    <svg class="binding-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    <span class="agent-pill">UX设计师</span>
-                    <span class="trigger-badge">所有消息</span>
-                    <span class="binding-status active"></span>
-                    <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
+        <div class="list-row" id="row-3" onclick="selectCompany('row-3','自媒体公司')">
+            <div class="avatar avatar-lg" style="background:linear-gradient(135deg,#f59e0b,#f97316);">Z</div>
+            <div style="flex:1;min-width:0;">
+                <div class="flex-center gap-5">
+                    <span class="text-sm text-medium text-dim">自媒体公司</span>
+                    <span style="width:6px;height:6px;border-radius:50%;background:#48484A;"></span>
                 </div>
-
-                <div class="binding-item" onclick="selectBinding('ch3')">
-                    <div class="binding-icon group">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                    </div>
-                    <div style="flex:1; min-width:0;">
-                        <div class="text-sm text-medium">数据分析群</div>
-                        <div class="text-xxs text-dimmer">oc_fedcba0987654321</div>
-                    </div>
-                    <svg class="binding-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    <span class="agent-pill" style="background:rgba(245,158,11,0.15);color:#f59e0b;">数据分析师</span>
-                    <span class="trigger-badge">关键词</span>
-                    <span class="binding-status inactive"></span>
-                    <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
-                </div>
-
-                <div class="binding-item" onclick="selectBinding('ch4')">
-                    <div class="binding-icon dm">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </div>
-                    <div style="flex:1; min-width:0;">
-                        <div class="text-sm text-medium">张三 (单聊)</div>
-                        <div class="text-xxs text-dimmer">ou_abc123def4567890</div>
-                    </div>
-                    <svg class="binding-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    <span class="agent-pill">产品经理</span>
-                    <span class="trigger-badge">@ 提及</span>
-                    <span class="binding-status active"></span>
-                    <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
-                </div>
+                <div class="text-xs text-dim">3 智能体 · 0 群聊</div>
             </div>
-
+            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:rgba(255,255,255,0.3);"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </div>
     </div>
+</div>
 
+<!-- COL 3 — Configuration -->
+<main class="detail-pane">
+    <div class="toolbar" style="justify-content:space-between;">
+        <span id="company-title" style="font-size:15px;font-weight:600;color:#FFFFFF;">互联网公司</span>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;">
+        <!-- 飞书机器人配置 -->
+        <section>
+            <span class="section-label" style="padding:0 0 8px;">飞书机器人</span>
+            <div class="group">
+                <div class="group-row">
+                    <span class="group-label">连接状态</span>
+                    <span class="group-value" style="color:#34c759;">
+                        <span class="pulse-dot" style="width:6px;height:6px;background:#34c759;margin-right:4px;"></span>
+                        已连接
+                    </span>
+                </div>
+                <div class="group-row">
+                    <span class="group-label">App ID</span>
+                    <span class="group-value">cli_abc123***</span>
+                </div>
+                <div class="group-row">
+                    <span class="group-label">App Secret</span>
+                    <span class="group-value text-dimmer">••••••••••••••••</span>
+                </div>
+                <div class="group-row">
+                    <span class="group-label">机器人名称</span>
+                    <span class="group-value">ClawPilot Bot</span>
+                </div>
+            </div>
+            <div style="margin-top:8px;">
+                <button class="tbtn tbtn-ghost" style="font-size:12px;">重新配置</button>
+            </div>
+        </section>
+
+        <!-- 群组配置 -->
+        <section>
+            <div class="flex-between" style="margin-bottom:6px;">
+                <span class="section-label" style="padding:0;">飞书群组</span>
+                <button class="tbtn tbtn-accent" style="font-size:11px;">+ 添加群组</button>
+            </div>
+            <div class="group">
+                <div class="list-row" id="ch-1" onclick="selectChannel('ch-1','产品讨论组')">
+                    <div style="width:28px;height:28px;border-radius:7px;background:rgba(139,92,246,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:#a78bfa;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="text-xs text-medium">产品讨论组</div>
+                        <div class="text-xs text-dimmer">已绑定 · 产品经理</div>
+                    </div>
+                    <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:#8b5cf6;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+
+                <div class="list-row" id="ch-2" onclick="selectChannel('ch-2','UX 设计评审')">
+                    <div style="width:28px;height:28px;border-radius:7px;background:rgba(6,182,212,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:#06b6d4;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="text-xs text-medium">UX 设计评审</div>
+                        <div class="text-xs text-dimmer">已绑定 · UX 设计师</div>
+                    </div>
+                    <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:rgba(255,255,255,0.3);"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+
+                <div class="list-row" id="ch-3" onclick="selectChannel('ch-3','数据分析')">
+                    <div style="width:28px;height:28px;border-radius:7px;background:rgba(245,158,11,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:#f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="text-xs text-medium">数据分析</div>
+                        <div class="text-xs text-dimmer">已绑定 · 数据分析师</div>
+                    </div>
+                    <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:rgba(255,255,255,0.3);"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </div>
+        </section>
+    </div>
 </main>
 
+<!-- COL 4 — Channel Detail (Initially Hidden) -->
+<aside id="channel-detail" class="detail-pane" style="display:none;border-left:1px solid rgba(255,255,255,0.08);">
+    <div class="toolbar" style="justify-content:space-between;">
+        <span id="channel-title" style="font-size:15px;font-weight:600;color:#FFFFFF;">产品讨论组</span>
+        <button class="tbtn tbtn-ghost" onclick="closeChannelDetail()" style="padding:4px 8px;">
+            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;">
+        <!-- 群组信息 -->
+        <section>
+            <span class="section-label" style="padding:0 0 8px;">群组信息</span>
+            <div class="group">
+                <div class="group-row">
+                    <span class="group-label">群组名称</span>
+                    <span class="group-value">产品讨论组</span>
+                </div>
+                <div class="group-row">
+                    <span class="group-label">群组 ID</span>
+                    <span class="group-value">oc_xxx***</span>
+                </div>
+                <div class="group-row">
+                    <span class="group-label">成员数量</span>
+                    <span class="group-value">12 人</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 绑定配置 -->
+        <section>
+            <span class="section-label" style="padding:0 0 8px;">绑定配置</span>
+            <div class="group">
+                <div class="group-row" style="align-items:flex-start;">
+                    <span class="group-label" style="margin-top:5px;">关联智能体</span>
+                    <select class="field-input" style="flex:1;">
+                        <option value="pm" selected>产品经理</option>
+                        <option value="ux">UX 设计师</option>
+                        <option value="da">数据分析师</option>
+                        <option value="qa">质量保证</option>
+                    </select>
+                </div>
+                <div class="group-row" style="align-items:flex-start;">
+                    <span class="group-label" style="margin-top:5px;">触发模式</span>
+                    <select class="field-input" style="flex:1;">
+                        <option value="at" selected>@机器人触发</option>
+                        <option value="all">所有消息</option>
+                        <option value="keyword">关键词触发</option>
+                    </select>
+                </div>
+                <div class="group-row">
+                    <span class="group-label">启用状态</span>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" checked style="width:16px;height:16px;accent-color:#8b5cf6;">
+                        <span style="font-size:12px;color:#EBEBF5;">启用</span>
+                    </label>
+                </div>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px;">
+                <button class="tbtn tbtn-accent" style="font-size:11px;">保存配置</button>
+                <button class="tbtn tbtn-ghost" style="font-size:11px;">测试发送</button>
+            </div>
+        </section>
+
+        <!-- 路由规则 -->
+        <section>
+            <div class="flex-between" style="margin-bottom:6px;">
+                <span class="section-label" style="padding:0;">路由规则</span>
+                <button class="tbtn tbtn-ghost" style="font-size:11px;">+ 添加规则</button>
+            </div>
+            <div class="group">
+                <div class="group-row">
+                    <div style="width:8px;height:8px;border-radius:50%;background:#8b5cf6;flex-shrink:0;margin-right:10px;"></div>
+                    <div style="flex:1;">
+                        <div class="text-xs text-medium">默认路由</div>
+                        <div class="text-xs text-dimmer">所有未匹配消息转发到默认智能体</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</aside>
+
 <script>
-function selectCompany(id) {
-    document.querySelectorAll('.company-card').forEach(card => card.classList.remove('active'));
-    event.currentTarget.classList.add('active');
+    function selectCompany(id, name) {
+        document.querySelectorAll('.list-row').forEach(r => r.classList.remove('selected'));
+        document.getElementById(id).classList.add('selected');
+        document.getElementById('company-title').textContent = name;
+        closeChannelDetail();
+    }
 
-    const titles = {
-        pm: '互联网公司 - 频道路由配置',
-        dev: '手机助手公司 - 频道路由配置',
-        content: '自媒体公司 - 频道路由配置'
-    };
-    document.getElementById('binding-title').textContent = titles[id] || '频道路由配置';
-}
+    function selectChannel(id, name) {
+        document.querySelectorAll('#ch-1, #ch-2, #ch-3').forEach(r => {
+            r.style.background = '';
+        });
+        document.getElementById(id).style.background = 'rgba(139,92,246,0.15)';
+        document.getElementById('channel-title').textContent = name;
+        document.getElementById('channel-detail').style.display = 'flex';
+    }
 
-function selectBinding(id) {
-    document.querySelectorAll('.binding-item').forEach(item => item.classList.remove('selected'));
-    event.currentTarget.classList.add('selected');
-}
+    function closeChannelDetail() {
+        document.getElementById('channel-detail').style.display = 'none';
+        document.querySelectorAll('#ch-1, #ch-2, #ch-3').forEach(r => {
+            r.style.background = '';
+        });
+    }
 </script>
 </body>
 </html>
