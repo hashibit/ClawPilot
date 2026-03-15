@@ -5,73 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>云同步 — ClawPilot</title>
 <link rel="stylesheet" href="base.css">
-<style>
-/* ── Toolbar extras ─────────────────────────────── */
-.toolbar-title{font-size:15px;font-weight:600;color:#FFFFFF}
-.pro-badge{font-size:10px;font-weight:600;letter-spacing:0.04em;background:rgba(245,158,11,0.18);color:#f59e0b;padding:2px 6px;border-radius:4px}
-.toolbar-sep{width:1px;height:16px;background:rgba(255,255,255,0.1);margin:0 2px}
-.sync-ok{display:flex;align-items:center;gap:5px;font-size:12px;color:rgba(235,235,245,0.55)}
-.sync-dot{width:6px;height:6px;border-radius:50%;background:#34c759}
-.ml-auto{margin-left:auto}
-
-/* ── Content layout ─────────────────────────────── */
-.content{flex:1;overflow-y:auto;padding:16px;display:flex;gap:12px}
-.col-left{display:flex;flex-direction:column;gap:12px;width:320px;min-width:320px}
-.col-right{flex:1;display:flex;flex-direction:column;gap:12px;min-width:0}
-
-/* ── Group title ─────────────────────────────── */
-.group-title{font-size:11px;font-weight:600;letter-spacing:0.05em;color:#636366;text-transform:uppercase;margin-bottom:6px}
-
-/* ── Row label / value ─────────────────────────────── */
-.row-label{font-size:12px;color:#636366;flex-shrink:0}
-.row-value{font-size:12px;color:#EBEBF5;margin-left:auto;text-align:right}
-.row-value.green{color:#34c759}
-.row-value.accent{color:#a78bfa}
-
-/* ── Status hero ─────────────────────────────── */
-.status-hero{display:flex;align-items:center;gap:12px;padding:12px;background:#2C2C2E;border-radius:10px;margin-bottom:0}
-.status-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.status-icon.green{background:rgba(52,199,89,0.15)}
-.status-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75}
-.status-icon.green svg{color:#34c759}
-.status-text-main{font-size:14px;font-weight:600;color:#34c759}
-.status-text-sub{font-size:11px;color:#636366;margin-top:1px}
-
-/* ── Device cards ─────────────────────────────── */
-.device-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
-.device-row:last-child{border-bottom:none}
-.device-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.device-icon svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.75}
-.device-icon.accent{background:rgba(139,92,246,0.15)}
-.device-icon.accent svg{color:#a78bfa}
-.device-icon.dim{background:rgba(255,255,255,0.05)}
-.device-icon.dim svg{color:#636366}
-.device-name{font-size:12px;font-weight:500}
-.device-sub{font-size:11px;color:#636366;margin-top:1px}
-.device-online{width:6px;height:6px;border-radius:50%;background:#34c759;margin-left:auto;flex-shrink:0}
-.device-offline{width:6px;height:6px;border-radius:50%;background:#48484A;margin-left:auto;flex-shrink:0}
-
-/* ── Version history ─────────────────────────────── */
-.ver-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.ver-link{font-size:11px;color:#8b5cf6;cursor:pointer}
-.ver-link:hover{color:#a78bfa}
-.ver-row{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.06)}
-.ver-row:last-child{border-bottom:none}
-.ver-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.ver-icon svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.75}
-.ver-icon.sync{background:rgba(139,92,246,0.15)}
-.ver-icon.sync svg{color:#a78bfa}
-.ver-icon.snap{background:rgba(245,158,11,0.15)}
-.ver-icon.snap svg{color:#f59e0b}
-.ver-body{flex:1;min-width:0}
-.ver-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
-.ver-title{font-size:12px;font-weight:500}
-.ver-time{font-size:11px;color:#636366}
-.ver-desc{font-size:11px;color:rgba(235,235,245,0.5);margin-bottom:4px}
-.ver-tag{display:inline-block;font-size:10px;background:rgba(255,255,255,0.07);color:#636366;padding:1px 6px;border-radius:4px}
-.ver-restore{font-size:11px;padding:3px 8px;border-radius:5px;border:none;cursor:pointer;background:rgba(255,255,255,0.07);color:rgba(235,235,245,0.6);font-family:inherit;margin-left:8px;flex-shrink:0;align-self:center;transition:background 0.1s}
-.ver-restore:hover{background:rgba(255,255,255,0.12)}
-</style>
+<link rel="stylesheet" href="pages.css">
 </head>
 <body>
 
