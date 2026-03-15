@@ -106,3 +106,77 @@ input[type="checkbox"].mac-check {
 /* ── Icon sizes ───────────────────────────────────────── */
 .ic-16 { width: 16px; height: 16px; }
 .ic-14 { width: 14px; height: 14px; }
+
+/* ── Avatar / Icon Box ─────────────────────────────────── */
+.avatar {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-weight: 700; color: white;
+}
+.avatar-sm { width: 26px; height: 26px; border-radius: 6px; font-size: 10px; }
+.avatar-md { width: 30px; height: 30px; border-radius: 8px; font-size: 10px; }
+.avatar-lg { width: 32px; height: 32px; border-radius: 8px; font-size: 13px; }
+.avatar-xl { width: 42px; height: 42px; border-radius: 10px; font-size: 18px; }
+
+/* ── Logo Box ─────────────────────────────────────────── */
+.logo-box {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Status Badge ─────────────────────────────────────── */
+.status-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 4px; white-space: nowrap;
+}
+.status-green { background: rgba(52, 199, 89, 0.15); color: #34c759; }
+.status-gray { background: rgba(255, 255, 255, 0.06); color: #636366; }
+.status-violet { background: rgba(139, 92, 246, 0.18); color: #a78bfa; }
+
+/* ── Search Input ─────────────────────────────────────── */
+.search-box {
+  display: flex; align-items: center; gap: 5px;
+  background: #3A3A3C; border-radius: 6px; padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.search-box input {
+  background: transparent; border: none; outline: none;
+  font-size: 12px; color: #EBEBF5; width: 160px; font-family: inherit;
+}
+.search-box input::placeholder { color: #636366; }
+
+/* ── Text Utilities ───────────────────────────────────── */
+.text-sm { font-size: 13px; }
+.text-xs { font-size: 12px; }
+.text-xxs { font-size: 11px; }
+.text-bold { font-weight: 600; }
+.text-medium { font-weight: 500; }
+.text-dim { color: rgba(255, 255, 255, 0.7); }
+.text-dimmer { color: #636366; }
+
+/* ── Flex Utilities ───────────────────────────────────── */
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-2 { gap: 2px; }
+.gap-4 { gap: 4px; }
+.gap-5 { gap: 5px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-10 { gap: 10px; }
+
+/* ── Margin / Padding ─────────────────────────────────── */
+.mb-2 { margin-bottom: 2px; }
+.mb-4 { margin-bottom: 4px; }
+.mt-1 { margin-top: 1px; }
+.mt-6 { margin-top: 6px; }
+.p-0 { padding: 0; }
+.py-2 { padding-top: 2px; padding-bottom: 2px; }
+
+/* ── PRO Badge ─────────────────────────────────────────── */
+.pro-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  background: rgba(245, 158, 11, 0.18); color: #f59e0b;
+  padding: 1px 6px; border-radius: 4px;
+}
