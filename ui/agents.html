@@ -10,9 +10,9 @@
         .tool-row { display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer; }
         .tool-row + .tool-row { border-top:1px solid rgba(255,255,255,0.06); }
         .tool-row:hover { background:rgba(255,255,255,0.03); }
-        .agent-row { display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;transition:background 0.1s; }
+        .agent-row { display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;transition:background 0.1s; }
         .agent-row:hover { background:rgba(255,255,255,0.04); }
-        .agent-row.selected { background:rgba(139,92,246,0.2); }
+        .agent-row.selected { background:rgba(255,255,255,0.15); }
         .agent-row.dragging { opacity:0.4; }
         .agent-row.drag-over-top { border-top:2px solid #8b5cf6; }
         .agent-row.drag-over-bottom { border-bottom:2px solid #8b5cf6; }
@@ -20,8 +20,8 @@
         .drag-handle:active { cursor:grabbing; }
         .drag-handle span { display:block;width:12px;height:1.5px;background:rgba(255,255,255,0.2);border-radius:1px; }
         .drag-handle:hover span { background:rgba(255,255,255,0.5); }
-        .company-select { background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#EBEBF5;font-size:12px;padding:3px 22px 3px 8px;-webkit-appearance:none;appearance:none;cursor:pointer;outline:none;font-family:inherit; }
-        .company-select:hover { background:rgba(255,255,255,0.10); }
+        .company-select { background:#1C1C1E;border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:#FFFFFF;font-size:13px;padding:7px 28px 7px 10px;-webkit-appearance:none;appearance:none;cursor:pointer;outline:none;font-family:inherit; }
+        .company-select:hover { background:#1C1C1E;border-color:rgba(139,92,246,0.4); }
         .guardrail-col { flex:1;background:#2C2C2E;border-radius:8px;padding:9px 10px; }
         .soul-tab { font-size:11px;padding:3px 9px;border-radius:5px;border:none;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(235,235,245,0.5);font-family:inherit;transition:background 0.1s,color 0.1s; }
         .soul-tab:hover { background:rgba(255,255,255,0.1);color:rgba(235,235,245,0.8); }
@@ -40,7 +40,7 @@
         <div style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#06b6d4);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <svg width="13" height="13" fill="none" stroke="white" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         </div>
-        <span style="font-size:13px;font-weight:600;color:#EBEBF5;">ClawPilot</span>
+        <span style="font-size:15px;font-weight:600;color:#FFFFFF;">ClawPilot</span>
     </div>
 
     <!-- Navigation -->
@@ -132,7 +132,7 @@
             <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">PM</div>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:5px;">
-                    <span style="font-size:12px;font-weight:500;color:#EBEBF5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">产品经理</span>
+                    <span style="font-size:13px;font-weight:500;color:#FFFFFF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">产品经理</span>
                     <span class="default-badge" style="font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
                 </div>
                 <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">百炼[qwen-max] · 3 工具</div>
@@ -145,7 +145,7 @@
             <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">UX</div>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:5px;">
-                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">UX设计师</span>
+                    <span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">UX设计师</span>
                     <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
                 </div>
                 <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">火山方舟[deepseek-v3] · 2 工具</div>
@@ -158,7 +158,7 @@
             <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">DA</div>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:5px;">
-                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">数据分析师</span>
+                    <span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">数据分析师</span>
                     <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
                 </div>
                 <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">百炼[qwen-max] · 4 工具</div>
@@ -171,7 +171,7 @@
             <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#10b981,#14b8a6);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">DO</div>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:5px;">
-                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">技术文档工程师</span>
+                    <span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">技术文档工程师</span>
                     <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
                 </div>
                 <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">百炼[qwen-plus] · 2 工具</div>
@@ -184,7 +184,7 @@
             <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#f43f5e,#ec4899);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;flex-shrink:0;">QA</div>
             <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:5px;">
-                    <span style="font-size:12px;font-weight:500;color:rgba(235,235,245,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">质量保证工程师</span>
+                    <span style="font-size:13px;font-weight:500;color:rgba(255,255,255,0.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">质量保证工程师</span>
                     <span class="default-badge" style="display:none;font-size:10px;background:rgba(139,92,246,0.18);color:#a78bfa;padding:1px 5px;border-radius:4px;white-space:nowrap;flex-shrink:0;">默认响应</span>
                 </div>
                 <div style="font-size:11px;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">火山方舟[deepseek-coder] · 3 工具</div>
@@ -214,7 +214,7 @@
     <div class="toolbar" style="justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:8px;">
             <div id="detail-avatar" style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#8b5cf6,#ec4899);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:white;flex-shrink:0;">PM</div>
-            <span id="detail-name" style="font-size:13px;font-weight:600;color:#EBEBF5;">产品经理</span>
+            <span id="detail-name" style="font-size:15px;font-weight:600;color:#FFFFFF;">产品经理</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
             <button class="tbtn tbtn-ghost">取消</button>
@@ -223,7 +223,7 @@
     </div>
 
     <!-- Scrollable editor content -->
-    <div style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px;">
+    <div style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:18px;">
 
         <!-- AI Quick Generate -->
         <section>
@@ -282,47 +282,47 @@
                     </div>
                 </div>
                 <!-- Tool list -->
-                <div style="padding:5px 12px 2px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:#636366;text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.06);">工具权限</div>
+                <div style="padding:5px 12px 2px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:rgba(255,255,255,0.5);text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.12);">工具权限</div>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check" checked>
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">web_search</div>
-                        <div style="font-size:11px;color:#636366;">网络搜索，获取实时信息</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check" checked>
-                    <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">code_interpreter</div>
-                        <div style="font-size:11px;color:#636366;">代码执行与数据分析</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check">
-                    <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">file_reader</div>
-                        <div style="font-size:11px;color:#636366;">读取本地文件内容</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">web_search</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">网络搜索，获取实时信息</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check" checked>
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">feishu_message</div>
-                        <div style="font-size:11px;color:#636366;">发送飞书消息与卡片</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">code_interpreter</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">代码执行与数据分析</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check">
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">image_analysis</div>
-                        <div style="font-size:11px;color:#636366;">分析图片内容与提取文字</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">file_reader</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">读取本地文件内容</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check" checked>
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">feishu_message</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">发送飞书消息与卡片</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check">
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">http_request</div>
-                        <div style="font-size:11px;color:#636366;">调用外部 HTTP API</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">image_analysis</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">分析图片内容与提取文字</div>
+                    </div>
+                </label>
+                <label class="tool-row">
+                    <input type="checkbox" class="mac-check">
+                    <div style="flex:1;">
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">http_request</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">调用外部 HTTP API</div>
                     </div>
                 </label>
             </div>
@@ -335,43 +335,43 @@
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check" checked>
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">多轮对话记忆</div>
-                        <div style="font-size:11px;color:#636366;">在会话中保留上下文，支持连续追问</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">多轮对话记忆</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">在会话中保留上下文，支持连续追问</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check" checked>
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">主动发言</div>
-                        <div style="font-size:11px;color:#636366;">在满足触发条件时主动发起消息</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">主动发言</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">在满足触发条件时主动发起消息</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check">
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">定时心跳</div>
-                        <div style="font-size:11px;color:#636366;">按计划定期执行 HEARTBEAT 任务</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">定时心跳</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">按计划定期执行 HEARTBEAT 任务</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check">
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">群聊 @ 响应</div>
-                        <div style="font-size:11px;color:#636366;">在群聊中被 @ 时才回复</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">群聊 @ 响应</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">在群聊中被 @ 时才回复</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check" checked>
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">私聊直接响应</div>
-                        <div style="font-size:11px;color:#636366;">在私聊频道中响应所有消息</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">私聊直接响应</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">在私聊频道中响应所有消息</div>
                     </div>
                 </label>
                 <label class="tool-row">
                     <input type="checkbox" class="mac-check">
                     <div style="flex:1;">
-                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">消息路由协调</div>
-                        <div style="font-size:11px;color:#636366;">作为路由 Agent 将消息分发给合适的成员</div>
+                        <div style="font-size:12px;font-weight:500;color:#FFFFFF;">消息路由协调</div>
+                        <div style="font-size:11px;color:rgba(255,255,255,0.55);">作为路由 Agent 将消息分发给合适的成员</div>
                     </div>
                 </label>
             </div>
@@ -390,10 +390,10 @@
                         <span style="font-size:11px;font-weight:500;color:#34c759;">允许范围</span>
                     </div>
                     <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:3px;">
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 回答产品相关问题</li>
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 生成 PRD 文档</li>
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 分析竞品功能</li>
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 制定项目计划</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 回答产品相关问题</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 生成 PRD 文档</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 分析竞品功能</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 制定项目计划</li>
                     </ul>
                 </div>
                 <div class="guardrail-col">
@@ -402,10 +402,10 @@
                         <span style="font-size:11px;font-weight:500;color:#f43f5e;">禁止范围</span>
                     </div>
                     <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:3px;">
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 编写代码实现</li>
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 执行系统命令</li>
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 访问敏感数据</li>
-                        <li style="font-size:11px;color:rgba(235,235,245,0.6);">· 修改配置文件</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 编写代码实现</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 执行系统命令</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 访问敏感数据</li>
+                        <li style="font-size:11px;color:rgba(255,255,255,0.65);">· 修改配置文件</li>
                     </ul>
                 </div>
             </div>
