@@ -264,99 +264,74 @@
                         <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                 </div>
-                <!-- Tool list -->
-                <div style="padding:5px 12px 2px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:rgba(255,255,255,0.5);text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.12);">工具权限</div>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check" checked>
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">web_search</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">网络搜索，获取实时信息</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check" checked>
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">code_interpreter</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">代码执行与数据分析</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check">
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">file_reader</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">读取本地文件内容</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check" checked>
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">feishu_message</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">发送飞书消息与卡片</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check">
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">image_analysis</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">分析图片内容与提取文字</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check">
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">http_request</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">调用外部 HTTP API</div>
-                    </div>
-                </label>
+                <!-- Tool chips -->
+                <div style="padding:5px 12px 2px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:rgba(255,255,255,0.5);text-transform:uppercase;border-top:1px solid rgba(255,255,255,0.12);">
+                    工具权限
+                    <span id="tool-count" style="margin-left:6px;color:rgba(255,255,255,0.4);">3</span>
+                </div>
+                <div id="tool-chips" style="display:flex;flex-wrap:wrap;gap:6px;padding-bottom:5px;">
+                    <button class="tool-chip" onclick="toggleTool(this, 'web_search')">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        web_search
+                    </button>
+                    <button class="tool-chip" onclick="toggleTool(this, 'code_interpreter')">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l-4-4m4 4l4-16"/></svg>
+                        code_interpreter
+                    </button>
+                    <button class="tool-chip" onclick="toggleTool(this, 'file_reader')">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        file_reader
+                    </button>
+                    <button class="tool-chip" onclick="toggleTool(this, 'feishu_message')">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        feishu_message
+                    </button>
+                    <button class="tool-chip" onclick="toggleTool(this, 'image_analysis')">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        image_analysis
+                    </button>
+                    <button class="tool-chip" onclick="toggleTool(this, 'http_request')">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 0c1.657 0 3-4.03 3-9s-1.343-9-3-9"/></svg>
+                        http_request
+                    </button>
+                </div>
             </div>
         </section>
-
-        <!-- 技能配置 -->
         <section>
-            <div class="section-label" style="padding:0 0 5px;">技能配置</div>
-            <div class="group">
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check" checked>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="section-label" style="padding:0;">技能配置</span>
+                    <span id="skill-count" style="font-size:11px;color:#636366;">2</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <button class="tbtn tbtn-ghost" style="padding:1px 8px;font-size:11px;" onclick="openSkillModal()">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="10" height="10" style="display:inline;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        添加
+                    </button>
+                    <button class="tbtn tbtn-ghost" style="padding:1px 8px;font-size:11px;" onclick="aiRecommendSkills()">
+                        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" style="display:inline;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        AI 推荐
+                    </button>
+                </div>
+            </div>
+            <!-- Skill chips -->
+            <div id="skill-chips" style="display:flex;flex-wrap:wrap;gap:6px;">
+                <div class="skill-chip" data-slug="multi-round-memory">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">多轮对话记忆</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">在会话中保留上下文，支持连续追问</div>
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">多轮对话记忆</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.6);">会话中保留上下文，支持连续追问</div>
                     </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check" checked>
+                    <button class="chip-remove" onclick="removeSkill(this)" title="移除">✕</button>
+                </div>
+                <div class="skill-chip" data-slug="proactive-speak">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-.399 1.084l-9.757 5.597a1.768 1.768 0 01-2.316-.707L4.722 7.303c-.75.42-.367-.78-.888-.75-1.444V2a2 2 0 013.565-1.658l.055-.056a1 1 0 011.41 0l.055.056c.79.795 1.76.953 3.686.318 5.706z"/></svg>
                     <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">主动发言</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">在满足触发条件时主动发起消息</div>
+                        <div style="font-size:12px;font-weight:500;color:#EBEBF5;">主动发言</div>
+                        <div style="font-size:10px;color:rgba(255,255,255,0.6);">满足触发条件时主动发起消息</div>
                     </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check">
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">定时心跳</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">按计划定期执行 HEARTBEAT 任务</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check">
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">群聊 @ 响应</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">在群聊中被 @ 时才回复</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check" checked>
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">私聊直接响应</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">在私聊频道中响应所有消息</div>
-                    </div>
-                </label>
-                <label class="tool-row">
-                    <input type="checkbox" class="mac-check">
-                    <div style="flex:1;">
-                        <div style="font-size:13px;font-weight:500;color:#FFFFFF;">消息路由协调</div>
-                        <div style="font-size:12px;color:rgba(255,255,255,0.65);">作为路由 Agent 将消息分发给合适的成员</div>
-                    </div>
-                </label>
+                    <button class="chip-remove" onclick="removeSkill(this)" title="移除">✕</button>
+                </div>
             </div>
         </section>
 
@@ -635,6 +610,404 @@ timezone: Asia/Shanghai
         document.getElementById('soul-filedesc').textContent = soulFiles[key].desc;
         document.getElementById('soul-editor').value = soulFiles[key].content;
     }
+
+    // ============================================
+    // Tool Chips Implementation
+    // ============================================
+
+    const availableTools = [
+        { id: 'web_search', name: '网页搜索', icon: '🔍' },
+        { id: 'web_reader', name: '网页阅读', icon: '📄' },
+        { id: 'feishu_message', name: '飞书消息', icon: '💬' },
+        { id: 'code_interpreter', name: '代码解释器', icon: '💻' },
+        { id: 'asr', name: '语音识别', icon: '🎤' },
+        { id: 'tts', name: '语音合成', icon: '🔊' },
+        { id: 'image_gen', name: '图像生成', icon: '🎨' },
+        { id: 'vlm', name: '视觉理解', icon: '👁' }
+    ];
+
+    const enabledTools = new Set(['web_search', 'web_reader', 'feishu_message']);
+
+    function toggleTool(chip, toolId) {
+        if (enabledTools.has(toolId)) {
+            enabledTools.delete(toolId);
+            chip.classList.remove('active');
+        } else {
+            enabledTools.add(toolId);
+            chip.classList.add('active');
+        }
+        updateToolCount();
+    }
+
+    function updateToolCount() {
+        const count = enabledTools.size;
+        document.getElementById('tool-count').textContent = `${count} 个工具`;
+    }
+
+    function initTools() {
+        const container = document.getElementById('tool-chips');
+        container.innerHTML = '';
+        availableTools.forEach(tool => {
+            const chip = document.createElement('button');
+            chip.className = 'tool-chip' + (enabledTools.has(tool.id) ? ' active' : '');
+            chip.onclick = () => toggleTool(chip, tool.id);
+            chip.innerHTML = `<span>${tool.icon}</span><span>${tool.name}</span>`;
+            container.appendChild(chip);
+        });
+        updateToolCount();
+    }
+
+    // ============================================
+    // Skill Chips Implementation
+    // ============================================
+
+    const skillRegistry = {
+        'multi-round-memory': { name: '多轮对话记忆', icon: '💾', desc: '会话中保留上下文，支持连续追问', tag: '记忆' },
+        'proactive-speak': { name: '主动发言', icon: '🔔', desc: '满足触发条件时主动发起消息', tag: '交互' },
+        'scheduled-heartbeat': { name: '定时心跳', icon: '⏰', desc: '按计划定期执行 HEARTBEAT 任务', tag: '定时' },
+        'mention-response': { name: '群聊 @ 响应', icon: '@', desc: '在群聊中被 @ 时才回复', tag: '群聊' },
+        'direct-response': { name: '私聊直接响应', icon: '💬', desc: '在私聊频道中响应所有消息', tag: '私聊' },
+        'message-routing': { name: '消息路由协调', icon: '↔', desc: '作为路由 Agent 将消息分发给合适的成员', tag: '协调' },
+        'context-compression': { name: '上下文压缩', icon: '📦', desc: '压缩长对话历史，节省 token', tag: '效率' },
+        'tool-calling': { name: '工具调用', icon: '🔧', desc: '自动选择和调用合适的工具', tag: '智能' },
+        'memory-persistence': { name: '记忆持久化', icon: '💾', desc: '跨会话保存重要记忆', tag: '记忆' },
+        'emotional-aware': { name: '情绪感知', icon: '💭', desc: '识别对话情绪，调整回复风格', tag: '交互' }
+    };
+
+    const enabledSkills = new Set(['multi-round-memory', 'proactive-speak']);
+
+    function removeSkill(btn) {
+        const chip = btn.closest('.skill-chip');
+        const slug = chip.dataset.slug;
+        enabledSkills.delete(slug);
+        chip.remove();
+        updateSkillCount();
+        updateModalSkillState();
+    }
+
+    function addSkill(slug) {
+        if (enabledSkills.has(slug)) return;
+        enabledSkills.add(slug);
+        const container = document.getElementById('skill-chips');
+        container.appendChild(createSkillChip(slug));
+        updateSkillCount();
+        updateModalSkillState();
+    }
+
+    function updateSkillCount() {
+        const count = enabledSkills.size;
+        document.getElementById('skill-count').textContent = `${count} 个技能`;
+    }
+
+    function createSkillChip(slug) {
+        const skill = skillRegistry[slug];
+        if (!skill) return null;
+        const chip = document.createElement('div');
+        chip.className = 'skill-chip';
+        chip.dataset.slug = slug;
+        chip.innerHTML = `
+            <span style="font-size:14px;">${skill.icon}</span>
+            <div style="flex:1;min-width:0;">
+                <div class="text-xs text-medium">${skill.name}</div>
+            </div>
+            <button class="chip-remove" onclick="removeSkill(this)">✕</button>
+        `;
+        return chip;
+    }
+
+    function initSkills() {
+        const container = document.getElementById('skill-chips');
+        container.innerHTML = '';
+        enabledSkills.forEach(slug => {
+            const chip = createSkillChip(slug);
+            if (chip) container.appendChild(chip);
+        });
+        updateSkillCount();
+        initModalSkillSearch();
+    }
+
+    // ============================================
+    // Skill Modal Implementation
+    // ============================================
+
+    function openSkillModal() {
+        document.getElementById('skill-modal').style.display = 'flex';
+        updateModalSkillState();
+    }
+
+    function closeSkillModal() {
+        document.getElementById('skill-modal').style.display = 'none';
+        document.getElementById('modal-skill-search').value = '';
+        filterModalSkillSearch('');
+    }
+
+    function addSkillFromModal(slug) {
+        if (enabledSkills.has(slug)) return;
+        addSkill(slug);
+    }
+
+    function updateModalSkillState() {
+        document.querySelectorAll('#modal-skill-list .skill-option').forEach(option => {
+            const slug = option.dataset.slug;
+            if (enabledSkills.has(slug)) {
+                option.classList.add('added');
+                option.querySelector('.skill-option-tag').textContent = '已添加';
+            } else {
+                option.classList.remove('added');
+                option.querySelector('.skill-option-tag').textContent = skillRegistry[slug]?.tag || '';
+            }
+        });
+    }
+
+    function initModalSkillSearch() {
+        const searchInput = document.getElementById('modal-skill-search');
+        searchInput.addEventListener('input', (e) => filterModalSkillSearch(e.target.value));
+    }
+
+    function filterModalSkillSearch(query) {
+        const lowerQuery = query.toLowerCase();
+        document.querySelectorAll('#modal-skill-list .skill-option').forEach(option => {
+            const slug = option.dataset.slug;
+            const skill = skillRegistry[slug];
+            const matches = !query || skill.name.toLowerCase().includes(lowerQuery) || skill.desc.toLowerCase().includes(lowerQuery);
+            option.style.display = matches ? 'flex' : 'none';
+        });
+    }
+
+    // ============================================
+    // AI Recommendation Implementation
+    // ============================================
+
+    function aiRecommendSkills() {
+        const modal = document.getElementById('ai-recommend-modal');
+        const content = document.getElementById('ai-recommend-content');
+        const closeBtn = document.getElementById('ai-recommend-close');
+
+        modal.style.display = 'flex';
+        closeBtn.style.display = 'none';
+
+        // Show loading state
+        content.innerHTML = `
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;color:#636366;">
+                <div style="margin-bottom:12px;">
+                    <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.5;animation:spin 1s linear infinite;"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div style="font-size:14px;">正在分析角色配置...</div>
+            </div>
+        `;
+
+        // Simulate AI analysis (replace with actual API call)
+        setTimeout(() => {
+            const recommendations = getRecommendationsForCurrentAgent();
+            content.innerHTML = `
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    ${recommendations.map((skill, idx) => `
+                        <div class="ai-recommend-item" style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.08);">
+                            <span style="font-size:18px;">${skill.icon}</span>
+                            <div style="flex:1;min-width:0;">
+                                <div class="text-xs text-medium">${skill.name}</div>
+                                <div class="text-xxs text-dimmer">${skill.reason}</div>
+                            </div>
+                            ${!enabledSkills.has(skill.slug) ? `
+                                <button onclick="addRecommendedSkill('${skill.slug}', this)" class="tbtn tbtn-ghost" style="padding:4px 8px;font-size:11px;">添加</button>
+                            ` : `
+                                <span class="text-xxs" style="color:#34c759;">已添加</span>
+                            `}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            closeBtn.style.display = 'block';
+        }, 1500);
+    }
+
+    function getRecommendationsForCurrentAgent() {
+        // Simulate AI-based recommendations based on agent profile
+        const currentAgentName = document.getElementById('agent-name')?.value || '';
+        const currentAgentJob = document.getElementById('agent-job-title')?.value || '';
+
+        const allRecommendations = [
+            { slug: 'multi-round-memory', name: '多轮对话记忆', icon: '💾', reason: '连续对话需要上下文记忆' },
+            { slug: 'tool-calling', name: '工具调用', icon: '🔧', reason: '智能选择合适的工具完成任务' },
+            { slug: 'emotional-aware', name: '情绪感知', icon: '💭', reason: '识别用户情绪，提供更贴心的回复' },
+            { slug: 'context-compression', name: '上下文压缩', icon: '📦', reason: '处理长对话，节省 token 成本' },
+            { slug: 'proactive-speak', name: '主动发言', icon: '🔔', reason: '在合适时机主动发起对话' },
+            { slug: 'scheduled-heartbeat', name: '定时心跳', icon: '⏰', reason: '定期执行计划任务' },
+            { slug: 'memory-persistence', name: '记忆持久化', icon: '💾', reason: '跨会话保存重要信息' }
+        ];
+
+        // Randomly select 3-5 recommendations
+        const shuffled = allRecommendations.sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, Math.floor(Math.random() * 3) + 3);
+    }
+
+    function addRecommendedSkill(slug, btn) {
+        addSkill(slug);
+        btn.textContent = '已添加';
+        btn.style.color = '#34c759';
+        btn.disabled = true;
+    }
+
+    function closeAiRecommendModal() {
+        document.getElementById('ai-recommend-modal').style.display = 'none';
+    }
+
+    // ============================================
+    // Initialize on page load
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+        initTools();
+        initSkills();
+    });
 </script>
+
+<!-- Skill Modal -->
+<div id="skill-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#1c1c1e;border-radius:12px;border:1px solid rgba(255,255,255,0.12);width:480px;max-width:90%;max-height:80vh;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div style="font-size:15px;font-weight:600;color:#EBEBF5;">选择技能</div>
+                <div style="font-size:12px;color:#636366;margin-top:2px;">从 ClawHub 添加技能到该智能体</div>
+            </div>
+            <button onclick="closeSkillModal()" style="background:none;border:none;color:#636366;cursor:pointer;font-size:20px;line-height:1;">&times;</button>
+        </div>
+        <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.08);">
+            <input type="text" id="modal-skill-search" placeholder="搜索技能..." class="field-input" style="width:100%;">
+        </div>
+        <div id="modal-skill-list" style="flex:1;overflow-y:auto;padding:12px 20px;display:flex;flex-direction:column;gap:8px;">
+            <!-- Skills will be dynamically loaded -->
+            <div class="skill-option" data-slug="multi-round-memory" onclick="addSkillFromModal('multi-round-memory')">
+                <div class="skill-option-icon">💾</div>
+                <div class="skill-option-info">
+                    <div class="skill-option-name">多轮对话记忆</div>
+                    <div class="skill-option-desc">会话中保留上下文，支持连续追问</div>
+                </div>
+                <div class="skill-option-tag">记忆</div>
+            </div>
+            <div class="skill-option" data-slug="proactive-speak" onclick="addSkillFromModal('proactive-speak')">
+                <div class="skill-option-icon">🔔</div>
+                <div class="skill-option-info">
+                    <div class="skill-option-name">主动发言</div>
+                    <div class="skill-option-desc">满足触发条件时主动发起消息</div>
+                </div>
+                <div class="skill-option-tag">交互</div>
+            </div>
+            <div class="skill-option" data-slug="scheduled-heartbeat" onclick="addSkillFromModal('scheduled-heartbeat')">
+                <div class="skill-option-icon">⏰</div>
+                <div class="skill-option-info">
+                    <div class="skill-option-name">定时心跳</div>
+                    <div class="skill-option-desc">按计划定期执行 HEARTBEAT 任务</div>
+                </div>
+                <div class="skill-option-tag">定时</div>
+            </div>
+            <div class="skill-option" data-slug="mention-response" onclick="addSkillFromModal('mention-response')">
+                <div class="skill-option-icon">@</div>
+                <div class="skill-option-info">
+                    <div class="skill-option-name">群聊 @ 响应</div>
+                    <div class="skill-option-desc">在群聊中被 @ 时才回复</div>
+                </div>
+                <div class="skill-option-tag">群聊</div>
+            </div>
+            <div class="skill-option" data-slug="direct-response" onclick="addSkillFromModal('direct-response')">
+                <div class="skill-option-icon">💬</div>
+                <div class="skill-option-info">
+                    <div class="skill-option-name">私聊直接响应</div>
+                    <div class="skill-option-desc">在私聊频道中响应所有消息</div>
+                </div>
+                <div class="skill-option-tag">私聊</div>
+            </div>
+            <div class="skill-option" data-slug="message-routing" onclick="addSkillFromModal('message-routing')">
+                <div class="skill-option-icon">↔</div>
+                <div class="skill-option-info">
+                    <div class="skill-option-name">消息路由协调</div>
+                    <div class="skill-option-desc">作为路由 Agent 将消息分发给合适的成员</div>
+                </div>
+                <div class="skill-option-tag">协调</div>
+            </div>
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,0.08);">
+            <button class="tbtn tbtn-ghost" style="width:100%;" onclick="closeSkillModal()">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- AI Recommendation Modal -->
+<div id="ai-recommend-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#1c1c1e;border-radius:12px;border:1px solid rgba(255,255,255,0.12);width:400px;max-width:90%;display:flex;flex-direction:column;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:15px;font-weight:600;color:#EBEBF5;">AI 推荐技能</div>
+            <div style="font-size:12px;color:#636366;margin-top:2px;">根据当前角色配置智能推荐技能</div>
+        </div>
+        <div id="ai-recommend-content" style="flex:1;overflow-y:auto;padding:20px;">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;color:#636366;">
+                <div style="margin-bottom:12px;">
+                    <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="opacity:0.5;"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div style="font-size:14px;">正在分析角色配置...</div>
+            </div>
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid rgba(255,255,255,0.08);">
+            <button id="ai-recommend-close" class="tbtn tbtn-ghost" style="width:100%;display:none;" onclick="closeAiRecommendModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tool-chip {
+        display:flex;align-items:center;gap:6px;padding:6px 10px;
+        border-radius:6px;background:rgba(255,255,255,0.06);
+        border:1px solid rgba(255,255,255,0.12);
+        cursor:pointer;transition:all 0.15s;font-size:11px;color:rgba(235,235,245,0.8);
+    }
+    .tool-chip:hover { background:rgba(255,255,255,0.1); }
+    .tool-chip:active { transform:scale(0.98); }
+    .tool-chip svg { flex-shrink:0; }
+    .tool-chip.active {
+        background:rgba(139,92,246,0.15);
+        border-color:rgba(139,92,246,0.3);
+        color:#a78bfa;
+    }
+
+    .skill-chip {
+        display:flex;align-items:center;gap:8px;padding:8px 12px;
+        border-radius:8px;background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(6,182,212,0.1));
+        border:1px solid rgba(139,92,246,0.2);
+        min-width:200px;max-width:280px;
+    }
+    .skill-chip svg { flex-shrink:0;width:16px;height:16px; }
+    .skill-chip .chip-remove {
+        display:flex;align-items:center;justify-content:center;
+        width:20px;height:20px;border-radius:50%;
+        background:rgba(255,255,255,0.08);
+        color:#636366;border:none;cursor:pointer;
+        font-size:12px;line-height:1;opacity:0.7;flex-shrink:0;
+    }
+    .skill-chip .chip-remove:hover { opacity:1;background:rgba(239,68,68,0.2);color:#ef4444; }
+
+    .skill-option {
+        display:flex;align-items:center;gap:10px;padding:10px 12px;
+        border-radius:8px;border:1px solid rgba(255,255,255,0.12);
+        background:rgba(255,255,255,0.04);
+        cursor:pointer;transition:all 0.15s;
+    }
+    .skill-option:hover { background:rgba(255,255,255,0.08); }
+    .skill-option:active { transform:scale(0.98); }
+    .skill-option-icon { font-size:18px;flex-shrink:0; }
+    .skill-option-info { flex:1;min-width:0; }
+    .skill-option-name { font-size:13px;font-weight:500;color:#EBEBF5; }
+    .skill-option-desc { font-size:11px;color:rgba(255,255,255,0.6); }
+    .skill-option-tag {
+        font-size:10px;padding:2px 6px;border-radius:4px;
+        background:rgba(139,92,246,0.15);color:#a78bfa;
+        flex-shrink:0;
+    }
+    .skill-option.added {
+        opacity:0.4;pointer-events:none;
+        border-color:rgba(52,199,89,0.3);
+    }
+    .skill-option.added .skill-option-tag { background:rgba(52,199,89,0.15);color:#34c759; }
+</style>
+
+<script>
 </body>
 </html>
