@@ -231,15 +231,6 @@ enum ChannelType {
 message FeishuConfig {
   string app_id = 1;              // 应用 ID
   string app_secret = 2;         // 应用密钥 (加密)
-  bool use_websocket = 3;        // 是否使用 WebSocket
-  string verify_token = 4;       // 验证令牌
-  string encrypt_key = 5;        // 加密密钥
-  repeated string permissions = 6; // 权限列表
-  bool is_published = 7;         // 是否已发布
-  string bot_name = 8;           // Bot 名称
-  string bot_description = 9;    // Bot 描述
-  bool is_connected = 10;        // 连接状态
-  int64 last_connected = 11;     // 最后连接时间
 }
 
 // 渠道配置
@@ -260,22 +251,6 @@ message ChannelsConfig {
 // 绑定配置
 // =============================================================================
 
-// 绑定目标类型
-enum BindingTargetType {
-  TARGET_UNKNOWN = 0;
-  TARGET_USER = 1;          // 单个用户
-  TARGET_GROUP = 2;         // 群组
-  TARGET_ALL = 3;           // 所有
-}
-
-// 触发模式
-enum TriggerMode {
-  TRIGGER_UNKNOWN = 0;
-  TRIGGER_MENTION = 1;      // @机器人触发
-  TRIGGER_ALL = 2;          // 所有消息
-  TRIGGER_KEYWORD = 3;      // 关键词触发
-}
-
 // 飞书频道信息
 message FeishuChannel {
   string id = 1;                    // 频道 ID
@@ -290,51 +265,30 @@ enum FeishuChannelType {
   CHANNEL_DM = 1;                  // 私聊
 }
 
+// 触发模式（飞书本身的功能）
+enum TriggerMode {
+  TRIGGER_MENTION = 0;      // @机器人触发
+  TRIGGER_ALL = 1;          // 所有消息
+}
+
 // 绑定规则
 message BindingRule {
   string id = 1;                    // 绑定 ID
-  BindingTargetType target_type = 2; // 目标类型
-  string target_id = 3;             // 目标 ID (群ID/用户ID)
-  string target_name = 4;           // 目标名称
+  string channel_id = 2;            // 频道 ID (群ID/用户ID)
+  string channel_name = 3;          // 频道名称
+  FeishuChannelType channel_type = 4; // 频道类型（群聊/私聊）
   string agent_id = 5;              // 绑定的 Agent ID
   string agent_name = 6;            // Agent 名称（冗余）
-  ChannelType channel = 7;          // 渠道类型
-  TriggerMode trigger_mode = 8;     // 触发模式
-  repeated string keywords = 9;     // 关键词列表（trigger_mode=keyword时）
-  bool is_enabled = 10;             // 是否启用
-  int64 created_at = 11;
-  int64 updated_at = 12;
-}
-
-// 路由规则
-message RoutingRule {
-  string id = 1;                    // 规则 ID
-  string name = 2;                  // 规则名称
-  string description = 3;           // 规则描述
-  bool is_default = 4;              // 是否为默认路由
-  repeated RoutingCondition conditions = 5; // 匹配条件
-  string target_agent_id = 6;       // 目标 Agent ID
-  int32 priority = 7;               // 优先级（数字越小优先级越高）
-}
-
-// 路由条件
-message RoutingCondition {
-  enum ConditionType {
-    KEYWORD = 0;                    // 关键词匹配
-    AGENT_MENTION = 1;             // @特定Agent
-    TIME_RANGE = 2;                 // 时间范围
-    USER_ROLE = 3;                  // 用户角色
-  }
-
-  ConditionType type = 1;
-  string value = 2;                 // 条件值
+  TriggerMode trigger_mode = 7;     // 触发模式（@机器人/所有消息）
+  bool is_enabled = 8;              // 是否启用
+  int64 created_at = 9;
+  int64 updated_at = 10;
 }
 
 // 绑定配置
 message BindingsConfig {
   repeated BindingRule bindings = 1;
-  string default_agent = 2;         // 默认 Agent
-  repeated RoutingRule routing_rules = 3; // 路由规则列表
+  string default_agent = 2;         // 默认 Agent（可选，用于兜底）
 }
 
 // =============================================================================
