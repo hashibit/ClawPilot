@@ -160,10 +160,10 @@
         <!-- 群组配置 -->
         <section>
             <div class="flex-between" style="margin-bottom:6px;">
-                <span class="section-label" style="padding:0;">飞书群组</span>
-                <button class="tbtn tbtn-accent" style="font-size:11px;">+ 添加群组</button>
+                <span class="section-label" style="padding:0;">飞书群组与绑定</span>
+                <button id="btn-add-channel" class="tbtn tbtn-accent" style="font-size:11px;">+ 添加绑定</button>
             </div>
-            <div class="group">
+            <div id="binding-list" class="group">
                 <div class="list-row" id="ch-1" onclick="selectChannel('ch-1','产品讨论组')">
                     <div style="width:28px;height:28px;border-radius:7px;background:rgba(139,92,246,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                         <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14" style="color:#a78bfa;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -284,6 +284,7 @@
     </div>
 </aside>
 
+<script type="module" src="pages/bindings.js"></script>
 <script>
     function selectCompany(id, name) {
         document.querySelectorAll('.list-row').forEach(r => r.classList.remove('selected'));

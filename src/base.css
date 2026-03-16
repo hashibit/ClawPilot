@@ -180,3 +180,74 @@ input[type="checkbox"].mac-check {
   background: rgba(245, 158, 11, 0.18); color: #f59e0b;
   padding: 1px 6px; border-radius: 4px;
 }
+
+/* ── Form Validation (Task 4.9) ───────────────────────── */
+.field-input.error,
+.field-input:invalid:not(:placeholder-shown) {
+  border-color: rgba(244, 63, 94, 0.6);
+}
+.field-error-msg {
+  font-size: 11px; color: #f43f5e; margin-top: 3px;
+}
+.field-input:disabled {
+  opacity: 0.45; cursor: not-allowed;
+}
+
+/* ── Toggle Switch ────────────────────────────────────── */
+.toggle-switch {
+  position: relative; display: inline-flex;
+  align-items: center; cursor: pointer; flex-shrink: 0;
+}
+.toggle-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  width: 36px; height: 20px; background: #3A3A3C;
+  border-radius: 10px; transition: background 0.2s;
+  position: relative;
+}
+.toggle-slider::after {
+  content: ''; position: absolute;
+  left: 3px; top: 3px;
+  width: 14px; height: 14px;
+  background: #fff; border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.toggle-switch input:checked + .toggle-slider { background: #8b5cf6; }
+.toggle-switch input:checked + .toggle-slider::after { transform: translateX(16px); }
+
+/* ── Drag & Drop visual feedback ─────────────────────── */
+.list-row[draggable="true"] { cursor: grab; }
+.list-row.drag-over {
+  border-top: 2px solid #8b5cf6;
+  background: rgba(139, 92, 246, 0.08);
+}
+.list-row.dragging { opacity: 0.4; }
+
+/* ── Loading Skeleton ─────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.1) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* ── Disabled Button Loading State ───────────────────── */
+.tbtn:disabled {
+  opacity: 0.5; cursor: not-allowed; pointer-events: none;
+}
+.tbtn.loading::after {
+  content: '';
+  display: inline-block; width: 10px; height: 10px;
+  border: 1.5px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  margin-left: 6px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

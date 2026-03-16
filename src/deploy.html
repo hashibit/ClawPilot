@@ -38,8 +38,8 @@
     <div class="toolbar" style="justify-content:space-between;">
         <span style="font-size:15px;font-weight:600;">一键部署</span>
         <div style="display:flex;gap:6px;">
-            <span style="font-size:11px;color:#636366;align-self:center;">上次部署: 2天前</span>
-            <button class="tbtn tbtn-success">立即部署</button>
+            <span id="last-deploy-time" style="font-size:11px;color:#636366;align-self:center;">上次部署: 2天前</span>
+            <button id="btn-deploy" class="tbtn tbtn-success">立即部署</button>
         </div>
     </div>
 
@@ -50,7 +50,7 @@
             <div class="section-label" style="padding:0 0 7px;">部署进度</div>
             <!-- Progress bar -->
             <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:2px;margin-bottom:10px;overflow:hidden;">
-                <div style="height:100%;width:100%;background:linear-gradient(90deg,#8b5cf6,#06b6d4);border-radius:2px;"></div>
+                <div id="deploy-progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#8b5cf6,#06b6d4);border-radius:2px;transition:width 0.5s;"></div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
                 <div class="step-card done">
@@ -120,6 +120,14 @@
             </div>
         </section>
 
+        <!-- Recent Deployments -->
+        <section>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+                <span class="section-label" style="padding:0;">最近部署</span>
+            </div>
+            <div id="recent-deployments" class="group"></div>
+        </section>
+
         <!-- Snapshots -->
         <section>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
@@ -164,5 +172,6 @@
         </section>
     </div>
 </main>
+<script type="module" src="pages/deploy.js"></script>
 </body>
 </html>

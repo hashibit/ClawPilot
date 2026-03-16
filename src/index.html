@@ -94,7 +94,7 @@
     </div>
 
     <!-- Company list -->
-    <div style="flex:1;overflow-y:auto;">
+    <div id="opc-list" style="flex:1;overflow-y:auto;">
 
         <!-- Section: 运行中 -->
         <div class="section-label" style="padding:8px 12px 3px;">运行中</div>
@@ -160,10 +160,10 @@
     <div class="toolbar" style="justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:8px;">
             <span id="detail-title" style="font-size:15px;font-weight:600;color:#FFFFFF;">互联网公司</span>
-            <span style="font-size:11px;padding:1px 7px;border-radius:4px;background:rgba(52,199,89,0.15);color:#34c759;">运行中</span>
+            <span id="detail-status-badge" style="font-size:11px;padding:1px 7px;border-radius:4px;background:rgba(52,199,89,0.15);color:#34c759;">运行中</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-            <button class="tbtn tbtn-ghost">
+            <button id="btn-export-opc" class="tbtn tbtn-ghost">
                 <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="12" height="12" style="display:inline;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 导出
             </button>
@@ -183,11 +183,11 @@
             <div class="group">
                 <div class="group-row">
                     <span class="group-label">智能体</span>
-                    <span class="group-value">5 个</span>
+                    <span id="detail-agent-count" class="group-value">—</span>
                 </div>
                 <div class="group-row">
                     <span class="group-label">飞书频道</span>
-                    <span class="group-value">3 个 <span class="text-dimmer">（2 群聊, 1 私聊）</span></span>
+                    <span id="detail-channel-count" class="group-value">—</span>
                 </div>
                 <div class="group-row">
                     <span class="group-label">运行状态</span>
@@ -198,7 +198,7 @@
                 </div>
                 <div class="group-row">
                     <span class="group-label">今日消息</span>
-                    <span class="group-value" style="color:#34c759;">647 条 <span class="text-dimmer">↑ 12%</span></span>
+                    <span id="detail-msg-today" class="group-value" style="color:#34c759;">—</span>
                 </div>
             </div>
         </section>
@@ -209,7 +209,7 @@
                 <span class="section-label" style="padding:0;">智能体成员</span>
                 <a href="agents.html" style="font-size:11px;color:#a78bfa;text-decoration:none;">管理 →</a>
             </div>
-            <div class="group">
+            <div id="agent-list-detail" class="group">
                 <div class="group-row">
                     <div class="avatar avatar-sm" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);margin-right:8px;">PM</div>
                     <div style="flex:1;">
@@ -302,12 +302,6 @@
     </div>
 </main>
 
-<script>
-    function selectRow(id, name) {
-        document.querySelectorAll('.list-row').forEach(r => r.classList.remove('selected'));
-        document.getElementById(id).classList.add('selected');
-        document.getElementById('detail-title').textContent = name;
-    }
-</script>
+<script type="module" src="pages/opc.js"></script>
 </body>
 </html>
