@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>频道配置 - ClawPilot</title>
+    <link rel="stylesheet" href="base.css">
+    <link rel="stylesheet" href="pages.css">
+    <style>
+        .binding-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.15s;
+        }
+        .binding-item:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(139,92,246,0.2);
+        }
+        .binding-item.selected {
+            background: rgba(139,92,246,0.1);
+            border-color: rgba(139,92,246,0.4);
+        }
+        .channel-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .channel-icon.group {
+            background: rgba(59,130,246,0.2);
+        }
+        .channel-icon.group svg {
+            stroke: #60a5fa;
+        }
+        .channel-icon.dm {
+            background: rgba(52,199,89,0.2);
+            border-radius: 50%;
+        }
+        .channel-icon.dm svg {
+            stroke: #34c759;
+        }
+        .channel-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .channel-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: #636366;
+            margin-top: 2px;
+        }
+        .routing-arrow {
+            color: #636366;
+            flex-shrink: 0;
+            padding: 0 4px;
+        }
+        .agent-select {
+            position: relative;
+            flex-shrink: 0;
+            min-width: 140px;
+        }
+        .agent-select select {
+            padding: 6px 32px 6px 12px;
+            font-size: 12px;
+        }
+        .trigger-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            background: rgba(255,255,255,0.06);
+            color: #EBEBF5;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #3A3A3C;
+            transition: 0.3s;
+            border-radius: 11px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #EBEBF5;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #8b5cf6;
+        }
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(18px);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="toolbar" style="gap:8px; padding:0 12px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div class="logo-box">
+            <svg width="13" height="13" fill="none" stroke="white" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <span class="text-bold" style="font-size:15px;color:#FFFFFF;">ClawPilot</span>
+    </div>
+    <nav style="flex:1;padding:6px 8px;overflow-y:auto;">
+        <div class="section-label">核心功能</div>
+	  <a href="overview.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <span class="text-sm">数据概览</span>
+        </a>
+        <a href="index.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span class="text-sm">子公司管理</span>
+        </a>
+        <a href="agents.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            <span class="text-sm">智能体管理</span>
+        </a>
+        <a href="providers.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+            <span class="text-sm">模型管理</span>
+        </a>
+        <a href="bindings.html" class="nav-item active">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            <span class="text-sm">飞书频道绑定</span>
+        </a>
+        <div class="section-label mt-6">部署与监控</div>
+        <a href="deploy.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <span class="text-sm">一键部署</span>
+        </a>
+        <a href="logs.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="text-sm">运行日志</span>
+        </a>
+        <div class="section-label mt-6">高级功能</div>
+        <a href="market.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            <span class="text-sm">模板市场</span>
+            <span class="pro-badge">PRO</span>
+        </a>
+        <a href="sync.html" class="nav-item">
+            <svg class="nav-icon ic-16" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span class="text-sm">云同步</span>
+            <span class="pro-badge">PRO</span>
+        </a>
+    </nav>
+    <div style="padding:10px 10px;border-top:1px solid rgba(255,255,255,0.08);">
+        <div class="flex-between mb-2">
+            <div class="flex-center gap-6">
+                <span class="pulse-dot" style="width:7px;height:7px;border-radius:50%;background:#34c759;"></span>
+                <span class="text-xs text-medium" style="color:#34c759;">OpenClaw 运行中</span>
+            </div>
+        </div>
+        <div class="text-xxs text-dimmer mb-4" style="margin-bottom:7px;">PID 28471 · 3小时42分</div>
+        <button class="tbtn tbtn-ghost" style="width:100%;text-align:center;">重启服务</button>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<main style="flex:1; display:flex; flex-direction:column; overflow:hidden; background:#000000;">
+    <div class="toolbar" style="justify-content:space-between;">
+        <div class="flex-center gap-8">
+            <button class="tbtn tbtn-ghost" onclick="goBack()" style="padding:4px 8px;">
+                <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            返回
+            </button>
+            <div>
+                <span class="text-bold" style="font-size:15px;" id="company-title">互联网公司</span>
+                <span class="text-xs text-dimmer" style="margin-left:8px;">频道路由配置</span>
+            </div>
+        </div>
+        <button class="tbtn tbtn-accent">+ 添加绑定</button>
+    </div>
+
+    <div style="flex:1; overflow-y:auto; padding:16px;">
+        <div style="max-width:700px; margin:0 auto;">
+
+            <!-- Robot Info Banner -->
+            <div style="background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(6,182,212,0.15)); border-radius: 10px; padding:12px 16px; margin-bottom:16px; border: 1px solid rgba(59,130,246,0.2);">
+                <div class="flex-center gap-10">
+                    <div class="robot-icon" style="width:36px;height:36px;font-size:12px;">飞</div>
+                    <div style="flex:1;">
+                        <div class="text-xs text-medium" style="color:#60a5fa;">飞书机器人</div>
+                        <div class="text-xxs text-dimmer">App ID: cli_abc123*** · 已连接</div>
+                    </div>
+                    <button class="tbtn tbtn-ghost" style="padding:4px 8px;font-size:11px;">配置</button>
+                </div>
+            </div>
+
+            <!-- Binding List -->
+            <div id="binding-list">
+                <div class="binding-item selected" onclick="selectBinding(this, 'ch1')">
+                    <div class="channel-icon group">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <div class="channel-info">
+                        <div class="text-sm text-medium">产品讨论组</div>
+                        <div class="channel-type">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01"/></svg>
+                            oc_1234567890abcdef · 群聊
+                        </div>
+                    </div>
+                    <svg class="routing-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px;" onchange="updateAgent('ch1', this.value)">
+                            <option value="product_manager" selected>产品经理</option>
+                            <option value="ux_designer">UX设计师</option>
+                            <option value="data_analyst">数据分析师</option>
+                            <option value="tech_writer">技术文档</option>
+                            <option value="qa_engineer">质量保证</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px; font-size:11px;" onchange="updateTrigger('ch1', this.value)">
+                            <option value="mention" selected>@ 提及</option>
+                            <option value="all">所有消息</option>
+                            <option value="keyword">关键词</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div style="flex-shrink:0; display:flex; align-items:center; gap:12px;">
+                        <span class="trigger-chip">3 Agent</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="toggleBinding('ch1', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
+                    </div>
+                </div>
+
+                <div class="binding-item" onclick="selectBinding(this, 'ch2')">
+                    <div class="channel-icon group">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <div class="channel-info">
+                        <div class="text-sm text-medium">设计交流群</div>
+                        <div class="channel-type">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01"/></svg>
+                            oc_9876543210fedcba · 群聊
+                        </div>
+                    </div>
+                    <svg class="routing-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px;" onchange="updateAgent('ch2', this.value)">
+                            <option value="product_manager">产品经理</option>
+                            <option value="ux_designer" selected>UX设计师</option>
+                            <option value="data_analyst">数据分析师</option>
+                            <option value="tech_writer">技术文档</option>
+                            <option value="qa_engineer">质量保证</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px; font-size:11px;" onchange="updateTrigger('ch2', this.value)">
+                            <option value="mention">@ 提及</option>
+                            <option value="all" selected>所有消息</option>
+                            <option value="keyword">关键词</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div style="flex-shrink:0; display:flex; align-items:center; gap:12px;">
+                        <span class="trigger-chip">2 Agent</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="toggleBinding('ch2', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
+                    </div>
+                </div>
+
+                <div class="binding-item" onclick="selectBinding(this, 'ch3')">
+                    <div class="channel-icon group">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <div class="channel-info">
+                        <div class="text-sm text-medium">数据分析群</div>
+                        <div class="channel-type">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01"/></svg>
+                            oc_fedcba0987654321 · 群聊
+                        </div>
+                    </div>
+                    <svg class="routing-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px;" onchange="updateAgent('ch3', this.value)">
+                            <option value="product_manager">产品经理</option>
+                            <option value="ux_designer">UX设计师</option>
+                            <option value="data_analyst" selected>数据分析师</option>
+                            <option value="tech_writer">技术文档</option>
+                            <option value="qa_engineer">质量保证</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px; font-size:11px;" onchange="updateTrigger('ch3', this.value)">
+                            <option value="mention">@ 提及</option>
+                            <option value="all">所有消息</option>
+                            <option value="keyword" selected>关键词</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div style="flex-shrink:0; display: flex; align-items: center; gap: 12px;">
+                        <span class="trigger-chip" style="color:#f59e0b;">已禁用</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" onchange="toggleBinding('ch3', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
+                    </div>
+                </div>
+
+                <div class="binding-item" onclick="selectBinding(this, 'ch4')">
+                    <div class="channel-icon dm">
+                        <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div class="channel-info">
+                        <div class="text-sm text-medium">张三</div>
+                        <div class="channel-type">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01"/></svg>
+                            ou_abc123def4567890 · 单聊
+                        </div>
+                    </div>
+                    <svg class="routing-arrow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px;" onchange="updateAgent('ch4', this.value)">
+                            <option value="product_manager" selected>产品经理</option>
+                            <option value="ux_designer">UX设计师</option>
+                            <option value="data_analyst">数据分析师</option>
+                            <option value="tech_writer">技术文档</option>
+                            <option value="qa_engineer">质量保证</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div class="agent-select">
+                        <select class="field-input" style="padding-right:24px; font-size:11px;" onchange="updateTrigger('ch4', this.value)">
+                            <option value="mention" selected>@ 提及</option>
+                            <option value="all">所有消息</option>
+                            <option value="keyword">关键词</option>
+                        </select>
+                        <svg style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#636366;" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </div>
+                    <div style="flex-shrink:0; display:flex; align-items: center; gap:12px;">
+                        <span class="trigger-chip">2 Agent</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" checked onchange="toggleBinding('ch4', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <button class="tbtn tbtn-ghost" style="padding:2px 6px;font-size:10px;">编辑</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</main>
+
+<script>
+// Get company from URL parameter
+const urlParams = new URLSearchParams(window.location.search);
+const companyId = urlParams.get('company') || 'pm';
+
+const companyInfo = {
+    pm: { name: '互联网公司', appId: 'cli_abc123***' },
+    dev: { name: '手机助手公司', appId: 'cli_def456***' },
+    content: { name: '自媒体公司', appId: null }
+};
+
+// Set page title
+document.getElementById('company-title').textContent = companyInfo[companyId]?.name || '公司';
+
+function selectBinding(el, bindingId) {
+    document.querySelectorAll('.binding-item').forEach(item => item.classList.remove('selected'));
+    el.classList.add('selected');
+}
+
+function updateAgent(bindingId, value) {
+    console.log(`Binding ${bindingId} -> Agent: ${value}`);
+    // 保存逻辑
+}
+
+function updateTrigger(bindingId, value) {
+    console.log(`Binding ${bindingId} -> Trigger: ${value}`);
+    // 保存逻辑
+}
+
+function toggleBinding(bindingId, enabled) {
+    const chip = document.querySelector(`[data-binding="${bindingId}"] .trigger-chip`);
+    if (chip) {
+        if (enabled) {
+            chip.textContent = getAgentCount(bindingId) + ' Agent';
+            chip.style.color = '#EBEBF5';
+        } else {
+            chip.textContent = '已禁用';
+            chip.style.color = '#f59e0b';
+        }
+    }
+}
+
+function getAgentCount(bindingId) {
+    // 返回该频道绑定的 Agent 数量（示例）
+    const counts = { ch1: 3, ch2: 2, ch3: 1, ch4: 2 };
+    return counts[bindingId] || 0;
+}
+
+function goBack() {
+    window.location.href = 'bindings.html';
+}
+</script>
+</body>
+</html>
