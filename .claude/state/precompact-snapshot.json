@@ -1,0 +1,29 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-03-16T12:08:00.703Z",
+  "sessionId": "",
+  "wipTasks": [],
+  "recentEdits": [
+    ".claude/logs/subagent-history.jsonl",
+    ".claude/sessions/.last_inbox_check",
+    ".claude/state/plans-state.json",
+    ".claude/state/session.events.jsonl",
+    ".claude/state/session.json",
+    ".gitignore",
+    "Plans.md",
+    "src-tauri/gen/schemas/acl-manifests.json",
+    "src-tauri/gen/schemas/capabilities.json",
+    "src-tauri/gen/schemas/desktop-schema.json",
+    "src-tauri/gen/schemas/macOS-schema.json",
+    "src-tauri/src/commands/agent.rs",
+    "src-tauri/src/commands/binding.rs",
+    "src-tauri/src/commands/channel.rs",
+    "src-tauri/src/commands/deployment.rs",
+    "src-tauri/src/commands/log.rs",
+    "src-tauri/src/commands/model.rs",
+    "src-tauri/src/commands/opc.rs",
+    "src-tauri/src/commands/skill.rs",
+    "src-tauri/src/commands/snapshot.rs"
+  ],
+  "metrics": null
+}

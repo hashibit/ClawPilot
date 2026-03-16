@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-03-16T12:26:16Z",
+  "changed_file": "src/integration_tests.rs",
+  "test_command": "cargo test",
+  "related_test": "",
+  "recommendation": "テストの実行を推奨します"
+}
