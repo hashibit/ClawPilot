@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package clawpilot;
+
+// =============================================================================
+// Pro 用户付费功能
+// =============================================================================
+// 本文件包含所有需要付费订阅才能使用的功能：
+// - 用户认证
+// - 订阅和订单
+// - 模板市场
+// - 云同步
+// - 自动化选择器配置
+
+// =============================================================================
+// 用户认证
+// =============================================================================
+
+// 用户
+message User {
+  string id = 1;                    // 用户 ID
+  string phone = 2;                 // 手机号
+  string wechat_openid = 3;         // 微信 OpenID
+  string nickname = 4;              // 昵称
+  string avatar_url = 5;            // 头像 URL
+
+  int64 created_at = 10;
+  int64 last_login_at = 11;
+}
+
+// 登录凭证
+message AuthToken {
+  string access_token = 1;          // 访问令牌
+  string refresh_token = 2;         // 刷新令牌
+  int64 expires_in = 3;             // 过期时间 (秒)
+  string token_type = 4;            // 令牌类型
+}
+
+// =============================================================================
+// 订阅和订单
+// =============================================================================
+
+// 订阅计划
+enum SubscriptionPlan {
+  PLAN_FREE = 0;            // 免费版
+  PLAN_MONTHLY = 1;         // 月度订阅
+  PLAN_YEARLY = 2;          // 年度订阅
+}
+
+// 订阅状态
+enum SubscriptionStatus {
+  SUBSCRIPTION_INACTIVE = 0;   // 未激活
+  SUBSCRIPTION_ACTIVE = 1;     // 激活
+  SUBSCRIPTION_CANCELED = 2;   // 已取消
+  SUBSCRIPTION_EXPIRED = 3;    // 已过期
+}
+
+// 订阅
+message Subscription {
+  string id = 1;                    // 订阅 ID
+  string user_id = 2;               // 用户 ID
+  SubscriptionPlan plan = 3;        // 订阅计划
+  SubscriptionStatus status = 4;    // 状态
+  int64 started_at = 5;             // 开始时间
+  int64 expires_at = 6;             // 到期时间
+  bool auto_renew = 7;              // 是否自动续费
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+// 支付方式
+enum PaymentMethod {
+  PAYMENT_UNKNOWN = 0;
+  PAYMENT_WECHAT = 1;        // 微信支付
+  PAYMENT_ALIPAY = 2;        // 支付宝
+}
+
+// 订单状态
+enum OrderStatus {
+  ORDER_PENDING = 0;         // 待支付
+  ORDER_PAID = 1;            // 已支付
+  ORDER_FAILED = 2;          // 失败
+  ORDER_REFUNDED = 3;        // 已退款
+  ORDER_CANCELED = 4;        // 已取消
+}
+
+// 订单
+message Order {
+  string id = 1;                    // 订单 ID
+  string user_id = 2;               // 用户 ID
+  int64 amount = 3;                 // 金额 (分)
+  SubscriptionPlan plan = 4;        // 购买计划
+  PaymentMethod payment_method = 5; // 支付方式
+  OrderStatus status = 6;           // 状态
+
+  // 支付信息
+  string transaction_id = 10;       // 第三方交易 ID
+  int64 paid_at = 11;               // 支付时间
+  string raw_callback = 12;         // 原始回调数据
+
+  int64 created_at = 20;
+  int64 updated_at = 21;
+}
+
+// =============================================================================
+// 模板市场
+// =============================================================================
+
+// 模板分类
+enum TemplateCategory {
+  CATEGORY_UNKNOWN = 0;
+  CATEGORY_DEVELOPMENT = 1;    // 开发
+  CATEGORY_MARKETING = 2;       // 营销
+  CATEGORY_EDUCATION = 3;       // 教育
+  CATEGORY_MEDIA = 4;          // 媒体
+  CATEGORY_FINANCE = 5;        // 金融
+  CATEGORY_CUSTOM = 99;        // 自定义
+}
+
+// 模板状态
+enum TemplateStatus {
+  STATUS_DRAFT = 0;            // 草稿
+  STATUS_REVIEWING = 1;        // 审核中
+  STATUS_PUBLISHED = 2;        // 已发布
+  STATUS_REJECTED = 3;         // 已拒绝
+  STATUS_ARCHIVED = 4;         // 已归档
+}
+
+// 模板
+message Template {
+  string id = 1;                    // 模板 ID
+  string author_id = 2;             // 作者 ID
+  string author_name = 3;           // 作者名称
+  string title = 4;                 // 标题
+  string description = 5;           // 描述
+  TemplateCategory category = 6;    // 分类
+  repeated string tags = 7;         // 标签
+  bytes content = 8;                // 模板内容 (压缩的 OPCConfig)
+  bytes thumbnail = 9;              // 缩略图
+
+  // 统计
+  int32 downloads = 20;             // 下载次数
+  int32 views = 21;                 // 浏览次数
+  float rating = 22;                // 评分 (0-5)
+  int32 rating_count = 23;          // 评分人数
+
+  // 状态
+  TemplateStatus status = 30;       // 状态
+  int64 created_at = 31;
+  int64 updated_at = 32;
+  int64 published_at = 33;          // 发布时间
+}
+
+// 模板列表响应
+message TemplateListResponse {
+  repeated Template templates = 1;
+  int32 total = 2;                  // 总数
+  int32 page = 3;                   // 当前页
+  int32 page_size = 4;              // 每页数量
+}
+
+// =============================================================================
+// 云同步
+// =============================================================================
+
+// 云同步快照（仅 Pro 功能）
+message CloudSnapshot {
+  string id = 1;                    // 快照 ID
+  string user_id = 2;               // 用户 ID
+  string opc_name = 3;              // OPC 名称
+  string label = 4;                 // 快照标签
+  bytes encrypted_content = 5;      // 加密内容
+  int64 created_at = 6;             // 创建时间
+  int32 size = 7;                   // 大小 (字节)
+}
+
+// =============================================================================
+// 自动化选择器配置
+// =============================================================================
+
+// 平台类型
+enum PlatformType {
+  PLATFORM_UNKNOWN = 0;
+  PLATFORM_BAILIAN = 1;      // 阿里百炼
+  PLATFORM_VOLCENGINE = 2;   // 火山方舟
+  PLATFORM_FEISHU = 3;       // 飞书
+}
+
+// 阿里百炼选择器
+message BailianSelectors {
+  string login_detected = 1;         // 检测登录成功的 CSS 选择器
+  string coding_plan_url = 2;        // Coding Plan 购买页 URL
+  string purchase_btn = 3;           // 购买按钮选择器
+  string apikey_create_btn = 4;      // 创建 API Key 按钮选择器
+  string apikey_value = 5;           // API Key 值选择器
+  string plan_selector = 6;          // 计划选择器
+  string submit_order_btn = 7;       // 提交订单按钮
+}
+
+// 火山方舟选择器
+message VolcengineSelectors {
+  string login_detected = 1;         // 检测登录成功
+  string coding_plan_url = 2;
+  string purchase_btn = 3;
+  string apikey_create_btn = 4;
+  string apikey_value = 5;
+}
+
+// 飞书选择器
+message FeishuSelectors {
+  string create_app_btn = 1;         // 创建应用按钮
+  string app_name_input = 2;         // 应用名称输入框
+  string app_desc_input = 3;         // 应用描述输入框
+  string permission_search = 4;      // 权限搜索输入框
+  repeated string required_permissions = 5; // 必需权限列表
+  string websocket_mode = 6;         // WebSocket 模式选择
+  string publish_btn = 7;            // 发布按钮
+  string app_id_element = 8;         // App ID 元素
+  string app_secret_element = 9;     // App Secret 元素
+}
+
+// 选择器配置
+message SelectorConfig {
+  string version = 1;                // 版本号
+  string published_at = 2;           // 发布时间
+
+  oneof platform {
+    BailianSelectors bailian = 10;
+    VolcengineSelectors volcengine = 11;
+    FeishuSelectors feishu = 12;
+  }
+}

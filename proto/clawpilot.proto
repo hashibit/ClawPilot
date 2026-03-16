@@ -1,0 +1,423 @@
+syntax = "proto3";
+
+package clawpilot;
+
+// =============================================================================
+// OpenClaw 核心配置
+// =============================================================================
+
+// OpenClaw 主配置文件
+message OpenClawConfig {
+  string current_opc = 1;           // 当前激活的团队名称
+  string version = 2;               // OpenClaw 版本
+  int64 last_updated = 3;           // 最后更新时间戳
+}
+
+// OPC (OpenClaw 团队) 完整配置
+message OPCConfig {
+  string id = 1;                   // OPC 唯一标识
+  string name = 2;                  // 团队名称（目录名）
+  string display_name = 3;          // 显示名称
+  string description = 4;           // 描述
+  string avatar_color = 5;         // 头像颜色（用于UI）
+  string avatar_initials = 6;      // 头像文字
+  bool is_active = 7;               // 是否激活（当前选中）
+  bool is_running = 8;             // 是否运行中
+  int64 created_at = 9;             // 创建时间
+  int64 updated_at = 10;            // 更新时间
+
+  // 统计数据（从 OpenClaw 日志计算）
+  OPCStats stats = 11;              // 统计信息
+
+  repeated AgentConfig agents = 20; // Agent 列表
+  ModelsConfig models = 21;         // 模型配置
+  ChannelsConfig channels = 22;     // 渠道配置
+  BindingsConfig bindings = 23;     // 绑定配置
+}
+
+// OPC 统计数据
+message OPCStats {
+  int32 agent_count = 1;           // Agent 数量
+  int32 channel_count = 2;         // 频道数量
+  int32 group_count = 3;           // 群聊数量
+  int32 dm_count = 4;              // 私聊数量
+  int64 message_count_today = 5;   // 今日消息数
+  double message_growth = 6;       // 消息增长率（百分比）
+}
+
+// =============================================================================
+// 工具和技能库（来自 clawhub.ai）
+// =============================================================================
+
+// 工具信息（全局工具库）
+message ToolInfo {
+  string id = 1;                    // 工具 ID（slug，如 "openai-whisper-api"）
+  string name = 2;                  // 工具名称
+  string slug = 3;                  // URL slug（如 "steipete/openai-whisper-api"）
+  string description = 4;          // 工具描述
+  string author = 5;                // 作者
+  int32 size = 6;                   // 包大小（字节）
+  string url = 7;                   // ClawHub URL（如 "https://clawhub.ai/steipete/openai-whisper-api"）
+  string version = 8;               // 版本号
+  int64 updated_at = 9;             // 最后更新时间
+  repeated string tags = 10;        // 标签
+  string category = 11;             // 分类
+  int32 downloads = 12;             // 下载次数
+  bool is_builtin = 13;             // 是否为内置工具
+}
+
+// 工具库（系统维护的可用工具列表）
+message ToolRegistry {
+  repeated ToolInfo tools = 1;      // 可用工具列表
+  string last_synced = 2;           // 最后同步时间（从 ClawHub）
+  string version = 3;               // 工具库版本
+}
+
+// 技能信息（来自 clawhub.ai）
+message SkillInfo {
+  string id = 1;                    // 技能 ID
+  string name = 2;                  // 技能名称
+  string slug = 3;                  // URL slug
+  string description = 4;          // 技能描述
+  string author = 5;                // 作者
+  int32 size = 6;                   // 包大小（字节）
+  string url = 7;                   // ClawHub URL
+  string version = 8;               // 版本号
+  int64 updated_at = 9;             // 最后更新时间
+  repeated string tags = 10;        // 标签
+  string category = 11;             // 分类
+  int32 downloads = 12;             // 下载次数
+  bool is_builtin = 13;             // 是否为内置技能
+}
+
+// 技能库（系统维护的可用技能列表）
+message SkillRegistry {
+  repeated SkillInfo skills = 1;    // 可用技能列表
+  string last_synced = 2;           // 最后同步时间（从 ClawHub）
+  string version = 3;               // 技能库版本
+}
+
+// =============================================================================
+// Agent 配置
+// =============================================================================
+
+// 护栏规则
+message GuardrailRule {
+  string id = 1;                    // 规则 ID
+  string content = 2;               // 规则内容
+  GuardrailType type = 3;          // 规则类型（允许/禁止）
+  int64 created_at = 4;
+}
+
+enum GuardrailType {
+  GUARDRAIL_UNKNOWN = 0;
+  GUARDRAIL_ALLOW = 1;             // 允许
+  GUARDRAIL_DENY = 2;              // 禁止
+}
+
+// Agent 配置
+message AgentConfig {
+  string id = 1;                    // Agent 唯一标识
+  string name = 2;                  // Agent 名称
+  string display_name = 3;          // 显示名称（中文名）
+  string job_title = 4;             // 职位/职称
+  string personality = 5;           // 性格特征
+  string description = 6;          // 简介描述
+  string initials = 7;             // 英文标识（用于显示）
+  string gradient_start = 8;       // 渐变色起始（用于UI）
+  string gradient_end = 9;         // 渐变色结束（用于UI）
+  bool is_default = 10;            // 是否为默认响应者（列表第一个）
+  int32 order_index = 11;          // 排序索引（拖拽排序）
+
+  // Agent 文档内容
+  AgentDocuments documents = 20;
+
+  // 工具配置
+  repeated string enabled_tools = 21;    // 启用的工具 ID 列表（引用全局工具库）
+  repeated string disabled_tools = 22;   // 禁用的工具 ID（用于全局排除特定工具）
+
+  // 护栏规则
+  repeated GuardrailRule guardrail_rules = 23; // 护栏规则列表
+
+  // 模型配置
+  string model_provider = 30;       // 模型提供商
+  string model_name = 31;           // 模型名称
+
+  // 技能配置
+  repeated string enabled_skills = 32; // 启用的 Skill slug 列表（引用 clawhub.ai）
+
+  // 汇报关系
+  repeated string reports_to = 40;  // 汇报给哪些 Agent
+  repeated string manages = 41;     // 管理哪些 Agent
+
+  // 元数据
+  int64 created_at = 50;
+  int64 updated_at = 51;
+}
+
+// Agent 文档内容
+message AgentDocuments {
+  string soul = 1;          // SOUL.md - 核心灵魂定义
+  string identity = 2;      // IDENTITY.md - 身份定义
+  string agents = 3;        // AGENTS.md - 团队关系
+  string user = 4;          // USER.md - 用户画像
+  string memory = 5;        // MEMORY.md - 记忆配置
+  string heartbeat = 6;     // HEARTBEAT.md - 心跳定义
+  string tools = 7;         // TOOLS.md - 工具文档
+}
+
+// =============================================================================
+// Provider 和模型配置
+// =============================================================================
+
+// Provider 类型
+enum ProviderType {
+  PROVIDER_UNKNOWN = 0;
+  PROVIDER_BAILIAN = 1;     // 阿里百炼
+  PROVIDER_VOLCENGINE = 2;  // 火山方舟
+  PROVIDER_MINIMAX = 3;     // MiniMax
+}
+
+// Provider 配置
+message ProviderConfig {
+  ProviderType type = 1;           // Provider 类型
+  string api_key = 2;              // API Key (加密存储)
+  string endpoint = 3;             // API 端点
+  bool is_enabled = 4;             // 是否启用
+  int64 last_tested = 5;           // 最后测试时间
+  bool is_available = 6;           // 是否可用
+}
+
+// 模型信息
+message ModelInfo {
+  string name = 1;                 // 模型名称
+  string display_name = 2;         // 显示名称
+  ProviderType provider = 3;       // 提供商
+
+  // 能力信息
+  int32 context_window = 10;       // 上下文窗口大小
+  double input_price = 11;         // 输入价格 (元/千tokens)
+  double output_price = 12;        // 输出价格 (元/千tokens)
+  repeated string supported_types = 13; // 支持的输入类型
+
+  // 模型特性
+  bool supports_vision = 20;       // 是否支持视觉
+  bool supports_function_calling = 21; // 是否支持函数调用
+  bool supports_streaming = 22;    // 是否支持流式输出
+
+  int64 updated_at = 30;
+}
+
+// 模型配置
+message ModelsConfig {
+  string default_provider = 1;     // 默认 Provider
+  repeated ProviderConfig providers = 10; // Provider 列表
+  repeated ModelInfo models = 11;  // 可用模型列表
+}
+
+// =============================================================================
+// 渠道配置
+// =============================================================================
+
+// 渠道类型
+enum ChannelType {
+  CHANNEL_UNKNOWN = 0;
+  CHANNEL_FEISHU = 1;       // 飞书
+  CHANNEL_DINGTALK = 2;     // 钉钉 (预留)
+  CHANNEL_WECHAT = 3;       // 微信 (预留)
+}
+
+// 飞书配置
+message FeishuConfig {
+  string app_id = 1;              // 应用 ID
+  string app_secret = 2;         // 应用密钥 (加密)
+  bool use_websocket = 3;        // 是否使用 WebSocket
+  string verify_token = 4;       // 验证令牌
+  string encrypt_key = 5;        // 加密密钥
+  repeated string permissions = 6; // 权限列表
+  bool is_published = 7;         // 是否已发布
+  string bot_name = 8;           // Bot 名称
+  string bot_description = 9;    // Bot 描述
+  bool is_connected = 10;        // 连接状态
+  int64 last_connected = 11;     // 最后连接时间
+}
+
+// 渠道配置
+message ChannelConfig {
+  ChannelType type = 1;          // 渠道类型
+  bool is_enabled = 2;           // 是否启用
+  oneof config {
+    FeishuConfig feishu = 10;    // 飞书配置
+  }
+}
+
+// 渠道配置集合
+message ChannelsConfig {
+  repeated ChannelConfig channels = 1;
+}
+
+// =============================================================================
+// 绑定配置
+// =============================================================================
+
+// 绑定目标类型
+enum BindingTargetType {
+  TARGET_UNKNOWN = 0;
+  TARGET_USER = 1;          // 单个用户
+  TARGET_GROUP = 2;         // 群组
+  TARGET_ALL = 3;           // 所有
+}
+
+// 触发模式
+enum TriggerMode {
+  TRIGGER_UNKNOWN = 0;
+  TRIGGER_MENTION = 1;      // @机器人触发
+  TRIGGER_ALL = 2;          // 所有消息
+  TRIGGER_KEYWORD = 3;      // 关键词触发
+}
+
+// 飞书频道信息
+message FeishuChannel {
+  string id = 1;                    // 频道 ID
+  string name = 2;                  // 频道名称
+  FeishuChannelType type = 3;      // 频道类型
+  int32 member_count = 4;          // 成员数量（群组）
+  string avatar_color = 5;         // 头像颜色（用于UI）
+}
+
+enum FeishuChannelType {
+  CHANNEL_GROUP = 0;               // 群聊
+  CHANNEL_DM = 1;                  // 私聊
+}
+
+// 绑定规则
+message BindingRule {
+  string id = 1;                    // 绑定 ID
+  BindingTargetType target_type = 2; // 目标类型
+  string target_id = 3;             // 目标 ID (群ID/用户ID)
+  string target_name = 4;           // 目标名称
+  string agent_id = 5;              // 绑定的 Agent ID
+  string agent_name = 6;            // Agent 名称（冗余）
+  ChannelType channel = 7;          // 渠道类型
+  TriggerMode trigger_mode = 8;     // 触发模式
+  repeated string keywords = 9;     // 关键词列表（trigger_mode=keyword时）
+  bool is_enabled = 10;             // 是否启用
+  int64 created_at = 11;
+  int64 updated_at = 12;
+}
+
+// 路由规则
+message RoutingRule {
+  string id = 1;                    // 规则 ID
+  string name = 2;                  // 规则名称
+  string description = 3;           // 规则描述
+  bool is_default = 4;              // 是否为默认路由
+  repeated RoutingCondition conditions = 5; // 匹配条件
+  string target_agent_id = 6;       // 目标 Agent ID
+  int32 priority = 7;               // 优先级（数字越小优先级越高）
+}
+
+// 路由条件
+message RoutingCondition {
+  enum ConditionType {
+    KEYWORD = 0;                    // 关键词匹配
+    AGENT_MENTION = 1;             // @特定Agent
+    TIME_RANGE = 2;                 // 时间范围
+    USER_ROLE = 3;                  // 用户角色
+  }
+
+  ConditionType type = 1;
+  string value = 2;                 // 条件值
+}
+
+// 绑定配置
+message BindingsConfig {
+  repeated BindingRule bindings = 1;
+  string default_agent = 2;         // 默认 Agent
+  repeated RoutingRule routing_rules = 3; // 路由规则列表
+}
+
+// =============================================================================
+// 本地快照
+// =============================================================================
+
+// 本地快照（免费功能）
+message LocalSnapshot {
+  string id = 1;                    // 快照 ID
+  string label = 2;                 // 快照标签
+  string opc_name = 3;              // OPC 名称
+  bytes config_data = 4;            // 配置数据 (JSON 序列化)
+  int64 created_at = 5;             // 创建时间
+  bool is_auto = 6;                 // 是否自动生成 (部署前自动备份)
+}
+
+// =============================================================================
+// 日志和监控
+// =============================================================================
+
+// 日志级别
+enum LogLevel {
+  LOG_DEBUG = 0;
+  LOG_INFO = 1;
+  LOG_WARN = 2;
+  LOG_ERROR = 3;
+}
+
+// 日志条目
+message LogEntry {
+  int64 timestamp = 1;               // 时间戳
+  LogLevel level = 2;               // 日志级别
+  string component = 3;              // 组件/模块
+  string message = 4;               // 消息
+  string agent_id = 5;              // 相关 Agent ID (可选)
+  string channel = 6;               // 相关渠道 (可选)
+  map<string, string> metadata = 7; // 元数据
+}
+
+// =============================================================================
+// 部署相关
+// =============================================================================
+
+// 部署任务
+message DeploymentTask {
+  string id = 1;                    // 任务 ID
+  string opc_name = 2;              // OPC 名称
+  DeploymentStatus status = 3;      // 状态
+  string message = 4;               // 状态消息
+
+  // 步骤进度
+  repeated DeploymentStep steps = 10; // 执行步骤
+  int32 current_step = 11;          // 当前步骤索引
+
+  int64 created_at = 20;
+  int64 started_at = 21;
+  int64 completed_at = 22;
+}
+
+// 部署状态
+enum DeploymentStatus {
+  DEPLOYMENT_PENDING = 0;
+  DEPLOYMENT_RUNNING = 1;
+  DEPLOYMENT_SUCCESS = 2;
+  DEPLOYMENT_FAILED = 3;
+  DEPLOYMENT_ROLLBACK = 4;      // 回滚中
+}
+
+// 部署步骤
+message DeploymentStep {
+  string name = 1;                    // 步骤名称
+  string description = 2;             // 描述
+  StepStatus status = 3;              // 状态
+  string output = 4;                  // 输出信息
+  int64 started_at = 5;
+  int64 completed_at = 6;
+}
+
+// 步骤状态
+enum StepStatus {
+  STEP_PENDING = 0;
+  STEP_RUNNING = 1;
+  STEP_SUCCESS = 2;
+  STEP_FAILED = 3;
+  STEP_SKIPPED = 4;
+}
