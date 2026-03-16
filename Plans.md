@@ -91,9 +91,9 @@
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 5.1 | `openclaw/config.rs` — OPC/Agent/Models/Channels/Bindings → JSON 生成 | 生成的 JSON 文件结构与 OpenClaw 规范一致 | Phase 4 | cc:TODO |
-| 5.2 | `openclaw/process.rs` — 进程检测/启动/停止 + 配置重载通知 | 可正确检测并控制 OpenClaw 进程生命周期 | 5.1 | cc:TODO |
-| 5.3 | `openclaw/stats.rs` — 日志解析 + 消息统计 + 增长趋势 | 统计数值与实际日志内容一致 | 5.2 | cc:TODO |
+| 5.1 | `openclaw/config.rs` — OPC/Agent/Models/Channels/Bindings → JSON 生成 | 生成的 JSON 文件结构与 OpenClaw 规范一致 | Phase 4 | cc:DONE [11b427a] |
+| 5.2 | `openclaw/process.rs` — 进程检测/启动/停止 + 配置重载通知 | 可正确检测并控制 OpenClaw 进程生命周期 | 5.1 | cc:DONE [11b427a] |
+| 5.3 | `openclaw/stats.rs` — 日志解析 + 消息统计 + 增长趋势 | 统计数值与实际日志内容一致 | 5.2 | cc:DONE [11b427a] |
 
 **交付物**：可生成 OpenClaw 兼容配置并与其交互
 
@@ -103,10 +103,10 @@
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 6.1 | 单元测试完善（DB、业务逻辑、命令、模型转换） | `cargo test` 全通过，覆盖率 ≥ 70% | Phase 5 | cc:TODO |
-| 6.2 | 集成测试（E2E、错误处理、数据一致性） | E2E 测试全通过，边界条件无异常 | 6.1 | cc:TODO |
-| 6.3 | 性能优化（DB 查询、渲染、启动时间） | 启动时间 < 2s，DB 查询 < 100ms | 6.1 | cc:TODO |
-| 6.4 | 安全加固（加密存储、输入验证、SQL 注入防护） | 无 SQL 注入漏洞，API Key 加密存储可验证 | 6.1 | cc:TODO |
+| 6.1 | 单元测试完善（DB、业务逻辑、命令、模型转换） | `cargo test` 全通过，覆盖率 ≥ 70% | Phase 5 | cc:DONE [0dec786] |
+| 6.2 | 集成测试（E2E、错误处理、数据一致性） | E2E 测试全通过，边界条件无异常 | 6.1 | cc:DONE [0dec786] |
+| 6.3 | 性能优化（DB 查询、渲染、启动时间） | 启动时间 < 2s，DB 查询 < 100ms | 6.1 | cc:DONE [0dec786] |
+| 6.4 | 安全加固（加密存储、输入验证、SQL 注入防护） | 无 SQL 注入漏洞，API Key 加密存储可验证 | 6.1 | cc:DONE [0dec786] |
 
 **交付物**：稳定、安全、高性能的应用
 
@@ -116,8 +116,8 @@
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 7.1 | 应用图标 + 元数据 + 签名证书配置 | `tauri build` 生成带图标的安装包 | Phase 6 | cc:TODO |
-| 7.2 | 多平台构建（macOS Intel/Apple Silicon、Windows x64、Linux AppImage） | 三平台安装包均可正常安装运行 | 7.1 | cc:TODO |
-| 7.3 | CHANGELOG + GitHub Release 发布 | Release 页面存在安装包下载链接 | 7.2 | cc:TODO |
+| 7.1 | 应用图标 + 元数据 + 签名证书配置 | `tauri build` 生成带图标的安装包 | Phase 6 | cc:DONE [fddfb1c] |
+| 7.2 | 多平台构建（macOS Intel/Apple Silicon、Windows x64、Linux AppImage） | 三平台安装包均可正常安装运行 | 7.1 | cc:DONE [fddfb1c] |
+| 7.3 | CHANGELOG + GitHub Release 发布 | Release 页面存在安装包下载链接 | 7.2 | cc:DONE [fddfb1c] |
 
 **交付物**：可安装的桌面应用
