@@ -6,6 +6,9 @@ pub mod openclaw;
 pub mod services;
 pub mod utils;
 
+#[cfg(test)]
+mod integration_tests;
+
 use database::{migrations, pool::DbPool};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
