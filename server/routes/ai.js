@@ -3,7 +3,7 @@ import db from '../db.js'
 
 const router = Router()
 
-const SYSTEM_PROMPT = `你是一个 AI Agent 配置生成器。根据用户的一句话描述，生成完整的智能体配置。
+const SYSTEM_PROMPT = `/no_think 你是一个 AI Agent 配置生成器。根据用户的一句话描述，生成完整的智能体配置。
 
 请严格以 JSON 格式返回，包含以下字段：
 {
@@ -53,6 +53,7 @@ router.post('/ai_generate_agent', async (req, res) => {
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 1024,
+          thinking: { type: 'disabled' },
         }),
         signal: AbortSignal.timeout(120000),
       })
@@ -81,6 +82,7 @@ router.post('/ai_generate_agent', async (req, res) => {
           max_tokens: 1024,
           response_format: { type: 'json_object' },
           stream: false,
+          enable_thinking: false,
         }),
         signal: AbortSignal.timeout(120000),
       })

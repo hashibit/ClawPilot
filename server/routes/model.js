@@ -145,8 +145,10 @@ router.post('/test_provider', async (req, res) => {
         },
         body: JSON.stringify({
           model: TEST_MODEL,
+          system: '/no_think',
           messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
           max_tokens: 5,
+          thinking: { type: 'disabled' },
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       })
@@ -174,9 +176,13 @@ router.post('/test_provider', async (req, res) => {
         },
         body: JSON.stringify({
           model: TEST_MODEL,
-          messages: [{ role: 'user', content: 'hi' }],
+          messages: [
+            { role: 'system', content: '/no_think' },
+            { role: 'user', content: 'hi' },
+          ],
           max_tokens: 5,
           stream: false,
+          enable_thinking: false,
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       })

@@ -191,3 +191,25 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-17T09:42:47Z
+
+- session_id: `980DB146-F5EE-4792-B90E-9E5A258564BA`
+- project: `ClawPilot`
+- branch: `ft_harness`
+- started_at: `2026-03-17T09:38:16Z`
+- ended_at: `2026-03-17T09:42:47Z`
+- duration_minutes: 484
+- changes: 5
+
+### 変更ファイル
+- `server/routes/model.js`
+- `server/routes/ai.js`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---
