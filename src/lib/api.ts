@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type {
   OpcConfig, OpcStats,
   AgentConfig,
-  ProviderConfig, ModelInfo,
+  ProviderConfig, ModelInfo, TestProviderResult,
   ChannelConfig,
   BindingRule,
   DeploymentTask,
@@ -60,7 +60,7 @@ export const getProvider = (providerType: string) =>
 export const updateProvider = (config: ProviderConfig) => call<void>('update_provider', { config })
 export const getModels = () => call<ModelInfo[]>('get_models')
 export const testProvider = (providerType: string) =>
-  call<boolean>('test_provider', { provider_type: providerType })
+  call<TestProviderResult>('test_provider', { provider_type: providerType })
 
 // ── Channel ───────────────────────────────────────────────
 export const getChannels = (opcId: string) => call<ChannelConfig[]>('get_channels', { opc_id: opcId })
@@ -108,6 +108,18 @@ export const writeLog = (
     agent_id: agentId ?? null,
     channel: channel ?? null,
   })
+
+// ── AI ────────────────────────────────────────────────────
+export interface AgentGenerateResult {
+  display_name: string
+  name: string
+  job_title: string
+  description: string
+  personality: string
+  soul: string
+}
+export const aiGenerateAgent = (prompt: string) =>
+  call<AgentGenerateResult>('ai_generate_agent', { prompt })
 
 // ── Snapshot ──────────────────────────────────────────────
 export const createSnapshot = (opcName: string, label: string, configData: string) =>

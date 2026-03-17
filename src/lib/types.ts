@@ -62,12 +62,20 @@ export interface ProviderConfig {
   id: string
   provider_type: ProviderType
   api_key?: string
-  endpoint?: string
+  base_url?: string
+  is_coding_plan: boolean
   is_enabled: boolean
   is_available: boolean
   last_tested?: number
   created_at: number
   updated_at: number
+}
+
+export interface TestProviderResult {
+  openai_ok: boolean
+  anthropic_ok: boolean
+  openai_error?: string
+  anthropic_error?: string
 }
 
 export interface ModelInfo {

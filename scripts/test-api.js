@@ -156,6 +156,9 @@ async function runTests() {
   } catch (err) { fail('get_providers', err) }
 
   try {
+    // Reset BAILIAN key to empty so test is deterministic
+    const p = (await call('get_providers')).find(p => p.provider_type === 'BAILIAN')
+    await call('update_provider', { config: { ...p, api_key: '', is_available: false } })
     const result = await call('test_provider', { provider_type: 'BAILIAN' })
     assert.strictEqual(result, false, `expected false (no api_key), got ${result}`)
     ok('test_provider (BAILIAN → false, no api_key)')
@@ -330,8 +333,7 @@ async function runTests() {
     fail('get_opc (should throw after delete)', new Error('expected error but got success'))
   } catch (err) {
     if (err.message.includes('Not found') || err.message.includes(opcId)) {
-      console.log(`✗ get_opc (should throw after delete) → caught: ${err.message}`)
-      passed++
+      ok('get_opc (should throw after delete)')
     } else {
       fail('get_opc (should throw after delete)', err)
     }

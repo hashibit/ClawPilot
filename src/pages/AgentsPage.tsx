@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useOpc } from '../contexts/OpcContext'
 import {
   getAgents, createAgent, updateAgent, deleteAgent, reorderAgents,
-  getAgentDocument, updateAgentDocument,
+  getAgentDocument, updateAgentDocument, aiGenerateAgent,
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType } from '../lib/types'
@@ -36,6 +36,8 @@ export default function AgentsPage() {
   const [docLoading, setDocLoading] = useState(false)
   const [form, setForm] = useState<Partial<AgentConfig>>({})
   const [saving, setSaving] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiGenerating, setAiGenerating] = useState(false)
 
   // Load agents whenever the current OPC changes
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function AgentsPage() {
       const updated: AgentConfig = {
         ...selectedAgent,
         ...form,
-        updated_at: Date.now(),
+        updated_at: Math.floor(Date.now() / 1000),
       }
       await updateAgent(selectedAgent.id, updated)
       setAgents(prev => prev.map(a => a.id === updated.id ? updated : a))
@@ -97,6 +99,32 @@ export default function AgentsPage() {
     if (selectedAgent) setForm(selectedAgent)
   }
 
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim() || !selectedAgent) return
+    setAiGenerating(true)
+    try {
+      const result = await aiGenerateAgent(aiPrompt.trim())
+      setForm(prev => ({
+        ...prev,
+        display_name: result.display_name || prev.display_name,
+        name: result.name || prev.name,
+        job_title: result.job_title || prev.job_title,
+        description: result.description || prev.description,
+        personality: result.personality || prev.personality,
+      }))
+      if (result.soul) {
+        setActiveDocTab('SOUL')
+        setDocContent(result.soul)
+      }
+      setAiPrompt('')
+      toast('AI 生成完成，请确认后保存', 'success')
+    } catch (e) {
+      toast(String(e), 'error')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
   const handleSaveDoc = async () => {
     if (!selectedAgent) return
     try {
@@ -110,7 +138,7 @@ export default function AgentsPage() {
   const handleAddAgent = async () => {
     if (!currentOpc) return
     const displayName = `新智能体 ${agents.length + 1}`
-    const now = Date.now()
+    const now = Math.floor(Date.now() / 1000)
     const newAgent: AgentConfig = {
       id: crypto.randomUUID(),
       opc_id: currentOpc.id,
@@ -281,8 +309,24 @@ export default function AgentsPage() {
                   <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg width="14" height="14" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                   </div>
-                  <input type="text" placeholder="用一句话描述智能体，AI 自动生成完整配置…" className="field-input" style={{ flex: 1 }} />
-                  <button className="tbtn tbtn-accent" style={{ whiteSpace: 'nowrap' }} onClick={() => toast('该功能即将上线', 'info')}>AI 生成</button>
+                  <input
+                    type="text"
+                    placeholder="用一句话描述智能体，AI 自动生成完整配置…"
+                    className="field-input"
+                    style={{ flex: 1 }}
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !aiGenerating && handleAiGenerate()}
+                    disabled={aiGenerating}
+                  />
+                  <button
+                    className="tbtn tbtn-accent"
+                    style={{ whiteSpace: 'nowrap' }}
+                    onClick={handleAiGenerate}
+                    disabled={aiGenerating || !aiPrompt.trim()}
+                  >
+                    {aiGenerating ? '生成中...' : 'AI 生成'}
+                  </button>
                 </div>
               </section>
 

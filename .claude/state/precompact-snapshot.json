@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-17T06:25:52.290Z",
+  "timestamp": "2026-03-17T08:47:32.533Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
@@ -13,7 +13,6 @@
     ".claude/state/harness-usage.json",
     ".claude/state/instructions-loaded.jsonl",
     ".claude/state/notification-events.jsonl",
-    ".claude/state/plans-state.json",
     ".claude/state/precompact-snapshot.json",
     ".claude/state/session-map.json",
     ".claude/state/session-skills-used.json",
@@ -23,7 +22,8 @@
     ".claude/state/sessions/2B30CE16-9DEE-44F7-B30E-CD1B601EAB9A.json",
     ".claude/state/sessions/9F3BF08F-CE07-4BFE-8B61-501B6BB55120.events.jsonl",
     ".claude/state/sessions/9F3BF08F-CE07-4BFE-8B61-501B6BB55120.json",
-    ".claude/state/sessions/C24DB1C0-118D-438E-9AAE-A4CD333AD6E7.events.jsonl"
+    ".claude/state/sessions/C24DB1C0-118D-438E-9AAE-A4CD333AD6E7.events.jsonl",
+    ".claude/state/sessions/C24DB1C0-118D-438E-9AAE-A4CD333AD6E7.json"
   ],
   "metrics": null
 }

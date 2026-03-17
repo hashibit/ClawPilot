@@ -10,10 +10,15 @@ import bindingRouter from './routes/binding.js'
 import deploymentRouter from './routes/deployment.js'
 import logRouter from './routes/log.js'
 import snapshotRouter from './routes/snapshot.js'
+import aiRouter from './routes/ai.js'
 
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString().slice(11, 19)}] ${req.method} ${req.path}`)
+  next()
+})
 
 app.use('/api', opcRouter)
 app.use('/api', agentRouter)
@@ -23,6 +28,7 @@ app.use('/api', bindingRouter)
 app.use('/api', deploymentRouter)
 app.use('/api', logRouter)
 app.use('/api', snapshotRouter)
+app.use('/api', aiRouter)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {

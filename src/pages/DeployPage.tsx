@@ -10,10 +10,10 @@ import type { DeploymentTask, LocalSnapshot } from '../lib/types'
 const DEPLOY_STEPS = ['备份配置', '验证配置', '写入文件', '重启服务']
 
 function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
+  const diff = Math.floor(Date.now() / 1000) - ts
+  const minutes = Math.floor(diff / 60)
+  const hours = Math.floor(diff / 3600)
+  const days = Math.floor(diff / 86400)
   if (days > 0) return `${days}天前`
   if (hours > 0) return `${hours}小时前`
   if (minutes > 0) return `${minutes}分钟前`

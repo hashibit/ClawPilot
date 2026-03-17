@@ -163,6 +163,11 @@ CREATE TABLE IF NOT EXISTS log_entries (
 );
 `)
 
+// ── Migrations ────────────────────────────────────────────
+;['base_url TEXT NOT NULL DEFAULT \'\'', 'is_coding_plan INTEGER NOT NULL DEFAULT 0'].forEach(col => {
+  try { db.exec(`ALTER TABLE model_providers ADD COLUMN ${col}`) } catch {}
+})
+
 // ── Seed Data ─────────────────────────────────────────────
 const now = Math.floor(Date.now() / 1000)
 
@@ -171,36 +176,36 @@ db.prepare(`
   VALUES (1, '', '1.0.0', ?)
 `).run(now)
 
-// Seed model providers
-const providers = [
-  { provider_type: 'BAILIAN' },
-  { provider_type: 'VOLCENGINE' },
-  { provider_type: 'MINIMAX' },
-]
-for (const p of providers) {
+// Seed model providers (BAILIAN only; VOLCENGINE/MINIMAX kept for compat)
+for (const pt of ['BAILIAN', 'VOLCENGINE', 'MINIMAX']) {
   db.prepare(`
-    INSERT OR IGNORE INTO model_providers (provider_type, api_key, is_enabled, is_available, created_at, updated_at)
-    VALUES (?, '', 1, 0, ?, ?)
-  `).run(p.provider_type, now, now)
+    INSERT OR IGNORE INTO model_providers (provider_type, api_key, base_url, is_coding_plan, is_enabled, is_available, created_at, updated_at)
+    VALUES (?, '', '', 0, 1, 0, ?, ?)
+  `).run(pt, now, now)
 }
 
-// Seed model_info
-const models = [
-  { name: 'qwen-max', display_name: 'Qwen Max', provider_type: 'BAILIAN', context_window: 32768, input_price: 0.04, output_price: 0.12, supports_vision: 0, supports_function_calling: 1, supports_streaming: 1 },
-  { name: 'qwen-plus', display_name: 'Qwen Plus', provider_type: 'BAILIAN', context_window: 131072, input_price: 0.004, output_price: 0.012, supports_vision: 0, supports_function_calling: 1, supports_streaming: 1 },
-  { name: 'qwen-turbo', display_name: 'Qwen Turbo', provider_type: 'BAILIAN', context_window: 131072, input_price: 0.002, output_price: 0.006, supports_vision: 0, supports_function_calling: 1, supports_streaming: 1 },
-  { name: 'deepseek-v3', display_name: 'DeepSeek V3', provider_type: 'VOLCENGINE', context_window: 65536, input_price: 0.002, output_price: 0.006, supports_vision: 0, supports_function_calling: 1, supports_streaming: 1 },
-  { name: 'deepseek-coder', display_name: 'DeepSeek Coder', provider_type: 'VOLCENGINE', context_window: 65536, input_price: 0.002, output_price: 0.006, supports_vision: 0, supports_function_calling: 1, supports_streaming: 1 },
-  { name: 'abab6.5-chat', display_name: 'ABAB 6.5 Chat', provider_type: 'MINIMAX', context_window: 245760, input_price: 0.01, output_price: 0.01, supports_vision: 0, supports_function_calling: 1, supports_streaming: 1 },
-]
-for (const m of models) {
-  db.prepare(`
-    INSERT OR IGNORE INTO model_info
-      (name, display_name, provider_type, context_window, input_price, output_price,
-       supports_vision, supports_function_calling, supports_streaming, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(m.name, m.display_name, m.provider_type, m.context_window, m.input_price, m.output_price,
-    m.supports_vision, m.supports_function_calling, m.supports_streaming, now)
+// Seed BAILIAN Coding Plan models (replace old BAILIAN models on first run)
+const newModelExists = db.prepare("SELECT id FROM model_info WHERE name = 'qwen3.5-plus'").get()
+if (!newModelExists) {
+  db.prepare("DELETE FROM model_info WHERE provider_type = 'BAILIAN'").run()
+  const bailianModels = [
+    { name: 'qwen3.5-plus',          display_name: 'Qwen3.5 Plus',          context_window: 1000000, supports_vision: 1 },
+    { name: 'qwen3-max-2026-01-23',  display_name: 'Qwen3 Max (0123)',       context_window: 262144,  supports_vision: 0 },
+    { name: 'qwen3-coder-next',       display_name: 'Qwen3 Coder Next',       context_window: 262144,  supports_vision: 0 },
+    { name: 'qwen3-coder-plus',       display_name: 'Qwen3 Coder Plus',       context_window: 1000000, supports_vision: 0 },
+    { name: 'MiniMax-M2.5',           display_name: 'MiniMax M2.5',           context_window: 196608,  supports_vision: 0 },
+    { name: 'glm-5',                  display_name: 'GLM-5',                  context_window: 202752,  supports_vision: 0 },
+    { name: 'glm-4.7',               display_name: 'GLM-4.7',                context_window: 202752,  supports_vision: 0 },
+    { name: 'kimi-k2.5',             display_name: 'Kimi K2.5',              context_window: 262144,  supports_vision: 1 },
+  ]
+  for (const m of bailianModels) {
+    db.prepare(`
+      INSERT OR IGNORE INTO model_info
+        (name, display_name, provider_type, context_window, input_price, output_price,
+         supports_vision, supports_function_calling, supports_streaming, updated_at)
+      VALUES (?, ?, 'BAILIAN', ?, 0, 0, ?, 0, 1, ?)
+    `).run(m.name, m.display_name, m.context_window, m.supports_vision, now)
+  }
 }
 
 export default db

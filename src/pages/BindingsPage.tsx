@@ -46,7 +46,7 @@ export default function BindingsPage() {
   const handleSaveChannel = async () => {
     if (!currentOpc) return
     setSavingChannel(true)
-    const now = Date.now()
+    const now = Math.floor(Date.now() / 1000)
     const config: ChannelConfig = channel
       ? {
           ...channel,
@@ -92,7 +92,7 @@ export default function BindingsPage() {
 
   const handleAddBinding = async () => {
     if (!currentOpc) return
-    const now = Date.now()
+    const now = Math.floor(Date.now() / 1000)
     const newBinding: BindingRule = {
       id: crypto.randomUUID(),
       opc_id: currentOpc.id,
