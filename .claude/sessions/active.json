@@ -31,8 +31,20 @@
   },
   "8690D9DD-8F2B-4BDC-9EEC-D4D1BD582DE3": {
     "short_id": "8690D9DD-8F2",
-    "last_seen": 1773739853,
-    "pid": "83663",
+    "last_seen": 1773740007,
+    "pid": "88753",
+    "status": "active"
+  },
+  "session-1773740048": {
+    "short_id": "session-1773",
+    "last_seen": 1773740048,
+    "pid": "90605",
+    "status": "active"
+  },
+  "D5EF49C0-5757-42BA-9B2F-C9175C431173": {
+    "short_id": "D5EF49C0-575",
+    "last_seen": 1773740137,
+    "pid": "93894",
     "status": "active"
   }
 }

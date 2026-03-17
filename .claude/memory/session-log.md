@@ -148,3 +148,46 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-17T09:33:55Z
+
+- session_id: `8690D9DD-8F2B-4BDC-9EEC-D4D1BD582DE3`
+- project: `ClawCopilot`
+- branch: `ft_harness`
+- started_at: `2026-03-17T09:30:53Z`
+- ended_at: `2026-03-17T09:33:55Z`
+- duration_minutes: 483
+- changes: 0
+- commits: 1
+
+### 変更ファイル
+- （なし）
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---
+
+## セッション: 2026-03-17T09:37:13Z
+
+- session_id: `D5EF49C0-5757-42BA-9B2F-C9175C431173`
+- project: `ClawCopilot`
+- branch: `ft_harness`
+- started_at: `2026-03-17T09:34:08Z`
+- ended_at: `2026-03-17T09:37:13Z`
+- duration_minutes: 483
+- changes: 1
+
+### 変更ファイル
+- `/tmp/capture-headers.js`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---
