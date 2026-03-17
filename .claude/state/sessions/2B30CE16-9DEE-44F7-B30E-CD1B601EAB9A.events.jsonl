@@ -286,5 +286,6 @@ EOF
 {"id":"event-000011","type":"tool.write","ts":"2026-03-17T02:36:29Z","state":"initialized","data":{"file_path":"/Users/jiechen/work/code/rust/ClawCopilot/src/pages/OverviewPage.tsx"}}
 {"id":"event-000012","type":"tool.bash","ts":"2026-03-17T02:36:39Z","state":"initialized","data":{"command":"curl -s http://localhost:1420 | head -30"}}
 {"id":"event-000013","type":"session.stop","ts":"2026-03-17T02:37:06Z","state":"stopped"}
-{"type":"session.resume","ts":"2026-03-17T02:58:52Z","state":"initialized","data":{"cc_session_id":"7e173028-901f-4e47-95ab-3bb3823c8bfd","method":"mapping"}}
-{"id":"event-000001","type":"session.start","ts":"2026-03-17T02:58:52Z","state":"initialized"}
+{"type":"session.resume","ts":"2026-03-17T02:57:36Z","state":"initialized","data":{"cc_session_id":"7e173028-901f-4e47-95ab-3bb3823c8bfd","method":"mapping"}}
+{"id":"event-000001","type":"session.start","ts":"2026-03-17T02:57:36Z","state":"initialized"}
+{"id":"event-000002","type":"session.stop","ts":"2026-03-17T02:57:39Z","state":"stopped"}

@@ -4,5 +4,29 @@
     "last_seen": 1773652143,
     "pid": "26246",
     "status": "active"
+  },
+  "FF7CC056-888E-4101-BED7-63234165D9D2": {
+    "short_id": "FF7CC056-888",
+    "last_seen": 1773716332,
+    "pid": "18629",
+    "status": "active"
+  },
+  "session-1773716226": {
+    "short_id": "session-1773",
+    "last_seen": 1773716226,
+    "pid": "13432",
+    "status": "active"
+  },
+  "A21CADFA-60B8-4CEC-BF83-F2588972802D": {
+    "short_id": "A21CADFA-60B",
+    "last_seen": 1773716252,
+    "pid": "15206",
+    "status": "active"
+  },
+  "DDEC6F7F-F612-42C5-B92C-FC7BEC83A4FA": {
+    "short_id": "DDEC6F7F-F61",
+    "last_seen": 1773716330,
+    "pid": "18280",
+    "status": "active"
   }
 }

@@ -1,15 +1,21 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-16T14:25:09.528Z",
+  "timestamp": "2026-03-17T03:01:22.545Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
+    ".DS_Store",
     ".claude/logs/subagent-history.jsonl",
+    ".claude/memory/session-log.md",
     ".claude/sessions/.last_inbox_check",
+    ".claude/sessions/active.json",
     ".claude/state/compaction-events.jsonl",
+    ".claude/state/harness-usage.json",
     ".claude/state/notification-events.jsonl",
     ".claude/state/plans-state.json",
     ".claude/state/precompact-snapshot.json",
+    ".claude/state/session-map.json",
+    ".claude/state/session-skills-used.json",
     ".claude/state/session.events.jsonl",
     ".claude/state/session.json",
     ".claude/state/tool-failure-counter.txt",
@@ -17,13 +23,7 @@
     ".github/workflows/release.yml",
     ".gitignore",
     "CHANGELOG.md",
-    "Plans.md",
-    "package-lock.json",
-    "package.json",
-    "src-tauri/.claude/sessions/.last_inbox_check",
-    "src-tauri/.claude/state/test-recommendation.json",
-    "src-tauri/.claude/state/tool-failure-counter.txt",
-    "src-tauri/src/integration_tests.rs"
+    "Plans.md"
   ],
   "metrics": null
 }

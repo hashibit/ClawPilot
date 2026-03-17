@@ -13,7 +13,11 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Navigate to="/overview" replace />} />
+
+        {/* Overview - Two column layout */}
         <Route path="overview" element={<OverviewPage />} />
+
+        {/* Other pages - Three column layout */}
         <Route path="opc" element={<OpcPage />} />
         <Route path="agents" element={<AgentsPage />} />
         <Route path="providers" element={<ProvidersPage />} />

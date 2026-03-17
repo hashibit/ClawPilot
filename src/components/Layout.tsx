@@ -1,6 +1,9 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 
 export default function Layout() {
+  const location = useLocation()
+  const isOverviewPage = location.pathname === '/overview' || location.pathname === '/'
+
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
       <aside className="sidebar">
@@ -77,10 +80,35 @@ export default function Layout() {
             </NavLink>
           </nav>
         </div>
+        {/* Status footer */}
+        <div style={{ padding: '10px 10px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+            <span className="pulse-dot" style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34c759' }}></span>
+            <span style={{ fontSize: '12px', color: '#34c759', fontWeight: 500 }}>OpenClaw 运行中</span>
+          </div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '7px' }}>PID 28471 · 3小时42分</div>
+          <button className="tbtn tbtn-ghost" style={{ width: '100%', textAlign: 'center' }}>重启服务</button>
+        </div>
       </aside>
-      <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Outlet />
-      </main>
+      {isOverviewPage ? (
+        // Two-column layout for Overview
+        <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '15px', fontWeight: 600 }}>数据概览</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>今天</button>
+              <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>本周</button>
+              <button className="tbtn tbtn-accent" style={{ fontSize: '12px' }}>本月</button>
+            </div>
+          </div>
+          <Outlet />
+        </main>
+      ) : (
+        // Three-column layout for other pages
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <Outlet />
+        </div>
+      )}
     </div>
   )
 }

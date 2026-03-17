@@ -147,3 +147,13 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 /* ── Bindings Page Styles ─────────────────────────────── */
 .list-name { font-size: 13px; font-weight: 500; color: #FFFFFF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .list-sub { font-size: 12px; color: rgba(255,255,255,0.7); }
+
+/* ── Trend Bar Styles (missing from ui, added for compatibility) ── */
+.trend-bar {
+  width: 100%; height: 8px; background: rgba(255,255,255,0.08);
+  border-radius: 4px; overflow: hidden;
+}
+.trend-fill {
+  height: 100%; background: #8b5cf6;
+  border-radius: 4px; transition: width 0.3s ease;
+}
