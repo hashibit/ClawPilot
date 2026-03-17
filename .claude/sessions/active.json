@@ -1,10 +1,4 @@
 {
-  "30C97E1C-F992-4063-9192-C16091859E89": {
-    "short_id": "30C97E1C-F99",
-    "last_seen": 1773652143,
-    "pid": "26246",
-    "status": "active"
-  },
   "FF7CC056-888E-4101-BED7-63234165D9D2": {
     "short_id": "FF7CC056-888",
     "last_seen": 1773716332,
@@ -33,6 +27,12 @@
     "short_id": "session-1773",
     "last_seen": 1773718402,
     "pid": "80349",
+    "status": "active"
+  },
+  "8690D9DD-8F2B-4BDC-9EEC-D4D1BD582DE3": {
+    "short_id": "8690D9DD-8F2",
+    "last_seen": 1773739853,
+    "pid": "83663",
     "status": "active"
   }
 }

@@ -20,7 +20,7 @@ const SYSTEM_PROMPT = `你是一个 AI Agent 配置生成器。根据用户的�
 // ai_generate_agent
 router.post('/ai_generate_agent', async (req, res) => {
   const { prompt } = req.body
-  console.log(`[ai_generate_agent] prompt="${prompt?.slice(0, 60)}${prompt?.length > 60 ? '...' : ''}"`)
+  console.log(`[ai_generate_agent] prompt="${(prompt ?? '').slice(0, 60)}${(prompt?.length ?? 0) > 60 ? '...' : ''}"`)
 
   if (!prompt?.trim()) return res.status(400).send('prompt is required')
 
@@ -33,9 +33,9 @@ router.post('/ai_generate_agent', async (req, res) => {
   const isAnthropicUrl = baseUrl.includes('anthropic')
   const MODEL = 'qwen3.5-plus'
 
-  const format = isAnthropicUrl ? 'anthropic' : 'openai'
   const endpoint = isAnthropicUrl ? `${baseUrl}/v1/messages` : `${baseUrl}/chat/completions`
-  console.log(`[ai_generate_agent] → ${format} ${endpoint} model=${MODEL}`)
+  const format = isAnthropicUrl ? 'anthropic' : 'openai'
+  console.log(`[ai_generate_agent] → ${format} POST ${endpoint} model=${MODEL}`)
 
   let rawText
   try {
@@ -46,6 +46,7 @@ router.post('/ai_generate_agent', async (req, res) => {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
+          'User-Agent': 'anthropic-sdk-node/0.32.1 node/v24.6.0 darwin arm64',
         },
         body: JSON.stringify({
           model: MODEL,
@@ -53,7 +54,7 @@ router.post('/ai_generate_agent', async (req, res) => {
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 1024,
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(120000),
       })
       console.log(`[ai_generate_agent] ← HTTP ${r.status}`)
       if (!r.ok) {
@@ -69,6 +70,7 @@ router.post('/ai_generate_agent', async (req, res) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
+          'User-Agent': 'anthropic-sdk-node/0.32.1 node/v24.6.0 darwin arm64',
         },
         body: JSON.stringify({
           model: MODEL,
@@ -80,7 +82,7 @@ router.post('/ai_generate_agent', async (req, res) => {
           response_format: { type: 'json_object' },
           stream: false,
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(120000),
       })
       console.log(`[ai_generate_agent] ← HTTP ${r.status}`)
       if (!r.ok) {
@@ -98,7 +100,6 @@ router.post('/ai_generate_agent', async (req, res) => {
 
   console.log(`[ai_generate_agent] raw response (${rawText.length} chars): ${rawText.slice(0, 120)}`)
 
-  // Extract JSON from response (may be wrapped in ```json ... ```)
   let parsed
   try {
     const match = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)

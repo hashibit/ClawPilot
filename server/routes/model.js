@@ -141,6 +141,7 @@ router.post('/test_provider', async (req, res) => {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
+          'User-Agent': 'anthropic-sdk-node/0.32.1 node/v24.6.0 darwin arm64',
         },
         body: JSON.stringify({
           model: TEST_MODEL,
@@ -169,6 +170,7 @@ router.post('/test_provider', async (req, res) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
+          'User-Agent': 'anthropic-sdk-node/0.32.1 node/v24.6.0 darwin arm64',
         },
         body: JSON.stringify({
           model: TEST_MODEL,
