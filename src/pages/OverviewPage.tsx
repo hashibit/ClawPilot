@@ -105,7 +105,7 @@ export default function OverviewPage() {
         <div className="section-label" style={{ padding: '0 0 7px' }}>活跃智能体（今日）</div>
         <div className="stat-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div className="avatar avatar-xl" style={{ background: 'linear-gradient(135deg,#8b5cf6,#ec4899)' }}>PM</div>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg,#8b5cf6,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>PM</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '12px', fontWeight: 500, color: '#FFFFFF' }}>产品经理</div>
               <div className="trend-bar"><div className="trend-fill" style={{ width: '92%', background: '#8b5cf6' }}></div></div>
@@ -113,7 +113,7 @@ export default function OverviewPage() {
             <div style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 500 }}>342</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div className="avatar avatar-xl" style={{ background: 'linear-gradient(135deg,#06b6d4,#3b82f6)' }}>UX</div>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg,#06b6d4,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>UX</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '12px', fontWeight: 500, color: '#FFFFFF' }}>UX设计师</div>
               <div className="trend-bar"><div className="trend-fill" style={{ width: '78%', background: '#06b6d4' }}></div></div>
@@ -121,7 +121,7 @@ export default function OverviewPage() {
             <div style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 500 }}>289</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div className="avatar avatar-xl" style={{ background: 'linear-gradient(135deg,#f59e0b,#f97316)' }}>DA</div>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg,#f59e0b,#f97316)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>DA</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '12px', fontWeight: 500, color: '#FFFFFF' }}>数据分析师</div>
               <div className="trend-bar"><div className="trend-fill" style={{ width: '65%', background: '#f59e0b' }}></div></div>
@@ -129,7 +129,7 @@ export default function OverviewPage() {
             <div style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 500 }}>241</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="avatar avatar-xl" style={{ background: 'linear-gradient(135deg,#f43f5e,#ec4899)' }}>QA</div>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg,#f43f5e,#ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>QA</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '12px', fontWeight: 500, color: '#FFFFFF' }}>质量保证</div>
               <div className="trend-bar"><div className="trend-fill" style={{ width: '41%', background: '#f43f5e' }}></div></div>
