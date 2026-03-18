@@ -255,11 +255,12 @@ export default function OpcPage() {
                   <div><div className="text-bold" style={{ fontSize: '15px', color: '#EBEBF5', lineHeight: '1.2' }}>数据概览</div></div>
                 </div>
                 <div className="group">
-                  <div className="group-row"><span className="group-label">智能体</span><span className="group-value">{selected.agent_count} 个</span></div>
+                  <div className="group-row"><span className="group-label">智能体</span><span className="group-value flex-center gap-5">{selected.agent_count} 个<a href="#/agents" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none' }}>管理 →</a></span></div>
                   <div className="group-row"><span className="group-label">飞书频道</span>
-                    <span className="group-value">
+                    <span className="group-value flex-center gap-5">
                       {selected.channel_count} 个
                       {stats && <span className="text-dimmer">（{stats.group_count} 群聊, {stats.dm_count} 私聊）</span>}
+                      <a href="#/bindings" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none' }}>管理 →</a>
                     </span>
                   </div>
                   <div className="group-row">
