@@ -36,6 +36,11 @@ export default function Layout() {
             <span className="text-sm">飞书频道绑定</span>
           </NavLink>
 
+          <NavLink to="/office" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            <span className="text-sm">办公室管理</span>
+          </NavLink>
+
           <div className="section-label" style={{ marginTop: '6px' }}>部署与监控</div>
           <NavLink to="/deploy" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
             <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>

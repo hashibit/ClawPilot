@@ -13,26 +13,37 @@ function writeLog(level, component, message) {
       INSERT INTO log_entries (timestamp, level, component, message)
       VALUES (?, ?, ?, ?)
     `).run(now(), level, component, message)
-  } catch (_) {
-    // ignore logging errors
-  }
+  } catch (_) {}
 }
 
-// start_deployment
+// start_deployment — opc_id + office_id required
 router.post('/start_deployment', (req, res) => {
   try {
-    const { opc_name } = req.body
+    const { opc_id, office_id } = req.body
+    if (!opc_id || !office_id) return res.status(400).send('opc_id and office_id are required')
+
+    const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opc_id)
+    if (!opc) return res.status(400).send('OPC not found')
+
+    const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    if (!office) return res.status(400).send('Office not found')
+
+    // Check office not already occupied
+    const occupied = db.prepare(
+      "SELECT id FROM office_deployments WHERE office_id = ? AND is_active = 1"
+    ).get(office_id)
+    if (occupied) return res.status(400).send('该办公室已被占用')
+
     const id = randomUUID()
     const createdAt = now()
 
     db.prepare(`
-      INSERT INTO deployment_tasks (id, opc_name, status, steps, current_step, created_at)
-      VALUES (?, ?, 'PENDING', ?, 0, ?)
-    `).run(id, opc_name, JSON.stringify(STEPS), createdAt)
+      INSERT INTO deployment_tasks (id, opc_id, office_id, opc_name, status, steps, current_step, created_at)
+      VALUES (?, ?, ?, ?, 'PENDING', ?, 0, ?)
+    `).run(id, opc_id, office_id, opc.name, JSON.stringify(STEPS), createdAt)
 
-    writeLog('INFO', 'deployment', `Deployment started for ${opc_name} (task: ${id})`)
+    writeLog('INFO', 'deployment', `Deployment started: ${opc.name} → ${office.name} (task: ${id})`)
 
-    // Async simulation (fire and forget)
     setTimeout(() => {
       try {
         db.prepare(`UPDATE deployment_tasks SET status = 'RUNNING', current_step = 1, started_at = ? WHERE id = ?`)
@@ -60,7 +71,22 @@ router.post('/start_deployment', (req, res) => {
         db.prepare(`UPDATE deployment_tasks SET status = 'SUCCESS', current_step = 4, completed_at = ? WHERE id = ?`)
           .run(now(), id)
         writeLog('INFO', 'deployment', `Step 4: ${STEPS[3]} - Deployment SUCCESS`)
-      } catch (_) {}
+
+        // Deactivate any previous deployments for this OPC
+        db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`)
+          .run(now(), opc_id)
+
+        // Record new active deployment
+        const deployId = randomUUID()
+        db.prepare(`
+          INSERT INTO office_deployments (id, opc_id, opc_name, office_id, office_name, deployed_at, is_active)
+          VALUES (?, ?, ?, ?, ?, ?, 1)
+        `).run(deployId, opc_id, opc.name, office_id, office.name, now())
+
+        // Mark OPC as running, linked to office
+        db.prepare(`UPDATE opc_config SET is_running = 1, office_id = ? WHERE id = ?`)
+          .run(office_id, opc_id)
+      } catch (e) { writeLog('ERROR', 'deployment', e.message) }
     }, 2000)
 
     res.json(id)
@@ -95,13 +121,53 @@ router.post('/cancel_deployment', (req, res) => {
   }
 })
 
-// get_recent_deployments
+// undeploy — stop a running OPC
+router.post('/undeploy', (req, res) => {
+  try {
+    const { opc_id } = req.body
+    const ts = now()
+    db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`)
+      .run(ts, opc_id)
+    db.prepare(`UPDATE opc_config SET is_running = 0, office_id = NULL WHERE id = ?`)
+      .run(opc_id)
+    writeLog('INFO', 'deployment', `Undeployed opc_id=${opc_id}`)
+    res.json(null)
+  } catch (err) {
+    res.status(500).send(err.message)
+  }
+})
+
+// get_recent_deployments — by opc_id (preferred) or opc_name (compat)
 router.post('/get_recent_deployments', (req, res) => {
   try {
-    const { opc_name, limit = 10 } = req.body
+    const { opc_id, opc_name, limit = 10 } = req.body
+    let rows
+    if (opc_id) {
+      rows = db.prepare(`
+        SELECT dt.*, off.name as office_name FROM deployment_tasks dt
+        LEFT JOIN offices off ON dt.office_id = off.id
+        WHERE dt.opc_id = ? ORDER BY dt.created_at DESC LIMIT ?
+      `).all(opc_id, limit)
+    } else {
+      rows = db.prepare(`
+        SELECT dt.*, off.name as office_name FROM deployment_tasks dt
+        LEFT JOIN offices off ON dt.office_id = off.id
+        WHERE dt.opc_name = ? ORDER BY dt.created_at DESC LIMIT ?
+      `).all(opc_name, limit)
+    }
+    res.json(rows)
+  } catch (err) {
+    res.status(500).send(err.message)
+  }
+})
+
+// get_office_deployments — deployment history for a specific office
+router.post('/get_office_deployments', (req, res) => {
+  try {
+    const { office_id, limit = 20 } = req.body
     const rows = db.prepare(`
-      SELECT * FROM deployment_tasks WHERE opc_name = ? ORDER BY created_at DESC LIMIT ?
-    `).all(opc_name, limit)
+      SELECT * FROM office_deployments WHERE office_id = ? ORDER BY deployed_at DESC LIMIT ?
+    `).all(office_id, limit)
     res.json(rows)
   } catch (err) {
     res.status(500).send(err.message)

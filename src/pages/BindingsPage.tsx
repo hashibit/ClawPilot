@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { useOpc } from '../contexts/OpcContext'
 import {
   getChannels, upsertChannel, testFeishuConnection,
-  getBindings, createBinding, deleteBinding, toggleBinding,
+  getBindings, createBinding, updateBinding, deleteBinding, toggleBinding,
+  getAgents,
 } from '../lib/api'
 import { toast } from '../components/Toast'
-import type { ChannelConfig, BindingRule } from '../lib/types'
+import type { ChannelConfig, BindingRule, AgentConfig } from '../lib/types'
 
 export default function BindingsPage() {
   const { opcs, currentOpc, selectOpc } = useOpc()
@@ -18,8 +19,11 @@ export default function BindingsPage() {
   const [savingChannel, setSavingChannel] = useState(false)
 
   const [bindings, setBindings] = useState<BindingRule[]>([])
+  const [agents, setAgents] = useState<AgentConfig[]>([])
+  const [selectedBinding, setSelectedBinding] = useState<BindingRule | null>(null)
+  const [bindingForm, setBindingForm] = useState<Partial<BindingRule>>({})
+  const [savingBinding, setSavingBinding] = useState(false)
 
-  // Load channel + bindings when current OPC changes
   useEffect(() => {
     if (!currentOpc) return
     loadData()
@@ -28,9 +32,10 @@ export default function BindingsPage() {
   const loadData = async () => {
     if (!currentOpc) return
     try {
-      const [channels, bindingList] = await Promise.all([
+      const [channels, bindingList, agentList] = await Promise.all([
         getChannels(currentOpc.id),
         getBindings(currentOpc.id),
+        getAgents(currentOpc.id),
       ])
       const feishu = channels.find(c => c.channel_type === 'FEISHU') ?? null
       setChannel(feishu)
@@ -38,6 +43,7 @@ export default function BindingsPage() {
       setAppSecret(feishu?.feishu_config?.app_secret ?? '')
       setChannelEditing(false)
       setBindings(bindingList)
+      setAgents(agentList)
     } catch (e) {
       toast(String(e), 'error')
     }
@@ -48,20 +54,12 @@ export default function BindingsPage() {
     setSavingChannel(true)
     const now = Math.floor(Date.now() / 1000)
     const config: ChannelConfig = channel
-      ? {
-          ...channel,
-          feishu_config: { app_id: appId, app_secret: appSecret },
-          updated_at: now,
-        }
+      ? { ...channel, feishu_config: { app_id: appId, app_secret: appSecret }, updated_at: now }
       : {
-          id: crypto.randomUUID(),
-          opc_id: currentOpc.id,
-          channel_type: 'FEISHU',
-          is_enabled: true,
+          id: crypto.randomUUID(), opc_id: currentOpc.id,
+          channel_type: 'FEISHU', is_enabled: true,
           feishu_config: { app_id: appId, app_secret: appSecret },
-          is_connected: false,
-          created_at: now,
-          updated_at: now,
+          is_connected: false, created_at: now, updated_at: now,
         }
     try {
       await upsertChannel(config)
@@ -75,68 +73,90 @@ export default function BindingsPage() {
   }
 
   const handleTestConnection = async () => {
-    if (!appId || !appSecret) {
-      toast('请先填写 App ID 和 App Secret', 'error')
-      return
-    }
+    if (!appId || !appSecret) { toast('请先填写 App ID 和 App Secret', 'error'); return }
     setTesting(true)
     try {
       const ok = await testFeishuConnection(appId, appSecret)
       toast(ok ? '飞书连接成功' : '飞书连接失败', ok ? 'success' : 'error')
     } catch (e) {
       toast(String(e), 'error')
-    } finally {
-      setTesting(false)
-    }
+    } finally { setTesting(false) }
   }
 
   const handleAddBinding = async () => {
     if (!currentOpc) return
     const now = Math.floor(Date.now() / 1000)
     const newBinding: BindingRule = {
-      id: crypto.randomUUID(),
-      opc_id: currentOpc.id,
-      channel_id: '',
-      channel_name: '新群组',
-      channel_type: 'GROUP',
-      agent_id: '',
-      agent_name: '',
-      trigger_mode: 'MENTION',
-      is_enabled: true,
-      created_at: now,
-      updated_at: now,
+      id: crypto.randomUUID(), opc_id: currentOpc.id,
+      channel_id: '', channel_name: '新群组', channel_type: 'GROUP',
+      agent_id: agents[0]?.id ?? '', agent_name: agents[0]?.display_name ?? '',
+      trigger_mode: 'MENTION', is_enabled: true,
+      created_at: now, updated_at: now,
     }
     try {
       await createBinding(newBinding)
       await loadData()
       toast('绑定已添加', 'success')
-    } catch (e) {
-      toast(String(e), 'error')
-    }
+      // Auto-select newly created binding
+      setSelectedBinding(newBinding)
+      setBindingForm(newBinding)
+    } catch (e) { toast(String(e), 'error') }
+  }
+
+  const handleSelectBinding = (binding: BindingRule) => {
+    setSelectedBinding(binding)
+    setBindingForm({ ...binding })
+  }
+
+  const handleBindingFormChange = (field: keyof BindingRule, value: unknown) => {
+    setBindingForm(prev => {
+      const next = { ...prev, [field]: value }
+      // Auto-sync agent_name when agent_id changes
+      if (field === 'agent_id') {
+        const agent = agents.find(a => a.id === value)
+        if (agent) next.agent_name = agent.display_name
+      }
+      return next
+    })
+  }
+
+  const handleSaveBinding = async () => {
+    if (!selectedBinding) return
+    setSavingBinding(true)
+    try {
+      const updated: BindingRule = { ...selectedBinding, ...bindingForm, updated_at: Math.floor(Date.now() / 1000) } as BindingRule
+      await updateBinding(selectedBinding.id, updated)
+      setBindings(prev => prev.map(b => b.id === updated.id ? updated : b))
+      setSelectedBinding(updated)
+      toast('绑定配置已保存', 'success')
+    } catch (e) { toast(String(e), 'error') }
+    finally { setSavingBinding(false) }
   }
 
   const handleDeleteBinding = async (id: string) => {
     try {
       await deleteBinding(id)
       setBindings(prev => prev.filter(b => b.id !== id))
+      if (selectedBinding?.id === id) setSelectedBinding(null)
       toast('已删除', 'success')
-    } catch (e) {
-      toast(String(e), 'error')
-    }
+    } catch (e) { toast(String(e), 'error') }
   }
 
   const handleToggleBinding = async (binding: BindingRule) => {
     try {
       await toggleBinding(binding.id, !binding.is_enabled)
-      setBindings(prev => prev.map(b => b.id === binding.id ? { ...b, is_enabled: !b.is_enabled } : b))
-    } catch (e) {
-      toast(String(e), 'error')
-    }
+      const updated = { ...binding, is_enabled: !binding.is_enabled }
+      setBindings(prev => prev.map(b => b.id === binding.id ? updated : b))
+      if (selectedBinding?.id === binding.id) {
+        setSelectedBinding(updated)
+        setBindingForm(prev => ({ ...prev, is_enabled: updated.is_enabled }))
+      }
+    } catch (e) { toast(String(e), 'error') }
   }
 
   return (
     <>
-      {/* COL2 - list-pane */}
+      {/* COL2 - company list */}
       <div className="list-pane">
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
           <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>我的公司</span>
@@ -154,7 +174,7 @@ export default function BindingsPage() {
                       <div
                         key={opc.id}
                         className={`list-row${currentOpc?.id === opc.id ? ' selected' : ''}`}
-                        onClick={() => selectOpc(opc)}
+                        onClick={() => { selectOpc(opc); setSelectedBinding(null) }}
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)` }}>
@@ -179,7 +199,7 @@ export default function BindingsPage() {
                       <div
                         key={opc.id}
                         className={`list-row${currentOpc?.id === opc.id ? ' selected' : ''}`}
-                        onClick={() => selectOpc(opc)}
+                        onClick={() => { selectOpc(opc); setSelectedBinding(null) }}
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#636366'},#48484A)` }}>
@@ -203,7 +223,7 @@ export default function BindingsPage() {
         </div>
       </div>
 
-      {/* COL3 - detail-pane */}
+      {/* COL3 - OPC config: feishu bot + group list */}
       <main className="detail-pane">
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
           <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{currentOpc?.display_name ?? '—'}</span>
@@ -214,25 +234,19 @@ export default function BindingsPage() {
           </div>
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* 飞书机器人配置 */}
+            {/* 飞书机器人 */}
             <section>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span className="section-label" style={{ padding: 0, display: 'block' }}>飞书机器人</span>
-                <button
-                  className="tbtn tbtn-ghost"
-                  style={{ fontSize: '12px' }}
-                  onClick={() => setChannelEditing(e => !e)}
-                >
-                  {channelEditing ? '取消' : '配置'}
+                <span className="section-label" style={{ padding: 0 }}>飞书机器人</span>
+                <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }} onClick={() => setChannelEditing(e => !e)}>
+                  {channelEditing ? '取消' : '重新配置'}
                 </button>
               </div>
               <div className="group">
                 <div className="group-row">
                   <span className="group-label">连接状态</span>
                   <span className="group-value" style={{ color: channel?.is_connected ? '#34c759' : '#636366', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {channel?.is_connected && (
-                      <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759' }}></span>
-                    )}
+                    {channel?.is_connected && <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759' }}></span>}
                     {channel?.is_connected ? '已连接' : '未连接'}
                   </span>
                 </div>
@@ -240,50 +254,22 @@ export default function BindingsPage() {
                   <>
                     <div className="group-row" style={{ gap: '10px' }}>
                       <span className="group-label">App ID</span>
-                      <input
-                        type="text"
-                        value={appId}
-                        onChange={e => setAppId(e.target.value)}
-                        placeholder="cli_..."
-                        className="field-input"
-                        style={{ flex: 1 }}
-                      />
+                      <input type="text" value={appId} onChange={e => setAppId(e.target.value)} placeholder="cli_..." className="field-input" style={{ flex: 1 }} />
                     </div>
                     <div className="group-row" style={{ gap: '10px' }}>
                       <span className="group-label">App Secret</span>
-                      <input
-                        type="password"
-                        value={appSecret}
-                        onChange={e => setAppSecret(e.target.value)}
-                        placeholder="••••••••"
-                        className="field-input"
-                        style={{ flex: 1 }}
-                      />
+                      <input type="password" value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
                     </div>
                     <div style={{ display: 'flex', gap: '6px', padding: '6px 12px 8px' }}>
-                      <button
-                        className="tbtn tbtn-accent"
-                        onClick={handleSaveChannel}
-                        disabled={savingChannel}
-                      >
-                        保存配置
-                      </button>
-                      <button
-                        className="tbtn tbtn-ghost"
-                        onClick={handleTestConnection}
-                        disabled={testing}
-                      >
-                        {testing ? '测试中...' : '测试连接'}
-                      </button>
+                      <button className="tbtn tbtn-accent" onClick={handleSaveChannel} disabled={savingChannel}>保存配置</button>
+                      <button className="tbtn tbtn-ghost" onClick={handleTestConnection} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="group-row">
                       <span className="group-label">App ID</span>
-                      <span className="group-value">
-                        {appId ? appId.slice(0, 8) + '***' : '未设置'}
-                      </span>
+                      <span className="group-value">{appId ? appId.slice(0, 8) + '***' : '未设置'}</span>
                     </div>
                     <div className="group-row">
                       <span className="group-label">App Secret</span>
@@ -294,54 +280,36 @@ export default function BindingsPage() {
               </div>
             </section>
 
-            {/* 群组绑定 */}
+            {/* 飞书群组列表 */}
             <section>
               <div className="flex-between" style={{ marginBottom: '6px' }}>
-                <span className="section-label" style={{ padding: 0 }}>群组绑定</span>
-                <button className="tbtn tbtn-accent" style={{ fontSize: '11px' }} onClick={handleAddBinding}>
-                  + 添加绑定
-                </button>
+                <span className="section-label" style={{ padding: 0 }}>飞书群组</span>
+                <button className="tbtn tbtn-accent" style={{ fontSize: '11px' }} onClick={handleAddBinding}>+ 添加群组</button>
               </div>
               <div className="group">
                 {bindings.length === 0 ? (
-                  <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#636366' }}>暂无绑定规则</div>
+                  <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#636366' }}>暂无绑定群组</div>
                 ) : (
                   bindings.map(binding => (
-                    <div key={binding.id} className="list-row">
+                    <div
+                      key={binding.id}
+                      className="list-row"
+                      onClick={() => handleSelectBinding(binding)}
+                      style={{
+                        cursor: 'pointer',
+                        background: selectedBinding?.id === binding.id ? 'rgba(139,92,246,0.15)' : undefined,
+                      }}
+                    >
                       <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: '#a78bfa' }}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="text-xs text-medium">{binding.channel_name || '（未命名群组）'}</div>
                         <div className="text-xs text-dimmer">
-                          {binding.is_enabled ? '已启用' : '已禁用'} · {binding.agent_name || '未绑定智能体'} · {binding.trigger_mode === 'MENTION' ? '@提及' : '全部消息'}
+                          {binding.is_enabled ? '已绑定' : '已禁用'} · {binding.agent_name || '未绑定智能体'}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {/* Toggle */}
-                        <button
-                          onClick={() => handleToggleBinding(binding)}
-                          style={{
-                            width: '32px', height: '18px', borderRadius: '9px', border: 'none', cursor: 'pointer',
-                            background: binding.is_enabled ? '#8b5cf6' : '#3A3A3C',
-                            position: 'relative', transition: 'background 0.15s',
-                          }}
-                        >
-                          <span style={{
-                            position: 'absolute', top: '2px',
-                            left: binding.is_enabled ? '16px' : '2px',
-                            width: '14px', height: '14px', borderRadius: '50%',
-                            background: '#fff', transition: 'left 0.15s',
-                          }}></span>
-                        </button>
-                        <button
-                          className="tbtn tbtn-ghost"
-                          style={{ padding: '2px 6px', fontSize: '11px', color: '#f43f5e' }}
-                          onClick={() => handleDeleteBinding(binding.id)}
-                        >
-                          删除
-                        </button>
-                      </div>
+                      <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: selectedBinding?.id === binding.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)', flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </div>
                   ))
                 )}
@@ -350,6 +318,152 @@ export default function BindingsPage() {
           </div>
         )}
       </main>
+
+      {/* COL4 - Channel detail panel */}
+      {selectedBinding && (
+        <aside style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#141416' }}>
+          <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {bindingForm.channel_name || '群组配置'}
+            </span>
+            <button
+              onClick={() => setSelectedBinding(null)}
+              style={{ background: 'none', border: 'none', color: '#636366', cursor: 'pointer', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
+            >×</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+            {/* 群组信息 */}
+            <section>
+              <span className="section-label" style={{ padding: '0 0 8px', display: 'block' }}>群组信息</span>
+              <div className="group">
+                <div className="group-row" style={{ gap: '10px' }}>
+                  <span className="group-label">群组名称</span>
+                  <input
+                    type="text"
+                    value={bindingForm.channel_name ?? ''}
+                    onChange={e => handleBindingFormChange('channel_name', e.target.value)}
+                    className="field-input"
+                    style={{ flex: 1 }}
+                  />
+                </div>
+                <div className="group-row" style={{ gap: '10px' }}>
+                  <span className="group-label">群组 ID</span>
+                  <input
+                    type="text"
+                    value={bindingForm.channel_id ?? ''}
+                    onChange={e => handleBindingFormChange('channel_id', e.target.value)}
+                    placeholder="oc_xxx..."
+                    className="field-input"
+                    style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}
+                  />
+                </div>
+                <div className="group-row" style={{ gap: '10px' }}>
+                  <span className="group-label">类型</span>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <select
+                      className="field-input"
+                      style={{ width: '100%' }}
+                      value={bindingForm.channel_type ?? 'GROUP'}
+                      onChange={e => handleBindingFormChange('channel_type', e.target.value)}
+                    >
+                      <option value="GROUP">群组</option>
+                      <option value="DM">私聊</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 绑定配置 */}
+            <section>
+              <span className="section-label" style={{ padding: '0 0 8px', display: 'block' }}>绑定配置</span>
+              <div className="group">
+                <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
+                  <span className="group-label" style={{ marginTop: '5px' }}>关联智能体</span>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <select
+                      className="field-input"
+                      style={{ width: '100%' }}
+                      value={bindingForm.agent_id ?? ''}
+                      onChange={e => handleBindingFormChange('agent_id', e.target.value)}
+                    >
+                      <option value="">— 未选择 —</option>
+                      {agents.map(a => (
+                        <option key={a.id} value={a.id}>{a.display_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
+                  <span className="group-label" style={{ marginTop: '5px' }}>触发模式</span>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <select
+                      className="field-input"
+                      style={{ width: '100%' }}
+                      value={bindingForm.trigger_mode ?? 'MENTION'}
+                      onChange={e => handleBindingFormChange('trigger_mode', e.target.value)}
+                    >
+                      <option value="MENTION">@机器人触发</option>
+                      <option value="ALL">所有消息</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="group-row">
+                  <span className="group-label">启用状态</span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                    <button
+                      onClick={() => handleBindingFormChange('is_enabled', !bindingForm.is_enabled)}
+                      style={{
+                        width: '32px', height: '18px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                        background: bindingForm.is_enabled ? '#8b5cf6' : '#3A3A3C',
+                        position: 'relative', transition: 'background 0.15s',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: '2px',
+                        left: bindingForm.is_enabled ? '16px' : '2px',
+                        width: '14px', height: '14px', borderRadius: '50%',
+                        background: '#fff', transition: 'left 0.15s',
+                      }}></span>
+                    </button>
+                    <span style={{ fontSize: '12px', color: '#EBEBF5' }}>{bindingForm.is_enabled ? '启用' : '禁用'}</span>
+                  </label>
+                </div>
+              </div>
+              <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
+                <button className="tbtn tbtn-accent" style={{ fontSize: '11px' }} onClick={handleSaveBinding} disabled={savingBinding}>
+                  保存配置
+                </button>
+                <button
+                  className="tbtn tbtn-ghost"
+                  style={{ fontSize: '11px', color: '#f43f5e' }}
+                  onClick={() => handleDeleteBinding(selectedBinding.id)}
+                >
+                  删除
+                </button>
+              </div>
+            </section>
+
+            {/* 路由规则 */}
+            <section>
+              <div className="flex-between" style={{ marginBottom: '6px' }}>
+                <span className="section-label" style={{ padding: 0 }}>路由规则</span>
+              </div>
+              <div className="group">
+                <div className="group-row">
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6', flexShrink: 0, marginRight: '10px' }}></div>
+                  <div style={{ flex: 1 }}>
+                    <div className="text-xs text-medium">默认路由</div>
+                    <div className="text-xs text-dimmer">所有未匹配消息转发到关联智能体</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </aside>
+      )}
     </>
   )
 }

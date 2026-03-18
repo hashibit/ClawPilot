@@ -1,0 +1,58 @@
+
+
+智能体管理：
+
+0. 智能体编辑页面中，不需要配置 “默认响应”，是否默认响应是通过拖拽排序实现，排在第一个的永远是默认响应
+1. 配置技能，添加技能的弹出框中，不要选择一个就关闭，选择后可以继续选其他的，并且可以反选
+2. 搜索技能时，去搜索 skillhub.tencent.com
+request: GET https://lightmake.site/api/skills?page=1&pageSize=24&sortBy=score&order=desc&keyword=yt-dlp
+response: {
+    "code": 0,
+    "data": {
+        "skills": [
+            {
+                "category": "content-creation",
+                "description": "Transcribe YouTube videos to text by extracting captions and subtitles directly from the video URL using yt-dlp without audio processing.",
+                "description_zh": "使用 yt-dlp 直接从 YouTube 视频链接提取字幕文本，无需音频处理。",
+                "downloads": 32003,
+                "homepage": "https://clawhub.ai/yoavrez/openclaw-youtube-transcript",
+                "installs": 29,
+                "name": "OpenClaw YouTube Transcript",
+                "ownerName": "yoavrez",
+                "score": 100000,
+                "slug": "openclaw-youtube-transcript",
+                "stars": 23,
+                "tags": null,
+                "updated_at": 1773759850970,
+                "version": "1.0.1"
+            }]}}
+将结果展示在列表中。
+
+
+3. 护栏规则，分为允许和进制两个输入框
+
+4. AI快速生成人格时，
+   4.1 如果当前的激活的模型有 anthropic 的，就使用 claude_agent_sdk 来做，这样它可以读取 .claude/skills/cpopc-workspace-creator 这个技能来生成。
+   	  关于这个技能：它会在家目录创建生成一些文件和目录，并生成了一些安全相关script，
+	  	  你应该调整这个技能，只保留人格markdown生成部分，去掉安全相关的，
+		  而且它还有家目录的配置参数，并将生成的文件放到家目录的 openclaw OPC目录里面，你应该忽略掉，
+		  我们最终生成的文件直接放到内存中，最后会传给后端存储，而不是本地目录。
+		  这是 claude agent sdk 使用 skill 的文档 https://platform.claude.com/docs/en/agent-sdk/skills
+		  注意，它的代码中用到了 cwd，在 gui app 中，分发给客户时，应该指定什么？？
+   4.2 如果当前激活的模型不是 anthropic ，而是 openai 格式的，就自行设计几个请求，模仿 skill 生成那些人格文件。
+   4.3 最终我们得到的是所有人格 markdown 文件
+
+
+
+
+
+飞书频道绑定：
+交互方式没有完全参考 @ui/bindings.html
+
+
+办公室管理：
+新增一级模块，办公室管理。每个子公司需要部署到一个办公室，才能算正常运行起来。子公司管理里，公司的运行状态，运行中时，
+需要展示出具体是在哪个办公室，并能链接跳转到办公室。
+办公室是一个具体的数据模型，需要维护到 proto，它有住址、门禁卡、电话、前台形象、租的还是自有的、月租金、网速、装修档次（高中低）
+在实际用户应用中，办公室可能是一个台式机、或者一个云主机。
+到时候我们会用门禁卡来表示该电脑登录方式，用 IP 地址来表示住址，硬件配置来表示装修档次。

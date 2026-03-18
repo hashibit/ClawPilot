@@ -1,0 +1,10 @@
+{
+  feishu: {
+    enabled: true,
+    appId: "",        // 填入飞书 bot appId
+    appSecret: "",    // 填入飞书 bot appSecret
+    connectionMode: "websocket",
+    domain: "feishu",
+    groupPolicy: "open",
+  },
+}

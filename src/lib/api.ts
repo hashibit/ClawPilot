@@ -5,9 +5,10 @@ import type {
   ProviderConfig, ModelInfo, TestProviderResult,
   ChannelConfig,
   BindingRule,
-  DeploymentTask,
+  DeploymentTask, OfficeDeployment,
   LogEntry,
   LocalSnapshot,
+  Office,
 } from './types'
 
 // ── Transport ──────────────────────────────────────────────
@@ -82,14 +83,18 @@ export const toggleBinding = (id: string, isEnabled: boolean) =>
 export const getFeishuChannels = () => call<unknown[]>('get_feishu_channels')
 
 // ── Deployment ────────────────────────────────────────────
-export const startDeployment = (opcName: string) =>
-  call<string>('start_deployment', { opc_name: opcName })
+export const startDeployment = (opcId: string, officeId: string) =>
+  call<string>('start_deployment', { opc_id: opcId, office_id: officeId })
 export const getDeploymentStatus = (taskId: string) =>
   call<DeploymentTask>('get_deployment_status', { task_id: taskId })
 export const cancelDeployment = (taskId: string) =>
   call<void>('cancel_deployment', { task_id: taskId })
-export const getRecentDeployments = (opcName: string, limit: number) =>
-  call<DeploymentTask[]>('get_recent_deployments', { opc_name: opcName, limit })
+export const undeploy = (opcId: string) =>
+  call<void>('undeploy', { opc_id: opcId })
+export const getRecentDeployments = (opcId: string, limit: number) =>
+  call<DeploymentTask[]>('get_recent_deployments', { opc_id: opcId, limit })
+export const getOfficeDeployments = (officeId: string, limit?: number) =>
+  call<OfficeDeployment[]>('get_office_deployments', { office_id: officeId, limit: limit ?? 20 })
 
 // ── Log ───────────────────────────────────────────────────
 export const getLogs = (level?: string, component?: string, limit = 200) =>
@@ -126,6 +131,16 @@ export interface AgentGenerateResult {
 }
 export const aiGenerateAgent = (prompt: string) =>
   call<AgentGenerateResult>('ai_generate_agent', { prompt })
+
+// ── Office ────────────────────────────────────────────────
+export const getOffices = () => call<Office[]>('get_offices')
+export const getOffice = (id: string) => call<Office>('get_office', { id })
+export const createOffice = (office: Office) => call<string>('create_office', { office })
+export const updateOffice = (id: string, office: Office) => call<void>('update_office', { id, office })
+export const deleteOffice = (id: string) => call<void>('delete_office', { id })
+export const assignOffice = (opcId: string, officeId: string | null) =>
+  call<void>('assign_office', { opc_id: opcId, office_id: officeId })
+export const getOpcOffice = (opcId: string) => call<Office | null>('get_opc_office', { opc_id: opcId })
 
 // ── Snapshot ──────────────────────────────────────────────
 export const createSnapshot = (opcName: string, label: string, configData: string) =>

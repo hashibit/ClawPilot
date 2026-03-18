@@ -10,13 +10,20 @@ function rowToOpc(row) {
     ...row,
     is_active: row.is_active === 1,
     is_running: row.is_running === 1,
+    office_id: row.office_id ?? null,
+    office_name: row.office_name ?? null,
   }
 }
 
 // get_all_opcs
 router.post('/get_all_opcs', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM opc_config ORDER BY created_at').all()
+    const rows = db.prepare(`
+      SELECT o.*, off.name as office_name
+      FROM opc_config o
+      LEFT JOIN offices off ON o.office_id = off.id
+      ORDER BY o.created_at
+    `).all()
     res.json(rows.map(rowToOpc))
   } catch (err) {
     res.status(500).send(err.message)
@@ -27,7 +34,10 @@ router.post('/get_all_opcs', (req, res) => {
 router.post('/get_opc', (req, res) => {
   try {
     const { id } = req.body
-    const row = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(id)
+    const row = db.prepare(`
+      SELECT o.*, off.name as office_name FROM opc_config o
+      LEFT JOIN offices off ON o.office_id = off.id WHERE o.id = ?
+    `).get(id)
     if (!row) throw new Error(`Not found: ${id}`)
     res.json(rowToOpc(row))
   } catch (err) {
@@ -113,8 +123,14 @@ router.post('/set_current_opc', (req, res) => {
 // get_current_opc
 router.post('/get_current_opc', (req, res) => {
   try {
-    let row = db.prepare('SELECT * FROM opc_config WHERE is_active = 1').get()
-    if (!row) row = db.prepare('SELECT * FROM opc_config ORDER BY created_at').get()
+    let row = db.prepare(`
+      SELECT o.*, off.name as office_name FROM opc_config o
+      LEFT JOIN offices off ON o.office_id = off.id WHERE o.is_active = 1
+    `).get()
+    if (!row) row = db.prepare(`
+      SELECT o.*, off.name as office_name FROM opc_config o
+      LEFT JOIN offices off ON o.office_id = off.id ORDER BY o.created_at
+    `).get()
     if (!row) throw new Error('No OPC configured')
     res.json(rowToOpc(row))
   } catch (err) {

@@ -51,11 +51,23 @@ const SKILL_REGISTRY = [
   { slug: 'emotional-aware', name: '情绪感知', icon: '💭', desc: '识别对话情绪，调整回复风格', tag: '交互' },
 ]
 
+interface RemoteSkill {
+  slug: string
+  name: string
+  description: string
+  description_zh?: string
+  downloads: number
+  stars: number
+  category: string
+  version: string
+  ownerName: string
+}
+
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '') || 'agent'
 }
 
-// ── Tag input (used for guardrail_rules & disabled_tools) ─
+// ── Tag input ──────────────────────────────────────────────
 function TagInput({ tags, onChange, placeholder }: {
   tags: string[]
   onChange: (tags: string[]) => void
@@ -89,43 +101,79 @@ function TagInput({ tags, onChange, placeholder }: {
   )
 }
 
-// ── Skill add modal ────────────────────────────────────────
-function SkillModal({ enabled, onClose, onAdd }: {
+// ── Skill add modal — Bug 1: multi-select+deselect, Bug 2: API search ──
+function SkillModal({ enabled, onClose, onToggle }: {
   enabled: string[]
   onClose: () => void
-  onAdd: (slug: string) => void
+  onToggle: (slug: string) => void
 }) {
   const [search, setSearch] = useState('')
-  const filtered = SKILL_REGISTRY.filter(s =>
-    !search || s.name.includes(search) || s.desc.includes(search)
+  const [remoteSkills, setRemoteSkills] = useState<RemoteSkill[]>([])
+  const [searching, setSearching] = useState(false)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!search.trim()) { setRemoteSkills([]); return }
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const r = await fetch(
+          `https://lightmake.site/api/skills?page=1&pageSize=24&sortBy=score&order=desc&keyword=${encodeURIComponent(search.trim())}`
+        )
+        if (r.ok) {
+          const data = await r.json()
+          setRemoteSkills(data?.data?.skills ?? [])
+        }
+      } catch { /* network error – fall back to local */ }
+      finally { setSearching(false) }
+    }, 400)
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current) }
+  }, [search])
+
+  // Merge local + remote results
+  const localFiltered = SKILL_REGISTRY.filter(s =>
+    !search.trim() || s.name.includes(search) || s.desc.includes(search) || s.slug.includes(search)
   )
+
+  const remoteFiltered = remoteSkills.filter(
+    rs => !SKILL_REGISTRY.some(ls => ls.slug === rs.slug)
+  )
+
   return (
     <div
       style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={onClose}
     >
       <div
-        style={{ background: '#1c1c1e', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', width: '480px', maxWidth: '90vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+        style={{ background: '#1c1c1e', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', width: '520px', maxWidth: '90vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5' }}>选择技能</div>
-            <div style={{ fontSize: '12px', color: '#636366', marginTop: '2px' }}>从 ClawHub 添加技能到该智能体</div>
+            <div style={{ fontSize: '12px', color: '#636366', marginTop: '2px' }}>点击添加/移除，可多选，从 ClawHub 搜索</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#636366', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
         </div>
-        <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <input type="text" placeholder="搜索技能..." className="field-input" style={{ width: '100%' }} value={search} onChange={e => setSearch(e.target.value)} />
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+          <input
+            type="text" placeholder="搜索技能（从 ClawHub 实时检索）…" className="field-input"
+            style={{ width: '100%' }} value={search} onChange={e => setSearch(e.target.value)}
+          />
+          {searching && (
+            <span style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#636366' }}>搜索中…</span>
+          )}
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {filtered.map(skill => {
+          {/* Local skills */}
+          {localFiltered.map(skill => {
             const added = enabled.includes(skill.slug)
             return (
               <div
                 key={skill.slug}
-                onClick={() => { if (!added) { onAdd(skill.slug); onClose() } }}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'rgba(52,199,89,0.3)' : 'rgba(255,255,255,0.12)'}`, background: added ? 'rgba(52,199,89,0.05)' : 'rgba(255,255,255,0.04)', cursor: added ? 'default' : 'pointer', opacity: added ? 0.6 : 1, transition: 'all 0.15s' }}
+                onClick={() => onToggle(skill.slug)}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'rgba(52,199,89,0.3)' : 'rgba(255,255,255,0.12)'}`, background: added ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'all 0.15s' }}
               >
                 <span style={{ fontSize: '18px', flexShrink: 0 }}>{skill.icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -133,14 +181,50 @@ function SkillModal({ enabled, onClose, onAdd }: {
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{skill.desc}</div>
                 </div>
                 <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'rgba(52,199,89,0.15)' : 'rgba(139,92,246,0.15)', color: added ? '#34c759' : '#a78bfa', flexShrink: 0 }}>
-                  {added ? '已添加' : skill.tag}
+                  {added ? '✓ 已添加' : skill.tag}
                 </span>
               </div>
             )
           })}
+
+          {/* Remote skills from ClawHub */}
+          {remoteFiltered.length > 0 && (
+            <>
+              <div style={{ fontSize: '11px', color: '#636366', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>ClawHub 结果</div>
+              {remoteFiltered.map(skill => {
+                const added = enabled.includes(skill.slug)
+                return (
+                  <div
+                    key={skill.slug}
+                    onClick={() => onToggle(skill.slug)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'rgba(52,199,89,0.3)' : 'rgba(255,255,255,0.12)'}`, background: added ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'all 0.15s' }}
+                  >
+                    <span style={{ fontSize: '18px', flexShrink: 0 }}>🔌</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{skill.name}</div>
+                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {skill.description_zh || skill.description}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#636366', marginTop: '2px' }}>
+                        {skill.ownerName} · ↓{skill.downloads.toLocaleString()} · ★{skill.stars} · v{skill.version}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'rgba(52,199,89,0.15)' : 'rgba(6,182,212,0.12)', color: added ? '#34c759' : '#06b6d4', flexShrink: 0 }}>
+                      {added ? '✓ 已添加' : 'Hub'}
+                    </span>
+                  </div>
+                )
+              })}
+            </>
+          )}
+
+          {localFiltered.length === 0 && remoteFiltered.length === 0 && !searching && search.trim() && (
+            <div style={{ textAlign: 'center', color: '#636366', fontSize: '13px', padding: '24px 0' }}>未找到相关技能</div>
+          )}
         </div>
-        <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <button className="tbtn tbtn-ghost" style={{ width: '100%' }} onClick={onClose}>关闭</button>
+        <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: '#636366' }}>已选 {enabled.length} 个技能</span>
+          <button className="tbtn tbtn-accent" onClick={onClose}>完成</button>
         </div>
       </div>
     </div>
@@ -221,7 +305,6 @@ export default function AgentsPage() {
         description: result.description || prev.description,
         personality: result.personality || prev.personality,
       }))
-      // Persist all generated docs
       const docMap: Record<string, string> = {
         SOUL: result.soul,
         IDENTITY: result.identity,
@@ -263,7 +346,8 @@ export default function AgentsPage() {
       is_default: false, order_index: agents.length,
       model_provider: undefined, model_name: undefined,
       enabled_tools: [], disabled_tools: [], enabled_skills: [],
-      guardrail_rules: [], reports_to: [], manages: [],
+      guardrail_rules: [], guardrail_allow: [], guardrail_deny: [],
+      reports_to: [], manages: [],
       created_at: now, updated_at: now,
     }
     try {
@@ -306,13 +390,15 @@ export default function AgentsPage() {
     if (!currentOpc) return
     try {
       await reorderAgents(currentOpc.id, agents.map(a => a.id))
+      // Reload to get updated is_default flags from server
+      const list = await getAgents(currentOpc.id)
+      setAgents(list)
       toast('排序已保存', 'success')
     } catch (e) { toast(String(e), 'error') }
     dragIndex.current = null
   }
 
   // ── Model selection helpers ──────────────────────────────
-  // combo value = "PROVIDER||model_name"
   const selectedModelCombo = form.model_provider && form.model_name
     ? `${form.model_provider}||${form.model_name}` : ''
   const comboInList = models.some(m => `${m.provider_type}||${m.name}` === selectedModelCombo)
@@ -351,6 +437,18 @@ export default function AgentsPage() {
   // ── Skill helpers ────────────────────────────────────────
   const enabledSkills = form.enabled_skills ?? []
 
+  const handleSkillToggle = (slug: string) => {
+    handleFormChange('enabled_skills',
+      enabledSkills.includes(slug)
+        ? enabledSkills.filter(s => s !== slug)
+        : [...enabledSkills, slug]
+    )
+  }
+
+  // ── Guardrail helpers ────────────────────────────────────
+  const guardrailAllow = form.guardrail_allow ?? form.guardrail_rules ?? []
+  const guardrailDeny = form.guardrail_deny ?? []
+
   return (
     <>
       {/* ── COL 2: List pane ────────────────────────────── */}
@@ -373,7 +471,7 @@ export default function AgentsPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px 3px' }}>
           <span className="section-label" style={{ padding: 0 }}>智能体 ({agents.length})</span>
-          <span style={{ fontSize: '11px', color: '#636366' }}>拖拽排序</span>
+          <span style={{ fontSize: '11px', color: '#636366' }}>拖拽排序（首位为默认）</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {agents.map((agent, index) => (
@@ -396,7 +494,7 @@ export default function AgentsPage() {
                   <span style={{ fontSize: '13px', fontWeight: 500, color: selectedAgent?.id === agent.id ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {agent.display_name}
                   </span>
-                  {agent.is_default && (
+                  {index === 0 && (
                     <span style={{ fontSize: '10px', background: 'rgba(139,92,246,0.18)', color: '#a78bfa', padding: '1px 5px', borderRadius: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>默认响应</span>
                   )}
                 </div>
@@ -492,13 +590,6 @@ export default function AgentsPage() {
                     <span className="group-label">职位名称</span>
                     <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} />
                   </div>
-                  <div className="group-row" style={{ gap: '10px' }}>
-                    <span className="group-label">默认响应</span>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', flex: 1 }}>
-                      <input type="checkbox" checked={form.is_default ?? false} onChange={e => handleFormChange('is_default', e.target.checked)} style={{ width: '14px', height: '14px', accentColor: '#8b5cf6', cursor: 'pointer' }} />
-                      <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>设为该 OPC 的默认响应智能体</span>
-                    </label>
-                  </div>
                 </div>
               </section>
 
@@ -506,7 +597,6 @@ export default function AgentsPage() {
               <section>
                 <div className="section-label" style={{ padding: '0 0 5px' }}>模型与工具</div>
                 <div className="group">
-                  {/* Single grouped model dropdown */}
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">使用模型</span>
                     <div style={{ position: 'relative', flex: 1 }}>
@@ -534,7 +624,6 @@ export default function AgentsPage() {
                     </div>
                   </div>
 
-                  {/* Tool chips */}
                   <div style={{ padding: '5px 12px 2px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                     工具权限
                     <span style={{ marginLeft: '6px', color: 'rgba(255,255,255,0.35)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{enabledTools.length} 个已启用</span>
@@ -552,7 +641,6 @@ export default function AgentsPage() {
                         </button>
                       )
                     })}
-                    {/* Custom tools not in the known list */}
                     {customTools.map(id => (
                       <button
                         key={id}
@@ -608,14 +696,33 @@ export default function AgentsPage() {
                 </div>
               </section>
 
-              {/* ── 护栏规则 ── */}
+              {/* ── 护栏规则 — Bug 3: split allow/deny ── */}
               <section>
                 <div className="section-label" style={{ padding: '0 0 5px' }}>护栏规则</div>
-                <TagInput
-                  tags={form.guardrail_rules ?? []}
-                  onChange={v => handleFormChange('guardrail_rules', v)}
-                  placeholder="输入规则按 Enter 添加，如：不编写代码、不执行系统命令…"
-                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'rgba(52,199,89,0.9)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>
+                      允许规则
+                    </div>
+                    <TagInput
+                      tags={guardrailAllow}
+                      onChange={v => { handleFormChange('guardrail_allow', v); handleFormChange('guardrail_rules', v) }}
+                      placeholder="允许做的事，如：发飞书消息、生成报告…"
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: 'rgba(244,63,94,0.9)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }}></span>
+                      禁止规则
+                    </div>
+                    <TagInput
+                      tags={guardrailDeny}
+                      onChange={v => handleFormChange('guardrail_deny', v)}
+                      placeholder="禁止做的事，如：不删除文件、不对外发正式文件…"
+                    />
+                  </div>
+                </div>
               </section>
 
               {/* ── 人格配置 / 文档编辑 ── */}
@@ -656,7 +763,7 @@ export default function AgentsPage() {
         <SkillModal
           enabled={enabledSkills}
           onClose={() => setSkillModalOpen(false)}
-          onAdd={slug => handleFormChange('enabled_skills', [...enabledSkills, slug])}
+          onToggle={handleSkillToggle}
         />
       )}
     </>

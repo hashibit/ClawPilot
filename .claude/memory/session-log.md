@@ -234,3 +234,36 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-18T09:27:55Z
+
+- session_id: `69A12FE8-A8C0-4D7A-9158-7F80721AD34A`
+- project: `ClawCopilot`
+- branch: `ft_harness`
+- started_at: `2026-03-18T08:15:10Z`
+- ended_at: `2026-03-18T09:27:55Z`
+- duration_minutes: 552
+- changes: 19
+
+### 変更ファイル
+- `docs/skills/cpopc-workspace-creator/SKILL.md`
+- `server/db.js`
+- `server/routes/office.js`
+- `server/index.js`
+- `server/routes/agent.js`
+- `server/routes/ai.js`
+- `src/lib/types.ts`
+- `src/lib/api.ts`
+- `src/App.tsx`
+- `src/components/Layout.tsx`
+- `src/pages/AgentsPage.tsx`
+- `src/pages/BindingsPage.tsx`
+- `src/pages/OfficePage.tsx`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---

@@ -11,6 +11,7 @@ import deploymentRouter from './routes/deployment.js'
 import logRouter from './routes/log.js'
 import snapshotRouter from './routes/snapshot.js'
 import aiRouter from './routes/ai.js'
+import officeRouter from './routes/office.js'
 
 const app = express()
 app.use(cors())
@@ -29,6 +30,7 @@ app.use('/api', deploymentRouter)
 app.use('/api', logRouter)
 app.use('/api', snapshotRouter)
 app.use('/api', aiRouter)
+app.use('/api', officeRouter)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {

@@ -4,18 +4,36 @@ import db from '../db.js'
 const router = Router()
 const now = () => Math.floor(Date.now() / 1000)
 
+function parseGuardrail(raw) {
+  if (!raw) return { allow: [], deny: [] }
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return { allow: parsed, deny: [] }  // old format
+    return { allow: parsed.allow ?? [], deny: parsed.deny ?? [] }
+  } catch { return { allow: [], deny: [] } }
+}
+
 function rowToAgent(row) {
   if (!row) return null
+  const guardrail = parseGuardrail(row.guardrail_rules)
   return {
     ...row,
     is_default: row.is_default === 1,
     enabled_tools: JSON.parse(row.enabled_tools || '[]'),
     disabled_tools: JSON.parse(row.disabled_tools || '[]'),
     enabled_skills: JSON.parse(row.enabled_skills || '[]'),
-    guardrail_rules: JSON.parse(row.guardrail_rules || '[]'),
+    guardrail_rules: guardrail.allow,  // backward compat
+    guardrail_allow: guardrail.allow,
+    guardrail_deny: guardrail.deny,
     reports_to: JSON.parse(row.reports_to || '[]'),
     manages: JSON.parse(row.manages || '[]'),
   }
+}
+
+function serializeGuardrail(config) {
+  const allow = config.guardrail_allow ?? config.guardrail_rules ?? []
+  const deny = config.guardrail_deny ?? []
+  return JSON.stringify({ allow, deny })
 }
 
 function toJsonStr(val) {
@@ -65,7 +83,7 @@ router.post('/create_agent', (req, res) => {
       config.is_default ? 1 : 0, config.order_index ?? 0,
       config.model_provider ?? null, config.model_name ?? null,
       toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
-      toJsonStr(config.enabled_skills), toJsonStr(config.guardrail_rules),
+      toJsonStr(config.enabled_skills), serializeGuardrail(config),
       toJsonStr(config.reports_to), toJsonStr(config.manages),
       config.created_at ?? now(), config.updated_at ?? now()
     )
@@ -94,7 +112,7 @@ router.post('/update_agent', (req, res) => {
       config.is_default ? 1 : 0, config.order_index ?? 0,
       config.model_provider ?? null, config.model_name ?? null,
       toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
-      toJsonStr(config.enabled_skills), toJsonStr(config.guardrail_rules),
+      toJsonStr(config.enabled_skills), serializeGuardrail(config),
       toJsonStr(config.reports_to), toJsonStr(config.manages),
       now(), id
     )
@@ -115,14 +133,14 @@ router.post('/delete_agent', (req, res) => {
   }
 })
 
-// reorder_agents
+// reorder_agents — first in list becomes is_default
 router.post('/reorder_agents', (req, res) => {
   try {
     const { opc_id, agent_ids } = req.body
-    const update = db.prepare('UPDATE agents SET order_index = ? WHERE id = ? AND opc_id = ?')
+    const updateOrder = db.prepare('UPDATE agents SET order_index = ?, is_default = ? WHERE id = ? AND opc_id = ?')
     const reorder = db.transaction(() => {
       for (let i = 0; i < agent_ids.length; i++) {
-        update.run(i, agent_ids[i], opc_id)
+        updateOrder.run(i, i === 0 ? 1 : 0, agent_ids[i], opc_id)
       }
     })
     reorder()

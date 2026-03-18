@@ -168,6 +168,44 @@ CREATE TABLE IF NOT EXISTS log_entries (
   try { db.exec(`ALTER TABLE model_providers ADD COLUMN ${col}`) } catch {}
 })
 
+// Office table
+db.exec(`
+CREATE TABLE IF NOT EXISTS offices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    address TEXT,
+    access_card TEXT,
+    phone TEXT,
+    receptionist_image TEXT,
+    ownership TEXT NOT NULL DEFAULT 'RENTED',
+    monthly_rent REAL,
+    internet_speed TEXT,
+    decoration_grade TEXT NOT NULL DEFAULT 'MEDIUM',
+    description TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+`)
+
+// Add office_id to opc_config
+try { db.exec('ALTER TABLE opc_config ADD COLUMN office_id TEXT') } catch {}
+
+// Office deployment history
+db.exec(`CREATE TABLE IF NOT EXISTS office_deployments (
+    id TEXT PRIMARY KEY,
+    opc_id TEXT NOT NULL,
+    opc_name TEXT NOT NULL,
+    office_id TEXT NOT NULL,
+    office_name TEXT NOT NULL,
+    deployed_at INTEGER NOT NULL,
+    undeployed_at INTEGER,
+    is_active INTEGER NOT NULL DEFAULT 1
+);`)
+
+// Add opc_id/office_id to deployment_tasks
+try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN opc_id TEXT') } catch {}
+try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN office_id TEXT') } catch {}
+
 // ── Seed Data ─────────────────────────────────────────────
 const now = Math.floor(Date.now() / 1000)
 

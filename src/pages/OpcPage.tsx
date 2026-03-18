@@ -146,8 +146,8 @@ export default function OpcPage() {
     }
   }
 
-  const running = opcs.filter(o => o.is_running)
-  const stopped = opcs.filter(o => !o.is_running)
+  const running = opcs.filter(o => o.is_running && o.office_id)
+  const stopped = opcs.filter(o => !o.is_running || !o.office_id)
 
   return (
     <>
@@ -265,8 +265,18 @@ export default function OpcPage() {
                   <div className="group-row">
                     <span className="group-label">运行状态</span>
                     <span className="group-value flex-center gap-5">
-                      <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: selected.is_running ? '#34c759' : '#48484A' }}></span>
-                      <span style={{ color: selected.is_running ? '#34c759' : '#636366' }}>{selected.is_running ? '运行中' : '已停止'}</span>
+                      <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: selected.is_running && selected.office_id ? '#34c759' : '#48484A' }}></span>
+                      <span style={{ color: selected.is_running && selected.office_id ? '#34c759' : '#636366' }}>
+                        {selected.is_running && selected.office_id ? '运行中' : '已停止'}
+                      </span>
+                      {selected.is_running && selected.office_name && (
+                        <>
+                          <span style={{ color: '#48484A', fontSize: '11px' }}>·</span>
+                          <a href="#/office" style={{ fontSize: '12px', color: '#a78bfa', textDecoration: 'none' }}>
+                            {selected.office_name}
+                          </a>
+                        </>
+                      )}
                     </span>
                   </div>
                   <div className="group-row">

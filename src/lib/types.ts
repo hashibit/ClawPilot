@@ -10,6 +10,8 @@ export interface OpcConfig {
   avatar_initials?: string
   is_active: boolean
   is_running: boolean
+  office_id?: string | null
+  office_name?: string | null
   agent_count: number
   channel_count: number
   message_count_today: number
@@ -48,7 +50,9 @@ export interface AgentConfig {
   enabled_tools: string[]
   disabled_tools: string[]
   enabled_skills: string[]
-  guardrail_rules: string[]
+  guardrail_rules: string[]    // legacy compat — same as guardrail_allow
+  guardrail_allow: string[]    // 允许规则
+  guardrail_deny: string[]     // 禁止规则
   reports_to: string[]
   manages: string[]
   created_at: number
@@ -134,7 +138,10 @@ export type DeploymentStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'R
 
 export interface DeploymentTask {
   id: string
+  opc_id?: string
   opc_name: string
+  office_id?: string
+  office_name?: string
   status: DeploymentStatus
   message?: string
   steps: string  // JSON array of step descriptions
@@ -142,6 +149,17 @@ export interface DeploymentTask {
   created_at: number
   started_at?: number
   completed_at?: number
+}
+
+export interface OfficeDeployment {
+  id: string
+  opc_id: string
+  opc_name: string
+  office_id: string
+  office_name: string
+  deployed_at: number
+  undeployed_at?: number
+  is_active: boolean
 }
 
 // ── Log ───────────────────────────────────────────────────
@@ -154,6 +172,28 @@ export interface LogEntry {
   agent_id?: string
   channel?: string
   metadata?: string
+}
+
+// ── Office ────────────────────────────────────────────────
+export type OfficeOwnership = 'RENTED' | 'OWNED'
+export type OfficeGrade = 'HIGH' | 'MEDIUM' | 'LOW'
+
+export interface Office {
+  id: string
+  name: string
+  address?: string
+  access_card?: string       // 门禁卡 / 登录方式
+  phone?: string
+  receptionist_image?: string
+  ownership: OfficeOwnership
+  monthly_rent?: number
+  internet_speed?: string
+  decoration_grade: OfficeGrade
+  description?: string
+  current_opc_id?: string | null
+  current_opc_name?: string | null
+  created_at: number
+  updated_at: number
 }
 
 // ── Snapshot ──────────────────────────────────────────────
