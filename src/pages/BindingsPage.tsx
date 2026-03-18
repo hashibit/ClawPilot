@@ -159,7 +159,7 @@ export default function BindingsPage() {
       {/* COL2 - company list */}
       <div className="list-pane">
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>我的公司</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>飞书配置</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {(() => {
