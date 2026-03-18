@@ -257,8 +257,7 @@ export default function AgentsPage() {
       .then(list => {
         setAgents(list)
         setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
-        if (list.length > 0) { setSelectedAgent(list[0]); setForm(list[0]) }
-        else { setSelectedAgent(null); setForm({}) }
+        setSelectedAgent(null); setForm({})
       })
       .catch(e => toast(String(e), 'error'))
   }, [currentOpc])

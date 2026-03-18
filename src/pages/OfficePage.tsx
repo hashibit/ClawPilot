@@ -19,6 +19,11 @@ export default function OfficePage() {
   const [form, setForm] = useState<Partial<Office>>({})
   const [saving, setSaving] = useState(false)
   const [deployHistory, setDeployHistory] = useState<OfficeDeployment[]>([])
+  const [remoteMode, setRemoteMode] = useState(false)
+
+  const initAddressMode = (office: Partial<Office>) => {
+    setRemoteMode(!(!office.address || office.address === 'localhost'))
+  }
 
   useEffect(() => {
     loadOffices()
@@ -29,7 +34,7 @@ export default function OfficePage() {
       const list = await getOffices()
       setOffices(list)
       if (list.length > 0 && !selected) {
-        setSelected(list[0]); setForm(list[0])
+        setSelected(list[0]); setForm(list[0]); initAddressMode(list[0])
         getOfficeDeployments(list[0].id).then(setDeployHistory).catch(() => setDeployHistory([]))
       } else if (selected) {
         // refresh selected with latest data (e.g. current_opc_name updated)
@@ -40,7 +45,7 @@ export default function OfficePage() {
   }
 
   const handleSelect = useCallback((office: Office) => {
-    setSelected(office); setForm(office)
+    setSelected(office); setForm(office); initAddressMode(office)
     getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
   }, [])
 
@@ -61,7 +66,7 @@ export default function OfficePage() {
     finally { setSaving(false) }
   }
 
-  const handleCancel = () => { if (selected) setForm(selected) }
+  const handleCancel = () => { if (selected) { setForm(selected); initAddressMode(selected) } }
 
   const handleAdd = async () => {
     const now = Math.floor(Date.now() / 1000)
@@ -77,7 +82,7 @@ export default function OfficePage() {
     try {
       await createOffice(newOffice)
       await loadOffices()
-      setSelected(newOffice); setForm(newOffice)
+      setSelected(newOffice); setForm(newOffice); initAddressMode(newOffice)
       toast('办公室已创建', 'success')
     } catch (e) { toast(String(e), 'error') }
   }
@@ -180,12 +185,11 @@ export default function OfficePage() {
                     <span className="group-label">地址（IP）</span>
                     <div style={{ display: 'flex', gap: '6px', flex: 1, alignItems: 'center' }}>
                       {(['local', 'remote'] as const).map(t => {
-                        const isLocal = !form.address || form.address === 'localhost'
-                        const active = t === 'local' ? isLocal : !isLocal
+                        const active = t === 'local' ? !remoteMode : remoteMode
                         return (
                           <button key={t} onClick={() => {
-                            if (t === 'local') handleFormChange('address', 'localhost')
-                            else handleFormChange('address', '')
+                            if (t === 'local') { setRemoteMode(false); handleFormChange('address', 'localhost') }
+                            else { setRemoteMode(true); if (!form.address || form.address === 'localhost') handleFormChange('address', '') }
                           }} style={{
                             padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
                             border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
@@ -199,11 +203,11 @@ export default function OfficePage() {
                       })}
                       <input
                         type="text"
-                        value={form.address ?? ''}
+                        value={remoteMode ? (form.address ?? '') : ''}
                         onChange={e => handleFormChange('address', e.target.value)}
-                        disabled={!form.address || form.address === 'localhost'}
+                        disabled={!remoteMode}
                         className="field-input"
-                        style={{ flex: 1, opacity: (!form.address || form.address === 'localhost') ? 0.5 : 1 }}
+                        style={{ flex: 1, opacity: remoteMode ? 1 : 0.5 }}
                         placeholder="如：192.168.1.100 或云主机 IP"
                       />
                     </div>
