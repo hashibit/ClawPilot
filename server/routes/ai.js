@@ -3,7 +3,7 @@ import db from '../db.js'
 
 const router = Router()
 
-const SYSTEM_PROMPT = `/no_think 你是一个 AI Agent 配置生成器。根据用户的一句话描述，生成完整的智能体配置。
+const SYSTEM_PROMPT = `/no_think 你是一个 AI Agent 配置生成器。根据用户的一句话描述，生成完整的智能体配置，包含所有人格文档。
 
 请严格以 JSON 格式返回，包含以下字段：
 {
@@ -12,7 +12,13 @@ const SYSTEM_PROMPT = `/no_think 你是一个 AI Agent 配置生成器。根据�
   "job_title": "职位名称",
   "description": "一句话描述",
   "personality": "人格特征关键词，逗号分隔",
-  "soul": "SOUL 文档（Markdown，描述人格、沟通风格与行为边界，200字以内）"
+  "soul": "SOUL.md 内容（Markdown，定义人格、沟通风格与行为边界，150字以内）",
+  "identity": "IDENTITY.md 内容（YAML风格，包含 name/emoji/role/personality 字段，50字以内）",
+  "agents": "AGENTS.md 内容（Markdown，描述记忆使用和与其他 Agent 的协作原则，100字以内）",
+  "user": "USER.md 内容（Markdown，用户信息与偏好沟通风格模板，80字以内）",
+  "memory": "MEMORY.md 内容（Markdown，项目背景与待跟进事项模板，80字以内）",
+  "heartbeat": "HEARTBEAT.md 内容（Markdown，3-5条定时执行的任务列表）",
+  "tools": "TOOLS.md 内容（Markdown，本角色常用工具及使用说明，100字以内）"
 }
 
 只输出 JSON，不要有任何其他内容。`
@@ -79,7 +85,7 @@ router.post('/ai_generate_agent', async (req, res) => {
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: prompt },
           ],
-          max_tokens: 1024,
+          max_tokens: 2048,
           response_format: { type: 'json_object' },
           stream: false,
           enable_thinking: false,
@@ -119,6 +125,12 @@ router.post('/ai_generate_agent', async (req, res) => {
     description: parsed.description ?? '',
     personality: parsed.personality ?? '',
     soul: parsed.soul ?? '',
+    identity: parsed.identity ?? '',
+    agents: parsed.agents ?? '',
+    user: parsed.user ?? '',
+    memory: parsed.memory ?? '',
+    heartbeat: parsed.heartbeat ?? '',
+    tools: parsed.tools ?? '',
   }
   console.log(`[ai_generate_agent] OK → display_name="${result.display_name}" name="${result.name}"`)
   res.json(result)

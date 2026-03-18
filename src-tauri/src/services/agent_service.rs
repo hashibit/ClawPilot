@@ -215,14 +215,21 @@ pub fn delete_agent(pool: &DbPool, id: &str) -> Result<()> {
 
 /// Reorder agents within `opc_id` by updating each agent's `order_index`
 /// to match its position in `agent_ids`.
+///
+/// All updates are executed inside a single transaction so the reordering
+/// is atomic — either every `order_index` is updated or none are.
 pub fn reorder_agents(pool: &DbPool, opc_id: &str, agent_ids: Vec<String>) -> Result<()> {
     let conn = pool.get()?;
+    // `unchecked_transaction` is safe here because we hold the mutex guard
+    // exclusively, so no other thread can concurrently access the connection.
+    let tx = conn.unchecked_transaction()?;
     for (idx, agent_id) in agent_ids.iter().enumerate() {
-        conn.execute(
+        tx.execute(
             "UPDATE agents SET order_index = ?1 WHERE id = ?2 AND opc_id = ?3",
             rusqlite::params![idx as i32, agent_id, opc_id],
         )?;
     }
+    tx.commit()?;
     Ok(())
 }
 
@@ -493,6 +500,99 @@ mod tests {
             get_agent_document(&pool, "a1", "TOOLS").unwrap(),
             ""
         );
+    }
+
+    // ─── CASCADE delete: documents removed with agent ─────────────────────
+
+    #[test]
+    fn test_delete_agent_cascades_to_documents() {
+        let pool = in_memory_pool();
+        insert_opc(&pool, "opc-1");
+        create_agent(&pool, make_agent("a1", "opc-1", 0)).expect("create agent");
+
+        upsert_agent_document(&pool, "a1", "SOUL", "soul").expect("upsert soul");
+        upsert_agent_document(&pool, "a1", "IDENTITY", "identity").expect("upsert identity");
+
+        // Verify documents exist before deletion
+        assert_eq!(get_agent_document(&pool, "a1", "SOUL").unwrap(), "soul");
+
+        // Delete the agent — CASCADE should remove its documents
+        delete_agent(&pool, "a1").expect("delete agent");
+
+        // Documents should be gone; querying returns empty string (not error)
+        let content = get_agent_document(&pool, "a1", "SOUL").unwrap();
+        assert_eq!(content, "", "document should be gone after cascade delete");
+
+        let identity = get_agent_document(&pool, "a1", "IDENTITY").unwrap();
+        assert_eq!(identity, "");
+    }
+
+    // ─── FK violation: upsert document for non-existent agent ────────────
+
+    #[test]
+    fn test_upsert_document_for_nonexistent_agent_fails() {
+        let pool = in_memory_pool();
+        insert_opc(&pool, "opc-1");
+        // Do NOT create any agent — FK should reject the insert
+        let result = upsert_agent_document(&pool, "ghost-agent", "SOUL", "content");
+        assert!(result.is_err(), "should fail with FK constraint violation");
+    }
+
+    // ─── reorder cross-OPC isolation ─────────────────────────────────────
+
+    #[test]
+    fn test_reorder_does_not_affect_other_opc() {
+        let pool = in_memory_pool();
+        insert_opc(&pool, "opc-a");
+        insert_opc(&pool, "opc-b");
+
+        create_agent(&pool, make_agent("a1", "opc-a", 0)).expect("a1");
+        create_agent(&pool, make_agent("a2", "opc-a", 1)).expect("a2");
+        create_agent(&pool, make_agent("b1", "opc-b", 0)).expect("b1");
+        create_agent(&pool, make_agent("b2", "opc-b", 1)).expect("b2");
+
+        // Reverse order within opc-a only
+        reorder_agents(&pool, "opc-a", vec!["a2".to_string(), "a1".to_string()])
+            .expect("reorder opc-a");
+
+        let agents_a = get_agents(&pool, "opc-a").expect("get opc-a");
+        let agents_b = get_agents(&pool, "opc-b").expect("get opc-b");
+
+        // opc-a order reversed
+        assert_eq!(agents_a[0].id, "a2");
+        assert_eq!(agents_a[1].id, "a1");
+
+        // opc-b order unchanged
+        assert_eq!(agents_b[0].id, "b1");
+        assert_eq!(agents_b[1].id, "b2");
+    }
+
+    // ─── reorder atomicity: verify all order_index values updated ────────
+
+    #[test]
+    fn test_reorder_updates_all_indices() {
+        let pool = in_memory_pool();
+        insert_opc(&pool, "opc-1");
+
+        create_agent(&pool, make_agent("x1", "opc-1", 10)).expect("x1");
+        create_agent(&pool, make_agent("x2", "opc-1", 20)).expect("x2");
+        create_agent(&pool, make_agent("x3", "opc-1", 30)).expect("x3");
+
+        reorder_agents(
+            &pool,
+            "opc-1",
+            vec!["x3".to_string(), "x1".to_string(), "x2".to_string()],
+        )
+        .expect("reorder");
+
+        let agents = get_agents(&pool, "opc-1").expect("get");
+        // Should be ordered 0,1,2 after reorder
+        assert_eq!(agents[0].id, "x3");
+        assert_eq!(agents[0].order_index, 0);
+        assert_eq!(agents[1].id, "x1");
+        assert_eq!(agents[1].order_index, 1);
+        assert_eq!(agents[2].id, "x2");
+        assert_eq!(agents[2].order_index, 2);
     }
 
     // ─── Vec<String> JSON roundtrip through DB ────────────────────────────

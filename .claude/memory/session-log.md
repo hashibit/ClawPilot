@@ -213,3 +213,24 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-17T13:00:44Z
+
+- session_id: `3ABD4618-C9BA-49B0-8908-34A64985016C`
+- project: `ClawCopilot`
+- branch: `ft_harness`
+- started_at: `2026-03-17T11:43:17Z`
+- ended_at: `2026-03-17T13:00:44Z`
+- duration_minutes: 557
+- changes: 4
+
+### 変更ファイル
+- `src/pages/AgentsPage.tsx`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---

@@ -117,6 +117,12 @@ export interface AgentGenerateResult {
   description: string
   personality: string
   soul: string
+  identity: string
+  agents: string
+  user: string
+  memory: string
+  heartbeat: string
+  tools: string
 }
 export const aiGenerateAgent = (prompt: string) =>
   call<AgentGenerateResult>('ai_generate_agent', { prompt })
