@@ -102,7 +102,7 @@ export default function OverviewPage() {
         <div className="stat-card">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {opcs.length === 0 ? (
-              <div style={{ fontSize: '12px', color: '#636366' }}>暂无公司数据</div>
+              <div style={{ fontSize: '12px', color: '#8E8E93' }}>暂无公司数据</div>
             ) : (() => {
               const maxMsg = Math.max(...opcs.map(o => statsMap.get(o.id)?.message_count_today ?? o.message_count_today), 1)
               const colors = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#f43f5e', '#3b82f6']
@@ -129,7 +129,7 @@ export default function OverviewPage() {
         <div className="section-label" style={{ padding: '0 0 7px' }}>运行中公司</div>
         <div className="stat-card">
           {opcs.filter(o => o.is_running).length === 0 ? (
-            <div style={{ fontSize: '12px', color: '#636366' }}>暂无运行中公司</div>
+            <div style={{ fontSize: '12px', color: '#8E8E93' }}>暂无运行中公司</div>
           ) : (
             opcs.filter(o => o.is_running).map(opc => (
               <div key={opc.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>

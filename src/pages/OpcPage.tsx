@@ -72,19 +72,19 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
         <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', marginBottom: 14 }}>创建新 OPC 公司</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>内部名称（英文）</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginBottom: 4 }}>内部名称（英文）</div>
             <input className="field-input" placeholder="my-company" value={name} onChange={e => setName(e.target.value)} />
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>显示名称</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginBottom: 4 }}>显示名称</div>
             <input className="field-input" placeholder="我的公司" value={displayName} onChange={e => setDisplayName(e.target.value)} />
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>描述（可选）</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginBottom: 4 }}>描述（可选）</div>
             <input className="field-input" placeholder="简短描述..." value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>头像颜色</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginBottom: 6 }}>头像颜色</div>
             <div style={{ display: 'flex', gap: 8 }}>
               {GRAD_PRESETS.map((g, i) => (
                 <div key={i} onClick={() => setGradIdx(i)} style={{
@@ -192,7 +192,7 @@ export default function OpcPage() {
                   className={`list-row${selected?.id === opc.id ? ' selected' : ''}`}
                   onClick={() => selectOpc(opc)}
                 >
-                  <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#636366'},#3A3A3C)` }}>
+                  <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8E8E93'},#3A3A3C)` }}>
                     {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -208,14 +208,14 @@ export default function OpcPage() {
             </>
           )}
           {opcs.length === 0 && (
-            <div style={{ padding: '20px 12px', fontSize: '12px', color: '#636366', textAlign: 'center' }}>
+            <div style={{ padding: '20px 12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>
               暂无公司，点击下方按钮创建
             </div>
           )}
           <div style={{ padding: '10px 12px 4px', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '6px' }}>
             <button
               onClick={() => setShowCreate(true)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#636366', fontSize: '12px' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '12px' }}
             >
               <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
               创建新OPC公司
@@ -227,7 +227,7 @@ export default function OpcPage() {
       {/* COL3: detail-pane */}
       <main className="detail-pane">
         {!selected ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#636366', fontSize: '13px' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
             请选择一个公司
           </div>
         ) : (
@@ -266,7 +266,7 @@ export default function OpcPage() {
                     <span className="group-label">运行状态</span>
                     <span className="group-value flex-center gap-5">
                       <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: selected.is_running && selected.office_id ? '#34c759' : '#48484A' }}></span>
-                      <span style={{ color: selected.is_running && selected.office_id ? '#34c759' : '#636366' }}>
+                      <span style={{ color: selected.is_running && selected.office_id ? '#34c759' : '#8E8E93' }}>
                         {selected.is_running && selected.office_id ? '运行中' : '已停止'}
                       </span>
                       {selected.is_running && selected.office_name && (

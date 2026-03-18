@@ -221,7 +221,7 @@ export default function ProvidersPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5' }}>阿里云百炼</div>
-                  <div style={{ fontSize: '11px', color: '#636366' }}>DashScope · OpenAI & Anthropic 兼容</div>
+                  <div style={{ fontSize: '11px', color: '#8E8E93' }}>DashScope · OpenAI & Anthropic 兼容</div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -231,11 +231,11 @@ export default function ProvidersPage() {
                   </span>
                 )}
                 {configured ? (
-                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: bailian?.is_available ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)', color: bailian?.is_available ? '#34c759' : '#636366' }}>
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: bailian?.is_available ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)', color: bailian?.is_available ? '#34c759' : '#8E8E93' }}>
                     {bailian?.is_available ? '已连接' : '已配置'}
                   </span>
                 ) : (
-                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: '#636366' }}>未配置</span>
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: '#8E8E93' }}>未配置</span>
                 )}
               </div>
             </div>
@@ -252,13 +252,13 @@ export default function ProvidersPage() {
                 <div className="group" style={{ marginBottom: '10px' }}>
                   <div className="group-row">
                     <span className="group-label">Base URL</span>
-                    <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px', color: !configured ? '#636366' : undefined }}>
+                    <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px', color: !configured ? '#8E8E93' : undefined }}>
                       {bailian?.base_url || '未设置'}
                     </span>
                   </div>
                   <div className="group-row">
                     <span className="group-label">API Key</span>
-                    <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px', color: !configured ? '#636366' : undefined }}>
+                    <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px', color: !configured ? '#8E8E93' : undefined }}>
                       {maskKey(bailian?.api_key)}
                     </span>
                   </div>
@@ -278,7 +278,7 @@ export default function ProvidersPage() {
                     <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <TestBadge ok={ok} label={label} />
                       {!ok && err && (
-                        <span style={{ fontSize: '10px', color: '#636366' }}>{err}</span>
+                        <span style={{ fontSize: '10px', color: '#8E8E93' }}>{err}</span>
                       )}
                     </div>
                   )
@@ -321,7 +321,7 @@ export default function ProvidersPage() {
               </thead>
               <tbody>
                 {bailianModels.length === 0 ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', color: '#636366', padding: '12px' }}>加载中...</td></tr>
+                  <tr><td colSpan={4} style={{ textAlign: 'center', color: '#8E8E93', padding: '12px' }}>加载中...</td></tr>
                 ) : (
                   bailianModels.map(m => (
                     <tr key={m.id}>
@@ -334,7 +334,7 @@ export default function ProvidersPage() {
                         </div>
                       </td>
                       <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
-                      <td style={{ color: '#636366', fontSize: '11px' }}>
+                      <td style={{ color: '#8E8E93', fontSize: '11px' }}>
                         text{m.supports_vision ? ' + image' : ''}
                       </td>
                       <td>

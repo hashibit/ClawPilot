@@ -202,7 +202,7 @@ export default function BindingsPage() {
                         onClick={() => { selectOpc(opc); setSelectedBinding(null) }}
                         style={{ cursor: 'pointer' }}
                       >
-                        <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#636366'},#48484A)` }}>
+                        <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8E8E93'},#48484A)` }}>
                           {opc.avatar_initials ?? opc.display_name.slice(0, 1)}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -229,7 +229,7 @@ export default function BindingsPage() {
           <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{currentOpc?.display_name ?? '—'}</span>
         </div>
         {!currentOpc ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#636366', fontSize: '13px' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
             请选择一个公司
           </div>
         ) : (
@@ -245,7 +245,7 @@ export default function BindingsPage() {
               <div className="group">
                 <div className="group-row">
                   <span className="group-label">连接状态</span>
-                  <span className="group-value" style={{ color: channel?.is_connected ? '#34c759' : '#636366', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span className="group-value" style={{ color: channel?.is_connected ? '#34c759' : '#8E8E93', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {channel?.is_connected && <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759' }}></span>}
                     {channel?.is_connected ? '已连接' : '未连接'}
                   </span>
@@ -288,7 +288,7 @@ export default function BindingsPage() {
               </div>
               <div className="group">
                 {bindings.length === 0 ? (
-                  <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#636366' }}>暂无绑定群组</div>
+                  <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#8E8E93' }}>暂无绑定群组</div>
                 ) : (
                   bindings.map(binding => (
                     <div
@@ -328,7 +328,7 @@ export default function BindingsPage() {
             </span>
             <button
               onClick={() => setSelectedBinding(null)}
-              style={{ background: 'none', border: 'none', color: '#636366', cursor: 'pointer', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
             >×</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>

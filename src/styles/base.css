@@ -152,8 +152,8 @@ input[type="checkbox"].mac-check {
 .text-xxs { font-size: 11px; }
 .text-bold { font-weight: 600; }
 .text-medium { font-weight: 500; }
-.text-dim { color: rgba(255, 255, 255, 0.7); }
-.text-dimmer { color: #636366; }
+.text-dim { color: rgba(255, 255, 255, 0.75); }
+.text-dimmer { color: #8E8E93; }
 
 /* ── Flex Utilities ───────────────────────────────────── */
 .flex { display: flex; }

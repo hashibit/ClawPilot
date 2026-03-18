@@ -71,7 +71,7 @@ export default function Layout() {
               <span style={{ fontSize: '12px', color: '#34c759', fontWeight: 500 }}>OpenClaw 运行中</span>
             </div>
           </div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '7px' }}>PID 28471 · 3小时42分</div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', marginBottom: '7px' }}>PID 28471 · 3小时42分</div>
           <button className="tbtn tbtn-ghost" style={{ width: '100%', textAlign: 'center' }}>重启服务</button>
         </div>
       </aside>

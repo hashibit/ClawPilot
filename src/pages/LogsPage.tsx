@@ -91,7 +91,7 @@ export default function LogsPage() {
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '15px', fontWeight: 600 }}>运行日志</span>
-            <span style={{ fontSize: '11px', color: '#636366' }}>实时流</span>
+            <span style={{ fontSize: '11px', color: '#8E8E93' }}>实时流</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {!cleared && (
@@ -117,7 +117,7 @@ export default function LogsPage() {
           style={{ flex: 1, overflowY: 'auto', background: '#161618', padding: '10px 14px' }}
         >
           {displayLogs.length === 0 ? (
-            <div style={{ fontSize: '12px', color: '#636366', padding: '8px 0' }}>
+            <div style={{ fontSize: '12px', color: '#8E8E93', padding: '8px 0' }}>
               {cleared ? '日志已清空（本地）' : '暂无日志'}
             </div>
           ) : (
@@ -145,7 +145,7 @@ export default function LogsPage() {
               INFO: 'rgba(235,235,245,0.85)',
               WARN: '#f59e0b',
               ERROR: '#f43f5e',
-              DEBUG: '#636366',
+              DEBUG: '#8E8E93',
               SYSTEM: '#a78bfa',
             }
             return (
@@ -184,7 +184,7 @@ export default function LogsPage() {
             ))}
           </select>
 
-          <div style={{ marginTop: '12px', fontSize: '11px', color: '#636366' }}>
+          <div style={{ marginTop: '12px', fontSize: '11px', color: '#8E8E93' }}>
             共 {displayLogs.length} 条
           </div>
         </div>

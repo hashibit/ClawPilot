@@ -152,9 +152,9 @@ function SkillModal({ enabled, onClose, onToggle }: {
         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5' }}>选择技能</div>
-            <div style={{ fontSize: '12px', color: '#636366', marginTop: '2px' }}>点击添加/移除，可多选，从 ClawHub 搜索</div>
+            <div style={{ fontSize: '12px', color: '#8E8E93', marginTop: '2px' }}>点击添加/移除，可多选，从 ClawHub 搜索</div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#636366', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
         </div>
         <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
           <input
@@ -162,7 +162,7 @@ function SkillModal({ enabled, onClose, onToggle }: {
             style={{ width: '100%' }} value={search} onChange={e => setSearch(e.target.value)}
           />
           {searching && (
-            <span style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#636366' }}>搜索中…</span>
+            <span style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#8E8E93' }}>搜索中…</span>
           )}
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -190,7 +190,7 @@ function SkillModal({ enabled, onClose, onToggle }: {
           {/* Remote skills from ClawHub */}
           {remoteFiltered.length > 0 && (
             <>
-              <div style={{ fontSize: '11px', color: '#636366', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>ClawHub 结果</div>
+              <div style={{ fontSize: '11px', color: '#8E8E93', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>ClawHub 结果</div>
               {remoteFiltered.map(skill => {
                 const added = enabled.includes(skill.slug)
                 return (
@@ -205,7 +205,7 @@ function SkillModal({ enabled, onClose, onToggle }: {
                       <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {skill.description_zh || skill.description}
                       </div>
-                      <div style={{ fontSize: '10px', color: '#636366', marginTop: '2px' }}>
+                      <div style={{ fontSize: '10px', color: '#8E8E93', marginTop: '2px' }}>
                         {skill.ownerName} · ↓{skill.downloads.toLocaleString()} · ★{skill.stars} · v{skill.version}
                       </div>
                     </div>
@@ -219,11 +219,11 @@ function SkillModal({ enabled, onClose, onToggle }: {
           )}
 
           {localFiltered.length === 0 && remoteFiltered.length === 0 && !searching && search.trim() && (
-            <div style={{ textAlign: 'center', color: '#636366', fontSize: '13px', padding: '24px 0' }}>未找到相关技能</div>
+            <div style={{ textAlign: 'center', color: '#8E8E93', fontSize: '13px', padding: '24px 0' }}>未找到相关技能</div>
           )}
         </div>
         <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#636366' }}>已选 {enabled.length} 个技能</span>
+          <span style={{ fontSize: '12px', color: '#8E8E93' }}>已选 {enabled.length} 个技能</span>
           <button className="tbtn tbtn-accent" onClick={onClose}>完成</button>
         </div>
       </div>
@@ -466,12 +466,12 @@ export default function AgentsPage() {
             >
               {opcs.map(opc => <option key={opc.id} value={opc.id}>{opc.display_name}</option>)}
             </select>
-            <svg style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#636366' }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            <svg style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93' }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px 3px' }}>
           <span className="section-label" style={{ padding: 0 }}>智能体 ({agents.length})</span>
-          <span style={{ fontSize: '11px', color: '#636366' }}>拖拽排序（首位为默认）</span>
+          <span style={{ fontSize: '11px', color: '#8E8E93' }}>拖拽排序（首位为默认）</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {agents.map((agent, index) => (
@@ -510,7 +510,7 @@ export default function AgentsPage() {
         <div style={{ padding: '8px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           <button
             onClick={handleAddAgent}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#636366', fontSize: '12px' }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '12px' }}
           >
             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             添加智能体
@@ -521,7 +521,7 @@ export default function AgentsPage() {
       {/* ── COL 3: Detail pane ──────────────────────────── */}
       <main className="detail-pane">
         {!selectedAgent ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#636366', fontSize: '13px' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
             请选择一个智能体
           </div>
         ) : (
@@ -620,11 +620,11 @@ export default function AgentsPage() {
                           </optgroup>
                         ))}
                       </select>
-                      <svg style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#636366' }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                      <svg style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93' }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
                     </div>
                   </div>
 
-                  <div style={{ padding: '5px 12px 2px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ padding: '5px 12px 2px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                     工具权限
                     <span style={{ marginLeft: '6px', color: 'rgba(255,255,255,0.35)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{enabledTools.length} 个已启用</span>
                   </div>
@@ -659,7 +659,7 @@ export default function AgentsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="section-label" style={{ padding: 0 }}>技能配置</span>
-                    <span style={{ fontSize: '11px', color: '#636366' }}>{enabledSkills.length} 个技能</span>
+                    <span style={{ fontSize: '11px', color: '#8E8E93' }}>{enabledSkills.length} 个技能</span>
                   </div>
                   <button
                     className="tbtn tbtn-ghost"
@@ -672,7 +672,7 @@ export default function AgentsPage() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {enabledSkills.length === 0 && (
-                    <div style={{ fontSize: '12px', color: '#636366', padding: '8px 0' }}>暂无技能，点击「添加」从技能库选择</div>
+                    <div style={{ fontSize: '12px', color: '#8E8E93', padding: '8px 0' }}>暂无技能，点击「添加」从技能库选择</div>
                   )}
                   {enabledSkills.map(slug => {
                     const skill = SKILL_REGISTRY.find(s => s.slug === slug)
@@ -688,7 +688,7 @@ export default function AgentsPage() {
                         </div>
                         <button
                           onClick={() => handleFormChange('enabled_skills', enabledSkills.filter(s => s !== slug))}
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', color: '#636366', border: 'none', cursor: 'pointer', fontSize: '11px', lineHeight: 1, flexShrink: 0 }}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', color: '#8E8E93', border: 'none', cursor: 'pointer', fontSize: '11px', lineHeight: 1, flexShrink: 0 }}
                         >×</button>
                       </div>
                     )
@@ -735,12 +735,12 @@ export default function AgentsPage() {
                     <button key={dt} className={`soul-tab${activeDocTab === dt ? ' active' : ''}`} onClick={() => setActiveDocTab(dt)}>{dt}</button>
                   ))}
                 </div>
-                <div style={{ fontSize: '11px', color: '#636366', marginBottom: '7px', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '7px', lineHeight: 1.5 }}>
                   {DOC_DESCRIPTIONS[activeDocTab]}
                 </div>
                 <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <div style={{ height: '26px', background: '#2C2C2E', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    <span style={{ fontSize: '11px', color: '#636366', fontFamily: "'SF Mono','Menlo',monospace" }}>{activeDocTab}.md</span>
+                    <span style={{ fontSize: '11px', color: '#8E8E93', fontFamily: "'SF Mono','Menlo',monospace" }}>{activeDocTab}.md</span>
                     <button className="tbtn tbtn-accent" style={{ padding: '1px 8px', fontSize: '11px' }} onClick={handleSaveDoc} disabled={docLoading}>保存文档</button>
                   </div>
                   <textarea

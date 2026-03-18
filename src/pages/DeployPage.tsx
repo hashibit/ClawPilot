@@ -213,7 +213,7 @@ export default function DeployPage() {
                 const colorMap = {
                   done: { bg: 'rgba(52,199,89,0.15)', stroke: '#34c759', text: '#34c759', sub: '已完成' },
                   running: { bg: 'rgba(139,92,246,0.15)', stroke: '#a78bfa', text: '#a78bfa', sub: '进行中...' },
-                  pending: { bg: 'rgba(255,255,255,0.06)', stroke: '#636366', text: '#636366', sub: '等待中' },
+                  pending: { bg: 'rgba(255,255,255,0.06)', stroke: '#8E8E93', text: '#8E8E93', sub: '等待中' },
                   failed: { bg: 'rgba(244,63,94,0.15)', stroke: '#f43f5e', text: '#f43f5e', sub: '失败' },
                 }[status]
                 return (
@@ -234,10 +234,10 @@ export default function DeployPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 500, color: colorMap.text }}>{label}</div>
-                        <div style={{ fontSize: '10px', color: '#636366' }}>{colorMap.sub}</div>
+                        <div style={{ fontSize: '10px', color: '#8E8E93' }}>{colorMap.sub}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '11px', color: '#636366' }}>{stepLabel}</div>
+                    <div style={{ fontSize: '11px', color: '#8E8E93' }}>{stepLabel}</div>
                   </div>
                 )
               })}
@@ -255,7 +255,7 @@ export default function DeployPage() {
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34c759', flexShrink: 0, alignSelf: 'center' }}></div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{opc.display_name}</div>
-                    <div style={{ fontSize: '11px', color: '#636366' }}>
+                    <div style={{ fontSize: '11px', color: '#8E8E93' }}>
                       🏢 {opc.office_name ?? '未知办公室'}
                     </div>
                   </div>
@@ -283,7 +283,7 @@ export default function DeployPage() {
                   FAILED:   { bg: 'rgba(244,63,94,0.15)',   color: '#f43f5e', label: '失败' },
                   ROLLBACK: { bg: 'rgba(245,158,11,0.15)',  color: '#f59e0b', label: '已回滚' },
                   RUNNING:  { bg: 'rgba(139,92,246,0.15)',  color: '#a78bfa', label: '运行中' },
-                  PENDING:  { bg: 'rgba(255,255,255,0.06)', color: '#636366', label: '等待中' },
+                  PENDING:  { bg: 'rgba(255,255,255,0.06)', color: '#8E8E93', label: '等待中' },
                 }
                 const sc = statusColorMap[task.status] ?? statusColorMap.PENDING
                 return (
@@ -292,10 +292,10 @@ export default function DeployPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '12px', color: '#EBEBF5' }}>{task.opc_name}</div>
                       {task.office_name && (
-                        <div style={{ fontSize: '11px', color: '#636366' }}>🏢 {task.office_name}</div>
+                        <div style={{ fontSize: '11px', color: '#8E8E93' }}>🏢 {task.office_name}</div>
                       )}
                     </div>
-                    <span style={{ fontSize: '11px', color: '#636366', flexShrink: 0 }}>
+                    <span style={{ fontSize: '11px', color: '#8E8E93', flexShrink: 0 }}>
                       {formatRelativeTime(task.completed_at ?? task.created_at)}
                     </span>
                   </div>

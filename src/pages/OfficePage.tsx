@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments } from '../lib/api'
 import { toast } from '../components/Toast'
-import type { Office, OfficeGrade, OfficeOwnership, OfficeDeployment } from '../lib/types'
+import type { Office, OfficeGrade, OfficeDeployment } from '../lib/types'
 
 function fmtDate(ts: number) {
   return new Date(ts * 1000).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -11,11 +11,6 @@ const GRADE_LABELS: Record<OfficeGrade, string> = {
   HIGH: '高档',
   MEDIUM: '中档',
   LOW: '普通',
-}
-
-const OWNERSHIP_LABELS: Record<OfficeOwnership, string> = {
-  RENTED: '租用',
-  OWNED: '自有',
 }
 
 export default function OfficePage() {
@@ -111,7 +106,7 @@ export default function OfficePage() {
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {offices.length === 0 && (
-            <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: '12px', color: '#636366' }}>
+            <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: '12px', color: '#8E8E93' }}>
               暂无办公室，点击下方添加
             </div>
           )}
@@ -132,8 +127,8 @@ export default function OfficePage() {
                 <div style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {office.name}
                 </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {OWNERSHIP_LABELS[office.ownership]} · {GRADE_LABELS[office.decoration_grade]}
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {GRADE_LABELS[office.decoration_grade]}
                   {office.address ? ` · ${office.address}` : ''}
                 </div>
               </div>
@@ -143,7 +138,7 @@ export default function OfficePage() {
         <div style={{ padding: '8px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           <button
             onClick={handleAdd}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#636366', fontSize: '12px' }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '12px' }}
           >
             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
             添加办公室
@@ -154,7 +149,7 @@ export default function OfficePage() {
       {/* COL3 - detail/edit */}
       <main className="detail-pane">
         {!selected ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#636366', fontSize: '13px' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
             请选择一个办公室
           </div>
         ) : (
@@ -181,13 +176,63 @@ export default function OfficePage() {
                     <span className="group-label">办公室名称</span>
                     <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1 }} />
                   </div>
-                  <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
-                    <span className="group-label" style={{ paddingTop: '2px' }}>地址（IP）</span>
-                    <input type="text" value={form.address ?? ''} onChange={e => handleFormChange('address', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：192.168.1.100 或云主机 IP" />
+                  <div className="group-row" style={{ gap: '10px' }}>
+                    <span className="group-label">地址（IP）</span>
+                    <div style={{ display: 'flex', gap: '6px', flex: 1, alignItems: 'center' }}>
+                      {(['local', 'remote'] as const).map(t => {
+                        const isLocal = !form.address || form.address === 'localhost'
+                        const active = t === 'local' ? isLocal : !isLocal
+                        return (
+                          <button key={t} onClick={() => {
+                            if (t === 'local') handleFormChange('address', 'localhost')
+                            else handleFormChange('address', '')
+                          }} style={{
+                            padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
+                            border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
+                            background: active ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)',
+                            color: active ? '#c4b5fd' : 'rgba(235,235,245,0.45)',
+                            fontWeight: active ? 500 : 400,
+                          }}>
+                            {t === 'local' ? '本机' : '远程'}
+                          </button>
+                        )
+                      })}
+                      <input
+                        type="text"
+                        value={form.address ?? ''}
+                        onChange={e => handleFormChange('address', e.target.value)}
+                        disabled={!form.address || form.address === 'localhost'}
+                        className="field-input"
+                        style={{ flex: 1, opacity: (!form.address || form.address === 'localhost') ? 0.5 : 1 }}
+                        placeholder="如：192.168.1.100 或云主机 IP"
+                      />
+                    </div>
                   </div>
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">电话</span>
                     <input type="text" value={form.phone ?? ''} onChange={e => handleFormChange('phone', e.target.value)} className="field-input" style={{ flex: 1 }} />
+                  </div>
+                  <div className="group-row" style={{ gap: '10px' }}>
+                    <span className="group-label">网速</span>
+                    <input type="text" value={form.internet_speed ?? ''} onChange={e => handleFormChange('internet_speed', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：1000Mbps" />
+                  </div>
+                  <div className="group-row" style={{ gap: '10px' }}>
+                    <span className="group-label">装修档次</span>
+                    <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
+                      {(['HIGH', 'MEDIUM', 'LOW'] as OfficeGrade[]).map(v => (
+                        <button
+                          key={v}
+                          onClick={() => handleFormChange('decoration_grade', v)}
+                          style={{
+                            padding: '5px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', border: 'none',
+                            background: form.decoration_grade === v ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
+                            color: form.decoration_grade === v ? '#a78bfa' : 'rgba(235,235,245,0.6)',
+                          }}
+                        >
+                          {GRADE_LABELS[v]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
                     <span className="group-label" style={{ paddingTop: '2px' }}>备注</span>
@@ -211,66 +256,6 @@ export default function OfficePage() {
                 </div>
               </section>
 
-              {/* 租用信息 */}
-              <section>
-                <div className="section-label" style={{ padding: '0 0 5px' }}>场地信息</div>
-                <div className="group">
-                  <div className="group-row" style={{ gap: '10px' }}>
-                    <span className="group-label">所有权</span>
-                    <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
-                      {(['RENTED', 'OWNED'] as OfficeOwnership[]).map(v => (
-                        <button
-                          key={v}
-                          onClick={() => handleFormChange('ownership', v)}
-                          style={{
-                            padding: '5px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', border: 'none',
-                            background: form.ownership === v ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
-                            color: form.ownership === v ? '#a78bfa' : 'rgba(235,235,245,0.6)',
-                          }}
-                        >
-                          {OWNERSHIP_LABELS[v]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {form.ownership === 'RENTED' && (
-                    <div className="group-row" style={{ gap: '10px' }}>
-                      <span className="group-label">月租金</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                        <input
-                          type="number" value={form.monthly_rent ?? ''}
-                          onChange={e => handleFormChange('monthly_rent', e.target.value ? Number(e.target.value) : undefined)}
-                          className="field-input" style={{ flex: 1 }} placeholder="0"
-                        />
-                        <span style={{ fontSize: '12px', color: '#636366', flexShrink: 0 }}>元/月</span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="group-row" style={{ gap: '10px' }}>
-                    <span className="group-label">网速</span>
-                    <input type="text" value={form.internet_speed ?? ''} onChange={e => handleFormChange('internet_speed', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：1000Mbps 或 硬件配置" />
-                  </div>
-                  <div className="group-row" style={{ gap: '10px' }}>
-                    <span className="group-label">装修档次</span>
-                    <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
-                      {(['HIGH', 'MEDIUM', 'LOW'] as OfficeGrade[]).map(v => (
-                        <button
-                          key={v}
-                          onClick={() => handleFormChange('decoration_grade', v)}
-                          style={{
-                            padding: '5px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', border: 'none',
-                            background: form.decoration_grade === v ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
-                            color: form.decoration_grade === v ? '#a78bfa' : 'rgba(235,235,245,0.6)',
-                          }}
-                        >
-                          {GRADE_LABELS[v]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
               {/* 部署信息 */}
               <section>
                 <div className="section-label" style={{ padding: '0 0 5px' }}>当前部署</div>
@@ -285,7 +270,7 @@ export default function OfficePage() {
                         </a>
                       </span>
                     ) : (
-                      <span className="group-value" style={{ color: '#636366' }}>未部署</span>
+                      <span className="group-value" style={{ color: '#8E8E93' }}>未部署</span>
                     )}
                   </div>
                 </div>
@@ -300,13 +285,13 @@ export default function OfficePage() {
                         <span style={{
                           fontSize: '10px', padding: '1px 6px', borderRadius: '4px', flexShrink: 0,
                           background: d.is_active ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)',
-                          color: d.is_active ? '#34c759' : '#636366',
+                          color: d.is_active ? '#34c759' : '#8E8E93',
                         }}>
                           {d.is_active ? '运行中' : '已撤销'}
                         </span>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: '12px', color: '#EBEBF5' }}>{d.opc_name}</div>
-                          <div style={{ fontSize: '11px', color: '#636366' }}>
+                          <div style={{ fontSize: '11px', color: '#8E8E93' }}>
                             {fmtDate(d.deployed_at)}
                             {d.undeployed_at ? ` → ${fmtDate(d.undeployed_at)}` : ''}
                           </div>
