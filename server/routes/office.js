@@ -119,6 +119,24 @@ router.post('/assign_office', (req, res) => {
   }
 })
 
+// check_daemon_health — ping daemon /health endpoint
+router.post('/check_daemon_health', async (req, res) => {
+  const { daemon_url, daemon_api_key } = req.body
+  if (!daemon_url) return res.json({ ok: false, error: '未配置 Daemon URL' })
+  try {
+    const url = `${daemon_url.replace(/\/$/, '')}/health`
+    const r = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${daemon_api_key ?? ''}` },
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!r.ok) return res.json({ ok: false, error: `HTTP ${r.status}` })
+    const data = await r.json()
+    res.json({ ok: true, ...data })
+  } catch (err) {
+    res.json({ ok: false, error: err.message })
+  }
+})
+
 // get_opc_office — get the office assigned to an OPC
 router.post('/get_opc_office', (req, res) => {
   try {

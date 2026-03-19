@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth } from '../lib/api'
+import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment } from '../lib/types'
 
@@ -20,6 +21,8 @@ export default function OfficePage() {
   const [saving, setSaving] = useState(false)
   const [deployHistory, setDeployHistory] = useState<OfficeDeployment[]>([])
   const [remoteMode, setRemoteMode] = useState(false)
+  const [daemonHealth, setDaemonHealth] = useState<DaemonHealthResult | null>(null)
+  const [healthChecking, setHealthChecking] = useState(false)
 
   const initAddressMode = (office: Partial<Office>) => {
     setRemoteMode(!(!office.address || office.address === 'localhost'))
@@ -46,6 +49,7 @@ export default function OfficePage() {
 
   const handleSelect = useCallback((office: Office) => {
     setSelected(office); setForm(office); initAddressMode(office)
+    setDaemonHealth(null)
     getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
   }, [])
 
@@ -67,6 +71,20 @@ export default function OfficePage() {
   }
 
   const handleCancel = () => { if (selected) { setForm(selected); initAddressMode(selected) } }
+
+  const handleCheckDaemon = async () => {
+    if (!form.daemon_url) { toast('请先填写 Daemon URL', 'error'); return }
+    setHealthChecking(true)
+    setDaemonHealth(null)
+    try {
+      const result = await checkDaemonHealth(form.daemon_url!, form.daemon_api_key ?? '')
+      setDaemonHealth(result)
+    } catch (e) {
+      setDaemonHealth({ ok: false, error: String(e) })
+    } finally {
+      setHealthChecking(false)
+    }
+  }
 
   const handleAdd = async () => {
     const now = Math.floor(Date.now() / 1000)
@@ -262,7 +280,27 @@ export default function OfficePage() {
 
               {/* Daemon 配置 */}
               <section>
-                <div className="section-label" style={{ padding: '0 0 5px' }}>Daemon 部署配置</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 5px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="section-label" style={{ padding: 0 }}>Daemon 部署配置</span>
+                    {daemonHealth && (
+                      <span style={{
+                        fontSize: '11px', padding: '1px 7px', borderRadius: '5px', fontWeight: 500,
+                        background: daemonHealth.ok ? 'rgba(52,199,89,0.15)' : 'rgba(244,63,94,0.15)',
+                        color: daemonHealth.ok ? '#34c759' : '#f43f5e',
+                      }}>
+                        {daemonHealth.ok ? `在线 · v${daemonHealth.version ?? '?'}` : `离线: ${daemonHealth.error ?? '连接失败'}`}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleCheckDaemon}
+                    disabled={healthChecking}
+                    style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: 'rgba(235,235,245,0.7)', flexShrink: 0, opacity: healthChecking ? 0.5 : 1 }}
+                  >
+                    {healthChecking ? '检测中…' : '检测连接'}
+                  </button>
+                </div>
                 <div className="group">
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label" style={{ minWidth: 80 }}>Daemon URL</span>
@@ -286,6 +324,13 @@ export default function OfficePage() {
                       placeholder="来自 Daemon 启动日志或 ~/.clawpilot/daemon.key"
                     />
                   </div>
+                  {daemonHealth?.ok && (
+                    <div style={{ padding: '6px 10px', fontSize: '11px', color: 'rgba(52,199,89,0.8)', background: 'rgba(52,199,89,0.06)', borderTop: '1px solid rgba(52,199,89,0.12)' }}>
+                      OpenClaw: {daemonHealth.openclaw_status ?? '未知'}
+                      {daemonHealth.openclaw_pid != null ? ` (PID ${daemonHealth.openclaw_pid})` : ''}
+                      {daemonHealth.active_tasks != null ? ` · ${daemonHealth.active_tasks} 个任务运行中` : ''}
+                    </div>
+                  )}
                   <div style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(235,235,245,0.4)' }}>
                     未配置时使用仿真模式（不会实际部署到服务器）
                   </div>

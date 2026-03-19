@@ -132,6 +132,19 @@ export interface AgentGenerateResult {
 export const aiGenerateAgent = (prompt: string) =>
   call<AgentGenerateResult>('ai_generate_agent', { prompt })
 
+// ── Daemon Health ──────────────────────────────────────────
+export interface DaemonHealthResult {
+  ok: boolean
+  error?: string
+  status?: string
+  version?: string
+  openclaw_status?: string
+  openclaw_pid?: number | null
+  active_tasks?: number
+}
+export const checkDaemonHealth = (daemon_url: string, daemon_api_key: string) =>
+  call<DaemonHealthResult>('check_daemon_health', { daemon_url, daemon_api_key })
+
 // ── Office ────────────────────────────────────────────────
 export const getOffices = () => call<Office[]>('get_offices')
 export const getOffice = (id: string) => call<Office>('get_office', { id })

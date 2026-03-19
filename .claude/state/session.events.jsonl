@@ -127,3 +127,94 @@ const http = require('http');
 function post(path, body) {
   return new Promise((resolve) => {
     const req = http."}}
+{"id":"event-000090","type":"tool.bash","ts":"2026-03-19T10:16:16Z","state":"stopped","data":{"command":"cd /Users/jiechen/work/code/rust/ClawPilot && npx tsc --noEmit 2>&1 | head -40"}}
+{"id":"event-000091","type":"tool.bash","ts":"2026-03-19T10:16:25Z","state":"stopped","data":{"command":"npx tsc --noEmit 2>&1 | grep -E "(OfficePage|OpcPage)" | head -20"}}
+{"id":"event-000092","type":"tool.bash","ts":"2026-03-19T10:16:30Z","state":"stopped","data":{"command":"grep -n "handleDeploy\|handleUndeploy\|startPoll\|deployTask\|selectedOfficeId" src/pages/OpcPage.tsx | head -30"}}
+{"id":"event-000093","type":"tool.bash","ts":"2026-03-19T10:21:09Z","state":"stopped","data":{"command":"lsof -i :3001 -i :5173 2>/dev/null | head -10"}}
+{"id":"event-000094","type":"tool.bash","ts":"2026-03-19T10:21:17Z","state":"stopped","data":{"command":"npm run dev 2>&1 &
+sleep 3
+lsof -i :5173 2>/dev/null | head -5"}}
+{"id":"event-000095","type":"tool.bash","ts":"2026-03-19T10:21:24Z","state":"stopped","data":{"command":"open http://localhost:1420"}}
+{"id":"event-000096","type":"tool.bash","ts":"2026-03-19T10:24:22Z","state":"stopped","data":{"command":"curl -s http://localhost:3001/api/get_offices -X POST -H "Content-Type: application/json" -d '{}' 2>&1"}}
+{"id":"event-000097","type":"tool.bash","ts":"2026-03-19T10:24:23Z","state":"stopped","data":{"command":"curl -s http://localhost:3001/api/get_all_opcs -X POST -H "Content-Type: application/json" -d '{}' 2>&1"}}
+{"id":"event-000098","type":"tool.bash","ts":"2026-03-19T10:24:29Z","state":"stopped","data":{"command":"ps aux | grep -E "node|vite" | grep -v grep"}}
+{"id":"event-000099","type":"tool.bash","ts":"2026-03-19T10:24:48Z","state":"stopped","data":{"command":"curl -s -X POST http://localhost:3001/api/check_daemon_health \
+  -H "Content-Type: application/json" \
+  -d '{"daemon_url":"","daemon_api_key":""}'"}}
+{"id":"event-000100","type":"tool.bash","ts":"2026-03-19T10:24:52Z","state":"stopped","data":{"command":"ls /Users/jiechen/work/code/rust/ClawPilot/"}}
+{"id":"event-000101","type":"tool.bash","ts":"2026-03-19T10:24:53Z","state":"stopped","data":{"command":"lsof -i :3001 -i :1420 2>/dev/null | head -20"}}
+{"id":"event-000102","type":"tool.bash","ts":"2026-03-19T10:24:58Z","state":"stopped","data":{"command":"cat /etc/services | grep -E "timbuktu-srv4|redwood-broker" 2>/dev/null; grep -E "1420|3001" /etc/services 2>/dev/null | head"}}
+{"id":"event-000103","type":"tool.bash","ts":"2026-03-19T10:24:58Z","state":"stopped","data":{"command":"lsof -i :3001 2>/dev/null; lsof -i :1420 2>/dev/null"}}
+{"id":"event-000104","type":"tool.bash","ts":"2026-03-19T10:25:05Z","state":"stopped","data":{"command":"echo "=== 测试 1: check_daemon_health（未配置 URL）===" && \
+curl -s -X POST http://localhost:3001/api/check_daemon_health \
+  -H "Content-Type: application/json" \
+  -d '{"daemon_url":"","daemon_api_key":"""}}
+{"id":"event-000105","type":"tool.bash","ts":"2026-03-19T10:25:08Z","state":"stopped","data":{"command":"curl --noproxy '*' -v -X POST http://localhost:3001/api/check_daemon_health \
+  -H "Content-Type: application/json" \
+  -d '{"daemon_url":"","daemon_api_key":""}' 2>&1 | head -40"}}
+{"id":"event-000106","type":"tool.bash","ts":"2026-03-19T10:25:15Z","state":"stopped","data":{"command":"ls /Users/jiechen/work/code/rust/ClawPilot/server/"}}
+{"id":"event-000107","type":"tool.bash","ts":"2026-03-19T10:25:19Z","state":"stopped","data":{"command":"ls /Users/jiechen/work/code/rust/ClawPilot/server/routes/"}}
+{"id":"event-000108","type":"tool.bash","ts":"2026-03-19T10:25:20Z","state":"stopped","data":{"command":"cat /Users/jiechen/work/code/rust/ClawPilot/server/index.js"}}
+{"id":"event-000109","type":"tool.bash","ts":"2026-03-19T10:25:27Z","state":"stopped","data":{"command":"grep -n "router\." /Users/jiechen/work/code/rust/ClawPilot/server/routes/deployment.js | head -30"}}
+{"id":"event-000110","type":"tool.bash","ts":"2026-03-19T10:25:28Z","state":"stopped","data":{"command":"grep -n "router\." /Users/jiechen/work/code/rust/ClawPilot/server/routes/office.js | head -30"}}
+{"id":"event-000111","type":"tool.bash","ts":"2026-03-19T10:25:29Z","state":"stopped","data":{"command":"grep -rn "check_daemon_health\|daemon_health" /Users/jiechen/work/code/rust/ClawPilot/server/ 2>/dev/null"}}
+{"id":"event-000112","type":"tool.bash","ts":"2026-03-19T10:25:35Z","state":"stopped","data":{"command":"curl --noproxy '*' -s -X POST http://localhost:3001/api/check_daemon_health \
+  -H "Content-Type: application/json" \
+  -d '{"daemon_url":"","daemon_api_key":""}'"}}
+{"id":"event-000113","type":"tool.bash","ts":"2026-03-19T10:25:40Z","state":"stopped","data":{"command":"ps aux | grep "node.*server\|node.*index\|npm\|pnpm" | grep -v grep | head -20"}}
+{"id":"event-000114","type":"tool.bash","ts":"2026-03-19T10:25:49Z","state":"stopped","data":{"command":"lsof -i :3001 -sTCP:LISTEN 2>/dev/null"}}
+{"id":"event-000115","type":"tool.bash","ts":"2026-03-19T10:25:56Z","state":"stopped","data":{"command":"ls -la /proc/38415/cwd 2>/dev/null || lsof -p 38415 | grep cwd 2>/dev/null"}}
+{"id":"event-000116","type":"tool.bash","ts":"2026-03-19T10:26:07Z","state":"stopped","data":{"command":"lsof -p 63037 -i 2>/dev/null | grep LISTEN"}}
+{"id":"event-000117","type":"tool.bash","ts":"2026-03-19T10:26:13Z","state":"stopped","data":{"command":"curl --noproxy '*' -s -X POST http://localhost:3001/api/get_offices \
+  -H "Content-Type: application/json" \
+  -d '{}'"}}
+{"id":"event-000118","type":"tool.bash","ts":"2026-03-19T10:26:18Z","state":"stopped","data":{"command":"curl --noproxy '*' -s -X POST http://localhost:3001/api/get_all_opcs \
+  -H "Content-Type: application/json" \
+  -d '{}'"}}
+{"id":"event-000119","type":"tool.bash","ts":"2026-03-19T10:26:19Z","state":"stopped","data":{"command":"grep -n "check_daemon_health\|officeRouter\|office" /Users/jiechen/work/code/rust/ClawPilot/server/index.js"}}
+{"id":"event-000120","type":"tool.bash","ts":"2026-03-19T10:26:26Z","state":"stopped","data":{"command":"curl --noproxy '*' -s -X POST http://localhost:3001/api/check_daemon_health \
+  -H "Content-Type: application/json" \
+  -d '{"daemon_url":"","daemon_api_key":""}' && echo ""
+
+curl --noproxy '*' -s -X "}}
+{"id":"event-000121","type":"tool.bash","ts":"2026-03-19T10:26:49Z","state":"stopped","data":{"command":"lsof -p 14727 -i 2>/dev/null | grep LISTEN"}}
+{"id":"event-000122","type":"tool.bash","ts":"2026-03-19T10:26:49Z","state":"stopped","data":{"command":"ps -p 14727 -o pid,command 2>/dev/null"}}
+{"id":"event-000123","type":"tool.bash","ts":"2026-03-19T10:26:55Z","state":"stopped","data":{"command":"grep -n "chmd" /etc/services | head -5"}}
+{"id":"event-000124","type":"tool.bash","ts":"2026-03-19T10:26:56Z","state":"stopped","data":{"command":"ps -p 63037 -o pid,command 2>/dev/null && lsof -p 63037 | grep cwd"}}
+{"id":"event-000125","type":"tool.bash","ts":"2026-03-19T10:27:05Z","state":"stopped","data":{"command":"echo "=== 测试3: get_offices ===" && \
+curl --noproxy '*' -s -X POST http://localhost:3001/api/get_offices \
+  -H "Content-Type: application/json" \
+  -d '{}' | python3 -m json.tool 2>/dev/null || \
+cur"}}
+{"id":"event-000126","type":"tool.bash","ts":"2026-03-19T10:27:06Z","state":"stopped","data":{"command":"echo "=== 测试4: get_all_opcs ===" && \
+curl --noproxy '*' -s -X POST http://localhost:3001/api/get_all_opcs \
+  -H "Content-Type: application/json" \
+  -d '{}' | python3 -m json.tool 2>/dev/null || \
+c"}}
+{"id":"event-000127","type":"tool.bash","ts":"2026-03-19T10:27:13Z","state":"stopped","data":{"command":"echo "=== 测试5: start_deployment ===" && \
+curl --noproxy '*' -s -X POST http://localhost:3001/api/start_deployment \
+  -H "Content-Type: application/json" \
+  -d '{"opc_id":"opc-test-002","office_id":"}}
+{"id":"event-000128","type":"tool.bash","ts":"2026-03-19T10:27:18Z","state":"stopped","data":{"command":"echo "=== 测试5: start_deployment（用未占用的 office 和 opc）===" && \
+curl --noproxy '*' -s -X POST http://localhost:3001/api/start_deployment \
+  -H "Content-Type: application/json" \
+  -d '{"opc_id":"opc-tes"}}
+{"id":"event-000129","type":"tool.bash","ts":"2026-03-19T10:27:35Z","state":"stopped","data":{"command":"grep -n "该办公室" /Users/jiechen/work/code/rust/ClawPilot/server/routes/deployment.js"}}
+{"id":"event-000130","type":"tool.bash","ts":"2026-03-19T10:27:40Z","state":"stopped","data":{"command":"grep -rn "该办公室" /Users/jiechen/work/code/rust/ClawPilot/server/"}}
+{"id":"event-000131","type":"tool.bash","ts":"2026-03-19T10:27:44Z","state":"stopped","data":{"command":"grep -rn "占用" /Users/jiechen/work/code/rust/ClawPilot/server/"}}
+{"id":"event-000132","type":"tool.bash","ts":"2026-03-19T10:27:53Z","state":"stopped","data":{"command":"cd /Users/jiechen/work/code/rust/ClawPilot/server && \
+node -e "
+import('better-sqlite3').then(({default: Database}) => {
+  const db = new Database('./dev.db');
+  const offices = db.prepare('SELECT id"}}
+{"id":"event-000133","type":"tool.bash","ts":"2026-03-19T10:28:04Z","state":"stopped","data":{"command":"sqlite3 /Users/jiechen/work/code/rust/ClawPilot/server/dev.db ".schema offices" 2>&1"}}
+{"id":"event-000134","type":"tool.bash","ts":"2026-03-19T10:28:11Z","state":"stopped","data":{"command":"sqlite3 /Users/jiechen/work/code/rust/ClawPilot/server/dev.db "SELECT id, name FROM offices;" 2>&1 && \
+sqlite3 /Users/jiechen/work/code/rust/ClawPilot/server/dev.db "SELECT id, name, office_id, is_ru"}}
+{"id":"event-000135","type":"tool.bash","ts":"2026-03-19T10:28:14Z","state":"stopped","data":{"command":"sqlite3 /Users/jiechen/work/code/rust/ClawPilot/server/dev.db ".schema office_deployments" 2>&1"}}
+{"id":"event-000136","type":"tool.bash","ts":"2026-03-19T10:28:18Z","state":"stopped","data":{"command":"sqlite3 /Users/jiechen/work/code/rust/ClawPilot/server/dev.db "SELECT * FROM office_deployments WHERE is_active=1;" 2>&1"}}
+{"id":"event-000137","type":"tool.bash","ts":"2026-03-19T10:28:24Z","state":"stopped","data":{"command":"sqlite3 /Users/jiechen/work/code/rust/ClawPilot/server/dev.db "SELECT id, opc_id, office_id, status FROM deployment_tasks ORDER BY created_at DESC LIMIT 5;" 2>&1"}}
+{"id":"event-000138","type":"tool.bash","ts":"2026-03-19T10:28:31Z","state":"stopped","data":{"command":"echo "=== 测试6: get_deployment_status ===" && \
+curl --noproxy '*' -s -X POST http://localhost:3001/api/get_deployment_status \
+  -H "Content-Type: application/json" \
+  -d '{"task_id":"2cc99efc-731e-4"}}
+{"id":"event-000139","type":"tool.bash","ts":"2026-03-19T10:28:59Z","state":"stopped","data":{"command":"kill 38415 14727 2>/dev/null; sleep 1; echo "done""}}
