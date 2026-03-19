@@ -3,6 +3,7 @@ import { useOpc } from '../contexts/OpcContext'
 import {
   getAgents, createAgent, updateAgent, deleteAgent, reorderAgents,
   getAgentDocument, updateAgentDocument, aiGenerateAgent, getModels,
+  chatWithAgent,
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType, ModelInfo } from '../lib/types'
@@ -101,17 +102,117 @@ function TagInput({ tags, onChange, placeholder }: {
   )
 }
 
-// ── Skill add modal — Bug 1: multi-select+deselect, Bug 2: API search ──
+// ── Agent Chat Drawer ──────────────────────────────────────
+interface ChatMsg { role: 'user' | 'assistant'; content: string }
+
+function ChatDrawer({ agent, onClose }: { agent: AgentConfig; onClose: () => void }) {
+  const [messages, setMessages] = useState<ChatMsg[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  async function send() {
+    const text = input.trim()
+    if (!text || loading) return
+    const next: ChatMsg[] = [...messages, { role: 'user', content: text }]
+    setMessages(next)
+    setInput('')
+    setLoading(true)
+    try {
+      const { reply } = await chatWithAgent(agent.id, next)
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+    } catch (e: any) {
+      toast(e?.message ?? '请求失败', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
+      <div style={{ position: 'relative', width: '400px', height: '100%', background: '#1C1C1E', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: `linear-gradient(135deg,${agent.gradient_start ?? '#8b5cf6'},${agent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+            {agent.initials ?? agent.display_name.slice(0, 2)}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{agent.display_name}</div>
+            <div style={{ fontSize: '11px', color: '#8E8E93' }}>测试对话 · 基于 SOUL.md</div>
+          </div>
+          <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '11px', padding: '4px 8px', borderRadius: '5px' }}>清空</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {messages.length === 0 && (
+            <div style={{ textAlign: 'center', color: '#636366', fontSize: '12px', marginTop: '40px' }}>发送一条消息来测试 {agent.display_name}</div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{
+                maxWidth: '85%', padding: '9px 12px', borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                background: m.role === 'user' ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.07)',
+                color: '#EBEBF5', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              }}>
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <div style={{ padding: '9px 14px', borderRadius: '12px 12px 12px 3px', background: 'rgba(255,255,255,0.07)', color: '#8E8E93', fontSize: '13px' }}>…</div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div style={{ padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '8px' }}>
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+            placeholder="发消息测试… (Enter 发送，Shift+Enter 换行)"
+            rows={2}
+            style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px', color: '#EBEBF5', fontSize: '12px', padding: '8px 10px', resize: 'none', outline: 'none', fontFamily: 'inherit' }}
+          />
+          <button
+            onClick={send}
+            disabled={!input.trim() || loading}
+            style={{ padding: '8px 14px', borderRadius: '8px', background: '#8b5cf6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500, opacity: (!input.trim() || loading) ? 0.5 : 1, alignSelf: 'flex-end' }}
+          >发送</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Skill Modal ────────────────────────────────────────────
 function SkillModal({ enabled, onClose, onToggle }: {
   enabled: string[]
   onClose: () => void
   onToggle: (slug: string) => void
 }) {
   const [search, setSearch] = useState('')
+  const [dbSkills, setDbSkills] = useState<import('../lib/api').LocalSkill[]>([])
   const [remoteSkills, setRemoteSkills] = useState<RemoteSkill[]>([])
   const [searching, setSearching] = useState(false)
+  const [installing, setInstalling] = useState<string | null>(null)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Load installed skills from DB on open
+  useEffect(() => {
+    import('../lib/api').then(api => api.getSkills()).then(setDbSkills).catch(() => {})
+  }, [])
+
+  // ClawHub search (debounced)
   useEffect(() => {
     if (!search.trim()) { setRemoteSkills([]); return }
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
@@ -125,19 +226,50 @@ function SkillModal({ enabled, onClose, onToggle }: {
           const data = await r.json()
           setRemoteSkills(data?.data?.skills ?? [])
         }
-      } catch { /* network error – fall back to local */ }
+      } catch { /* offline */ }
       finally { setSearching(false) }
     }, 400)
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current) }
   }, [search])
 
-  // Merge local + remote results
-  const localFiltered = SKILL_REGISTRY.filter(s =>
-    !search.trim() || s.name.includes(search) || s.desc.includes(search) || s.slug.includes(search)
+  async function handleInstall(slug: string) {
+    setInstalling(slug)
+    try {
+      const api = await import('../lib/api')
+      await api.installSkill(slug)
+      const fresh = await api.getSkills()
+      setDbSkills(fresh)
+      toast(`技能 ${slug} 已安装`, 'success')
+    } catch (e: any) {
+      toast(e?.message ?? '安装失败', 'error')
+    } finally {
+      setInstalling(null)
+    }
+  }
+
+  async function handleUninstall(slug: string) {
+    try {
+      const api = await import('../lib/api')
+      await api.uninstallSkill(slug)
+      const fresh = await api.getSkills()
+      setDbSkills(fresh)
+      toast(`技能 ${slug} 已卸载`, 'success')
+    } catch (e: any) {
+      toast(e?.message ?? '卸载失败', 'error')
+    }
+  }
+
+  // Installed skills from DB (filter by search)
+  const installedSkills = dbSkills.filter(s =>
+    s.is_installed && (!search.trim() || (s.display_name + s.name + (s.slug ?? '')).toLowerCase().includes(search.toLowerCase()))
   )
 
-  const remoteFiltered = remoteSkills.filter(
-    rs => !SKILL_REGISTRY.some(ls => ls.slug === rs.slug)
+  // Remote from ClawHub search, exclude already-in-DB by slug
+  const dbSlugs = new Set(dbSkills.map(s => s.slug).filter(Boolean))
+  const remoteNew = remoteSkills.filter(rs => !dbSlugs.has(rs.slug))
+  // Remote that are in DB but not installed
+  const remoteInDbNotInstalled = remoteSkills.filter(rs =>
+    dbSlugs.has(rs.slug) && !dbSkills.find(d => d.slug === rs.slug)?.is_installed
   )
 
   return (
@@ -146,16 +278,19 @@ function SkillModal({ enabled, onClose, onToggle }: {
       onClick={onClose}
     >
       <div
-        style={{ background: '#1c1c1e', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', width: '520px', maxWidth: '90vw', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+        style={{ background: '#1c1c1e', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', width: '540px', maxWidth: '90vw', maxHeight: '82vh', display: 'flex', flexDirection: 'column' }}
         onClick={e => e.stopPropagation()}
       >
+        {/* Header */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5' }}>选择技能</div>
-            <div style={{ fontSize: '12px', color: '#8E8E93', marginTop: '2px' }}>点击添加/移除，可多选，从 ClawHub 搜索</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5' }}>技能管理</div>
+            <div style={{ fontSize: '12px', color: '#8E8E93', marginTop: '2px' }}>安装技能后可添加到 Agent，部署时自动打包</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
         </div>
+
+        {/* Search */}
         <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
           <input
             type="text" placeholder="搜索技能（从 ClawHub 实时检索）…" className="field-input"
@@ -165,68 +300,100 @@ function SkillModal({ enabled, onClose, onToggle }: {
             <span style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#8E8E93' }}>搜索中…</span>
           )}
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Local skills */}
-          {localFiltered.map(skill => {
-            const added = enabled.includes(skill.slug)
-            return (
-              <div
-                key={skill.slug}
-                onClick={() => onToggle(skill.slug)}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'rgba(52,199,89,0.3)' : 'rgba(255,255,255,0.12)'}`, background: added ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'all 0.15s' }}
-              >
-                <span style={{ fontSize: '18px', flexShrink: 0 }}>{skill.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{skill.name}</div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{skill.desc}</div>
-                </div>
-                <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'rgba(52,199,89,0.15)' : 'rgba(139,92,246,0.15)', color: added ? '#34c759' : '#a78bfa', flexShrink: 0 }}>
-                  {added ? '✓ 已添加' : skill.tag}
-                </span>
-              </div>
-            )
-          })}
 
-          {/* Remote skills from ClawHub */}
-          {remoteFiltered.length > 0 && (
+        {/* List */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+          {/* Installed skills */}
+          {installedSkills.length > 0 && (
             <>
-              <div style={{ fontSize: '11px', color: '#8E8E93', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>ClawHub 结果</div>
-              {remoteFiltered.map(skill => {
-                const added = enabled.includes(skill.slug)
+              <div style={{ fontSize: '11px', color: '#8E8E93', padding: '2px 0', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>已安装</div>
+              {installedSkills.map(skill => {
+                const slug = skill.slug ?? skill.name
+                const added = enabled.includes(slug)
                 return (
-                  <div
-                    key={skill.slug}
-                    onClick={() => onToggle(skill.slug)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'rgba(52,199,89,0.3)' : 'rgba(255,255,255,0.12)'}`, background: added ? 'rgba(52,199,89,0.08)' : 'rgba(255,255,255,0.04)', cursor: 'pointer', transition: 'all 0.15s' }}
-                  >
-                    <span style={{ fontSize: '18px', flexShrink: 0 }}>🔌</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{skill.name}</div>
-                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {skill.description_zh || skill.description}
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#8E8E93', marginTop: '2px' }}>
-                        {skill.ownerName} · ↓{skill.downloads.toLocaleString()} · ★{skill.stars} · v{skill.version}
-                      </div>
+                  <div key={skill.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'rgba(52,199,89,0.3)' : 'rgba(255,255,255,0.12)'}`, background: added ? 'rgba(52,199,89,0.06)' : 'rgba(255,255,255,0.04)' }}>
+                    <span style={{ fontSize: '18px', flexShrink: 0 }}>🔧</span>
+                    <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => onToggle(slug)}>
+                      <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{skill.display_name}</div>
+                      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{skill.description}</div>
+                      {skill.version && <div style={{ fontSize: '10px', color: '#636366', marginTop: '1px' }}>v{skill.version}{skill.author ? ` · ${skill.author}` : ''}</div>}
                     </div>
-                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'rgba(52,199,89,0.15)' : 'rgba(6,182,212,0.12)', color: added ? '#34c759' : '#06b6d4', flexShrink: 0 }}>
-                      {added ? '✓ 已添加' : 'Hub'}
-                    </span>
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <span
+                        onClick={() => onToggle(slug)}
+                        style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'rgba(52,199,89,0.15)' : 'rgba(139,92,246,0.15)', color: added ? '#34c759' : '#a78bfa', cursor: 'pointer' }}
+                      >{added ? '✓ 已添加' : '+ 添加'}</span>
+                      <span
+                        onClick={() => handleUninstall(slug)}
+                        style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,59,48,0.1)', color: '#ff3b30', cursor: 'pointer' }}
+                      >卸载</span>
+                    </div>
                   </div>
                 )
               })}
             </>
           )}
 
-          {localFiltered.length === 0 && remoteFiltered.length === 0 && !searching && search.trim() && (
+          {/* Remote from ClawHub — in DB but not installed */}
+          {remoteInDbNotInstalled.map(skill => (
+            <SkillRow key={skill.slug} skill={skill} installing={installing} onInstall={handleInstall} />
+          ))}
+
+          {/* Remote — new (not in DB at all) */}
+          {remoteNew.length > 0 && (
+            <>
+              <div style={{ fontSize: '11px', color: '#8E8E93', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>ClawHub 搜索结果</div>
+              {remoteNew.map(skill => (
+                <SkillRow key={skill.slug} skill={skill} installing={installing} onInstall={handleInstall} />
+              ))}
+            </>
+          )}
+
+          {installedSkills.length === 0 && remoteSkills.length === 0 && !searching && (
+            <div style={{ textAlign: 'center', color: '#636366', fontSize: '13px', padding: '32px 0' }}>
+              <div style={{ marginBottom: '8px' }}>暂无已安装技能</div>
+              <div style={{ fontSize: '11px' }}>在搜索框输入关键词，从 ClawHub 实时查找并安装</div>
+            </div>
+          )}
+
+          {!searching && search.trim() && installedSkills.length === 0 && remoteSkills.length === 0 && (
             <div style={{ textAlign: 'center', color: '#8E8E93', fontSize: '13px', padding: '24px 0' }}>未找到相关技能</div>
           )}
         </div>
+
         <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#8E8E93' }}>已选 {enabled.length} 个技能</span>
+          <span style={{ fontSize: '12px', color: '#8E8E93' }}>已选 {enabled.length} 个 · 已安装 {dbSkills.filter(s => s.is_installed).length} 个</span>
           <button className="tbtn tbtn-accent" onClick={onClose}>完成</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function SkillRow({ skill, installing, onInstall }: {
+  skill: RemoteSkill
+  installing: string | null
+  onInstall: (slug: string) => void
+}) {
+  const isInstalling = installing === skill.slug
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)' }}>
+      <span style={{ fontSize: '18px', flexShrink: 0 }}>🔌</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{skill.name}</div>
+        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {skill.description_zh || skill.description}
+        </div>
+        <div style={{ fontSize: '10px', color: '#636366', marginTop: '1px' }}>
+          {skill.ownerName} · ↓{skill.downloads.toLocaleString()} · ★{skill.stars} · v{skill.version}
+        </div>
+      </div>
+      <button
+        onClick={() => onInstall(skill.slug)}
+        disabled={isInstalling}
+        style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(6,182,212,0.4)', background: 'rgba(6,182,212,0.1)', color: isInstalling ? '#636366' : '#06b6d4', cursor: isInstalling ? 'not-allowed' : 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+      >{isInstalling ? '安装中…' : '安装'}</button>
     </div>
   )
 }
@@ -245,6 +412,8 @@ export default function AgentsPage() {
   const [aiGenerating, setAiGenerating] = useState(false)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [skillModalOpen, setSkillModalOpen] = useState(false)
+  const [chatAgent, setChatAgent] = useState<AgentConfig | null>(null)
+  const [customToolInput, setCustomToolInput] = useState('')
   const dragIndex = useRef<number | null>(null)
   const [expandedOpcIds, setExpandedOpcIds] = useState<Set<string>>(() => currentOpc ? new Set([currentOpc.id]) : new Set())
   const [opcAgentsMap, setOpcAgentsMap] = useState<Record<string, AgentConfig[]>>({})
@@ -573,6 +742,7 @@ export default function AgentsPage() {
                 <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selectedAgent.display_name}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button className="tbtn tbtn-ghost" onClick={() => setChatAgent(selectedAgent)} style={{ color: '#06b6d4' }}>测试对话</button>
                 <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>取消</button>
                 <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>保存</button>
                 <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteAgent(selectedAgent.id)}>删除</button>
@@ -689,6 +859,24 @@ export default function AgentsPage() {
                         {id} <span style={{ opacity: 0.6 }}>×</span>
                       </button>
                     ))}
+                    {/* 自定义工具输入 */}
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <input
+                        value={customToolInput}
+                        onChange={e => setCustomToolInput(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            const v = customToolInput.trim()
+                            if (v && !enabledTools.includes(v)) {
+                              handleFormChange('enabled_tools', [...enabledTools, v])
+                            }
+                            setCustomToolInput('')
+                          }
+                        }}
+                        placeholder="+ 自定义工具 ID"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.18)', borderRadius: '6px', padding: '4px 9px', fontSize: '11px', color: 'rgba(255,255,255,0.7)', outline: 'none', width: '130px' }}
+                      />
+                    </div>
                   </div>
                 </div>
               </section>
@@ -804,6 +992,10 @@ export default function AgentsPage() {
           onClose={() => setSkillModalOpen(false)}
           onToggle={handleSkillToggle}
         />
+      )}
+
+      {chatAgent && (
+        <ChatDrawer agent={chatAgent} onClose={() => setChatAgent(null)} />
       )}
     </>
   )

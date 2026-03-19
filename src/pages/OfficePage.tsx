@@ -260,6 +260,38 @@ export default function OfficePage() {
                 </div>
               </section>
 
+              {/* Daemon 配置 */}
+              <section>
+                <div className="section-label" style={{ padding: '0 0 5px' }}>Daemon 部署配置</div>
+                <div className="group">
+                  <div className="group-row" style={{ gap: '10px' }}>
+                    <span className="group-label" style={{ minWidth: 80 }}>Daemon URL</span>
+                    <input
+                      type="text"
+                      value={form.daemon_url ?? ''}
+                      onChange={e => handleFormChange('daemon_url', e.target.value)}
+                      className="field-input"
+                      style={{ flex: 1 }}
+                      placeholder="如：http://127.0.0.1:8443 或 https://ec2-xxx:8443"
+                    />
+                  </div>
+                  <div className="group-row" style={{ gap: '10px' }}>
+                    <span className="group-label" style={{ minWidth: 80 }}>API Key</span>
+                    <input
+                      type="password"
+                      value={form.daemon_api_key ?? ''}
+                      onChange={e => handleFormChange('daemon_api_key', e.target.value)}
+                      className="field-input"
+                      style={{ flex: 1 }}
+                      placeholder="来自 Daemon 启动日志或 ~/.clawpilot/daemon.key"
+                    />
+                  </div>
+                  <div style={{ padding: '4px 8px', fontSize: '11px', color: 'rgba(235,235,245,0.4)' }}>
+                    未配置时使用仿真模式（不会实际部署到服务器）
+                  </div>
+                </div>
+              </section>
+
               {/* 部署信息 */}
               <section>
                 <div className="section-label" style={{ padding: '0 0 5px' }}>当前部署</div>

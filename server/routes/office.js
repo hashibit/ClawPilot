@@ -49,8 +49,8 @@ router.post('/create_office', (req, res) => {
       INSERT INTO offices
         (id, name, address, access_card, phone, receptionist_image,
          ownership, monthly_rent, internet_speed, decoration_grade, description,
-         created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         daemon_url, daemon_api_key, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       office.id, office.name,
       office.address ?? null, office.access_card ?? null,
@@ -58,6 +58,7 @@ router.post('/create_office', (req, res) => {
       office.ownership ?? 'RENTED', office.monthly_rent ?? null,
       office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
       office.description ?? null,
+      office.daemon_url ?? null, office.daemon_api_key ?? null,
       office.created_at ?? now(), office.updated_at ?? now()
     )
     res.json(office.id)
@@ -74,7 +75,7 @@ router.post('/update_office', (req, res) => {
       UPDATE offices SET
         name = ?, address = ?, access_card = ?, phone = ?, receptionist_image = ?,
         ownership = ?, monthly_rent = ?, internet_speed = ?, decoration_grade = ?,
-        description = ?, updated_at = ?
+        description = ?, daemon_url = ?, daemon_api_key = ?, updated_at = ?
       WHERE id = ?
     `).run(
       office.name,
@@ -83,6 +84,7 @@ router.post('/update_office', (req, res) => {
       office.ownership ?? 'RENTED', office.monthly_rent ?? null,
       office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
       office.description ?? null,
+      office.daemon_url ?? null, office.daemon_api_key ?? null,
       now(), id
     )
     res.json(null)

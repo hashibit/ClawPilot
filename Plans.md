@@ -121,3 +121,60 @@
 | 7.3 | CHANGELOG + GitHub Release 发布 | Release 页面存在安装包下载链接 | 7.2 | cc:DONE [fddfb1c] |
 
 **交付物**：可安装的桌面应用
+
+---
+
+## Phase 8：高优先级功能补全
+
+> **开发约束**：Transport 层全部走 `server/`（Node.js/Express），不直接调 Tauri invoke。
+
+### Feature A：OpenClaw 运行状态面板
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| A.1 | `server/routes/process.js` — GET `/api/get_process_status`（检测 OpenClaw 进程 PID + 运行状态） | API 返回 `{ is_running, pid, uptime_seconds }`，进程不存在时 `is_running: false` | - | cc:完了 |
+| A.2 | `server/routes/process.js` — POST `/api/start_openclaw` / `stop_openclaw` / `reload_openclaw`（启停/重载） | 三个接口均可正常调用，操作结果可通过 `get_process_status` 验证 | A.1 | cc:完了 |
+| A.3 | `server/index.js` — 注册 processRouter | `/api/get_process_status` 可通过 curl 访问 | A.1, A.2 | cc:完了 |
+| A.4 | `src/pages/OverviewPage.tsx` — 顶部增加进程状态卡片（运行状态徽章 + 启停/重载按钮 + 运行时长） | 页面显示正确状态，按钮点击有反馈，5s 轮询刷新 | A.3 | cc:完了 |
+
+**交付物**：Overview 页可看到 OpenClaw 运行状态并一键启停
+
+---
+
+### Feature B：Agent 对话测试
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| B.1 | `server/routes/ai.js` — POST `/api/chat_with_agent`（取 agent SOUL.md 作 system prompt，调已配置模型 API） | 接口返回 `{ reply: "..." }`，无 API Key 时返回 400 错误提示 | - | cc:完了 |
+| B.2 | `src/pages/AgentsPage.tsx` — Agent 卡片增加「测试对话」按钮，打开侧边抽屉对话框 | 抽屉可打开，能发送消息并展示 AI 回复，支持多轮对话历史 | B.1 | cc:完了 |
+| B.3 | 对话框 UI：清空历史按钮 + 加载状态 + 错误提示（API Key 未配置等） | 错误场景有明确提示，不出现空白页 | B.2 | cc:完了 |
+
+**交付物**：AgentsPage 可直接测试 Agent 对话，无需切换飞书
+
+---
+
+### Feature C：本地工具/技能手动添加
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| C.1 | `server/db.js` — 增量迁移添加 `tools` 和 `skills` 表（含 `is_local` 字段区分本地/云端） | 表创建成功，`is_local` 字段存在 | - | cc:完了 |
+| C.2 | `server/routes/tool.js` — GET `/api/get_tools` + POST `/api/create_tool` + DELETE `/api/delete_tool` | 三个接口均可用，本地工具 CRUD 正常 | C.1 | cc:完了 |
+| C.3 | `server/routes/skill.js` — GET `/api/get_skills` + POST `/api/create_skill` + DELETE `/api/delete_skill` | 三个接口均可用，本地技能 CRUD 正常 | C.1 | cc:完了 |
+| C.4 | `server/index.js` — 注册 toolRouter / skillRouter | `/api/get_tools` 可通过 curl 访问 | C.2, C.3 | cc:完了 |
+| C.5 | `src/pages/AgentsPage.tsx` — 工具配置区增加自定义工具 ID 输入框（Enter 添加） | 可填入自定义 tool ID 并启用在 Agent 工具列表中 | C.4 | cc:完了 |
+
+**交付物**：离线可添加自定义工具/技能，不依赖 clawhub.ai
+
+---
+
+### Feature D：多渠道支持
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| D.1 | `server/db.js` — 增量迁移：channels 表新增 `dingtalk_config TEXT` / `slack_config TEXT` 字段 | 字段添加成功，不破坏现有飞书数据 | - | cc:完了 |
+| D.2 | `server/routes/channel.js` — `upsert_channel` 支持保存 `dingtalk_config` / `slack_config` | upsert 接口可保存三种渠道配置 | D.1 | cc:完了 |
+| D.3 | `src/pages/BindingsPage.tsx` — 渠道配置区增加渠道类型选择器（飞书/钉钉/Slack），按类型展示不同配置字段 | 切换渠道类型后表单字段随之变化，保存后可回显 | D.2 | cc:完了 |
+| D.4 | 钉钉配置字段：App Key / App Secret / Webhook URL；Slack 配置字段：Bot Token / Signing Secret | 三种渠道配置均可保存，字段有基础校验 | D.3 | cc:完了 |
+
+**交付物**：渠道配置支持飞书/钉钉/Slack 三种类型选择与配置
+

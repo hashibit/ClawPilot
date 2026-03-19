@@ -46,55 +46,47 @@ message OPCStats {
 }
 
 // =============================================================================
-// 工具和技能库（来自 clawhub.ai）
+// 工具和技能（本地文件目录）
 // =============================================================================
 
-// 工具信息（全局工具库）
+// 工具信息（本地工具目录）
+// 工具以目录形式存储在 workspace/tools/{tool_id}/ 下
 message ToolInfo {
-  string id = 1;                    // 工具 ID（slug，如 "openai-whisper-api"）
+  string id = 1;                    // 工具 ID（目录名，如 "openai-whisper-api"）
   string name = 2;                  // 工具名称
-  string slug = 3;                  // URL slug（如 "steipete/openai-whisper-api"）
-  string description = 4;          // 工具描述
-  string author = 5;                // 作者
-  int32 size = 6;                   // 包大小（字节）
-  string url = 7;                   // ClawHub URL（如 "https://clawhub.ai/steipete/openai-whisper-api"）
-  string version = 8;               // 版本号
-  int64 updated_at = 9;             // 最后更新时间
-  repeated string tags = 10;        // 标签
-  string category = 11;             // 分类
-  int32 downloads = 12;             // 下载次数
-  bool is_builtin = 13;             // 是否为内置工具
+  string description = 3;          // 工具描述
+  string version = 4;               // 版本号
+  bool is_local = 5;                // 是否为本地工具（非 ClawHub）
+  int64 installed_at = 6;           // 安装时间
 }
 
-// 工具库（系统维护的可用工具列表）
-message ToolRegistry {
-  repeated ToolInfo tools = 1;      // 可用工具列表
-  string last_synced = 2;           // 最后同步时间（从 ClawHub）
-  string version = 3;               // 工具库版本
-}
-
-// 技能信息（来自 clawhub.ai）
+// 技能信息（本地技能目录）
+// 技能以目录形式存储在 workspace/skills/{skill_slug}/ 下
+// 每个技能目录包含：SKILL.md, index.js, package.json 等
 message SkillInfo {
   string id = 1;                    // 技能 ID
-  string name = 2;                  // 技能名称
-  string slug = 3;                  // URL slug
+  string slug = 2;                  // 技能 slug（目录名，如 "feishu-doc"）
+  string name = 3;                  // 技能名称
   string description = 4;          // 技能描述
-  string author = 5;                // 作者
-  int32 size = 6;                   // 包大小（字节）
-  string url = 7;                   // ClawHub URL
-  string version = 8;               // 版本号
-  int64 updated_at = 9;             // 最后更新时间
-  repeated string tags = 10;        // 标签
-  string category = 11;             // 分类
-  int32 downloads = 12;             // 下载次数
-  bool is_builtin = 13;             // 是否为内置技能
+  string version = 5;               // 版本号
+  string author = 6;                // 作者
+  bool is_local = 7;                // 是否为本地技能（非 ClawHub）
+  int64 installed_at = 8;           // 安装时间
+  
+  // 技能文件清单（部署时需要打包）
+  repeated string files = 9;        // 文件列表（如 ["SKILL.md", "index.js"]）
 }
 
-// 技能库（系统维护的可用技能列表）
-message SkillRegistry {
-  repeated SkillInfo skills = 1;    // 可用技能列表
-  string last_synced = 2;           // 最后同步时间（从 ClawHub）
-  string version = 3;               // 技能库版本
+// 技能元数据（从 ClawHub 同步，用于展示和安装）
+message SkillMetadata {
+  string slug = 1;                  // 技能 slug
+  string name = 2;                  // 技能名称
+  string description = 3;          // 技能描述
+  string author = 4;                // 作者
+  string version = 5;               // 最新版本
+  string url = 6;                   // ClawHub URL
+  repeated string tags = 7;         // 标签
+  string category = 8;              // 分类
 }
 
 // =============================================================================
@@ -144,7 +136,7 @@ message AgentConfig {
   string model_name = 31;           // 模型名称
 
   // 技能配置
-  repeated string enabled_skills = 32; // 启用的 Skill slug 列表（引用 clawhub.ai）
+  repeated string enabled_skills = 32; // 启用的技能 slug 列表（引用本地 skills/ 目录）
 
   // 汇报关系
   repeated string reports_to = 40;  // 汇报给哪些 Agent

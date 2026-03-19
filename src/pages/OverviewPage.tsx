@@ -1,7 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useOpc } from '../contexts/OpcContext'
-import { getOpcStats } from '../lib/api'
+import { getOpcStats, getProcessStatus, startOpenclaw, stopOpenclaw, reloadOpenclaw } from '../lib/api'
 import type { OpcStats } from '../lib/types'
+import type { ProcessStatus } from '../lib/api'
+
+function formatUptime(sec: number | null): string {
+  if (sec === null) return '—'
+  if (sec < 60) return `${sec}s`
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  return `${h}h ${m}m`
+}
 
 // Totals accumulated across all OPCs
 function sumStats(stats: Map<string, OpcStats>): { agents: number; channels: number; messages: number; growth: number } {
@@ -19,6 +29,8 @@ function sumStats(stats: Map<string, OpcStats>): { agents: number; channels: num
 export default function OverviewPage() {
   const { opcs } = useOpc()
   const [statsMap, setStatsMap] = useState<Map<string, OpcStats>>(new Map())
+  const [procStatus, setProcStatus] = useState<ProcessStatus>({ is_running: false, pid: null, uptime_seconds: null })
+  const [procLoading, setProcLoading] = useState(false)
 
   useEffect(() => {
     if (!opcs.length) return
@@ -27,11 +39,87 @@ export default function OverviewPage() {
       .catch(console.error)
   }, [opcs])
 
+  const fetchProcStatus = useCallback(() => {
+    getProcessStatus()
+      .then(s => setProcStatus(s))
+      .catch(() => setProcStatus({ is_running: false, pid: null, uptime_seconds: null }))
+  }, [])
+
+  useEffect(() => {
+    fetchProcStatus()
+    const id = setInterval(fetchProcStatus, 5000)
+    return () => clearInterval(id)
+  }, [fetchProcStatus])
+
+  async function handleProcAction(action: 'start' | 'stop' | 'reload') {
+    setProcLoading(true)
+    try {
+      if (action === 'start') await startOpenclaw()
+      else if (action === 'stop') await stopOpenclaw()
+      else await reloadOpenclaw()
+      setTimeout(fetchProcStatus, 1000)
+    } catch (e: any) {
+      alert(e?.message ?? '操作失败')
+    } finally {
+      setProcLoading(false)
+    }
+  }
+
   const totals = sumStats(statsMap)
   const growthSign = totals.growth >= 0 ? '+' : ''
 
   return (
     <div className="overview-content">
+
+      {/* OpenClaw 运行状态 */}
+      <section>
+        <div className="section-label" style={{ padding: '0 0 7px' }}>OpenClaw 进程</div>
+        <div className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          {/* 状态徽章 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '160px' }}>
+            <div style={{
+              width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0,
+              background: procStatus.is_running ? '#34c759' : '#636366',
+              boxShadow: procStatus.is_running ? '0 0 6px #34c75980' : 'none',
+            }} />
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
+                {procStatus.is_running ? '运行中' : '已停止'}
+              </div>
+              <div style={{ fontSize: '11px', color: '#8E8E93', marginTop: '1px' }}>
+                {procStatus.is_running
+                  ? `PID ${procStatus.pid}  ·  已运行 ${formatUptime(procStatus.uptime_seconds)}`
+                  : 'OpenClaw 未在运行'}
+              </div>
+            </div>
+          </div>
+
+          {/* 操作按钮 */}
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            {!procStatus.is_running ? (
+              <button
+                disabled={procLoading}
+                onClick={() => handleProcAction('start')}
+                style={{ padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#34c759', color: '#fff', opacity: procLoading ? 0.6 : 1 }}
+              >启动</button>
+            ) : (
+              <>
+                <button
+                  disabled={procLoading}
+                  onClick={() => handleProcAction('reload')}
+                  style={{ padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', opacity: procLoading ? 0.6 : 1 }}
+                >重载配置</button>
+                <button
+                  disabled={procLoading}
+                  onClick={() => handleProcAction('stop')}
+                  style={{ padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#f43f5e', color: '#fff', opacity: procLoading ? 0.6 : 1 }}
+                >停止</button>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* 统计卡片 */}
       <section>
         <div className="section-label" style={{ padding: '0 0 7px' }}>核心指标</div>

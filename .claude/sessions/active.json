@@ -1,38 +1,14 @@
 {
-  "8690D9DD-8F2B-4BDC-9EEC-D4D1BD582DE3": {
-    "short_id": "8690D9DD-8F2",
-    "last_seen": 1773740007,
-    "pid": "88753",
-    "status": "active"
-  },
-  "session-1773740048": {
-    "short_id": "session-1773",
-    "last_seen": 1773740048,
-    "pid": "90605",
-    "status": "active"
-  },
-  "D5EF49C0-5757-42BA-9B2F-C9175C431173": {
-    "short_id": "D5EF49C0-575",
-    "last_seen": 1773740137,
-    "pid": "93894",
-    "status": "active"
-  },
-  "session-1773740296": {
-    "short_id": "session-1773",
-    "last_seen": 1773740296,
-    "pid": "83192",
-    "status": "active"
-  },
-  "session-1773747797": {
-    "short_id": "session-1773",
-    "last_seen": 1773747797,
-    "pid": "17420",
-    "status": "active"
-  },
   "session-1773821710": {
     "short_id": "session-1773",
     "last_seen": 1773821711,
     "pid": "79697",
+    "status": "active"
+  },
+  "session-1773880322": {
+    "short_id": "session-1773",
+    "last_seen": 1773880322,
+    "pid": "8919",
     "status": "active"
   }
 }

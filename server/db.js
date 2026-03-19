@@ -168,6 +168,34 @@ CREATE TABLE IF NOT EXISTS log_entries (
   try { db.exec(`ALTER TABLE model_providers ADD COLUMN ${col}`) } catch {}
 })
 
+// Tools & Skills tables
+db.exec(`
+CREATE TABLE IF NOT EXISTS tools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    description TEXT,
+    category TEXT DEFAULT 'general',
+    is_local INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS skills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    description TEXT,
+    category TEXT DEFAULT 'general',
+    is_local INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+);
+`)
+
+// Multi-channel support: add dingtalk/slack config columns to channels
+;['dingtalk_config TEXT', 'slack_config TEXT'].forEach(col => {
+  try { db.exec(`ALTER TABLE channels ADD COLUMN ${col}`) } catch {}
+})
+
 // Office table
 db.exec(`
 CREATE TABLE IF NOT EXISTS offices (
@@ -205,6 +233,25 @@ db.exec(`CREATE TABLE IF NOT EXISTS office_deployments (
 // Add opc_id/office_id to deployment_tasks
 try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN opc_id TEXT') } catch {}
 try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN office_id TEXT') } catch {}
+try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN daemon_task_id TEXT') } catch {}
+try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN updated_at INTEGER') } catch {}
+
+// Daemon fields for offices
+try { db.exec('ALTER TABLE offices ADD COLUMN daemon_url TEXT') } catch {}
+try { db.exec('ALTER TABLE offices ADD COLUMN daemon_api_key TEXT') } catch {}
+
+// Skills table extended fields (for ClawHub download & install)
+;[
+  'slug TEXT',
+  'author TEXT',
+  'version TEXT',
+  'url TEXT',
+  'download_url TEXT',
+  'tags TEXT',
+  'installed_at INTEGER',
+  'is_installed INTEGER NOT NULL DEFAULT 0',
+  'install_path TEXT',
+].forEach(col => { try { db.exec(`ALTER TABLE skills ADD COLUMN ${col}`) } catch {} })
 
 // ── Seed Data ─────────────────────────────────────────────
 const now = Math.floor(Date.now() / 1000)

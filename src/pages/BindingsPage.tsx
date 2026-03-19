@@ -11,9 +11,19 @@ import type { ChannelConfig, BindingRule, AgentConfig } from '../lib/types'
 export default function BindingsPage() {
   const { opcs, currentOpc, selectOpc } = useOpc()
 
+  const [channelType, setChannelType] = useState<'FEISHU' | 'DINGTALK' | 'SLACK'>('FEISHU')
   const [channel, setChannel] = useState<ChannelConfig | null>(null)
+  // Feishu
   const [appId, setAppId] = useState('')
   const [appSecret, setAppSecret] = useState('')
+  // DingTalk
+  const [dtAppKey, setDtAppKey] = useState('')
+  const [dtAppSecret, setDtAppSecret] = useState('')
+  const [dtWebhook, setDtWebhook] = useState('')
+  // Slack
+  const [slackBotToken, setSlackBotToken] = useState('')
+  const [slackSigningSecret, setSlackSigningSecret] = useState('')
+
   const [channelEditing, setChannelEditing] = useState(false)
   const [testing, setTesting] = useState(false)
   const [savingChannel, setSavingChannel] = useState(false)
@@ -38,9 +48,16 @@ export default function BindingsPage() {
         getAgents(currentOpc.id),
       ])
       const feishu = channels.find(c => c.channel_type === 'FEISHU') ?? null
+      const dingtalk = channels.find(c => c.channel_type === 'DINGTALK') ?? null
+      const slack = channels.find(c => c.channel_type === 'SLACK') ?? null
       setChannel(feishu)
       setAppId(feishu?.feishu_config?.app_id ?? '')
       setAppSecret(feishu?.feishu_config?.app_secret ?? '')
+      setDtAppKey((dingtalk as any)?.dingtalk_config?.app_key ?? '')
+      setDtAppSecret((dingtalk as any)?.dingtalk_config?.app_secret ?? '')
+      setDtWebhook((dingtalk as any)?.dingtalk_config?.webhook_url ?? '')
+      setSlackBotToken((slack as any)?.slack_config?.bot_token ?? '')
+      setSlackSigningSecret((slack as any)?.slack_config?.signing_secret ?? '')
       setChannelEditing(false)
       setBindings(bindingList)
       setAgents(agentList)
@@ -52,19 +69,30 @@ export default function BindingsPage() {
   const handleSaveChannel = async () => {
     if (!currentOpc) return
     setSavingChannel(true)
-    const now = Math.floor(Date.now() / 1000)
-    const config: ChannelConfig = channel
-      ? { ...channel, feishu_config: { app_id: appId, app_secret: appSecret }, updated_at: now }
+    const nowTs = Math.floor(Date.now() / 1000)
+
+    let channelConfig: Record<string, unknown> = {}
+    if (channelType === 'FEISHU') {
+      channelConfig = { feishu_config: { app_id: appId, app_secret: appSecret } }
+    } else if (channelType === 'DINGTALK') {
+      channelConfig = { dingtalk_config: { app_key: dtAppKey, app_secret: dtAppSecret, webhook_url: dtWebhook } }
+    } else {
+      channelConfig = { slack_config: { bot_token: slackBotToken, signing_secret: slackSigningSecret } }
+    }
+
+    const config: ChannelConfig = channel && channel.channel_type === channelType
+      ? { ...channel, ...channelConfig, updated_at: nowTs }
       : {
           id: crypto.randomUUID(), opc_id: currentOpc.id,
-          channel_type: 'FEISHU', is_enabled: true,
-          feishu_config: { app_id: appId, app_secret: appSecret },
-          is_connected: false, created_at: now, updated_at: now,
+          channel_type: channelType, is_enabled: true,
+          ...channelConfig,
+          is_connected: false, created_at: nowTs, updated_at: nowTs,
         }
     try {
       await upsertChannel(config)
       await loadData()
-      toast('飞书配置已保存', 'success')
+      const labels: Record<string, string> = { FEISHU: '飞书', DINGTALK: '钉钉', SLACK: 'Slack' }
+      toast(`${labels[channelType] ?? channelType}配置已保存`, 'success')
     } catch (e) {
       toast(String(e), 'error')
     } finally {
@@ -234,47 +262,108 @@ export default function BindingsPage() {
           </div>
         ) : (
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* 飞书机器人 */}
+            {/* 渠道配置 */}
             <section>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <span className="section-label" style={{ padding: 0 }}>飞书机器人</span>
+                <span className="section-label" style={{ padding: 0 }}>渠道配置</span>
                 <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }} onClick={() => setChannelEditing(e => !e)}>
                   {channelEditing ? '取消' : '重新配置'}
                 </button>
               </div>
+
+              {/* 渠道类型选择 */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                {(['FEISHU', 'DINGTALK', 'SLACK'] as const).map(ct => {
+                  const labels: Record<string, string> = { FEISHU: '飞书', DINGTALK: '钉钉', SLACK: 'Slack' }
+                  const active = channelType === ct
+                  return (
+                    <button key={ct} onClick={() => { setChannelType(ct); setChannelEditing(false) }}
+                      style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', border: `1px solid ${active ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.12)'}`, background: active ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.04)', color: active ? '#a78bfa' : 'rgba(255,255,255,0.6)', fontWeight: active ? 600 : 400, transition: 'all 0.15s' }}>
+                      {labels[ct]}
+                    </button>
+                  )
+                })}
+              </div>
+
               <div className="group">
                 <div className="group-row">
                   <span className="group-label">连接状态</span>
                   <span className="group-value" style={{ color: channel?.is_connected ? '#34c759' : '#8E8E93', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {channel?.is_connected && <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759' }}></span>}
+                    {channel?.is_connected && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>}
                     {channel?.is_connected ? '已连接' : '未连接'}
                   </span>
                 </div>
+
                 {channelEditing ? (
                   <>
-                    <div className="group-row" style={{ gap: '10px' }}>
-                      <span className="group-label">App ID</span>
-                      <input type="text" value={appId} onChange={e => setAppId(e.target.value)} placeholder="cli_..." className="field-input" style={{ flex: 1 }} />
-                    </div>
-                    <div className="group-row" style={{ gap: '10px' }}>
-                      <span className="group-label">App Secret</span>
-                      <input type="password" value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
-                    </div>
+                    {channelType === 'FEISHU' && (
+                      <>
+                        <div className="group-row" style={{ gap: '10px' }}>
+                          <span className="group-label">App ID</span>
+                          <input type="text" value={appId} onChange={e => setAppId(e.target.value)} placeholder="cli_..." className="field-input" style={{ flex: 1 }} />
+                        </div>
+                        <div className="group-row" style={{ gap: '10px' }}>
+                          <span className="group-label">App Secret</span>
+                          <input type="password" value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
+                        </div>
+                      </>
+                    )}
+                    {channelType === 'DINGTALK' && (
+                      <>
+                        <div className="group-row" style={{ gap: '10px' }}>
+                          <span className="group-label">App Key</span>
+                          <input type="text" value={dtAppKey} onChange={e => setDtAppKey(e.target.value)} placeholder="dingXXXX" className="field-input" style={{ flex: 1 }} />
+                        </div>
+                        <div className="group-row" style={{ gap: '10px' }}>
+                          <span className="group-label">App Secret</span>
+                          <input type="password" value={dtAppSecret} onChange={e => setDtAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
+                        </div>
+                        <div className="group-row" style={{ gap: '10px' }}>
+                          <span className="group-label">Webhook URL</span>
+                          <input type="text" value={dtWebhook} onChange={e => setDtWebhook(e.target.value)} placeholder="https://oapi.dingtalk.com/..." className="field-input" style={{ flex: 1 }} />
+                        </div>
+                      </>
+                    )}
+                    {channelType === 'SLACK' && (
+                      <>
+                        <div className="group-row" style={{ gap: '10px' }}>
+                          <span className="group-label">Bot Token</span>
+                          <input type="password" value={slackBotToken} onChange={e => setSlackBotToken(e.target.value)} placeholder="xoxb-..." className="field-input" style={{ flex: 1 }} />
+                        </div>
+                        <div className="group-row" style={{ gap: '10px' }}>
+                          <span className="group-label">Signing Secret</span>
+                          <input type="password" value={slackSigningSecret} onChange={e => setSlackSigningSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
+                        </div>
+                      </>
+                    )}
                     <div style={{ display: 'flex', gap: '6px', padding: '6px 12px 8px' }}>
                       <button className="tbtn tbtn-accent" onClick={handleSaveChannel} disabled={savingChannel}>保存配置</button>
-                      <button className="tbtn tbtn-ghost" onClick={handleTestConnection} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
+                      {channelType === 'FEISHU' && (
+                        <button className="tbtn tbtn-ghost" onClick={handleTestConnection} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
+                      )}
                     </div>
                   </>
                 ) : (
                   <>
-                    <div className="group-row">
-                      <span className="group-label">App ID</span>
-                      <span className="group-value">{appId ? appId.slice(0, 8) + '***' : '未设置'}</span>
-                    </div>
-                    <div className="group-row">
-                      <span className="group-label">App Secret</span>
-                      <span className="group-value text-dimmer">{appSecret ? '••••••••••••••••' : '未设置'}</span>
-                    </div>
+                    {channelType === 'FEISHU' && (
+                      <>
+                        <div className="group-row"><span className="group-label">App ID</span><span className="group-value">{appId ? appId.slice(0, 8) + '***' : '未设置'}</span></div>
+                        <div className="group-row"><span className="group-label">App Secret</span><span className="group-value text-dimmer">{appSecret ? '已配置' : '未设置'}</span></div>
+                      </>
+                    )}
+                    {channelType === 'DINGTALK' && (
+                      <>
+                        <div className="group-row"><span className="group-label">App Key</span><span className="group-value">{dtAppKey || '未设置'}</span></div>
+                        <div className="group-row"><span className="group-label">App Secret</span><span className="group-value text-dimmer">{dtAppSecret ? '已配置' : '未设置'}</span></div>
+                        <div className="group-row"><span className="group-label">Webhook</span><span className="group-value text-dimmer" style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{dtWebhook || '未设置'}</span></div>
+                      </>
+                    )}
+                    {channelType === 'SLACK' && (
+                      <>
+                        <div className="group-row"><span className="group-label">Bot Token</span><span className="group-value text-dimmer">{slackBotToken ? '已配置' : '未设置'}</span></div>
+                        <div className="group-row"><span className="group-label">Signing Secret</span><span className="group-value text-dimmer">{slackSigningSecret ? '已配置' : '未设置'}</span></div>
+                      </>
+                    )}
                   </>
                 )}
               </div>

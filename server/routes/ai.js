@@ -141,4 +141,66 @@ router.post('/ai_generate_agent', async (req, res) => {
   res.json(result)
 })
 
+// ── chat_with_agent ──────────────────────────────────────
+// POST /api/chat_with_agent { agent_id, messages: [{role, content}] }
+router.post('/chat_with_agent', async (req, res) => {
+  const { agent_id, messages } = req.body
+  if (!agent_id) return res.status(400).send('agent_id is required')
+  if (!Array.isArray(messages) || messages.length === 0) return res.status(400).send('messages is required')
+
+  // Load agent SOUL.md as system prompt
+  const docRow = db.prepare(
+    "SELECT content FROM agent_documents WHERE agent_id = ? AND document_type = 'SOUL'"
+  ).get(agent_id)
+  const agentRow = db.prepare('SELECT display_name, job_title FROM agents WHERE id = ?').get(agent_id)
+
+  let systemPrompt = `/no_think 你是一个 OpenClaw Agent。`
+  if (agentRow) systemPrompt += ` 你的名字是 ${agentRow.display_name}`
+  if (agentRow?.job_title) systemPrompt += `，职位是 ${agentRow.job_title}`
+  systemPrompt += '。'
+  if (docRow?.content?.trim()) systemPrompt = `/no_think\n\n${docRow.content}`
+
+  // Get configured provider
+  const row = db.prepare("SELECT * FROM model_providers WHERE provider_type = 'BAILIAN' AND is_enabled = 1").get()
+  if (!row?.api_key) return res.status(400).send('BAILIAN 未配置 API Key，请先在模型管理页完成配置')
+
+  const MODEL = 'qwen3.5-plus'
+  // Derive the OpenAI-compatible endpoint using the same logic as model.js
+  const endpoint = row.is_coding_plan
+    ? 'https://coding.dashscope.aliyuncs.com/v1/chat/completions'
+    : `${(row.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')}/chat/completions`
+
+  console.log(`[chat_with_agent] agent=${agent_id} model=${MODEL} msgs=${messages.length}`)
+
+  try {
+    const r = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${row.api_key}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.map(m => ({ role: m.role, content: m.content })),
+        ],
+        max_tokens: 2048,
+        stream: false,
+        enable_thinking: false,
+      }),
+      signal: AbortSignal.timeout(60000),
+    })
+    if (!r.ok) {
+      const t = await r.text()
+      return res.status(502).send(`API 错误 ${r.status}: ${t.slice(0, 200)}`)
+    }
+    const data = await r.json()
+    const reply = data.choices?.[0]?.message?.content ?? ''
+    res.json({ reply })
+  } catch (e) {
+    res.status(502).send(`请求失败: ${e.message}`)
+  }
+})
+
 export default router

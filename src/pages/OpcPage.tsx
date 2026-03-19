@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useOpc } from '../contexts/OpcContext'
-import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats } from '../lib/api'
+import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats, createSnapshot, getSnapshots, restoreSnapshot, deleteSnapshot } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { OpcConfig, OpcStats } from '../lib/types'
+import type { LocalSnapshot } from '../lib/types'
 
 function fmtRelTime(ts: number) {
   const diff = Math.floor((Date.now() / 1000 - ts))
@@ -113,6 +114,9 @@ export default function OpcPage() {
   const { opcs, currentOpc, selectOpc, reload } = useOpc()
   const [stats, setStats] = useState<OpcStats | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [snapshots, setSnapshots] = useState<LocalSnapshot[]>([])
+  const [snapshotLabel, setSnapshotLabel] = useState('')
+  const [snapshotLoading, setSnapshotLoading] = useState(false)
   const selected = currentOpc
 
   useEffect(() => {
@@ -120,7 +124,56 @@ export default function OpcPage() {
     getOpcStats(selected.id)
       .then(setStats)
       .catch(console.error)
+    loadSnapshots(selected.id)
   }, [selected?.id])
+
+  const loadSnapshots = async (opcId: string) => {
+    try {
+      const list = await getSnapshots(opcId)
+      setSnapshots(list)
+    } catch { /* ignore */ }
+  }
+
+  const handleCreateSnapshot = async () => {
+    if (!selected) return
+    const label = snapshotLabel.trim() || `手动备份 ${new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+    setSnapshotLoading(true)
+    try {
+      await createSnapshot(selected.id, label)
+      setSnapshotLabel('')
+      await loadSnapshots(selected.id)
+      toast('快照已创建', 'success')
+    } catch (e) {
+      toast(`创建失败: ${e}`, 'error')
+    } finally {
+      setSnapshotLoading(false)
+    }
+  }
+
+  const handleRestoreSnapshot = async (snap: LocalSnapshot) => {
+    if (!confirm(`确认恢复快照「${snap.label}」？当前 OPC 的所有配置将被覆盖。`)) return
+    setSnapshotLoading(true)
+    try {
+      await restoreSnapshot(snap.id)
+      await reload()
+      toast('快照已恢复', 'success')
+    } catch (e) {
+      toast(`恢复失败: ${e}`, 'error')
+    } finally {
+      setSnapshotLoading(false)
+    }
+  }
+
+  const handleDeleteSnapshot = async (snap: LocalSnapshot) => {
+    if (!confirm(`确认删除快照「${snap.label}」？`)) return
+    try {
+      await deleteSnapshot(snap.id)
+      setSnapshots(prev => prev.filter(s => s.id !== snap.id))
+      toast('已删除', 'success')
+    } catch (e) {
+      toast(`删除失败: ${e}`, 'error')
+    }
+  }
 
   const handleDelete = async (opc: OpcConfig) => {
     if (!confirm(`确认删除「${opc.display_name}」？此操作不可恢复。`)) return
@@ -299,6 +352,75 @@ export default function OpcPage() {
                   <div className="group-row"><span className="group-label">创建时间</span><span className="group-value">{new Date(selected.created_at * 1000).toLocaleDateString()}</span></div>
                   <div className="group-row"><span className="group-label">更新时间</span><span className="group-value">{fmtRelTime(selected.updated_at)}</span></div>
                 </div>
+              </section>
+
+              {/* 配置快照 */}
+              <section>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div>
+                    <span className="section-label" style={{ padding: 0 }}>配置快照</span>
+                    <span style={{ marginLeft: '6px', fontSize: '11px', color: '#636366' }}>{snapshots.length} 个</span>
+                  </div>
+                </div>
+
+                {/* 创建快照 */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                  <input
+                    value={snapshotLabel}
+                    onChange={e => setSnapshotLabel(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleCreateSnapshot()}
+                    placeholder="快照备注（可选）"
+                    className="field-input"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    className="tbtn tbtn-accent"
+                    onClick={handleCreateSnapshot}
+                    disabled={snapshotLoading}
+                    style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                  >
+                    {snapshotLoading ? '处理中...' : '创建快照'}
+                  </button>
+                </div>
+
+                {/* 快照列表 */}
+                {snapshots.length === 0 ? (
+                  <div style={{ fontSize: '12px', color: '#636366', padding: '10px 0', textAlign: 'center' }}>
+                    暂无快照 · 快照会保存当前 OPC 的所有 Agent、文档、渠道、绑定配置
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {snapshots.map(snap => (
+                      <div key={snap.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ flexShrink: 0 }}>
+                          <svg fill="none" stroke={snap.is_auto ? '#f59e0b' : '#8b5cf6'} strokeWidth="1.75" viewBox="0 0 24 24" width="15" height="15">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                          </svg>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {snap.label}
+                            {snap.is_auto && <span style={{ marginLeft: '5px', fontSize: '10px', color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 5px', borderRadius: '4px' }}>自动</span>}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#636366' }}>
+                            {new Date(snap.created_at * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
+                          <button
+                            onClick={() => handleRestoreSnapshot(snap)}
+                            disabled={snapshotLoading}
+                            style={{ padding: '3px 9px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.1)', color: '#a78bfa', opacity: snapshotLoading ? 0.5 : 1 }}
+                          >恢复</button>
+                          <button
+                            onClick={() => handleDeleteSnapshot(snap)}
+                            style={{ padding: '3px 7px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(244,63,94,0.3)', background: 'none', color: '#f43f5e' }}
+                          >×</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             </div>
           </>

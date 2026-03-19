@@ -143,10 +143,71 @@ export const assignOffice = (opcId: string, officeId: string | null) =>
 export const getOpcOffice = (opcId: string) => call<Office | null>('get_opc_office', { opc_id: opcId })
 
 // ── Snapshot ──────────────────────────────────────────────
-export const createSnapshot = (opcName: string, label: string, configData: string) =>
-  call<string>('create_snapshot', { opc_name: opcName, label, config_data: configData })
-export const getSnapshots = (opcName: string) =>
-  call<LocalSnapshot[]>('get_snapshots', { opc_name: opcName })
-export const getSnapshot = (id: string) => call<LocalSnapshot>('get_snapshot', { id })
+// create_snapshot: server assembles the payload from opc_id — no config_data needed
+export const createSnapshot = (opcId: string, label: string, isAuto = false) =>
+  call<string>('create_snapshot', { opc_id: opcId, label, is_auto: isAuto })
+export const getSnapshots = (opcId: string) =>
+  call<LocalSnapshot[]>('get_snapshots', { opc_id: opcId })
+export const getSnapshot = (id: string) => call<LocalSnapshot & { summary?: SnapshotSummary }>('get_snapshot', { id })
 export const restoreSnapshot = (id: string) => call<string>('restore_snapshot', { id })
 export const deleteSnapshot = (id: string) => call<void>('delete_snapshot', { id })
+
+export interface SnapshotSummary {
+  agent_count: number
+  channel_count: number
+  binding_count: number
+  doc_count: number
+}
+
+// ── Process ────────────────────────────────────────────────
+export interface ProcessStatus {
+  is_running: boolean
+  pid: number | null
+  uptime_seconds: number | null
+}
+export const getProcessStatus = () => call<ProcessStatus>('get_process_status')
+export const startOpenclaw = () => call<{ ok: boolean; message: string; pid?: number }>('start_openclaw')
+export const stopOpenclaw = () => call<{ ok: boolean; message: string }>('stop_openclaw')
+export const reloadOpenclaw = () => call<{ ok: boolean; message: string }>('reload_openclaw')
+
+// ── Tools / Skills (local) ────────────────────────────────
+export interface LocalTool {
+  id: number
+  name: string
+  display_name: string
+  description: string
+  category: string
+  is_local: number
+  created_at: number
+}
+export interface LocalSkill {
+  id: number
+  name: string
+  display_name: string
+  description: string
+  category: string
+  slug?: string
+  version?: string
+  author?: string
+  tags?: string[]
+  url?: string
+  download_url?: string
+  is_local: boolean
+  is_installed: boolean
+  install_path?: string | null
+  installed_at?: number | null
+  created_at: number
+}
+export const getTools = () => call<LocalTool[]>('get_tools')
+export const createTool = (tool: Omit<LocalTool, 'id' | 'created_at'>) => call<number>('create_tool', { tool })
+export const deleteTool = (id: number) => call<void>('delete_tool', { id })
+export const getSkills = () => call<LocalSkill[]>('get_skills')
+export const createSkill = (skill: Omit<LocalSkill, 'id' | 'created_at'>) => call<number>('create_skill', { skill })
+export const deleteSkill = (id: number) => call<void>('delete_skill', { id })
+export const syncSkills = () => call<{ ok: boolean; count: number }>('sync_skills')
+export const installSkill = (slug: string) => call<LocalSkill>('install_skill', { slug })
+export const uninstallSkill = (slug: string) => call<{ ok: boolean }>('uninstall_skill', { slug })
+
+// ── Agent Chat ─────────────────────────────────────────────
+export const chatWithAgent = (agentId: string, messages: { role: string; content: string }[]) =>
+  call<{ reply: string }>('chat_with_agent', { agent_id: agentId, messages })

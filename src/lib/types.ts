@@ -190,6 +190,8 @@ export interface Office {
   internet_speed?: string
   decoration_grade: OfficeGrade
   description?: string
+  daemon_url?: string        // Daemon HTTP endpoint
+  daemon_api_key?: string    // Daemon API Key (plain text, stored server-side)
   current_opc_id?: string | null
   current_opc_name?: string | null
   created_at: number

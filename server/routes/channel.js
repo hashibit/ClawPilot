@@ -12,7 +12,14 @@ function rowToChannel(row) {
     is_enabled: row.is_enabled === 1,
     is_connected: row.is_connected === 1,
     feishu_config: row.feishu_config ? JSON.parse(row.feishu_config) : null,
+    dingtalk_config: row.dingtalk_config ? JSON.parse(row.dingtalk_config) : null,
+    slack_config: row.slack_config ? JSON.parse(row.slack_config) : null,
   }
+}
+
+function toJsonStr(v) {
+  if (!v) return null
+  return typeof v === 'string' ? v : JSON.stringify(v)
 }
 
 // get_channels
@@ -42,32 +49,37 @@ router.post('/get_channel', (req, res) => {
 router.post('/upsert_channel', (req, res) => {
   try {
     const { config } = req.body
-    const feishuStr = config.feishu_config
-      ? (typeof config.feishu_config === 'string' ? config.feishu_config : JSON.stringify(config.feishu_config))
-      : null
+    const feishuStr = toJsonStr(config.feishu_config)
+    const dingtalkStr = toJsonStr(config.dingtalk_config)
+    const slackStr = toJsonStr(config.slack_config)
 
     const hasId = config.id && String(config.id) !== '0'
 
     if (hasId) {
       db.prepare(`
         UPDATE channels SET
-          opc_id = ?, channel_type = ?, is_enabled = ?, feishu_config = ?,
+          opc_id = ?, channel_type = ?, is_enabled = ?,
+          feishu_config = ?, dingtalk_config = ?, slack_config = ?,
           is_connected = ?, last_connected = ?, updated_at = ?
         WHERE id = ?
       `).run(
         config.opc_id, config.channel_type,
-        config.is_enabled ? 1 : 0, feishuStr,
+        config.is_enabled ? 1 : 0,
+        feishuStr, dingtalkStr, slackStr,
         config.is_connected ? 1 : 0, config.last_connected ?? null,
         now(), Number(config.id)
       )
       res.json(Number(config.id))
     } else {
       const result = db.prepare(`
-        INSERT INTO channels (opc_id, channel_type, is_enabled, feishu_config, is_connected, last_connected, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO channels
+          (opc_id, channel_type, is_enabled, feishu_config, dingtalk_config, slack_config,
+           is_connected, last_connected, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         config.opc_id, config.channel_type,
-        config.is_enabled ? 1 : 0, feishuStr,
+        config.is_enabled ? 1 : 0,
+        feishuStr, dingtalkStr, slackStr,
         config.is_connected ? 1 : 0, config.last_connected ?? null,
         now(), now()
       )
