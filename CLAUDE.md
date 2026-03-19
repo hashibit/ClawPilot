@@ -60,12 +60,29 @@ pub enum AppError {
 }
 ```
 
+## 开发模式
+
+### 阶段一：前端 + Server 开发测试
+- 日常开发与功能测试使用 **`src/`（React 前端）+ `server/`（Express/Node.js）** 组合
+- 前端通过 `call()` 函数以 HTTP 请求访问 `http://localhost:3001/api/<cmd>`
+- 后端用 SQLite（better-sqlite3）存储数据，inline `try { db.exec('ALTER TABLE...') } catch {}` 做增量迁移
+- 路由文件放 `server/routes/`，每个模块对应一个路由文件
+
+### 阶段二：Tauri 集成（集成测试阶段）
+- 功能稳定后再集成到 Tauri GUI App
+- `call()` 在 Tauri 环境下自动切换为 `invoke()` 调用 Rust 命令
+- Tauri 命令放 `commands/`，业务逻辑放 `services/`，不在命令层写 SQL
+- Tauri 命令返回值统一为 `Result<T, AppError>`，错误通过 serde 传递给 JS
+
+### 数据模型事实标准
+- **`proto/` 目录下的 `.proto` 文件是数据模型的唯一事实标准**
+- 所有数据结构（TypeScript 类型、Rust 结构体、SQLite 表结构）必须与 `proto/` 保持一致
+- 新增或修改字段时，先改 `.proto`，再同步到其他层
+
 ## 开发规范
 
-- Tauri 命令放 `commands/`，业务逻辑放 `services/`，不在命令层写 SQL
 - API Key 等敏感信息必须通过 `utils/crypto.rs` 加密存储
-- 前端从 `ui/` 原型移植到 `src/`，通过 `invoke` 调用 Tauri 命令
-- Tauri 命令返回值统一为 `Result<T, AppError>`，错误通过 serde 传递给 JS
+- 前端从 `ui/` 原型移植到 `src/`
 - SQL 操作必须使用参数绑定，防止 SQL 注入
 
 ## AI 团队配置
