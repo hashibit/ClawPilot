@@ -61,13 +61,30 @@ fn load_api_key(key_file: Option<PathBuf>) -> String {
 
 #[tokio::main]
 async fn main() {
-    // Init tracing
+    // Prepare log directory: ~/.clawpilot/logs/
+    let log_dir = dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join(".clawpilot")
+        .join("logs");
+    let _ = fs::create_dir_all(&log_dir);
+
+    // File appender: daily rotation → ~/.clawpilot/logs/daemon.YYYY-MM-DD
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "daemon");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "clawpilot_daemon=info,tower_http=info".into());
+
     tracing_subscriber::registry()
+        .with(filter)
+        // stdout (with color)
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stdout))
+        // file (no ANSI escape codes)
         .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "clawpilot_daemon=info,tower_http=debug".into()),
+            tracing_subscriber::fmt::layer()
+                .with_writer(non_blocking)
+                .with_ansi(false),
         )
-        .with(tracing_subscriber::fmt::layer())
         .init();
 
     let args = Args::parse();

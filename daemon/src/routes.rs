@@ -74,6 +74,13 @@ pub async fn deploy(
     let record = TaskRecord::new(task_id.clone(), manifest.opc_id.clone());
     state.tasks.insert(task_id.clone(), record);
 
+    tracing::info!(
+        task_id = %task_id,
+        opc_id = %manifest.opc_id,
+        pkg_bytes = package.len(),
+        "deploy task accepted"
+    );
+
     // Spawn background task
     let state2 = state.clone();
     let tid = task_id.clone();
@@ -126,6 +133,13 @@ pub async fn rollback(
     let tid = task_id.clone();
     let opc_id = body.opc_id.clone();
     let ver = body.target_version.clone();
+
+    tracing::info!(
+        task_id = %task_id,
+        opc_id = %body.opc_id,
+        target_version = ?body.target_version,
+        "rollback task accepted"
+    );
 
     tokio::spawn(async move {
         run_rollback(state2, tid, opc_id, ver).await;

@@ -466,5 +466,7 @@ pub async fn run_rollback(
         t.completed_at = Some(Utc::now());
         t.backup_path = Some(path_str.clone());
     });
+
+    tracing::info!("rollback task {} completed for opc={}", task_id, opc_id);
 }
 
