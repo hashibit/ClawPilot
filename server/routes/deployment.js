@@ -14,6 +14,9 @@ const WORKSPACE_ROOT = path.resolve(__dirname, '../..')
 const router = Router()
 const now = () => Math.floor(Date.now() / 1000)
 
+// In-memory cache: opc_id → { buf: Buffer, checksum: string }
+const packageCache = new Map()
+
 function writeLog(level, component, message) {
   try {
     db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
@@ -180,6 +183,175 @@ function buildPackage(data, manifest) {
   })
 }
 
+/** Generate openclaw.json config from OPC data */
+function generateOpenclawConfig(opcId) {
+  const data = collectOpcData(opcId)
+  const { opc, agents, channels, model_providers: modelProviders } = data
+
+  // Build agents list
+  const agentsList = agents.map(agent => ({
+    name: agent.name,
+    workspace: `~/.openclaw/CPOPC/${opc.display_name}/workspace-${agent.display_name}`,
+    model: { primary: `${agent.model_provider ?? 'anthropic'}/${agent.model_name ?? 'claude-opus-4-5'}` },
+    identity: {
+      name: agent.display_name,
+      emoji: agent.initials || (agent.name ? agent.name[0] : '?'),
+    },
+  }))
+
+  // Default model from first enabled provider
+  const firstProvider = modelProviders.find(p => p.is_enabled === 1) ?? modelProviders[0]
+  const defaultModel = firstProvider
+    ? `${firstProvider.provider_type}/default`
+    : 'anthropic/claude-opus-4-5'
+
+  // Build channels section
+  const channelsSection = {}
+  const feishuChannel = channels.find(c => c.type === 'FEISHU')
+  if (feishuChannel) {
+    try {
+      const feishuConfig = typeof feishuChannel.feishu_config === 'string'
+        ? JSON.parse(feishuChannel.feishu_config)
+        : (feishuChannel.feishu_config ?? {})
+      if (feishuConfig.app_id) {
+        channelsSection.feishu = {
+          appId: feishuConfig.app_id,
+          appSecret: { source: 'env', id: 'FEISHU_APP_SECRET' },
+        }
+      }
+    } catch (_) { /* ignore parse error */ }
+  }
+
+  // Build models section
+  const providersSection = {}
+  for (const p of modelProviders.filter(mp => mp.is_enabled === 1)) {
+    const envKey = `${p.provider_type.toUpperCase()}_API_KEY`
+    providersSection[p.provider_type] = {
+      baseUrl: p.base_url,
+      apiKey: { source: 'env', id: envKey },
+    }
+  }
+
+  return {
+    agents: {
+      defaults: {
+        workspace: `~/.openclaw/CPOPC/${opc.display_name}`,
+        model: { primary: defaultModel },
+      },
+      list: agentsList,
+    },
+    ...(Object.keys(channelsSection).length > 0 ? { channels: channelsSection } : {}),
+    models: {
+      providers: providersSection,
+    },
+  }
+}
+
+// ── POST /api/generate_openclaw_config ───────────────────────
+router.post('/generate_openclaw_config', (req, res) => {
+  try {
+    const { opc_id } = req.body
+    if (!opc_id) return res.status(400).send('opc_id is required')
+    const config = generateOpenclawConfig(opc_id)
+    res.json(config)
+  } catch (err) {
+    res.status(500).send(err.message)
+  }
+})
+
+// ── POST /api/build_deploy_package ───────────────────────────
+router.post('/build_deploy_package', async (req, res) => {
+  try {
+    const { opc_id } = req.body
+    if (!opc_id) return res.status(400).send('opc_id is required')
+
+    const data = collectOpcData(opc_id)
+    const version = new Date().toISOString()
+    const manifest = { opc_id, version, checksum: '' }
+
+    // Generate openclaw.json
+    const openclawConfig = generateOpenclawConfig(opc_id)
+
+    // Build base package
+    const pkgBuf = await buildPackageWithOpenclaw(data, manifest, openclawConfig)
+
+    // Compute checksum
+    const checksum = 'sha256:' + createHash('sha256').update(pkgBuf).digest('hex')
+
+    // Store in cache
+    packageCache.set(opc_id, { buf: pkgBuf, checksum, version })
+
+    res.json({ ok: true, checksum, size: pkgBuf.length })
+  } catch (err) {
+    res.status(500).send(err.message)
+  }
+})
+
+/** Extended buildPackage that also includes openclaw.json */
+function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
+  return new Promise((resolve, reject) => {
+    const tarPack = pack()
+    const chunks = []
+
+    const gz = zlib.createGzip()
+    gz.on('data', chunk => chunks.push(chunk))
+    gz.on('end', () => resolve(Buffer.concat(chunks)))
+    gz.on('error', reject)
+    tarPack.pipe(gz)
+
+    const addFile = (tarPath, content) => {
+      let buf
+      if (Buffer.isBuffer(content)) {
+        buf = content
+      } else if (typeof content === 'string') {
+        buf = Buffer.from(content, 'utf8')
+      } else {
+        buf = Buffer.from(JSON.stringify(content, null, 2), 'utf8')
+      }
+      tarPack.entry({ name: tarPath, size: buf.length }, buf, (err) => {
+        if (err) reject(err)
+      })
+    }
+
+    // manifest.json
+    addFile('manifest.json', JSON.stringify(manifest, null, 2))
+
+    // openclaw.json
+    addFile('openclaw.json', openclawConfig)
+
+    // config/
+    addFile('config/opc.json', data.opc)
+    addFile('config/agents.json', data.agents)
+    addFile('config/channels.json', data.channels)
+    addFile('config/bindings.json', data.bindings)
+    addFile('config/models.json', data.model_providers)
+    addFile('config/tools.json', data.tools)
+
+    const skillsMeta = data.skills.map(s => ({
+      id: s.id, slug: s.slug, name: s.name,
+      description: s.description, version: s.version, author: s.author, files: s.files,
+    }))
+    addFile('config/skills.json', skillsMeta)
+
+    // agents/{id}/*.md
+    for (const doc of data.agent_documents) {
+      const filename = `${doc.document_type}.md`
+      addFile(`agents/${doc.agent_id}/${filename}`, doc.content)
+    }
+
+    // skills/{slug}/*
+    for (const skill of data.skills) {
+      for (const relFile of skill.files) {
+        const filePath = path.join(skill.path, relFile)
+        const content = fs.readFileSync(filePath)
+        addFile(`skills/${skill.slug}/${relFile}`, content)
+      }
+    }
+
+    tarPack.finalize()
+  })
+}
+
 // ── POST /api/start_deployment ────────────────────────────────
 router.post('/start_deployment', async (req, res) => {
   try {
@@ -259,12 +431,13 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
   try {
     mark('RUNNING', 1, { started_at: now() })
 
-    // Build package
+    // Build package with openclaw.json included
     const data = collectOpcData(opc_id)
     const version = new Date().toISOString()
     const manifest = { opc_id, version, checksum: '' }
+    const openclawConfig = generateOpenclawConfig(opc_id)
 
-    const pkgBuf = await buildPackage(data, manifest)
+    const pkgBuf = await buildPackageWithOpenclaw(data, manifest, openclawConfig)
 
     // Compute checksum and update manifest
     const checksum = 'sha256:' + createHash('sha256').update(pkgBuf).digest('hex')
@@ -427,6 +600,138 @@ router.post('/get_office_deployments', (req, res) => {
       SELECT * FROM office_deployments WHERE office_id = ? ORDER BY deployed_at DESC LIMIT ?
     `).all(office_id, limit)
     res.json(rows)
+  } catch (err) {
+    res.status(500).send(err.message)
+  }
+})
+
+// ── POST /api/deploy_to_office ───────────────────────────────
+router.post('/deploy_to_office', async (req, res) => {
+  try {
+    const { opc_id, office_id } = req.body
+    if (!opc_id || !office_id) return res.status(400).send('opc_id and office_id are required')
+
+    const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opc_id)
+    if (!opc) return res.status(400).send('OPC not found')
+
+    const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    if (!office) return res.status(400).send('Office not found')
+
+    if (!office.daemon_url) {
+      return res.json({ ok: false, error: '该办公室未配置 Daemon，请先安装物业' })
+    }
+
+    // Build or use cached package
+    let cached = packageCache.get(opc_id)
+    if (!cached) {
+      const data = collectOpcData(opc_id)
+      const version = new Date().toISOString()
+      const manifest = { opc_id, version, checksum: '' }
+      const openclawConfig = generateOpenclawConfig(opc_id)
+      const pkgBuf = await buildPackageWithOpenclaw(data, manifest, openclawConfig)
+      const checksum = 'sha256:' + createHash('sha256').update(pkgBuf).digest('hex')
+      cached = { buf: pkgBuf, checksum, version }
+      packageCache.set(opc_id, cached)
+    }
+
+    const { buf: pkgBuf, checksum, version } = cached
+    const manifest = { opc_id, version, checksum }
+
+    // Create local task record first
+    const taskId = randomUUID()
+    db.prepare(`
+      INSERT INTO deployment_tasks (id, opc_id, office_id, opc_name, status, steps, current_step, created_at)
+      VALUES (?, ?, ?, ?, 'RUNNING', ?, 1, ?)
+    `).run(taskId, opc_id, office_id, opc.name,
+      JSON.stringify(['准备配置文件', '发送部署包', '等待完成', '健康检查']),
+      now()
+    )
+    try { db.prepare('UPDATE deployment_tasks SET started_at = ? WHERE id = ?').run(now(), taskId) } catch (_) {}
+
+    writeLog('INFO', 'deployment', `deploy_to_office: ${opc.name} → ${office.name} (task: ${taskId})`)
+
+    // Upload to daemon
+    const form = new FormData()
+    form.append('manifest', JSON.stringify(manifest), { contentType: 'application/json' })
+    form.append('package', pkgBuf, { filename: 'package.tar.gz', contentType: 'application/gzip' })
+
+    const daemonUrl = office.daemon_url.replace(/\/$/, '')
+    let daemonTaskId
+    try {
+      const response = await fetch(`${daemonUrl}/deploy`, {
+        method: 'POST',
+        headers: {
+          ...form.getHeaders(),
+          'Authorization': `Bearer ${office.daemon_api_key ?? ''}`,
+        },
+        body: form.getBuffer(),
+        signal: AbortSignal.timeout(30000),
+      })
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(`Daemon 返回错误 ${response.status}: ${text}`)
+      }
+      const respData = await response.json()
+      daemonTaskId = respData.task_id
+    } catch (err) {
+      db.prepare(`UPDATE deployment_tasks SET status = 'FAILED', message = ?, completed_at = ? WHERE id = ?`)
+        .run(err.message, now(), taskId)
+      return res.json({ ok: false, error: err.message, task_id: taskId })
+    }
+
+    // Store daemon task id and update step
+    try {
+      db.prepare('UPDATE deployment_tasks SET daemon_task_id = ?, current_step = ? WHERE id = ?')
+        .run(daemonTaskId, 2, taskId)
+    } catch (_) {}
+
+    res.json({ ok: true, task_id: taskId })
+
+    // Background polling
+    let pollCount = 0
+    const maxPolls = 60
+    const pollInterval = setInterval(async () => {
+      pollCount++
+      if (pollCount > maxPolls) {
+        clearInterval(pollInterval)
+        db.prepare(`UPDATE deployment_tasks SET status = 'FAILED', message = ?, completed_at = ? WHERE id = ?`)
+          .run('部署超时（3分钟）', now(), taskId)
+        return
+      }
+      try {
+        const statusResp = await fetch(`${daemonUrl}/deploy/${daemonTaskId}`, {
+          headers: { 'Authorization': `Bearer ${office.daemon_api_key ?? ''}` },
+          signal: AbortSignal.timeout(10000),
+        })
+        if (!statusResp.ok) return
+        const statusData = await statusResp.json()
+
+        if (statusData.status === 'success') {
+          clearInterval(pollInterval)
+          db.prepare(`UPDATE deployment_tasks SET status = 'SUCCESS', current_step = 4, completed_at = ?, message = ? WHERE id = ?`)
+            .run(now(), (statusData.logs || []).join('\n'), taskId)
+          db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`)
+            .run(now(), opc_id)
+          db.prepare(`INSERT INTO office_deployments (id, opc_id, opc_name, office_id, office_name, deployed_at, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)`)
+            .run(randomUUID(), opc_id, opc.name, office.id, office.name, now())
+          db.prepare(`UPDATE opc_config SET is_running = 1, office_id = ? WHERE id = ?`).run(office.id, opc_id)
+          writeLog('INFO', 'deployment', `deploy_to_office SUCCESS: ${opc.name} → ${office.name}`)
+        } else if (statusData.status === 'failed') {
+          clearInterval(pollInterval)
+          db.prepare(`UPDATE deployment_tasks SET status = 'FAILED', message = ?, completed_at = ? WHERE id = ?`)
+            .run(statusData.error || '部署失败', now(), taskId)
+          writeLog('ERROR', 'deployment', `deploy_to_office FAILED: ${statusData.error}`)
+        } else {
+          // In progress
+          const logSnippet = (statusData.logs || []).slice(-5).join('\n')
+          try {
+            db.prepare('UPDATE deployment_tasks SET message = ?, current_step = ? WHERE id = ?')
+              .run(logSnippet, 3, taskId)
+          } catch (_) {}
+        }
+      } catch (_) { /* ignore poll errors */ }
+    }, 3000)
+
   } catch (err) {
     res.status(500).send(err.message)
   }

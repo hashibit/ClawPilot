@@ -1,29 +1,29 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-20T07:04:14.210Z",
+  "timestamp": "2026-03-20T10:10:35.337Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
-    ".DS_Store",
     ".claude/logs/subagent-history.jsonl",
     ".claude/memory/session-log.md",
     ".claude/sessions/.last_inbox_check",
     ".claude/sessions/active.json",
-    ".claude/state/compaction-events.jsonl",
-    ".claude/state/cursor-notification.md",
     ".claude/state/harness-usage.json",
     ".claude/state/instructions-loaded.jsonl",
     ".claude/state/notification-events.jsonl",
-    ".claude/state/plans-state.json",
-    ".claude/state/pm-notification.md",
     ".claude/state/precompact-snapshot.json",
     ".claude/state/session-map.json",
     ".claude/state/session-skills-used.json",
     ".claude/state/session.events.jsonl",
     ".claude/state/session.json",
-    ".claude/state/sessions/7696B2A6-0DBB-4BD9-BA9E-26386BEF1488.events.jsonl",
-    ".claude/state/sessions/7696B2A6-0DBB-4BD9-BA9E-26386BEF1488.json",
-    ".claude/state/tool-failure-counter.txt"
+    ".claude/state/sessions/A16A1710-384A-4426-A7BC-E3C208BC4F13.events.jsonl",
+    ".claude/state/sessions/A16A1710-384A-4426-A7BC-E3C208BC4F13.json",
+    ".claude/state/tool-failure-counter.txt",
+    "Plans.md",
+    "README.md",
+    "docs/tech/install-property.md",
+    "docs/tech/skill-install.md",
+    "server/.claude/logs/subagent-history.jsonl"
   ],
   "metrics": null
 }

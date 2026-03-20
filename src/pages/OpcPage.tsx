@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useOpc } from '../contexts/OpcContext'
-import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats, createSnapshot, getSnapshots, restoreSnapshot, deleteSnapshot, getOffices, startDeployment, getDeploymentStatus, undeploy } from '../lib/api'
+import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats, createSnapshot, getSnapshots, restoreSnapshot, deleteSnapshot, getOffices, startDeployment, getDeploymentStatus, undeploy, deployToOffice } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { OpcConfig, OpcStats, DeploymentTask, Office } from '../lib/types'
 import type { LocalSnapshot } from '../lib/types'
@@ -222,13 +222,23 @@ export default function OpcPage() {
 
   const handleDeploy = async () => {
     if (!selected || !selectedOfficeId) return
+    const selectedOffice = offices.find(o => o.id === selectedOfficeId)
+    if (!selectedOffice?.daemon_url) {
+      toast('该办公室未配置 Daemon，请先前往办公室管理页安装物业', 'error')
+      return
+    }
     setDeploying(true)
     setDeployTask(null)
     try {
-      const taskId = await startDeployment(selected.id, selectedOfficeId)
-      const task = await getDeploymentStatus(taskId)
+      const result = await deployToOffice(selected.id, selectedOfficeId)
+      if (!result.ok || !result.task_id) {
+        toast(`部署失败: ${result.error ?? '未知错误'}`, 'error')
+        setDeploying(false)
+        return
+      }
+      const task = await getDeploymentStatus(result.task_id)
       setDeployTask(task)
-      startPoll(taskId)
+      startPoll(result.task_id)
     } catch (e) {
       toast(`启动部署失败: ${e}`, 'error')
       setDeploying(false)

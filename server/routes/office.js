@@ -12,6 +12,12 @@ const router = Router()
 const now = () => Math.floor(Date.now() / 1000)
 const execAsync = promisify(execCb)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
+// Strip ANSI escape codes and control chars so log strings are safe for JSON serialization
+const stripAnsi = (s) => s
+  .replace(/\x1b\[[0-9;:]*[mGKHFABCDEFJKSTsuhl]/g, '')  // CSI sequences incl. RGB colors
+  .replace(/\x1b[()][A-Z0-9]/g, '')                       // charset designators
+  .replace(/\r\n/g, '\n').replace(/\r/g, '\n')            // normalize CR/CRLF → LF
+  .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')          // remaining control chars
 
 // ── Daemon install helpers ─────────────────────────────────
 async function findDaemonBinary() {
@@ -195,7 +201,8 @@ router.post('/get_opc_office', (req, res) => {
 router.post('/install_daemon', async (req, res) => {
   const {
     office_id, mode = 'local', daemon_port = 8443,
-    ssh_host, ssh_port = 22, ssh_user = 'root', ssh_key_path,
+    ssh_host, ssh_port = 22, ssh_user = 'root', ssh_key_path, ssh_config_file,
+    daemon_host,  // optional: override HTTP host for daemon URL (e.g. for OrbStack)
   } = req.body
   const logs = []
   const log = (msg) => logs.push(msg)
@@ -249,9 +256,14 @@ router.post('/install_daemon', async (req, res) => {
     } else if (mode === 'ssh') {
       if (!ssh_host) return res.json({ ok: false, error: '请填写远程主机地址', logs })
       const keyFlag = ssh_key_path ? `-i "${ssh_key_path}"` : ''
-      const sshOpts = `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${ssh_port} ${keyFlag}`.trim()
+      const configFlag = ssh_config_file ? `-F "${ssh_config_file}"` : ''
+      const sshOpts = ssh_config_file
+        ? `${configFlag} -o StrictHostKeyChecking=no -o ConnectTimeout=10`.trim()
+        : `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${ssh_port} ${keyFlag}`.trim()
       const target = `${ssh_user}@${ssh_host}`
-      const daemonUrl = `http://${ssh_host}:${daemon_port}`
+      // Extract bare host for daemon URL; allow explicit override via daemon_host
+      const bareHost = daemon_host || (ssh_host.includes('@') ? ssh_host.split('@').pop() : ssh_host)
+      const daemonUrl = `http://${bareHost}:${daemon_port}`
 
       log('🔍 查找本地 daemon 二进制...')
       const binPath = await findDaemonBinary()
@@ -290,6 +302,138 @@ router.post('/install_daemon', async (req, res) => {
         log('💾 配置已自动保存')
       }
       return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs })
+    }
+
+    res.json({ ok: false, error: '未知安装模式', logs })
+  } catch (err) {
+    log(`❌ ${err.message}`)
+    res.json({ ok: false, error: err.message, logs })
+  }
+})
+
+// install_openclaw — install OpenClaw locally or via SSH
+router.post('/install_openclaw', async (req, res) => {
+  const {
+    office_id, mode = 'local',
+    ssh_host, ssh_port = 22, ssh_user = 'root', ssh_key_path, ssh_config_file,
+  } = req.body
+  const logs = []
+  const log = (msg) => logs.push(msg)
+
+  try {
+    if (mode === 'local') {
+      // Check if already installed
+      try {
+        const { stdout } = await execAsync('which openclaw', { timeout: 5000 })
+        if (stdout.trim()) {
+          log('✅ OpenClaw 已安装，跳过')
+        } else {
+          throw new Error('not found')
+        }
+      } catch {
+        log('📥 安装 OpenClaw...')
+        try {
+          const { stdout: installOut, stderr: installErr } = await execAsync(
+            'OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fsSL https://openclaw.ai/install.sh | bash"',
+            { shell: true, timeout: 120000 }
+          )
+          if (installOut) log(stripAnsi(installOut.trim()))
+          if (installErr) log(stripAnsi(installErr.trim()))
+          log('✅ 安装脚本执行完毕')
+        } catch (err) {
+          log(`❌ 安装失败: ${err.message}`)
+          return res.json({ ok: false, error: err.message, logs })
+        }
+      }
+
+      log('🔧 注册 OpenClaw 服务...')
+      try {
+        const { stdout: onboardOut } = await execAsync(
+          'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk',
+          { timeout: 60000 }
+        )
+        if (onboardOut) log(stripAnsi(onboardOut.trim()))
+        log('✅ 服务注册完成')
+      } catch (err) {
+        log(`❌ 服务注册失败: ${err.message}`)
+        return res.json({ ok: false, error: err.message, logs })
+      }
+
+      log('🔍 验证安装...')
+      try {
+        const { stdout: ver } = await execAsync('openclaw --version', { timeout: 10000 })
+        if (!ver.trim()) throw new Error('openclaw --version 无输出')
+        log(`✅ OpenClaw 已就绪: ${ver.trim()}`)
+      } catch (err) {
+        log(`❌ 验证失败: ${err.message}`)
+        return res.json({ ok: false, error: err.message, logs })
+      }
+
+      return res.json({ ok: true, logs })
+
+    } else if (mode === 'ssh') {
+      if (!ssh_host) return res.json({ ok: false, error: '请填写远程主机地址', logs })
+
+      const keyFlag = ssh_key_path ? `-i "${ssh_key_path}"` : ''
+      const configFlag = ssh_config_file ? `-F "${ssh_config_file}"` : ''
+      const sshOpts = ssh_config_file
+        ? `${configFlag} -o StrictHostKeyChecking=no -o ConnectTimeout=10`.trim()
+        : `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${ssh_port} ${keyFlag}`.trim()
+      const target = `${ssh_user}@${ssh_host}`
+
+      // Helper: run a command on remote with PATH extended for npm global bins
+      // Uses single-quote wrapping to prevent $ expansion on local shell
+      const remoteCmd = (cmd) =>
+        `ssh ${sshOpts} ${target} 'export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:$PATH" && ${cmd}'`
+
+      // Check if already installed on remote
+      try {
+        const { stdout } = await execAsync(remoteCmd('which openclaw'), { timeout: 15000 })
+        if (stdout.trim()) {
+          log('✅ OpenClaw 已安装，跳过')
+        } else {
+          throw new Error('not found')
+        }
+      } catch {
+        log(`📥 在 ${ssh_host} 安装 OpenClaw...`)
+        try {
+          const { stdout: installOut, stderr: installErr } = await execAsync(
+            `ssh ${sshOpts} ${target} 'OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fsSL https://openclaw.ai/install.sh | bash"'`,
+            { timeout: 300000 }  // 5 min: npm install can be slow on first run
+          )
+          if (installOut) log(stripAnsi(installOut.trim()))
+          if (installErr) log(stripAnsi(installErr.trim()))
+          log('✅ 安装脚本执行完毕')
+        } catch (err) {
+          log(`❌ 安装失败: ${err.message}`)
+          return res.json({ ok: false, error: err.message, logs })
+        }
+      }
+
+      log('🔧 注册 OpenClaw 服务...')
+      try {
+        const { stdout: onboardOut } = await execAsync(
+          remoteCmd('openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'),
+          { timeout: 60000 }
+        )
+        if (onboardOut) log(stripAnsi(onboardOut.trim()))
+        log('✅ 服务注册完成')
+      } catch (err) {
+        log(`❌ 服务注册失败: ${err.message}`)
+        return res.json({ ok: false, error: err.message, logs })
+      }
+
+      log('🔍 验证安装...')
+      try {
+        const { stdout: ver } = await execAsync(remoteCmd('openclaw --version'), { timeout: 10000 })
+        if (!ver.trim()) throw new Error('openclaw --version 无输出')
+        log(`✅ OpenClaw 已就绪: ${ver.trim()}`)
+      } catch (err) {
+        log(`❌ 验证失败: ${err.message}`)
+        return res.json({ ok: false, error: err.message, logs })
+      }
+
+      return res.json({ ok: true, logs })
     }
 
     res.json({ ok: false, error: '未知安装模式', logs })

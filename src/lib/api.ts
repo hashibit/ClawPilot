@@ -174,6 +174,21 @@ export interface InstallDaemonResult {
 export const installDaemon = (params: InstallDaemonParams) =>
   call<InstallDaemonResult>('install_daemon', params as unknown as Record<string, unknown>)
 export const getOpcOffice = (opcId: string) => call<Office | null>('get_opc_office', { opc_id: opcId })
+export const deployToOffice = (opc_id: string, office_id: string) =>
+  call<{ ok: boolean; task_id?: string; error?: string }>('deploy_to_office', { opc_id, office_id })
+export const buildDeployPackage = (opc_id: string) =>
+  call<{ ok: boolean; checksum?: string; size?: number }>('build_deploy_package', { opc_id })
+
+export interface InstallOpenclawParams {
+  office_id?: string
+  mode: 'local' | 'ssh'
+  ssh_host?: string
+  ssh_port?: number
+  ssh_user?: string
+  ssh_key_path?: string
+}
+export const installOpenclaw = (params: InstallOpenclawParams) =>
+  call<{ ok: boolean; logs: string[]; error?: string }>('install_openclaw', params as unknown as Record<string, unknown>)
 
 // ── Snapshot ──────────────────────────────────────────────
 // create_snapshot: server assembles the payload from opc_id — no config_data needed

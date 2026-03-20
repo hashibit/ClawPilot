@@ -1,27 +1,62 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, installDaemon } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, installDaemon, installOpenclaw } from '../lib/api'
 import type { DaemonHealthResult, InstallDaemonResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment } from '../lib/types'
 
-// ── InstallDaemonModal ──────────────────────────────────────
-function InstallDaemonModal({ office, onClose, onInstalled }: {
+// ── InstallPropertyModal (two-step wizard) ─────────────────
+function InstallPropertyModal({ office, onClose, onInstalled }: {
   office: Office
   onClose: () => void
   onInstalled: (daemonUrl: string, apiKey: string) => void
 }) {
+  // Shared SSH config
   const [mode, setMode] = useState<'local' | 'ssh'>('local')
-  const [daemonPort, setDaemonPort] = useState(8443)
   const [sshHost, setSshHost] = useState('')
   const [sshPort, setSshPort] = useState(22)
   const [sshUser, setSshUser] = useState('root')
   const [sshKeyPath, setSshKeyPath] = useState('')
-  const [installing, setInstalling] = useState(false)
-  const [result, setResult] = useState<InstallDaemonResult | null>(null)
 
-  const handleInstall = async () => {
-    setInstalling(true)
-    setResult(null)
+  // Step 1: install OpenClaw
+  const [step1Done, setStep1Done] = useState(false)
+  const [step1Installing, setStep1Installing] = useState(false)
+  const [step1Logs, setStep1Logs] = useState<string[]>([])
+  const [step1Error, setStep1Error] = useState<string | null>(null)
+
+  // Step 2: install Daemon
+  const [daemonPort, setDaemonPort] = useState(8443)
+  const [step2Installing, setStep2Installing] = useState(false)
+  const [step2Result, setStep2Result] = useState<InstallDaemonResult | null>(null)
+
+  const inputStyle = { flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '7px', color: '#EBEBF5', fontSize: '12px', padding: '6px 9px', outline: 'none', fontFamily: 'inherit' }
+  const labelStyle = { fontSize: '12px', color: 'rgba(235,235,245,0.5)', minWidth: '80px', flexShrink: 0 }
+
+  const handleInstallOpenclaw = async () => {
+    setStep1Installing(true)
+    setStep1Logs([])
+    setStep1Error(null)
+    try {
+      const res = await installOpenclaw({
+        office_id: office.id,
+        mode,
+        ...(mode === 'ssh' ? { ssh_host: sshHost, ssh_port: sshPort, ssh_user: sshUser, ssh_key_path: sshKeyPath || undefined } : {}),
+      })
+      setStep1Logs(res.logs ?? [])
+      if (res.ok) {
+        setStep1Done(true)
+      } else {
+        setStep1Error(res.error ?? '安装失败')
+      }
+    } catch (e: any) {
+      setStep1Error(String(e))
+    } finally {
+      setStep1Installing(false)
+    }
+  }
+
+  const handleInstallDaemon = async () => {
+    setStep2Installing(true)
+    setStep2Result(null)
     try {
       const res = await installDaemon({
         office_id: office.id,
@@ -29,122 +64,183 @@ function InstallDaemonModal({ office, onClose, onInstalled }: {
         daemon_port: daemonPort,
         ...(mode === 'ssh' ? { ssh_host: sshHost, ssh_port: sshPort, ssh_user: sshUser, ssh_key_path: sshKeyPath || undefined } : {}),
       })
-      setResult(res)
+      setStep2Result(res)
       if (res.ok && res.daemon_url && res.api_key) {
         onInstalled(res.daemon_url, res.api_key)
       }
     } catch (e: any) {
-      setResult({ ok: false, error: String(e), logs: [] })
+      setStep2Result({ ok: false, error: String(e), logs: [] })
     } finally {
-      setInstalling(false)
+      setStep2Installing(false)
     }
   }
 
-  const inputStyle = { flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '7px', color: '#EBEBF5', fontSize: '12px', padding: '6px 9px', outline: 'none', fontFamily: 'inherit' }
-  const labelStyle = { fontSize: '12px', color: 'rgba(235,235,245,0.5)', minWidth: '80px', flexShrink: 0 }
+  const stepIndicatorStyle = (active: boolean, done: boolean, locked: boolean) => ({
+    display: 'flex', alignItems: 'center', gap: '6px', flex: 1,
+    padding: '8px 10px', borderRadius: '8px',
+    background: done ? 'rgba(52,199,89,0.1)' : active ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)',
+    border: `1px solid ${done ? 'rgba(52,199,89,0.3)' : active ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.07)'}`,
+    opacity: locked ? 0.45 : 1,
+  })
+
+  const dotStyle = (done: boolean, active: boolean) => ({
+    width: '18px', height: '18px', borderRadius: '50%', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '10px', fontWeight: 700,
+    background: done ? '#34c759' : active ? '#8b5cf6' : 'rgba(255,255,255,0.12)',
+    color: done || active ? 'white' : '#8E8E93',
+  })
+
+  const LogBox = ({ logs, loading }: { logs: string[], loading?: boolean }) => (
+    <div style={{ background: 'rgba(0,0,0,0.35)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.7', maxHeight: '140px', overflowY: 'auto' }}>
+      {logs.map((line, i) => (
+        <div key={i} style={{ color: line.startsWith('❌') ? '#f87171' : (line.startsWith('✅') || line.startsWith('🔑') || line.startsWith('💾')) ? '#34d399' : '#EBEBF5' }}>{line}</div>
+      ))}
+      {loading && <div style={{ color: '#a78bfa' }}>…</div>}
+    </div>
+  )
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
-      <div style={{ position: 'relative', width: '460px', background: '#1C1C1E', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', width: '500px', background: '#1C1C1E', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '92vh', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>安装物业</div>
-            <div style={{ fontSize: '11px', color: '#8E8E93', marginTop: '1px' }}>将 daemon 安装到 {office.name} 并获取 API Key</div>
+            <div style={{ fontSize: '11px', color: '#8E8E93', marginTop: '1px' }}>为 {office.name} 安装 OpenClaw + Daemon</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
         </div>
 
         <div style={{ padding: '14px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Mode selector */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {(['local', 'ssh'] as const).map(m => (
-              <button key={m} onClick={() => setMode(m)} style={{
-                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: mode === m ? 600 : 400,
-                border: mode === m ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
-                background: mode === m ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.04)',
-                color: mode === m ? '#c4b5fd' : 'rgba(235,235,245,0.5)',
-              }}>
-                {m === 'local' ? '🖥 本机安装' : '🌐 SSH 远程'}
-              </button>
-            ))}
-          </div>
 
-          {/* Daemon port */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={labelStyle}>监听端口</span>
-            <input type="number" value={daemonPort} onChange={e => setDaemonPort(Number(e.target.value))} style={{ ...inputStyle, width: '90px', flex: 'none' }} />
-            <span style={{ fontSize: '11px', color: 'rgba(235,235,245,0.35)' }}>默认 8443</span>
-          </div>
-
-          {/* SSH fields */}
-          {mode === 'ssh' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={labelStyle}>主机地址</span>
-                <input placeholder="192.168.1.100 或域名" value={sshHost} onChange={e => setSshHost(e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={labelStyle}>SSH 端口</span>
-                <input type="number" value={sshPort} onChange={e => setSshPort(Number(e.target.value))} style={{ ...inputStyle, width: '80px', flex: 'none' }} />
-                <span style={labelStyle}>用户名</span>
-                <input value={sshUser} onChange={e => setSshUser(e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={labelStyle}>SSH 密钥</span>
-                <input placeholder="留空则使用默认密钥 (~/.ssh/id_rsa)" value={sshKeyPath} onChange={e => setSshKeyPath(e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ fontSize: '11px', color: 'rgba(235,235,245,0.35)' }}>需要对目标机器有 sudo 权限以写入 /usr/local/bin/</div>
+          {/* Step indicator */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={stepIndicatorStyle(!step1Done, !step1Done, false)}>
+              <div style={dotStyle(step1Done, !step1Done)}>{step1Done ? '✓' : '1'}</div>
+              <span style={{ fontSize: '12px', fontWeight: 500, color: step1Done ? '#34c759' : '#EBEBF5' }}>安装 OpenClaw</span>
             </div>
-          )}
+            <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '16px', flexShrink: 0 }}>—</div>
+            <div style={stepIndicatorStyle(step1Done, step1Done, !step1Done)}>
+              <div style={dotStyle(!!step2Result?.ok, step1Done && !step2Result?.ok)}>{step2Result?.ok ? '✓' : '2'}</div>
+              <span style={{ fontSize: '12px', fontWeight: 500, color: step2Result?.ok ? '#34c759' : step1Done ? '#EBEBF5' : '#636366' }}>安装 Daemon</span>
+            </div>
+          </div>
 
-          {/* Install button */}
-          {!result && (
-            <button
-              onClick={handleInstall}
-              disabled={installing || (mode === 'ssh' && !sshHost)}
-              style={{ padding: '9px', borderRadius: '8px', background: installing ? 'rgba(139,92,246,0.4)' : 'rgba(139,92,246,0.8)', color: 'white', border: 'none', cursor: installing ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, opacity: (mode === 'ssh' && !sshHost) ? 0.4 : 1 }}
-            >
-              {installing ? '安装中…' : '开始安装'}
-            </button>
-          )}
-
-          {/* Progress / Result */}
-          {(installing || result) && (
-            <div style={{ background: 'rgba(0,0,0,0.35)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.7' }}>
-              {(result?.logs ?? []).map((line, i) => (
-                <div key={i} style={{ color: line.startsWith('❌') ? '#f87171' : line.startsWith('✅') || line.startsWith('🔑') || line.startsWith('💾') ? '#34d399' : '#EBEBF5' }}>{line}</div>
+          {/* Shared SSH config */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ fontSize: '11px', color: 'rgba(235,235,245,0.5)', marginBottom: '2px' }}>安装模式（Step 1 & 2 共用）</div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {(['local', 'ssh'] as const).map(m => (
+                <button key={m} onClick={() => setMode(m)} style={{
+                  flex: 1, padding: '7px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer', fontWeight: mode === m ? 600 : 400,
+                  border: mode === m ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
+                  background: mode === m ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.04)',
+                  color: mode === m ? '#c4b5fd' : 'rgba(235,235,245,0.5)',
+                }}>
+                  {m === 'local' ? '🖥 本机' : '🌐 SSH远程'}
+                </button>
               ))}
-              {installing && <div style={{ color: '#a78bfa' }}>…</div>}
             </div>
-          )}
+            {mode === 'ssh' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={labelStyle}>主机地址</span>
+                  <input placeholder="192.168.1.100 或域名" value={sshHost} onChange={e => setSshHost(e.target.value)} style={inputStyle} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={labelStyle}>SSH 端口</span>
+                  <input type="number" value={sshPort} onChange={e => setSshPort(Number(e.target.value))} style={{ ...inputStyle, width: '80px', flex: 'none' }} />
+                  <span style={labelStyle}>用户名</span>
+                  <input value={sshUser} onChange={e => setSshUser(e.target.value)} style={inputStyle} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={labelStyle}>SSH 密钥</span>
+                  <input placeholder="留空则使用 ~/.ssh/id_rsa" value={sshKeyPath} onChange={e => setSshKeyPath(e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+            )}
+          </div>
 
-          {/* Success result */}
-          {result?.ok && (
-            <div style={{ background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.2)', borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#34c759' }}>安装成功{result.already_running ? '（已运行）' : ''}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#8E8E93', minWidth: '72px' }}>Daemon URL</span>
-                <code style={{ flex: 1, fontSize: '11px', color: '#EBEBF5', background: 'rgba(255,255,255,0.06)', padding: '3px 7px', borderRadius: '4px', wordBreak: 'break-all' }}>{result.daemon_url}</code>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#8E8E93', minWidth: '72px' }}>API Key</span>
-                <code style={{ flex: 1, fontSize: '11px', color: '#EBEBF5', background: 'rgba(255,255,255,0.06)', padding: '3px 7px', borderRadius: '4px', wordBreak: 'break-all' }}>{result.api_key}</code>
-              </div>
-              <div style={{ fontSize: '11px', color: '#34c759' }}>配置已自动写入办公室，点击保存生效。</div>
+          {/* Step 1: Install OpenClaw */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: step1Done ? '#34c759' : '#EBEBF5' }}>
+              § Step 1：安装 OpenClaw
+              {step1Done && <span style={{ marginLeft: '8px', fontSize: '11px' }}>✅ OpenClaw 已就绪</span>}
             </div>
-          )}
+            {!step1Done && (
+              <button
+                onClick={handleInstallOpenclaw}
+                disabled={step1Installing || (mode === 'ssh' && !sshHost)}
+                style={{
+                  padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: step1Installing ? 'not-allowed' : 'pointer', border: 'none',
+                  background: step1Installing ? 'rgba(139,92,246,0.4)' : 'rgba(139,92,246,0.8)', color: 'white',
+                  opacity: (mode === 'ssh' && !sshHost) ? 0.4 : 1,
+                }}
+              >
+                {step1Installing ? '安装中…' : '开始安装 OpenClaw'}
+              </button>
+            )}
+            {(step1Installing || step1Logs.length > 0) && (
+              <LogBox logs={step1Logs} loading={step1Installing} />
+            )}
+            {step1Error && (
+              <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>安装失败：{step1Error}</span>
+                <button onClick={() => { setStep1Error(null); setStep1Logs([]) }} style={{ fontSize: '11px', background: 'none', border: '1px solid rgba(244,63,94,0.4)', borderRadius: '5px', color: '#f87171', cursor: 'pointer', padding: '2px 8px', flexShrink: 0 }}>重试</button>
+              </div>
+            )}
+          </div>
 
-          {/* Error result */}
-          {result && !result.ok && (
-            <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: '#f87171' }}>
-              安装失败：{result.error}
-              <div style={{ marginTop: '6px' }}>
-                <button onClick={() => setResult(null)} style={{ fontSize: '11px', background: 'none', border: '1px solid rgba(244,63,94,0.4)', borderRadius: '5px', color: '#f87171', cursor: 'pointer', padding: '3px 8px' }}>重试</button>
-              </div>
+          {/* Step 2: Install Daemon */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: step1Done ? 1 : 0.45 }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: step2Result?.ok ? '#34c759' : step1Done ? '#EBEBF5' : '#636366' }}>
+              § Step 2：安装 Daemon
+              {step2Result?.ok && <span style={{ marginLeft: '8px', fontSize: '11px' }}>✅ Daemon 已就绪</span>}
             </div>
-          )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={labelStyle}>监听端口</span>
+              <input type="number" value={daemonPort} onChange={e => setDaemonPort(Number(e.target.value))} disabled={!step1Done} style={{ ...inputStyle, width: '90px', flex: 'none' }} />
+              <span style={{ fontSize: '11px', color: 'rgba(235,235,245,0.35)' }}>默认 8443</span>
+            </div>
+            {!step2Result?.ok && (
+              <button
+                onClick={handleInstallDaemon}
+                disabled={!step1Done || step2Installing || (mode === 'ssh' && !sshHost)}
+                style={{
+                  padding: '8px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: (!step1Done || step2Installing) ? 'not-allowed' : 'pointer', border: 'none',
+                  background: step2Installing ? 'rgba(6,182,212,0.4)' : 'rgba(6,182,212,0.7)', color: 'white',
+                  opacity: (!step1Done || (mode === 'ssh' && !sshHost)) ? 0.4 : 1,
+                }}
+              >
+                {step2Installing ? '安装中…' : '开始安装 Daemon'}
+              </button>
+            )}
+            {(step2Installing || (step2Result?.logs ?? []).length > 0) && (
+              <LogBox logs={step2Result?.logs ?? []} loading={step2Installing} />
+            )}
+            {step2Result?.ok && (
+              <div style={{ background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.2)', borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#34c759' }}>安装成功{step2Result.already_running ? '（已运行）' : ''}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '11px', color: '#8E8E93', minWidth: '72px' }}>Daemon URL</span>
+                  <code style={{ flex: 1, fontSize: '11px', color: '#EBEBF5', background: 'rgba(255,255,255,0.06)', padding: '3px 7px', borderRadius: '4px', wordBreak: 'break-all' }}>{step2Result.daemon_url}</code>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '11px', color: '#8E8E93', minWidth: '72px' }}>API Key</span>
+                  <code style={{ flex: 1, fontSize: '11px', color: '#EBEBF5', background: 'rgba(255,255,255,0.06)', padding: '3px 7px', borderRadius: '4px', wordBreak: 'break-all' }}>{step2Result.api_key}</code>
+                </div>
+                <div style={{ fontSize: '11px', color: '#34c759' }}>配置已自动写入办公室，点击保存生效。</div>
+              </div>
+            )}
+            {step2Result && !step2Result.ok && (
+              <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '8px', padding: '8px 12px', fontSize: '12px', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>安装失败：{step2Result.error}</span>
+                <button onClick={() => setStep2Result(null)} style={{ fontSize: '11px', background: 'none', border: '1px solid rgba(244,63,94,0.4)', borderRadius: '5px', color: '#f87171', cursor: 'pointer', padding: '2px 8px', flexShrink: 0 }}>重试</button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div style={{ padding: '10px 18px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'flex-end' }}>
@@ -281,7 +377,7 @@ export default function OfficePage() {
   return (
     <>
       {installModalOpen && selected && (
-        <InstallDaemonModal
+        <InstallPropertyModal
           office={selected}
           onClose={() => setInstallModalOpen(false)}
           onInstalled={handleInstalled}

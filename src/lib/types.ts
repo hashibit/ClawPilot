@@ -96,7 +96,7 @@ export interface ModelInfo {
 }
 
 // ── Channel ───────────────────────────────────────────────
-export type ChannelType = 'FEISHU' | 'DINGTALK' | 'WECHAT'
+export type ChannelType = 'FEISHU' | 'DINGTALK' | 'WECHAT' | 'SLACK'
 
 export interface FeishuConfig {
   app_id: string
