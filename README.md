@@ -1,1 +1,1 @@
-ClawCopilot
+ClawPilot

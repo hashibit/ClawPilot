@@ -123,7 +123,7 @@ agents 表
   agent.display_name            → agents.list[].identity.name
   agent.initials                → agents.list[].identity.emoji
   agent.model_provider/name     → agents.list[].model.primary
-  "~/.openclaw/workspace/{slug}"→ agents.list[].workspace
+  workspace 路径（见下方规范）  → agents.list[].workspace
 
 providers 表
   provider.provider_type        → models.providers.<key>
@@ -135,25 +135,45 @@ channels 表
   channel.feishu_config         → channels.feishu.*
 ```
 
+### Workspace 路径规范
+
+```
+~/.openclaw/CPOPC/<opc.display_name>/workspace-<agent.display_name>
+```
+
+示例：
+```
+~/.openclaw/CPOPC/互联网公司/workspace-产品经理
+~/.openclaw/CPOPC/互联网公司/workspace-UX设计师
+~/.openclaw/CPOPC/手机助手公司/workspace-客服专员
+```
+
+`agents.defaults.workspace` 指向 OPC 根目录：
+```
+~/.openclaw/CPOPC/<opc.display_name>
+```
+
 ### 生成示例
+
+OPC `互联网公司`，含两个 agent：
 
 ```json
 {
   "agents": {
     "defaults": {
-      "workspace": "~/.openclaw/workspace",
+      "workspace": "~/.openclaw/CPOPC/互联网公司",
       "model": { "primary": "bailian/qwen-max" }
     },
     "list": [
       {
         "name": "pm",
-        "workspace": "~/.openclaw/workspace/pm",
+        "workspace": "~/.openclaw/CPOPC/互联网公司/workspace-产品经理",
         "model": { "primary": "bailian/qwen-max" },
         "identity": { "name": "产品经理", "emoji": "PM" }
       },
       {
         "name": "ux",
-        "workspace": "~/.openclaw/workspace/ux",
+        "workspace": "~/.openclaw/CPOPC/互联网公司/workspace-UX设计师",
         "model": { "primary": "volcengine/doubao-pro" },
         "identity": { "name": "UX设计师", "emoji": "UX" }
       }
