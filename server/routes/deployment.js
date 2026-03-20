@@ -53,10 +53,22 @@ function collectOpcData(opcId) {
     
     for (const slug of skillSlugs) {
       const skillPath = path.join(skillsDir, slug)
-      const files = fs.readdirSync(skillPath).filter(f => {
-        const stat = fs.statSync(path.join(skillPath, f))
-        return stat.isFile()
-      })
+
+      // Recursively collect all files (relative paths)
+      const collectFiles = (dir, base = '') => {
+        const result = []
+        for (const entry of fs.readdirSync(dir)) {
+          const full = path.join(dir, entry)
+          const rel = base ? `${base}/${entry}` : entry
+          if (fs.statSync(full).isDirectory()) {
+            result.push(...collectFiles(full, rel))
+          } else {
+            result.push(rel)
+          }
+        }
+        return result
+      }
+      const files = collectFiles(skillPath)
       
       // Read SKILL.md for metadata
       let name = slug
@@ -113,7 +125,14 @@ function buildPackage(data, manifest) {
     tarPack.pipe(gz)
 
     const addFile = (tarPath, content) => {
-      const buf = Buffer.from(typeof content === 'string' ? content : JSON.stringify(content, null, 2), 'utf8')
+      let buf
+      if (Buffer.isBuffer(content)) {
+        buf = content
+      } else if (typeof content === 'string') {
+        buf = Buffer.from(content, 'utf8')
+      } else {
+        buf = Buffer.from(JSON.stringify(content, null, 2), 'utf8')
+      }
       tarPack.entry({ name: tarPath, size: buf.length }, buf, (err) => {
         if (err) reject(err)
       })
@@ -148,12 +167,12 @@ function buildPackage(data, manifest) {
       addFile(`agents/${doc.agent_id}/${filename}`, doc.content)
     }
 
-    // skills/{slug}/* (actual skill files)
+    // skills/{slug}/* (actual skill files, including subdirectories)
     for (const skill of data.skills) {
-      for (const file of skill.files) {
-        const filePath = path.join(skill.path, file)
+      for (const relFile of skill.files) {
+        const filePath = path.join(skill.path, relFile)
         const content = fs.readFileSync(filePath)
-        addFile(`skills/${skill.slug}/${file}`, content)
+        addFile(`skills/${skill.slug}/${relFile}`, content)
       }
     }
 

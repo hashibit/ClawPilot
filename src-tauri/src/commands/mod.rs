@@ -4,6 +4,7 @@ pub mod channel;
 pub mod deployment;
 pub mod log;
 pub mod model;
+pub mod office;
 pub mod opc;
 pub mod skill;
 pub mod snapshot;

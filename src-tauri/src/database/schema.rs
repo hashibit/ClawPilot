@@ -1,3 +1,39 @@
+/// V2 migration: new tables (offices, office_deployments)
+pub const MIGRATION_V2_TABLES: &str = r#"
+CREATE TABLE IF NOT EXISTS offices (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    address TEXT,
+    access_card TEXT,
+    phone TEXT,
+    receptionist_image TEXT,
+    ownership TEXT NOT NULL DEFAULT 'RENTED',
+    monthly_rent REAL,
+    internet_speed TEXT,
+    decoration_grade TEXT NOT NULL DEFAULT 'MEDIUM',
+    description TEXT,
+    daemon_url TEXT,
+    daemon_api_key TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS office_deployments (
+    id TEXT PRIMARY KEY,
+    opc_id TEXT NOT NULL,
+    opc_name TEXT NOT NULL,
+    office_id TEXT NOT NULL,
+    office_name TEXT NOT NULL,
+    deployed_at INTEGER NOT NULL,
+    undeployed_at INTEGER,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS idx_offices_created_at ON offices(created_at);
+CREATE INDEX IF NOT EXISTS idx_office_deployments_office_id ON office_deployments(office_id);
+CREATE INDEX IF NOT EXISTS idx_office_deployments_opc_id ON office_deployments(opc_id);
+"#;
+
 /// V1 スキーマ：すべてのコアテーブルと索引を定義する。
 ///
 /// 外部キー依存を考慮した作成順序:

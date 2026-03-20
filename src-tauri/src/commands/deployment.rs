@@ -5,8 +5,12 @@ use crate::error::Result;
 use crate::services::deployment_service::{self, DeploymentTask};
 
 #[tauri::command]
-pub fn start_deployment(pool: State<'_, DbPool>, opc_name: String) -> Result<String> {
-    deployment_service::start_deployment(&pool, &opc_name)
+pub fn start_deployment(
+    pool: State<'_, DbPool>,
+    opc_id: String,
+    office_id: String,
+) -> Result<String> {
+    deployment_service::start_deployment(&pool, &opc_id, &office_id)
 }
 
 #[tauri::command]
@@ -22,8 +26,14 @@ pub fn cancel_deployment(pool: State<'_, DbPool>, task_id: String) -> Result<()>
 #[tauri::command]
 pub fn get_recent_deployments(
     pool: State<'_, DbPool>,
-    opc_name: String,
+    opc_id: String,
     limit: i64,
 ) -> Result<Vec<DeploymentTask>> {
-    deployment_service::get_recent_deployments(&pool, &opc_name, limit)
+    deployment_service::get_recent_deployments(&pool, &opc_id, limit)
 }
+
+#[tauri::command]
+pub fn undeploy(pool: State<'_, DbPool>, opc_id: String) -> Result<()> {
+    deployment_service::undeploy(&pool, &opc_id)
+}
+

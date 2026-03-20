@@ -28,6 +28,8 @@ pub struct OpcConfig {
     pub channel_count: i32,
     pub message_count_today: i64,
     pub message_growth: f64,
+    pub office_id: Option<String>,
+    pub office_name: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -75,6 +77,8 @@ mod tests {
             channel_count: 2,
             message_count_today: 150,
             message_growth: 12.5,
+            office_id: None,
+            office_name: None,
             created_at: 1700000000,
             updated_at: 1700001000,
         };
@@ -112,6 +116,8 @@ mod tests {
             channel_count: 1,
             message_count_today: 42,
             message_growth: 3.0,
+            office_id: None,
+            office_name: None,
             created_at: 1700000000,
             updated_at: 1700000000,
         };

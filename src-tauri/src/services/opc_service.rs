@@ -27,6 +27,8 @@ fn row_to_opc(row: &rusqlite::Row) -> rusqlite::Result<OpcConfig> {
         message_growth: row.get(11)?,
         created_at: row.get(12)?,
         updated_at: row.get(13)?,
+        office_id: row.get(14).ok().flatten(),
+        office_name: row.get(15).ok().flatten(),
     })
 }
 
@@ -38,11 +40,13 @@ fn row_to_opc(row: &rusqlite::Row) -> rusqlite::Result<OpcConfig> {
 pub fn get_all_opcs(pool: &DbPool) -> Result<Vec<OpcConfig>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, display_name, description, avatar_color, avatar_initials,
-                is_active, is_running, agent_count, channel_count,
-                message_count_today, message_growth, created_at, updated_at
-         FROM opc_config
-         ORDER BY created_at ASC",
+        "SELECT oc.id, oc.name, oc.display_name, oc.description, oc.avatar_color, oc.avatar_initials,
+                oc.is_active, oc.is_running, oc.agent_count, oc.channel_count,
+                oc.message_count_today, oc.message_growth, oc.created_at, oc.updated_at,
+                oc.office_id, o.name
+         FROM opc_config oc
+         LEFT JOIN offices o ON o.id = oc.office_id
+         ORDER BY oc.created_at ASC",
     )?;
     let opcs = stmt
         .query_map([], row_to_opc)?
@@ -54,10 +58,13 @@ pub fn get_all_opcs(pool: &DbPool) -> Result<Vec<OpcConfig>> {
 pub fn get_opc(pool: &DbPool, id: &str) -> Result<OpcConfig> {
     let conn = pool.get()?;
     conn.query_row(
-        "SELECT id, name, display_name, description, avatar_color, avatar_initials,
-                is_active, is_running, agent_count, channel_count,
-                message_count_today, message_growth, created_at, updated_at
-         FROM opc_config WHERE id = ?1",
+        "SELECT oc.id, oc.name, oc.display_name, oc.description, oc.avatar_color, oc.avatar_initials,
+                oc.is_active, oc.is_running, oc.agent_count, oc.channel_count,
+                oc.message_count_today, oc.message_growth, oc.created_at, oc.updated_at,
+                oc.office_id, o.name
+         FROM opc_config oc
+         LEFT JOIN offices o ON o.id = oc.office_id
+         WHERE oc.id = ?1",
         rusqlite::params![id],
         row_to_opc,
     )
@@ -293,6 +300,8 @@ mod tests {
             channel_count: 1,
             message_count_today: 10,
             message_growth: 1.5,
+            office_id: None,
+            office_name: None,
             created_at: 0,  // overridden by create_opc
             updated_at: 0,  // overridden by create_opc
         }

@@ -74,11 +74,22 @@ pub fn run() {
             commands::snapshot::get_snapshot,
             commands::snapshot::restore_snapshot,
             commands::snapshot::delete_snapshot,
+            // Office
+            commands::office::get_offices,
+            commands::office::get_office,
+            commands::office::create_office,
+            commands::office::update_office,
+            commands::office::delete_office,
+            commands::office::assign_office,
+            commands::office::get_opc_office,
+            commands::office::get_office_deployments,
+            commands::office::check_daemon_health,
             // Deployment
             commands::deployment::start_deployment,
             commands::deployment::get_deployment_status,
             commands::deployment::cancel_deployment,
             commands::deployment::get_recent_deployments,
+            commands::deployment::undeploy,
             // Log
             commands::log::get_logs,
             commands::log::write_log,

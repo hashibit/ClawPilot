@@ -2,7 +2,7 @@ use crate::database::pool::DbPool;
 use crate::error::Result;
 
 /// データベースの現在のターゲットバージョン。
-const CURRENT_VERSION: u32 = 1;
+const CURRENT_VERSION: u32 = 2;
 
 /// 未実行のマイグレーションをすべて実行する。
 ///
@@ -19,12 +19,35 @@ pub fn run_migrations(pool: &DbPool) -> Result<()> {
         conn.execute_batch("PRAGMA user_version = 1")?;
     }
 
-    // 将来のバージョン向けのマイグレーションはここに追加する。
-    // 例:
-    //   if version < 2 {
-    //       conn.execute_batch(MIGRATION_V2)?;
-    //       conn.execute_batch("PRAGMA user_version = 2")?;
-    //   }
+    if version < 2 {
+        // v1 → v2: offices, office_deployments, and new columns on existing tables
+        conn.execute_batch(crate::database::schema::MIGRATION_V2_TABLES)?;
+
+        // ALTER TABLE statements that may fail if column already exists — ignore those errors
+        let alters = [
+            "ALTER TABLE opc_config ADD COLUMN office_id TEXT",
+            "ALTER TABLE deployment_tasks ADD COLUMN opc_id TEXT",
+            "ALTER TABLE deployment_tasks ADD COLUMN office_id TEXT",
+            "ALTER TABLE deployment_tasks ADD COLUMN daemon_task_id TEXT",
+            "ALTER TABLE deployment_tasks ADD COLUMN updated_at INTEGER",
+            "ALTER TABLE skills ADD COLUMN display_name TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE skills ADD COLUMN is_local INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE skills ADD COLUMN is_installed INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE skills ADD COLUMN install_path TEXT",
+            "ALTER TABLE skills ADD COLUMN installed_at INTEGER",
+            "ALTER TABLE skills ADD COLUMN download_url TEXT",
+            "ALTER TABLE channels ADD COLUMN dingtalk_config TEXT",
+            "ALTER TABLE channels ADD COLUMN slack_config TEXT",
+            "ALTER TABLE model_providers ADD COLUMN base_url TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE model_providers ADD COLUMN is_coding_plan INTEGER NOT NULL DEFAULT 0",
+        ];
+        for stmt in &alters {
+            // Ignore "duplicate column name" errors
+            let _ = conn.execute_batch(stmt);
+        }
+
+        conn.execute_batch("PRAGMA user_version = 2")?;
+    }
 
     Ok(())
 }
