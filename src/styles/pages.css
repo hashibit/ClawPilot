@@ -131,7 +131,7 @@
 .agent-row.dragging { opacity: 0.4; }
 .agent-row.drag-over-top { border-top: 2px solid #8b5cf6; }
 .agent-row.drag-over-bottom { border-bottom: 2px solid #8b5cf6; }
-.drag-handle { display: flex; flex-direction: column; gap: 2px; padding: 2px; cursor: grab; flex-shrink: 0; }
+.drag-handle { display: flex; flex-direction: column; gap: 2px; padding: 2px; cursor: grab; flex-shrink: 0; transition: opacity 0.15s ease; }
 .drag-handle:active { cursor: grabbing; }
 .drag-handle span { display: block; width: 12px; height: 1.5px; background: rgba(255,255,255,0.2); border-radius: 1px; }
 .drag-handle:hover span { background: rgba(255,255,255,0.5); }

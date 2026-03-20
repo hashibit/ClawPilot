@@ -6,7 +6,7 @@ import {
   chatWithAgent,
 } from '../lib/api'
 import { toast } from '../components/Toast'
-import type { AgentConfig, DocumentType, ModelInfo } from '../lib/types'
+import type { AgentConfig, DocumentType, ModelInfo, OpcConfig } from '../lib/types'
 
 const DOC_TYPES: DocumentType[] = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'MEMORY', 'HEARTBEAT', 'TOOLS']
 
@@ -401,7 +401,6 @@ function SkillRow({ skill, installing, onInstall }: {
 // ── Main page ─────────────────────────────────────────────
 export default function AgentsPage() {
   const { opcs, currentOpc, selectOpc } = useOpc()
-  const [agents, setAgents] = useState<AgentConfig[]>([])
   const [selectedAgent, setSelectedAgent] = useState<AgentConfig | null>(null)
   const [activeDocTab, setActiveDocTab] = useState<DocumentType>('SOUL')
   const [docContent, setDocContent] = useState('')
@@ -415,6 +414,7 @@ export default function AgentsPage() {
   const [chatAgent, setChatAgent] = useState<AgentConfig | null>(null)
   const [customToolInput, setCustomToolInput] = useState('')
   const dragIndex = useRef<number | null>(null)
+  const dragOpcId = useRef<string | null>(null)
   const [expandedOpcIds, setExpandedOpcIds] = useState<Set<string>>(() => currentOpc ? new Set([currentOpc.id]) : new Set())
   const [opcAgentsMap, setOpcAgentsMap] = useState<Record<string, AgentConfig[]>>({})
 
@@ -424,9 +424,21 @@ export default function AgentsPage() {
     if (!currentOpc) return
     getAgents(currentOpc.id)
       .then(list => {
-        setAgents(list)
         setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
-        setSelectedAgent(null); setForm({})
+        setSelectedAgent(prev => {
+          if (prev) {
+            const found = list.find(a => a.id === prev.id)
+            if (found) return found
+          }
+          return null
+        })
+        setForm(prev => {
+          if ((prev as AgentConfig).id) {
+            const found = list.find(a => a.id === (prev as AgentConfig).id)
+            if (found) return found
+          }
+          return {}
+        })
       })
       .catch(e => toast(String(e), 'error'))
   }, [currentOpc])
@@ -454,7 +466,10 @@ export default function AgentsPage() {
     try {
       const updated: AgentConfig = { ...selectedAgent, ...form, updated_at: Math.floor(Date.now() / 1000) }
       await updateAgent(selectedAgent.id, updated)
-      setAgents(prev => prev.map(a => a.id === updated.id ? updated : a))
+      setOpcAgentsMap(prev => ({
+        ...prev,
+        [currentOpc.id]: (prev[currentOpc.id] ?? []).map(a => a.id === updated.id ? updated : a),
+      }))
       setSelectedAgent(updated)
       toast('保存成功', 'success')
     } catch (e) { toast(String(e), 'error') }
@@ -507,7 +522,7 @@ export default function AgentsPage() {
   const handleAddAgent = async (targetOpc?: OpcConfig) => {
     const opc = targetOpc ?? currentOpc
     if (!opc) return
-    const currentAgents = opcAgentsMap[opc.id] ?? agents
+    const currentAgents = opcAgentsMap[opc.id] ?? []
     const displayName = `新智能体 ${currentAgents.length + 1}`
     const now = Math.floor(Date.now() / 1000)
     const newAgent: AgentConfig = {
@@ -527,8 +542,7 @@ export default function AgentsPage() {
       await createAgent(newAgent)
       const list = await getAgents(opc.id)
       setOpcAgentsMap(prev => ({ ...prev, [opc.id]: list }))
-      if (opc.id === currentOpc?.id) setAgents(list)
-      else selectOpc(opc)
+      if (opc.id !== currentOpc?.id) selectOpc(opc)
       const created = list.find(a => a.id === newAgent.id) ?? list[list.length - 1]
       setSelectedAgent(created); setForm(created)
       toast('智能体已创建', 'success')
@@ -540,7 +554,6 @@ export default function AgentsPage() {
     try {
       await deleteAgent(agentId)
       const list = await getAgents(currentOpc.id)
-      setAgents(list)
       setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
       if (selectedAgent?.id === agentId) {
         const next = list[0] ?? null
@@ -564,29 +577,35 @@ export default function AgentsPage() {
     }
   }
 
-  const handleDragStart = (index: number) => { dragIndex.current = index }
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    if (dragIndex.current === null || dragIndex.current === index) return
-    const next = [...agents]
-    const [moved] = next.splice(dragIndex.current, 1)
-    next.splice(index, 0, moved)
+  const handleDragStart = (opcId: string, index: number) => {
     dragIndex.current = index
-    setAgents(next)
+    dragOpcId.current = opcId
   }
 
-  const handleDragEnd = async () => {
-    if (!currentOpc) return
+  const handleDragOver = (e: React.DragEvent, opcId: string, index: number) => {
+    e.preventDefault()
+    if (dragIndex.current === null || dragIndex.current === index || dragOpcId.current !== opcId) return
+    setOpcAgentsMap(prev => {
+      const list = [...(prev[opcId] ?? [])]
+      const [moved] = list.splice(dragIndex.current!, 1)
+      list.splice(index, 0, moved)
+      dragIndex.current = index
+      return { ...prev, [opcId]: list }
+    })
+  }
+
+  const handleDragEnd = async (opcId: string) => {
     try {
-      await reorderAgents(currentOpc.id, agents.map(a => a.id))
-      // Reload to get updated is_default flags from server
-      const list = await getAgents(currentOpc.id)
-      setAgents(list)
-      setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
+      const list = opcAgentsMap[opcId] ?? []
+      await reorderAgents(opcId, list.map(a => a.id))
+      if (currentOpc?.id === opcId) {
+        const refreshed = await getAgents(opcId)
+        setOpcAgentsMap(prev => ({ ...prev, [opcId]: refreshed }))
+      }
       toast('排序已保存', 'success')
     } catch (e) { toast(String(e), 'error') }
     dragIndex.current = null
+    dragOpcId.current = null
   }
 
   // ── Model selection helpers ──────────────────────────────
@@ -651,7 +670,7 @@ export default function AgentsPage() {
           {opcs.map(opc => {
             const expanded = expandedOpcIds.has(opc.id)
             const isCurrentOpc = currentOpc?.id === opc.id
-            const displayAgents = isCurrentOpc ? agents : (opcAgentsMap[opc.id] ?? [])
+            const displayAgents = opcAgentsMap[opc.id] ?? []
             return (
               <div key={opc.id}>
                 {/* Company header row */}
@@ -678,14 +697,14 @@ export default function AgentsPage() {
                       <div
                         key={agent.id}
                         className={`agent-row${selectedAgent?.id === agent.id ? ' selected' : ''}`}
-                        style={{ paddingLeft: '28px', cursor: isCurrentOpc ? 'grab' : 'pointer' }}
+                        style={{ paddingLeft: '28px', cursor: 'grab' }}
                         onClick={() => { if (!isCurrentOpc) selectOpc(opc); handleSelectAgent(agent) }}
-                        draggable={isCurrentOpc}
-                        onDragStart={isCurrentOpc ? () => handleDragStart(index) : undefined}
-                        onDragOver={isCurrentOpc ? e => handleDragOver(e, index) : undefined}
-                        onDragEnd={isCurrentOpc ? handleDragEnd : undefined}
+                        draggable
+                        onDragStart={() => handleDragStart(opc.id, index)}
+                        onDragOver={e => handleDragOver(e, opc.id, index)}
+                        onDragEnd={() => handleDragEnd(opc.id)}
                       >
-                        <div className="drag-handle" style={{ opacity: isCurrentOpc ? 1 : 0 }}><span></span><span></span><span></span></div>
+                        <div className="drag-handle"><span></span><span></span><span></span></div>
                         <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: `linear-gradient(135deg,${agent.gradient_start ?? '#8b5cf6'},${agent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
                           {agent.initials ?? agent.display_name.slice(0, 2)}
                         </div>

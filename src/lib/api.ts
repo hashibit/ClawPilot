@@ -153,6 +153,26 @@ export const updateOffice = (id: string, office: Office) => call<void>('update_o
 export const deleteOffice = (id: string) => call<void>('delete_office', { id })
 export const assignOffice = (opcId: string, officeId: string | null) =>
   call<void>('assign_office', { opc_id: opcId, office_id: officeId })
+
+export interface InstallDaemonParams {
+  office_id: string
+  mode: 'local' | 'ssh'
+  daemon_port?: number
+  ssh_host?: string
+  ssh_port?: number
+  ssh_user?: string
+  ssh_key_path?: string
+}
+export interface InstallDaemonResult {
+  ok: boolean
+  daemon_url?: string
+  api_key?: string
+  logs: string[]
+  already_running?: boolean
+  error?: string
+}
+export const installDaemon = (params: InstallDaemonParams) =>
+  call<InstallDaemonResult>('install_daemon', params as unknown as Record<string, unknown>)
 export const getOpcOffice = (opcId: string) => call<Office | null>('get_opc_office', { opc_id: opcId })
 
 // ── Snapshot ──────────────────────────────────────────────

@@ -1,8 +1,159 @@
 import { useEffect, useState, useCallback } from 'react'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth } from '../lib/api'
-import type { DaemonHealthResult } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, installDaemon } from '../lib/api'
+import type { DaemonHealthResult, InstallDaemonResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment } from '../lib/types'
+
+// ── InstallDaemonModal ──────────────────────────────────────
+function InstallDaemonModal({ office, onClose, onInstalled }: {
+  office: Office
+  onClose: () => void
+  onInstalled: (daemonUrl: string, apiKey: string) => void
+}) {
+  const [mode, setMode] = useState<'local' | 'ssh'>('local')
+  const [daemonPort, setDaemonPort] = useState(8443)
+  const [sshHost, setSshHost] = useState('')
+  const [sshPort, setSshPort] = useState(22)
+  const [sshUser, setSshUser] = useState('root')
+  const [sshKeyPath, setSshKeyPath] = useState('')
+  const [installing, setInstalling] = useState(false)
+  const [result, setResult] = useState<InstallDaemonResult | null>(null)
+
+  const handleInstall = async () => {
+    setInstalling(true)
+    setResult(null)
+    try {
+      const res = await installDaemon({
+        office_id: office.id,
+        mode,
+        daemon_port: daemonPort,
+        ...(mode === 'ssh' ? { ssh_host: sshHost, ssh_port: sshPort, ssh_user: sshUser, ssh_key_path: sshKeyPath || undefined } : {}),
+      })
+      setResult(res)
+      if (res.ok && res.daemon_url && res.api_key) {
+        onInstalled(res.daemon_url, res.api_key)
+      }
+    } catch (e: any) {
+      setResult({ ok: false, error: String(e), logs: [] })
+    } finally {
+      setInstalling(false)
+    }
+  }
+
+  const inputStyle = { flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '7px', color: '#EBEBF5', fontSize: '12px', padding: '6px 9px', outline: 'none', fontFamily: 'inherit' }
+  const labelStyle = { fontSize: '12px', color: 'rgba(235,235,245,0.5)', minWidth: '80px', flexShrink: 0 }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }} />
+      <div style={{ position: 'relative', width: '460px', background: '#1C1C1E', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 24px 64px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF' }}>安装物业</div>
+            <div style={{ fontSize: '11px', color: '#8E8E93', marginTop: '1px' }}>将 daemon 安装到 {office.name} 并获取 API Key</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
+        </div>
+
+        <div style={{ padding: '14px 18px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Mode selector */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {(['local', 'ssh'] as const).map(m => (
+              <button key={m} onClick={() => setMode(m)} style={{
+                flex: 1, padding: '8px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: mode === m ? 600 : 400,
+                border: mode === m ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
+                background: mode === m ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.04)',
+                color: mode === m ? '#c4b5fd' : 'rgba(235,235,245,0.5)',
+              }}>
+                {m === 'local' ? '🖥 本机安装' : '🌐 SSH 远程'}
+              </button>
+            ))}
+          </div>
+
+          {/* Daemon port */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={labelStyle}>监听端口</span>
+            <input type="number" value={daemonPort} onChange={e => setDaemonPort(Number(e.target.value))} style={{ ...inputStyle, width: '90px', flex: 'none' }} />
+            <span style={{ fontSize: '11px', color: 'rgba(235,235,245,0.35)' }}>默认 8443</span>
+          </div>
+
+          {/* SSH fields */}
+          {mode === 'ssh' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={labelStyle}>主机地址</span>
+                <input placeholder="192.168.1.100 或域名" value={sshHost} onChange={e => setSshHost(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={labelStyle}>SSH 端口</span>
+                <input type="number" value={sshPort} onChange={e => setSshPort(Number(e.target.value))} style={{ ...inputStyle, width: '80px', flex: 'none' }} />
+                <span style={labelStyle}>用户名</span>
+                <input value={sshUser} onChange={e => setSshUser(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={labelStyle}>SSH 密钥</span>
+                <input placeholder="留空则使用默认密钥 (~/.ssh/id_rsa)" value={sshKeyPath} onChange={e => setSshKeyPath(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(235,235,245,0.35)' }}>需要对目标机器有 sudo 权限以写入 /usr/local/bin/</div>
+            </div>
+          )}
+
+          {/* Install button */}
+          {!result && (
+            <button
+              onClick={handleInstall}
+              disabled={installing || (mode === 'ssh' && !sshHost)}
+              style={{ padding: '9px', borderRadius: '8px', background: installing ? 'rgba(139,92,246,0.4)' : 'rgba(139,92,246,0.8)', color: 'white', border: 'none', cursor: installing ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600, opacity: (mode === 'ssh' && !sshHost) ? 0.4 : 1 }}
+            >
+              {installing ? '安装中…' : '开始安装'}
+            </button>
+          )}
+
+          {/* Progress / Result */}
+          {(installing || result) && (
+            <div style={{ background: 'rgba(0,0,0,0.35)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.7' }}>
+              {(result?.logs ?? []).map((line, i) => (
+                <div key={i} style={{ color: line.startsWith('❌') ? '#f87171' : line.startsWith('✅') || line.startsWith('🔑') || line.startsWith('💾') ? '#34d399' : '#EBEBF5' }}>{line}</div>
+              ))}
+              {installing && <div style={{ color: '#a78bfa' }}>…</div>}
+            </div>
+          )}
+
+          {/* Success result */}
+          {result?.ok && (
+            <div style={{ background: 'rgba(52,199,89,0.08)', border: '1px solid rgba(52,199,89,0.2)', borderRadius: '8px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#34c759' }}>安装成功{result.already_running ? '（已运行）' : ''}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#8E8E93', minWidth: '72px' }}>Daemon URL</span>
+                <code style={{ flex: 1, fontSize: '11px', color: '#EBEBF5', background: 'rgba(255,255,255,0.06)', padding: '3px 7px', borderRadius: '4px', wordBreak: 'break-all' }}>{result.daemon_url}</code>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#8E8E93', minWidth: '72px' }}>API Key</span>
+                <code style={{ flex: 1, fontSize: '11px', color: '#EBEBF5', background: 'rgba(255,255,255,0.06)', padding: '3px 7px', borderRadius: '4px', wordBreak: 'break-all' }}>{result.api_key}</code>
+              </div>
+              <div style={{ fontSize: '11px', color: '#34c759' }}>配置已自动写入办公室，点击保存生效。</div>
+            </div>
+          )}
+
+          {/* Error result */}
+          {result && !result.ok && (
+            <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '8px', padding: '10px 14px', fontSize: '12px', color: '#f87171' }}>
+              安装失败：{result.error}
+              <div style={{ marginTop: '6px' }}>
+                <button onClick={() => setResult(null)} style={{ fontSize: '11px', background: 'none', border: '1px solid rgba(244,63,94,0.4)', borderRadius: '5px', color: '#f87171', cursor: 'pointer', padding: '3px 8px' }}>重试</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '10px 18px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '6px 14px', borderRadius: '7px', background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(235,235,245,0.6)', fontSize: '12px', cursor: 'pointer' }}>关闭</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function fmtDate(ts: number) {
   return new Date(ts * 1000).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -23,6 +174,7 @@ export default function OfficePage() {
   const [remoteMode, setRemoteMode] = useState(false)
   const [daemonHealth, setDaemonHealth] = useState<DaemonHealthResult | null>(null)
   const [healthChecking, setHealthChecking] = useState(false)
+  const [installModalOpen, setInstallModalOpen] = useState(false)
 
   const initAddressMode = (office: Partial<Office>) => {
     setRemoteMode(!(!office.address || office.address === 'localhost'))
@@ -120,8 +272,21 @@ export default function OfficePage() {
     } catch (e) { toast(String(e), 'error') }
   }
 
+  const handleInstalled = (daemonUrl: string, apiKey: string) => {
+    handleFormChange('daemon_url', daemonUrl)
+    handleFormChange('daemon_api_key', apiKey)
+    loadOffices()
+  }
+
   return (
     <>
+      {installModalOpen && selected && (
+        <InstallDaemonModal
+          office={selected}
+          onClose={() => setInstallModalOpen(false)}
+          onInstalled={handleInstalled}
+        />
+      )}
       {/* COL2 - office list */}
       <div className="list-pane">
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
@@ -293,13 +458,21 @@ export default function OfficePage() {
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={handleCheckDaemon}
-                    disabled={healthChecking}
-                    style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: 'rgba(235,235,245,0.7)', flexShrink: 0, opacity: healthChecking ? 0.5 : 1 }}
-                  >
-                    {healthChecking ? '检测中…' : '检测连接'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => setInstallModalOpen(true)}
+                      style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.12)', color: '#c4b5fd', flexShrink: 0 }}
+                    >
+                      安装物业
+                    </button>
+                    <button
+                      onClick={handleCheckDaemon}
+                      disabled={healthChecking}
+                      style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: 'rgba(235,235,245,0.7)', flexShrink: 0, opacity: healthChecking ? 0.5 : 1 }}
+                    >
+                      {healthChecking ? '检测中…' : '检测连接'}
+                    </button>
+                  </div>
                 </div>
                 <div className="group">
                   <div className="group-row" style={{ gap: '10px' }}>

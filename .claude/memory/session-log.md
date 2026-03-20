@@ -288,3 +288,25 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-20T07:25:00Z
+
+- session_id: `A16A1710-384A-4426-A7BC-E3C208BC4F13`
+- project: `ClawPilot`
+- branch: `ft_skill_download`
+- started_at: `2026-03-20T07:21:17Z`
+- ended_at: `2026-03-20T07:25:00Z`
+- duration_minutes: 483
+- changes: 2
+
+### 変更ファイル
+- `src/pages/AgentsPage.tsx`
+- `src/styles/pages.css`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---
