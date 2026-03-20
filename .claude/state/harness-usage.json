@@ -1,10 +1,14 @@
 {
   "version": "1.0",
-  "updatedAt": "2026-03-20T07:21:17.813Z",
+  "updatedAt": "2026-03-20T15:07:50.133Z",
   "skills": {
     "harness-plan": {
       "count": 1,
       "lastUsed": "2026-03-19T01:00:18.954Z"
+    },
+    "orbstack": {
+      "count": 1,
+      "lastUsed": "2026-03-20T15:07:50.132Z"
     }
   },
   "commands": {
