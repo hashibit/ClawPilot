@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import db from '../db.js'
+import { createLogger } from '../logger.js'
+const log = createLogger('ai')
 
 const router = Router()
 
@@ -31,7 +33,7 @@ SOUL.md 重要规范：
 // ai_generate_agent
 router.post('/ai_generate_agent', async (req, res) => {
   const { prompt } = req.body
-  console.log(`[ai_generate_agent] prompt="${(prompt ?? '').slice(0, 60)}${(prompt?.length ?? 0) > 60 ? '...' : ''}"`)
+  log.info(`ai_generate_agent: prompt="${(prompt ?? '').slice(0, 60)}${(prompt?.length ?? 0) > 60 ? '...' : ''}"`)
 
   if (!prompt?.trim()) return res.status(400).send('prompt is required')
 
@@ -46,7 +48,7 @@ router.post('/ai_generate_agent', async (req, res) => {
 
   const endpoint = isAnthropicUrl ? `${baseUrl}/v1/messages` : `${baseUrl}/chat/completions`
   const format = isAnthropicUrl ? 'anthropic' : 'openai'
-  console.log(`[ai_generate_agent] → ${format} POST ${endpoint} model=${MODEL}`)
+  log.info(`ai_generate_agent: → ${format} POST ${endpoint} model=${MODEL}`)
 
   let rawText
   try {
@@ -68,10 +70,10 @@ router.post('/ai_generate_agent', async (req, res) => {
         }),
         signal: AbortSignal.timeout(120000),
       })
-      console.log(`[ai_generate_agent] ← HTTP ${r.status}`)
+      log.info(`ai_generate_agent: ← HTTP ${r.status}`)
       if (!r.ok) {
         const t = await r.text()
-        console.log(`[ai_generate_agent] error body: ${t.slice(0, 200)}`)
+        log.error(`ai_generate_agent: anthropic error body: ${t.slice(0, 200)}`)
         return res.status(502).send(`Anthropic API 错误 ${r.status}: ${t.slice(0, 200)}`)
       }
       const data = await r.json()
@@ -97,21 +99,21 @@ router.post('/ai_generate_agent', async (req, res) => {
         }),
         signal: AbortSignal.timeout(120000),
       })
-      console.log(`[ai_generate_agent] ← HTTP ${r.status}`)
+      log.info(`ai_generate_agent: ← HTTP ${r.status}`)
       if (!r.ok) {
         const t = await r.text()
-        console.log(`[ai_generate_agent] error body: ${t.slice(0, 200)}`)
+        log.error(`ai_generate_agent: openai error body: ${t.slice(0, 200)}`)
         return res.status(502).send(`OpenAI API 错误 ${r.status}: ${t.slice(0, 200)}`)
       }
       const data = await r.json()
       rawText = data.choices?.[0]?.message?.content ?? ''
     }
   } catch (e) {
-    console.log(`[ai_generate_agent] fetch exception: ${e.message}`)
+    log.error(`ai_generate_agent: fetch exception: ${e.message}`)
     return res.status(502).send(`请求失败: ${e.message}`)
   }
 
-  console.log(`[ai_generate_agent] raw response (${rawText.length} chars): ${rawText.slice(0, 120)}`)
+  log.debug(`ai_generate_agent: raw response (${rawText.length} chars): ${rawText.slice(0, 120)}`)
 
   let parsed
   try {
@@ -119,7 +121,7 @@ router.post('/ai_generate_agent', async (req, res) => {
     const jsonStr = match ? match[1] : rawText.trim()
     parsed = JSON.parse(jsonStr)
   } catch {
-    console.log(`[ai_generate_agent] JSON parse failed, raw: ${rawText.slice(0, 300)}`)
+    log.error(`ai_generate_agent: JSON parse failed, raw: ${rawText.slice(0, 300)}`)
     return res.status(502).send(`AI 返回格式错误，无法解析 JSON:\n${rawText.slice(0, 300)}`)
   }
 
@@ -137,7 +139,7 @@ router.post('/ai_generate_agent', async (req, res) => {
     heartbeat: parsed.heartbeat ?? '',
     tools: parsed.tools ?? '',
   }
-  console.log(`[ai_generate_agent] OK → display_name="${result.display_name}" name="${result.name}"`)
+  log.info(`ai_generate_agent: OK display_name="${result.display_name}" name="${result.name}"`)
   res.json(result)
 })
 
@@ -170,7 +172,7 @@ router.post('/chat_with_agent', async (req, res) => {
     ? 'https://coding.dashscope.aliyuncs.com/v1/chat/completions'
     : `${(row.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')}/chat/completions`
 
-  console.log(`[chat_with_agent] agent=${agent_id} model=${MODEL} msgs=${messages.length}`)
+  log.info(`chat_with_agent: agent=${agent_id} model=${MODEL} msgs=${messages.length}`)
 
   try {
     const r = await fetch(endpoint, {

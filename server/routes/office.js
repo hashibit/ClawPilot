@@ -7,6 +7,9 @@ import { join, resolve } from 'path'
 import { homedir } from 'os'
 import { fileURLToPath } from 'url'
 import db from '../db.js'
+import { createLogger } from '../logger.js'
+
+const log = createLogger('office')
 
 const router = Router()
 const now = () => Math.floor(Date.now() / 1000)
@@ -205,7 +208,7 @@ router.post('/install_daemon', async (req, res) => {
     daemon_host,  // optional: override HTTP host for daemon URL (e.g. for OrbStack)
   } = req.body
   const logs = []
-  const log = (msg) => logs.push(msg)
+  const step = (msg) => { logs.push(msg); log.info(`[install_daemon] ${msg}`) }
 
   try {
     if (mode === 'local') {
@@ -214,7 +217,7 @@ router.post('/install_daemon', async (req, res) => {
 
       // Already running?
       if (await isDaemonRunning(daemonUrl)) {
-        log('✅ Daemon 已在运行')
+        step('✅ Daemon 已在运行')
         const apiKey = readLocalKey()
         if (office_id && apiKey) {
           db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
@@ -223,33 +226,33 @@ router.post('/install_daemon', async (req, res) => {
         return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs, already_running: true })
       }
 
-      log('🔍 查找 daemon 二进制...')
+      step('🔍 查找 daemon 二进制...')
       const binPath = await findDaemonBinary()
       if (!binPath) {
         return res.json({ ok: false, error: '未找到 clawpilot-daemon，请先 cargo build --release', logs })
       }
-      log(`✅ 找到: ${binPath}`)
+      step(`✅ 找到: ${binPath}`)
 
-      log('🚀 启动 daemon...')
+      step('🚀 启动 daemon...')
       const child = spawn(binPath, ['--listen', listenAddr], { detached: true, stdio: 'ignore' })
       child.unref()
 
-      log('⏳ 等待启动...')
+      step('⏳ 等待启动...')
       let started = false
       for (let i = 0; i < 12; i++) {
         await new Promise(r => setTimeout(r, 700))
         if (await isDaemonRunning(daemonUrl)) { started = true; break }
       }
       if (!started) return res.json({ ok: false, error: '启动超时，请检查端口是否被占用', logs })
-      log('✅ Daemon 已就绪')
+      step('✅ Daemon 已就绪')
 
       const apiKey = readLocalKey()
-      log('🔑 API Key 已读取')
+      step('🔑 API Key 已读取')
 
       if (office_id && apiKey) {
         db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
           .run(daemonUrl, apiKey, now(), office_id)
-        log('💾 配置已自动保存')
+        step('💾 配置已自动保存')
       }
       return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs })
 
@@ -265,48 +268,49 @@ router.post('/install_daemon', async (req, res) => {
       const bareHost = daemon_host || (ssh_host.includes('@') ? ssh_host.split('@').pop() : ssh_host)
       const daemonUrl = `http://${bareHost}:${daemon_port}`
 
-      log('🔍 查找本地 daemon 二进制...')
+      step('🔍 查找本地 daemon 二进制...')
       const binPath = await findDaemonBinary()
       if (!binPath) {
         return res.json({ ok: false, error: '未找到本地 clawpilot-daemon 二进制', logs })
       }
-      log(`✅ 找到: ${binPath}`)
+      step(`✅ 找到: ${binPath}`)
 
-      log(`📤 上传到 ${target}...`)
+      step(`📤 上传到 ${target}...`)
       await execAsync(`scp ${sshOpts} "${binPath}" "${target}:/tmp/clawpilot-daemon"`)
       await execAsync(`ssh ${sshOpts} "${target}" "chmod +x /tmp/clawpilot-daemon && sudo mv /tmp/clawpilot-daemon /usr/local/bin/clawpilot-daemon"`)
-      log('✅ 二进制已上传')
+      step('✅ 二进制已上传')
 
-      log('🛑 停止旧进程...')
+      step('🛑 停止旧进程...')
       await execAsync(`ssh ${sshOpts} "${target}" "pkill -f clawpilot-daemon || true"`).catch(() => {})
 
-      log('🚀 启动远程 daemon...')
+      step('🚀 启动远程 daemon...')
       await execAsync(`ssh ${sshOpts} "${target}" "nohup /usr/local/bin/clawpilot-daemon --listen 0.0.0.0:${daemon_port} > /tmp/clawpilot-daemon.log 2>&1 &"`)
 
-      log('⏳ 等待远程 daemon 就绪...')
+      step('⏳ 等待远程 daemon 就绪...')
       let started = false
       for (let i = 0; i < 12; i++) {
         await new Promise(r => setTimeout(r, 800))
         if (await isDaemonRunning(daemonUrl)) { started = true; break }
       }
       if (!started) return res.json({ ok: false, error: '远程 daemon 启动超时', logs })
-      log('✅ 远程 daemon 已就绪')
+      step('✅ 远程 daemon 已就绪')
 
       const { stdout: keyOut } = await execAsync(`ssh ${sshOpts} "${target}" "cat ~/.clawpilot/daemon.key"`)
       const apiKey = keyOut.trim() || null
-      log('🔑 API Key 已读取')
+      step('🔑 API Key 已读取')
 
       if (office_id && apiKey) {
         db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
           .run(daemonUrl, apiKey, now(), office_id)
-        log('💾 配置已自动保存')
+        step('💾 配置已自动保存')
       }
       return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs })
     }
 
     res.json({ ok: false, error: '未知安装模式', logs })
   } catch (err) {
-    log(`❌ ${err.message}`)
+    step(`❌ ${err.message}`)
+    log.error(`install_daemon failed: ${err.message}`)
     res.json({ ok: false, error: err.message, logs })
   }
 })

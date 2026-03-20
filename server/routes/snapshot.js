@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import db from '../db.js'
 import { randomUUID } from 'crypto'
+import { createLogger } from '../logger.js'
+const log = createLogger('snapshot')
 
 const router = Router()
 const now = () => Math.floor(Date.now() / 1000)

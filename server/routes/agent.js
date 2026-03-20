@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import db from '../db.js'
+import { createLogger } from '../logger.js'
+const log = createLogger('agent')
 
 const router = Router()
 const now = () => Math.floor(Date.now() / 1000)

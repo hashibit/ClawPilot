@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-20T10:10:35.337Z",
+  "timestamp": "2026-03-20T12:31:02.226Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
@@ -19,11 +19,11 @@
     ".claude/state/sessions/A16A1710-384A-4426-A7BC-E3C208BC4F13.events.jsonl",
     ".claude/state/sessions/A16A1710-384A-4426-A7BC-E3C208BC4F13.json",
     ".claude/state/tool-failure-counter.txt",
-    "Plans.md",
     "README.md",
     "docs/tech/install-property.md",
     "docs/tech/skill-install.md",
-    "server/.claude/logs/subagent-history.jsonl"
+    "server/.claude/logs/subagent-history.jsonl",
+    "server/.claude/sessions/.last_inbox_check"
   ],
   "metrics": null
 }

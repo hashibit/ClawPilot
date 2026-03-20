@@ -5,6 +5,8 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import unzipper from 'unzipper'
 import { Readable } from 'stream'
+import { createLogger } from '../logger.js'
+const log = createLogger('skill')
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Dev mode: skills dir at project root (ClawPilot/skills/)
@@ -147,8 +149,10 @@ router.post('/sync_skills', async (_req, res) => {
       count++
     }
 
+    log.info(`sync_skills: synced ${count} skills from ClawHub`)
     res.json({ ok: true, count })
   } catch (err) {
+    log.error(`sync_skills: ${err.message}`)
     res.status(500).send(err.message)
   }
 })
@@ -162,7 +166,7 @@ router.post('/install_skill', async (req, res) => {
     const row = db.prepare('SELECT * FROM skills WHERE slug = ?').get(slug)
     const downloadUrl = row?.download_url || `${CLAWHUB_BASE}/skills/${slug}/download`
 
-    console.log(`[install_skill] ${slug} from ${downloadUrl}`)
+    log.info(`install_skill: ${slug} from ${downloadUrl}`)
 
     const r = await fetch(downloadUrl, { signal: AbortSignal.timeout(30000) })
     if (!r.ok) return res.status(502).send(`下载失败 ${r.status}: ${slug}`)
@@ -203,11 +207,11 @@ router.post('/install_skill', async (req, res) => {
       `).run(slug, slug, slug, skillDir, ts, ts)
     }
 
-    console.log(`[install_skill] OK → ${skillDir}`)
+    log.info(`install_skill: OK → ${skillDir}`)
     const updated = rowToSkill(db.prepare('SELECT * FROM skills WHERE slug = ?').get(slug))
     res.json(updated)
   } catch (err) {
-    console.error('[install_skill] error:', err.message)
+    log.error(`install_skill: ${err.message}`)
     res.status(500).send(err.message)
   }
 })
@@ -230,8 +234,10 @@ router.post('/uninstall_skill', (req, res) => {
         .run(slug)
     }
 
+    log.info(`uninstall_skill: ${slug}`)
     res.json({ ok: true })
   } catch (err) {
+    log.error(`uninstall_skill: ${err.message}`)
     res.status(500).send(err.message)
   }
 })

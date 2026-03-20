@@ -7,6 +7,8 @@ import FormData from 'form-data'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
+import { createLogger } from '../logger.js'
+const log = createLogger('deployment')
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE_ROOT = path.resolve(__dirname, '../..')
@@ -22,6 +24,10 @@ function writeLog(level, component, message) {
     db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
       .run(now(), level, component, message)
   } catch (_) {}
+  const lvl = level.toLowerCase()
+  if (lvl === 'error') log.error(`[${component}] ${message}`)
+  else if (lvl === 'warn') log.warn(`[${component}] ${message}`)
+  else log.info(`[${component}] ${message}`)
 }
 
 function collectOpcData(opcId) {
@@ -377,14 +383,17 @@ router.post('/start_deployment', async (req, res) => {
     // Check if office has daemon configured
     if (office.daemon_url && office.daemon_api_key) {
       // Real daemon deployment (async)
-      setImmediate(() => runDaemonDeploy(taskId, opc_id, opc, office).catch(console.error))
+      log.info(`start_deployment: daemon mode opc=${opc.name} office=${office.name} task=${taskId}`)
+      setImmediate(() => runDaemonDeploy(taskId, opc_id, opc, office).catch(e => log.error(`runDaemonDeploy: ${e.message}`)))
     } else {
       // Stub simulation (no daemon configured)
+      log.info(`start_deployment: stub mode opc=${opc.name} office=${office.name} task=${taskId}`)
       runStubDeploy(taskId, opc_id, opc, office)
     }
 
     res.json(taskId)
   } catch (err) {
+    log.error(`start_deployment: ${err.message}`)
     res.status(500).send(err.message)
   }
 })
@@ -547,8 +556,10 @@ router.post('/cancel_deployment', (req, res) => {
     const { task_id } = req.body
     db.prepare(`UPDATE deployment_tasks SET status = 'FAILED', message = 'Cancelled', completed_at = ? WHERE id = ?`)
       .run(now(), task_id)
+    log.info(`cancel_deployment: task=${task_id}`)
     res.json(null)
   } catch (err) {
+    log.error(`cancel_deployment: ${err.message}`)
     res.status(500).send(err.message)
   }
 })

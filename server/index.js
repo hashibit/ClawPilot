@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import { DB_PATH } from './db.js'
+import { accessLogger, createLogger } from './logger.js'
 
 import opcRouter from './routes/opc.js'
 import agentRouter from './routes/agent.js'
@@ -16,13 +17,12 @@ import processRouter from './routes/process.js'
 import toolRouter from './routes/tool.js'
 import skillRouter from './routes/skill.js'
 
+const log = createLogger('server')
+
 const app = express()
 app.use(cors())
 app.use(express.json())
-app.use((req, _res, next) => {
-  console.log(`[${new Date().toISOString().slice(11, 19)}] ${req.method} ${req.path}`)
-  next()
-})
+app.use(accessLogger)
 
 app.use('/api', opcRouter)
 app.use('/api', agentRouter)
@@ -40,6 +40,6 @@ app.use('/api', skillRouter)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
-  console.log(`[dev-backend] listening on http://localhost:${PORT}`)
-  console.log(`[dev-backend] DB: ${DB_PATH}`)
+  log.info(`listening on http://localhost:${PORT}`)
+  log.info(`DB: ${DB_PATH}`)
 })
