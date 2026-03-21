@@ -8,15 +8,15 @@ import {
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType, ModelInfo, OpcConfig } from '../lib/types'
 
-const AGENT_GRADIENTS: [string, string][] = [
-  ['#8b5cf6', '#06b6d4'], // 紫→青
-  ['#f97316', '#eab308'], // 橙→黄
-  ['#ec4899', '#f97316'], // 粉→橙
-  ['#10b981', '#06b6d4'], // 绿→青
-  ['#3b82f6', '#8b5cf6'], // 蓝→紫
-  ['#ef4444', '#f97316'], // 红→橙
-  ['#a855f7', '#ec4899'], // 紫→粉
-  ['#14b8a6', '#3b82f6'], // 蓝绿→蓝
+const AGENT_COLORS: string[] = [
+  '#8b5cf6', '#f97316', '#ec4899', '#10b981', '#3b82f6', '#ef4444', '#a855f7', '#14b8a6',
+  '#f43f5e', '#eab308', '#06b6d4', '#84cc16', '#6366f1', '#e11d48', '#0ea5e9', '#d946ef',
+  '#22c55e', '#fb923c', '#2dd4bf', '#7c3aed', '#dc2626', '#0891b2', '#65a30d', '#db2777',
+  '#059669', '#b45309', '#0284c7', '#c026d3', '#16a34a', '#ea580c', '#0e7490', '#9333ea',
+  '#be123c', '#4f46e5', '#0f766e', '#d97706', '#7e22ce', '#15803d', '#1d4ed8', '#9d174d',
+  '#047857', '#c2410c', '#6d28d9', '#b91c1c', '#0369a1', '#4d7c0f', '#7c2d12', '#831843',
+  '#14532d', '#1e3a5f', '#4a044e', '#422006', '#052e16', '#450a0a', '#1a1a2e', '#0d0221',
+  '#1b0036', '#0a0a23', '#ff6b6b', '#48dbfb', '#54a0ff', '#1dd1a1', '#f368e0', '#feca57',
 ]
 
 const DOC_TYPES: DocumentType[] = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'MEMORY', 'HEARTBEAT', 'TOOLS']
@@ -551,8 +551,9 @@ export default function AgentsPage() {
     const opc = targetOpc ?? currentOpc
     if (!opc) return
     const currentAgents = opcAgentsMap[opc.id] ?? []
-    const usedStarts = new Set(currentAgents.map(a => a.gradient_start))
-    const gradientPick = AGENT_GRADIENTS.find(([s]) => !usedStarts.has(s)) ?? AGENT_GRADIENTS[currentAgents.length % AGENT_GRADIENTS.length]
+    const allAgents = Object.values(opcAgentsMap).flat()
+    const usedColors = new Set(allAgents.map(a => a.gradient_start))
+    const colorPick = AGENT_COLORS.find(c => !usedColors.has(c)) ?? AGENT_COLORS[allAgents.length % AGENT_COLORS.length]
     const displayName = `新智能体 ${currentAgents.length + 1}`
     const now = Math.floor(Date.now() / 1000)
     const draft: AgentConfig = {
@@ -560,7 +561,7 @@ export default function AgentsPage() {
       name: slugify(displayName), display_name: displayName,
       job_title: undefined, personality: undefined, description: undefined,
       initials: displayName.slice(0, 2),
-      gradient_start: gradientPick[0], gradient_end: gradientPick[1],
+      gradient_start: colorPick, gradient_end: colorPick,
       is_default: false, order_index: currentAgents.length,
       model_provider: undefined, model_name: undefined,
       enabled_tools: [], disabled_tools: [], enabled_skills: [],
