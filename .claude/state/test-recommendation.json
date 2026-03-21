@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-21T14:06:54Z",
-  "changed_file": "src/pages/BindingsPage.tsx",
+  "timestamp": "2026-03-21T15:36:36Z",
+  "changed_file": "src/pages/OfficePage.tsx",
   "test_command": "npm test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"

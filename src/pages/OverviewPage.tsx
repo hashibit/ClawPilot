@@ -188,7 +188,7 @@ export default function OverviewPage() {
       <section>
         <div className="section-label" style={{ padding: '0 0 7px' }}>各公司消息量（今日）</div>
         <div className="stat-card">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             {opcs.length === 0 ? (
               <div style={{ fontSize: '12px', color: '#8E8E93' }}>暂无公司数据</div>
             ) : (() => {
@@ -198,7 +198,7 @@ export default function OverviewPage() {
                 const msgs = statsMap.get(opc.id)?.message_count_today ?? opc.message_count_today
                 const pct = Math.round((msgs / maxMsg) * 100)
                 return (
-                  <div key={opc.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div key={opc.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px' }}>
                     <div style={{ width: '80px', fontSize: '12px', color: 'rgba(255,255,255,0.8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opc.display_name}</div>
                     <div style={{ flex: 1 }}>
                       <div className="trend-bar"><div className="trend-fill" style={{ width: `${pct}%`, background: colors[i % colors.length] }}></div></div>
@@ -220,7 +220,7 @@ export default function OverviewPage() {
             <div style={{ fontSize: '12px', color: '#8E8E93' }}>暂无运行中公司</div>
           ) : (
             opcs.filter(o => o.is_running).map(opc => (
-              <div key={opc.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div key={opc.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px' }}>
                 <div style={{
                   width: '32px', height: '32px', borderRadius: '8px',
                   background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},${opc.avatar_color ?? '#06b6d4'})`,

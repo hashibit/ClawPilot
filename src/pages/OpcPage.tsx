@@ -441,7 +441,7 @@ export default function OpcPage() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {snapshots.map(snap => (
-                      <div key={snap.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div key={snap.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '4px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                         <div style={{ flexShrink: 0 }}>
                           <svg fill="none" stroke={snap.is_auto ? '#f59e0b' : '#8b5cf6'} strokeWidth="1.75" viewBox="0 0 24 24" width="15" height="15">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>

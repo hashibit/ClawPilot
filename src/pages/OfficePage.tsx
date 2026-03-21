@@ -19,7 +19,9 @@ export default function OfficePage() {
   const [selected, setSelected] = useState<Office | null>(null)
   const [form, setForm] = useState<Partial<Office>>({})
   const [editing, setEditing] = useState(false)
+  const [isNewOffice, setIsNewOffice] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Office | null>(null)
   const [deployHistory, setDeployHistory] = useState<OfficeDeployment[]>([])
   const [daemonHealth, setDaemonHealth] = useState<DaemonHealthResult | null>(null)
   const [healthChecking, setHealthChecking] = useState(false)
@@ -28,7 +30,7 @@ export default function OfficePage() {
   const installAbortRef = useRef<boolean>(false)
 
   // Derived from form.address: true = remote, false = localhost, null = unset
-  const addressMode = !form.address ? null : form.address === 'localhost' ? false : true
+  const addressMode = (form.address === null || form.address === undefined) ? null : form.address === 'localhost' ? false : true
 
   useEffect(() => {
     loadOffices()
@@ -63,12 +65,13 @@ export default function OfficePage() {
   }, [])
 
   const handleSelect = useCallback((office: Office) => {
+    if (isNewOffice) setIsNewOffice(false)
     setSelected(office); setForm(office)
     setEditing(false)
     setDaemonHealth(null)
     getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
     if (office.daemon_url) checkDaemon(office.daemon_url, office.daemon_api_key ?? '')
-  }, [checkDaemon])
+  }, [checkDaemon, isNewOffice])
 
   const handleFormChange = (field: keyof Office, value: unknown) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -86,75 +89,84 @@ export default function OfficePage() {
     }
     setSaving(true)
     try {
-      const addressChanged = form.address !== selected.address
-      const credChanged =
-        form.access_auth_type !== selected.access_auth_type ||
-        form.access_user !== selected.access_user ||
-        form.access_password !== selected.access_password ||
-        form.ssh_key_path !== selected.ssh_key_path
-
-      // Address changed → old daemon info is invalid, clear it
-      const daemonFields = addressChanged
-        ? { daemon_url: undefined, daemon_api_key: undefined }
-        : {}
-
-      const updated: Office = { ...selected, ...form, ...daemonFields, updated_at: Math.floor(Date.now() / 1000) }
-      await updateOffice(selected.id, updated)
-      setOffices(prev => prev.map(o => o.id === updated.id ? updated : o))
-      setSelected(updated)
-      setEditing(false)
-      setDaemonHealth(null)
-      toast('办公室信息已保存', 'success')
-
-      if (!addressChanged && updated.daemon_url) {
-        checkDaemon(updated.daemon_url, updated.daemon_api_key ?? '')
+      if (isNewOffice) {
+        const now = Math.floor(Date.now() / 1000)
+        const newOffice: Office = { ...selected, ...form, created_at: now, updated_at: now } as Office
+        await createOffice(newOffice)
+        await loadOffices()
+        setSelected(newOffice)
+        setIsNewOffice(false)
+        setEditing(false)
+        toast('办公室已创建', 'success')
+      } else {
+        const addressChanged = form.address !== selected.address
+        const daemonFields = addressChanged ? { daemon_url: undefined, daemon_api_key: undefined } : {}
+        const updated: Office = { ...selected, ...form, ...daemonFields, updated_at: Math.floor(Date.now() / 1000) }
+        await updateOffice(selected.id, updated)
+        setOffices(prev => prev.map(o => o.id === updated.id ? updated : o))
+        setSelected(updated)
+        setEditing(false)
+        setDaemonHealth(null)
+        toast('办公室信息已保存', 'success')
+        if (!addressChanged && updated.daemon_url) {
+          checkDaemon(updated.daemon_url, updated.daemon_api_key ?? '')
+        }
       }
     } catch (e) { toast(String(e), 'error') }
     finally { setSaving(false) }
   }
 
   const handleCancel = () => {
-    setEditing(false)
-    if (selected) setForm(selected)
+    if (isNewOffice) {
+      setIsNewOffice(false)
+      const prev = offices[0] ?? null
+      setSelected(prev); setForm(prev ?? {})
+      if (prev) getOfficeDeployments(prev.id).then(setDeployHistory).catch(() => setDeployHistory([]))
+    } else {
+      setEditing(false)
+      if (selected) setForm(selected)
+    }
   }
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
+    if (isNewOffice) return
     const now = Math.floor(Date.now() / 1000)
-    const newOffice: Office = {
+    const tempOffice: Office = {
       id: crypto.randomUUID(),
       name: `新办公室 ${offices.length + 1}`,
-      address: '',
+      address: undefined,
       ownership: 'RENTED',
       decoration_grade: 'MEDIUM',
       created_at: now,
       updated_at: now,
     }
-    try {
-      await createOffice(newOffice)
-      await loadOffices()
-      setSelected(newOffice); setForm(newOffice)
-      setEditing(true)
-      toast('办公室已创建', 'success')
-    } catch (e) { toast(String(e), 'error') }
+    setIsNewOffice(true)
+    setEditing(true)
+    setSelected(tempOffice)
+    setForm(tempOffice)
+    setDeployHistory([])
+    setDaemonHealth(null)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (office: Office) => {
     try {
-      await deleteOffice(id)
-      const list = offices.filter(o => o.id !== id)
+      await deleteOffice(office.id)
+      const list = offices.filter(o => o.id !== office.id)
       setOffices(list)
-      if (selected?.id === id) {
+      if (selected?.id === office.id) {
         const next = list[0] ?? null
         setSelected(next); setForm(next ?? {})
         if (next) getOfficeDeployments(next.id).then(setDeployHistory).catch(() => setDeployHistory([]))
         else setDeployHistory([])
       }
+      setConfirmDelete(null)
       toast('已删除', 'success')
     } catch (e) { toast(String(e), 'error') }
   }
 
   const handleInstallLatest = async () => {
     if (!selected) return
+    if (isNewOffice) { toast('请先保存办公室后再安装物业', 'error'); return }
     if (installStep === 'openclaw' || installStep === 'daemon') return
     installAbortRef.current = false
     setInstallLogs([])
@@ -213,7 +225,7 @@ export default function OfficePage() {
           {offices.map(office => (
             <div
               key={office.id}
-              className={`list-row${selected?.id === office.id ? ' selected' : ''}`}
+              className={`list-row${selected?.id === office.id && !isNewOffice ? ' selected' : ''}`}
               onClick={() => handleSelect(office)}
               style={{ cursor: 'pointer' }}
             >
@@ -224,7 +236,7 @@ export default function OfficePage() {
                 fontSize: '14px', flexShrink: 0,
               }}>🏢</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id && !isNewOffice ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {office.name}
                 </div>
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -234,6 +246,15 @@ export default function OfficePage() {
               </div>
             </div>
           ))}
+          {isNewOffice && (
+            <div className="list-row selected">
+              <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏢</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name || '新办公室'}</div>
+                <div style={{ fontSize: '11px', color: '#f59e0b' }}>未保存</div>
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ padding: '8px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
           <button
@@ -260,15 +281,16 @@ export default function OfficePage() {
                 <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selected.name}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {editing ? (
+                {(editing || isNewOffice) ? (
                   <>
+                    {isNewOffice && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>未保存</span>}
                     <button className="tbtn tbtn-ghost" onClick={handleCancel}>取消</button>
                     <button className="tbtn tbtn-accent" onClick={handleSave} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
                   </>
                 ) : (
                   <>
                     <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>编辑</button>
-                    <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDelete(selected.id)}>删除</button>
+                    <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => setConfirmDelete(selected)}>删除</button>
                   </>
                 )}
               </div>
@@ -293,7 +315,7 @@ export default function OfficePage() {
                           <button key={t} onClick={() => {
                             if (!editing) return
                             if (t === 'local') handleFormChange('address', 'localhost')
-                            else if (form.address === 'localhost') handleFormChange('address', '')
+                            else if (addressMode !== true) handleFormChange('address', '')
                           }} style={{
                             padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', flexShrink: 0,
                             border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
@@ -507,6 +529,21 @@ export default function OfficePage() {
           </>
         )}
       </main>
+
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>删除办公室</div>
+            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
+              确定要删除「<span style={{ color: '#FFFFFF' }}>{confirmDelete.name}</span>」吗？此操作不可撤销。
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
+              <button className="tbtn" style={{ background: '#f43f5e', color: '#fff', border: 'none' }} onClick={() => handleDelete(confirmDelete)}>确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
