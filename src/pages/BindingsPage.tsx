@@ -32,6 +32,8 @@ export default function BindingsPage() {
   const [agents, setAgents] = useState<AgentConfig[]>([])
   const [selectedBinding, setSelectedBinding] = useState<BindingRule | null>(null)
   const [bindingForm, setBindingForm] = useState<Partial<BindingRule>>({})
+  const [bindingEditing, setBindingEditing] = useState(false)
+  const [isNewBinding, setIsNewBinding] = useState(false)
   const [savingBinding, setSavingBinding] = useState(false)
 
   useEffect(() => {
@@ -111,35 +113,42 @@ export default function BindingsPage() {
     } finally { setTesting(false) }
   }
 
-  const handleAddBinding = async () => {
+  const handleAddBinding = () => {
     if (!currentOpc) return
     const now = Math.floor(Date.now() / 1000)
-    const newBinding: BindingRule = {
+    const draft: BindingRule = {
       id: crypto.randomUUID(), opc_id: currentOpc.id,
       channel_id: '', channel_name: '新群组', channel_type: 'GROUP',
       agent_id: agents[0]?.id ?? '', agent_name: agents[0]?.display_name ?? '',
       trigger_mode: 'MENTION', is_enabled: true,
       created_at: now, updated_at: now,
     }
-    try {
-      await createBinding(newBinding)
-      await loadData()
-      toast('绑定已添加', 'success')
-      // Auto-select newly created binding
-      setSelectedBinding(newBinding)
-      setBindingForm(newBinding)
-    } catch (e) { toast(String(e), 'error') }
+    setSelectedBinding(draft)
+    setBindingForm(draft)
+    setBindingEditing(true)
+    setIsNewBinding(true)
   }
 
   const handleSelectBinding = (binding: BindingRule) => {
     setSelectedBinding(binding)
     setBindingForm({ ...binding })
+    setBindingEditing(false)
+    setIsNewBinding(false)
+  }
+
+  const handleCancelBinding = () => {
+    if (isNewBinding) {
+      setSelectedBinding(null)
+      setIsNewBinding(false)
+    } else {
+      if (selectedBinding) setBindingForm({ ...selectedBinding })
+    }
+    setBindingEditing(false)
   }
 
   const handleBindingFormChange = (field: keyof BindingRule, value: unknown) => {
     setBindingForm(prev => {
       const next = { ...prev, [field]: value }
-      // Auto-sync agent_name when agent_id changes
       if (field === 'agent_id') {
         const agent = agents.find(a => a.id === value)
         if (agent) next.agent_name = agent.display_name
@@ -153,9 +162,17 @@ export default function BindingsPage() {
     setSavingBinding(true)
     try {
       const updated: BindingRule = { ...selectedBinding, ...bindingForm, updated_at: Math.floor(Date.now() / 1000) } as BindingRule
-      await updateBinding(selectedBinding.id, updated)
-      setBindings(prev => prev.map(b => b.id === updated.id ? updated : b))
-      setSelectedBinding(updated)
+      if (isNewBinding) {
+        await createBinding(updated)
+        await loadData()
+        setSelectedBinding(updated)
+      } else {
+        await updateBinding(selectedBinding.id, updated)
+        setBindings(prev => prev.map(b => b.id === updated.id ? updated : b))
+        setSelectedBinding(updated)
+      }
+      setIsNewBinding(false)
+      setBindingEditing(false)
       toast('绑定配置已保存', 'success')
     } catch (e) { toast(String(e), 'error') }
     finally { setSavingBinding(false) }
@@ -165,7 +182,7 @@ export default function BindingsPage() {
     try {
       await deleteBinding(id)
       setBindings(prev => prev.filter(b => b.id !== id))
-      if (selectedBinding?.id === id) setSelectedBinding(null)
+      if (selectedBinding?.id === id) { setSelectedBinding(null); setIsNewBinding(false) }
       toast('已删除', 'success')
     } catch (e) { toast(String(e), 'error') }
   }
@@ -376,31 +393,47 @@ export default function BindingsPage() {
                 <button className="tbtn tbtn-accent" style={{ fontSize: '11px' }} onClick={handleAddBinding}>+ 添加群组</button>
               </div>
               <div className="group">
-                {bindings.length === 0 ? (
+                {bindings.length === 0 && !isNewBinding ? (
                   <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#8E8E93' }}>暂无绑定群组</div>
                 ) : (
-                  bindings.map(binding => (
-                    <div
-                      key={binding.id}
-                      className="list-row"
-                      onClick={() => handleSelectBinding(binding)}
-                      style={{
-                        cursor: 'pointer',
-                        background: selectedBinding?.id === binding.id ? 'rgba(139,92,246,0.15)' : undefined,
-                      }}
-                    >
-                      <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: '#a78bfa' }}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <>
+                    {bindings.map(binding => (
+                      <div
+                        key={binding.id}
+                        className="list-row"
+                        onClick={() => handleSelectBinding(binding)}
+                        style={{
+                          cursor: 'pointer',
+                          background: selectedBinding?.id === binding.id ? 'rgba(139,92,246,0.15)' : undefined,
+                        }}
+                      >
+                        <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: '#a78bfa' }}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="text-xs text-medium">{binding.channel_name || '（未命名群组）'}</div>
+                          <div className="text-xs text-dimmer">
+                            {binding.is_enabled ? '已绑定' : '已禁用'} · {binding.agent_name || '未绑定智能体'}
+                          </div>
+                        </div>
+                        <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: selectedBinding?.id === binding.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)', flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="text-xs text-medium">{binding.channel_name || '（未命名群组）'}</div>
-                        <div className="text-xs text-dimmer">
-                          {binding.is_enabled ? '已绑定' : '已禁用'} · {binding.agent_name || '未绑定智能体'}
+                    ))}
+                    {isNewBinding && selectedBinding && (
+                      <div
+                        className="list-row"
+                        style={{ background: 'rgba(139,92,246,0.15)', cursor: 'default' }}
+                      >
+                        <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: '#a78bfa' }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="text-xs text-medium">{bindingForm.channel_name || '新群组'}</div>
+                          <div className="text-xs text-dimmer">未保存</div>
                         </div>
                       </div>
-                      <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: selectedBinding?.id === binding.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)', flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                    </div>
-                  ))
+                    )}
+                  </>
                 )}
               </div>
             </section>
@@ -410,15 +443,29 @@ export default function BindingsPage() {
 
       {/* COL4 - Channel detail panel */}
       {selectedBinding && (
-        <aside style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#141416' }}>
+        <aside style={{ width: '480px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#141416' }}>
           <div className="toolbar" style={{ justifyContent: 'space-between' }}>
             <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {bindingForm.channel_name || '群组配置'}
+              {isNewBinding && <span style={{ fontSize: '11px', color: '#a78bfa', marginLeft: '6px', fontWeight: 400 }}>未保存</span>}
             </span>
-            <button
-              onClick={() => setSelectedBinding(null)}
-              style={{ background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
-            >×</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+              {bindingEditing ? (
+                <>
+                  <button className="tbtn tbtn-ghost" onClick={handleCancelBinding}>取消</button>
+                  <button className="tbtn tbtn-accent" onClick={handleSaveBinding} disabled={savingBinding}>{savingBinding ? '保存中…' : '保存'}</button>
+                </>
+              ) : (
+                <>
+                  <button className="tbtn tbtn-ghost" onClick={() => setBindingEditing(true)}>编辑</button>
+                  <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteBinding(selectedBinding.id)}>删除</button>
+                </>
+              )}
+              <button
+                onClick={() => { setSelectedBinding(null); setIsNewBinding(false) }}
+                style={{ background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: '18px', lineHeight: 1, marginLeft: '2px' }}
+              >×</button>
+            </div>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
@@ -428,38 +475,50 @@ export default function BindingsPage() {
               <div className="group">
                 <div className="group-row" style={{ gap: '10px' }}>
                   <span className="group-label">群组名称</span>
-                  <input
-                    type="text"
-                    value={bindingForm.channel_name ?? ''}
-                    onChange={e => handleBindingFormChange('channel_name', e.target.value)}
-                    className="field-input"
-                    style={{ flex: 1 }}
-                  />
+                  {bindingEditing ? (
+                    <input
+                      type="text"
+                      value={bindingForm.channel_name ?? ''}
+                      onChange={e => handleBindingFormChange('channel_name', e.target.value)}
+                      className="field-input"
+                      style={{ flex: 1 }}
+                    />
+                  ) : (
+                    <span className="group-value">{bindingForm.channel_name || '—'}</span>
+                  )}
                 </div>
                 <div className="group-row" style={{ gap: '10px' }}>
                   <span className="group-label">群组 ID</span>
-                  <input
-                    type="text"
-                    value={bindingForm.channel_id ?? ''}
-                    onChange={e => handleBindingFormChange('channel_id', e.target.value)}
-                    placeholder="oc_xxx..."
-                    className="field-input"
-                    style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}
-                  />
+                  {bindingEditing ? (
+                    <input
+                      type="text"
+                      value={bindingForm.channel_id ?? ''}
+                      onChange={e => handleBindingFormChange('channel_id', e.target.value)}
+                      placeholder="oc_xxx..."
+                      className="field-input"
+                      style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}
+                    />
+                  ) : (
+                    <span className="group-value text-dimmer" style={{ fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}>{bindingForm.channel_id || '—'}</span>
+                  )}
                 </div>
                 <div className="group-row" style={{ gap: '10px' }}>
                   <span className="group-label">类型</span>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <select
-                      className="field-input"
-                      style={{ width: '100%' }}
-                      value={bindingForm.channel_type ?? 'GROUP'}
-                      onChange={e => handleBindingFormChange('channel_type', e.target.value)}
-                    >
-                      <option value="GROUP">群组</option>
-                      <option value="DM">私聊</option>
-                    </select>
-                  </div>
+                  {bindingEditing ? (
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <select
+                        className="field-input"
+                        style={{ width: '100%' }}
+                        value={bindingForm.channel_type ?? 'GROUP'}
+                        onChange={e => handleBindingFormChange('channel_type', e.target.value)}
+                      >
+                        <option value="GROUP">群组</option>
+                        <option value="DM">私聊</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <span className="group-value">{bindingForm.channel_type === 'DM' ? '私聊' : '群组'}</span>
+                  )}
                 </div>
               </div>
             </section>
@@ -470,44 +529,53 @@ export default function BindingsPage() {
               <div className="group">
                 <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
                   <span className="group-label" style={{ marginTop: '5px' }}>关联智能体</span>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <select
-                      className="field-input"
-                      style={{ width: '100%' }}
-                      value={bindingForm.agent_id ?? ''}
-                      onChange={e => handleBindingFormChange('agent_id', e.target.value)}
-                    >
-                      <option value="">— 未选择 —</option>
-                      {agents.map(a => (
-                        <option key={a.id} value={a.id}>{a.display_name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {bindingEditing ? (
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <select
+                        className="field-input"
+                        style={{ width: '100%' }}
+                        value={bindingForm.agent_id ?? ''}
+                        onChange={e => handleBindingFormChange('agent_id', e.target.value)}
+                      >
+                        <option value="">— 未选择 —</option>
+                        {agents.map(a => (
+                          <option key={a.id} value={a.id}>{a.display_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <span className="group-value">{bindingForm.agent_name || '—'}</span>
+                  )}
                 </div>
                 <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
                   <span className="group-label" style={{ marginTop: '5px' }}>触发模式</span>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <select
-                      className="field-input"
-                      style={{ width: '100%' }}
-                      value={bindingForm.trigger_mode ?? 'MENTION'}
-                      onChange={e => handleBindingFormChange('trigger_mode', e.target.value)}
-                    >
-                      <option value="MENTION">@机器人触发</option>
-                      <option value="ALL">所有消息</option>
-                    </select>
-                  </div>
+                  {bindingEditing ? (
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <select
+                        className="field-input"
+                        style={{ width: '100%' }}
+                        value={bindingForm.trigger_mode ?? 'MENTION'}
+                        onChange={e => handleBindingFormChange('trigger_mode', e.target.value)}
+                      >
+                        <option value="MENTION">@机器人触发</option>
+                        <option value="ALL">所有消息</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <span className="group-value">{bindingForm.trigger_mode === 'ALL' ? '所有消息' : '@机器人触发'}</span>
+                  )}
                 </div>
                 <div className="group-row">
                   <span className="group-label">启用状态</span>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: bindingEditing ? 'pointer' : 'default', flex: 1 }}>
                     <button
-                      onClick={() => handleBindingFormChange('is_enabled', !bindingForm.is_enabled)}
+                      onClick={() => bindingEditing && handleBindingFormChange('is_enabled', !bindingForm.is_enabled)}
+                      disabled={!bindingEditing}
                       style={{
-                        width: '32px', height: '18px', borderRadius: '9px', border: 'none', cursor: 'pointer',
+                        width: '32px', height: '18px', borderRadius: '9px', border: 'none', cursor: bindingEditing ? 'pointer' : 'default',
                         background: bindingForm.is_enabled ? '#8b5cf6' : '#3A3A3C',
                         position: 'relative', transition: 'background 0.15s',
-                        flexShrink: 0,
+                        flexShrink: 0, opacity: bindingEditing ? 1 : 0.7,
                       }}
                     >
                       <span style={{
@@ -520,18 +588,6 @@ export default function BindingsPage() {
                     <span style={{ fontSize: '12px', color: '#EBEBF5' }}>{bindingForm.is_enabled ? '启用' : '禁用'}</span>
                   </label>
                 </div>
-              </div>
-              <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
-                <button className="tbtn tbtn-accent" style={{ fontSize: '11px' }} onClick={handleSaveBinding} disabled={savingBinding}>
-                  保存配置
-                </button>
-                <button
-                  className="tbtn tbtn-ghost"
-                  style={{ fontSize: '11px', color: '#f43f5e' }}
-                  onClick={() => handleDeleteBinding(selectedBinding.id)}
-                >
-                  删除
-                </button>
               </div>
             </section>
 
