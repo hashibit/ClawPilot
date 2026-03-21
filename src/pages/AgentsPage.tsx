@@ -69,26 +69,28 @@ function slugify(name: string): string {
 }
 
 // ── Tag input ──────────────────────────────────────────────
-function TagInput({ tags, onChange, placeholder }: {
+function TagInput({ tags, onChange, placeholder, disabled }: {
   tags: string[]
   onChange: (tags: string[]) => void
   placeholder?: string
+  disabled?: boolean
 }) {
   const [input, setInput] = useState('')
   const add = () => {
+    if (disabled) return
     const v = input.trim()
     if (v && !tags.includes(v)) onChange([...tags, v])
     setInput('')
   }
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px', padding: '6px 9px', minHeight: '36px' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px', padding: '6px 9px', minHeight: '36px', opacity: disabled ? 0.7 : 1 }}>
       {tags.map(tag => (
         <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.18)', color: '#a78bfa', fontSize: '12px', padding: '2px 8px', borderRadius: '5px' }}>
           {tag}
-          <button onClick={() => onChange(tags.filter(t => t !== tag))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a78bfa', padding: 0, lineHeight: 1, fontSize: '13px' }}>×</button>
+          {!disabled && <button onClick={() => onChange(tags.filter(t => t !== tag))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a78bfa', padding: 0, lineHeight: 1, fontSize: '13px' }}>×</button>}
         </span>
       ))}
-      <input
+      {!disabled && <input
         type="text" value={input} onChange={e => setInput(e.target.value)}
         onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() }
@@ -97,7 +99,7 @@ function TagInput({ tags, onChange, placeholder }: {
         onBlur={add}
         placeholder={tags.length === 0 ? placeholder : ''}
         style={{ background: 'none', border: 'none', outline: 'none', color: 'rgba(255,255,255,0.8)', fontSize: '12px', minWidth: '80px', flex: 1 }}
-      />
+      />}
     </div>
   )
 }
@@ -406,6 +408,7 @@ export default function AgentsPage() {
   const [docContent, setDocContent] = useState('')
   const [docLoading, setDocLoading] = useState(false)
   const [form, setForm] = useState<Partial<AgentConfig>>({})
+  const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiGenerating, setAiGenerating] = useState(false)
@@ -453,7 +456,7 @@ export default function AgentsPage() {
   }, [selectedAgent?.id, activeDocTab])
 
   const handleSelectAgent = useCallback((agent: AgentConfig) => {
-    setSelectedAgent(agent); setForm(agent)
+    setSelectedAgent(agent); setForm(agent); setEditing(false)
   }, [])
 
   const handleFormChange = (field: keyof AgentConfig, value: unknown) => {
@@ -471,12 +474,13 @@ export default function AgentsPage() {
         [currentOpc.id]: (prev[currentOpc.id] ?? []).map(a => a.id === updated.id ? updated : a),
       }))
       setSelectedAgent(updated)
+      setEditing(false)
       toast('保存成功', 'success')
     } catch (e) { toast(String(e), 'error') }
     finally { setSaving(false) }
   }
 
-  const handleCancelEdit = () => { if (selectedAgent) setForm(selectedAgent) }
+  const handleCancelEdit = () => { setEditing(false); if (selectedAgent) setForm(selectedAgent) }
 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim() || !selectedAgent) return
@@ -544,7 +548,7 @@ export default function AgentsPage() {
       setOpcAgentsMap(prev => ({ ...prev, [opc.id]: list }))
       if (opc.id !== currentOpc?.id) selectOpc(opc)
       const created = list.find(a => a.id === newAgent.id) ?? list[list.length - 1]
-      setSelectedAgent(created); setForm(created)
+      setSelectedAgent(created); setForm(created); setEditing(true)
       toast('智能体已创建', 'success')
     } catch (e) { toast(String(e), 'error') }
   }
@@ -763,9 +767,17 @@ export default function AgentsPage() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button className="tbtn tbtn-ghost" onClick={() => setChatAgent(selectedAgent)} style={{ color: '#06b6d4' }}>测试对话</button>
-                <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>取消</button>
-                <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>保存</button>
-                <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteAgent(selectedAgent.id)}>删除</button>
+                {editing ? (
+                  <>
+                    <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>取消</button>
+                    <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>编辑</button>
+                    <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteAgent(selectedAgent.id)}>删除</button>
+                  </>
+                )}
               </div>
             </div>
 
@@ -785,14 +797,14 @@ export default function AgentsPage() {
                     style={{ flex: 1 }}
                     value={aiPrompt}
                     onChange={e => setAiPrompt(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !aiGenerating && handleAiGenerate()}
-                    disabled={aiGenerating}
+                    onKeyDown={e => e.key === 'Enter' && !aiGenerating && editing && handleAiGenerate()}
+                    disabled={aiGenerating || !editing}
                   />
                   <button
                     className="tbtn tbtn-accent"
                     style={{ whiteSpace: 'nowrap' }}
                     onClick={handleAiGenerate}
-                    disabled={aiGenerating || !aiPrompt.trim()}
+                    disabled={aiGenerating || !aiPrompt.trim() || !editing}
                   >
                     {aiGenerating ? '生成中...' : 'AI 生成'}
                   </button>
@@ -805,19 +817,19 @@ export default function AgentsPage() {
                 <div className="group">
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">显示名称</span>
-                    <input type="text" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} className="field-input" style={{ flex: 1 }} />
+                    <input type="text" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
                   </div>
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">英文标识</span>
-                    <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace" }} />
+                    <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace" }} disabled={!editing} />
                   </div>
                   <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
                     <span className="group-label" style={{ paddingTop: '2px' }}>简介</span>
-                    <textarea className="field-input" rows={2} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} />
+                    <textarea className="field-input" rows={2} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} disabled={!editing} />
                   </div>
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">职位名称</span>
-                    <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} />
+                    <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
                   </div>
                 </div>
               </section>
@@ -834,6 +846,7 @@ export default function AgentsPage() {
                         style={{ width: '100%', paddingRight: '24px' }}
                         value={selectedModelCombo}
                         onChange={e => handleModelSelect(e.target.value)}
+                        disabled={!editing}
                       >
                         <option value="">— 未选择 —</option>
                         {hasCustomModel && (
@@ -863,8 +876,8 @@ export default function AgentsPage() {
                       return (
                         <button
                           key={tool.id}
-                          onClick={() => toggleTool(tool.id)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: active ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${active ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.12)'}`, cursor: 'pointer', fontSize: '12px', color: active ? '#a78bfa' : 'rgba(235,235,245,0.7)', transition: 'all 0.15s' }}
+                          onClick={() => editing && toggleTool(tool.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: active ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${active ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.12)'}`, cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: active ? '#a78bfa' : 'rgba(235,235,245,0.7)', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
                         >
                           {tool.name}
                         </button>
@@ -873,8 +886,8 @@ export default function AgentsPage() {
                     {customTools.map(id => (
                       <button
                         key={id}
-                        onClick={() => toggleTool(id)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)', cursor: 'pointer', fontSize: '12px', color: '#a78bfa', transition: 'all 0.15s' }}
+                        onClick={() => editing && toggleTool(id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)', cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: '#a78bfa', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
                       >
                         {id} <span style={{ opacity: 0.6 }}>×</span>
                       </button>
@@ -894,7 +907,8 @@ export default function AgentsPage() {
                           }
                         }}
                         placeholder="+ 自定义工具 ID"
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.18)', borderRadius: '6px', padding: '4px 9px', fontSize: '11px', color: 'rgba(255,255,255,0.7)', outline: 'none', width: '130px' }}
+                        disabled={!editing}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.18)', borderRadius: '6px', padding: '4px 9px', fontSize: '11px', color: 'rgba(255,255,255,0.7)', outline: 'none', width: '130px', opacity: editing ? 1 : 0.5 }}
                       />
                     </div>
                   </div>
@@ -908,14 +922,14 @@ export default function AgentsPage() {
                     <span className="section-label" style={{ padding: 0 }}>技能配置</span>
                     <span style={{ fontSize: '11px', color: '#8E8E93' }}>{enabledSkills.length} 个技能</span>
                   </div>
-                  <button
+                  {editing && <button
                     className="tbtn tbtn-ghost"
                     style={{ padding: '1px 8px', fontSize: '11px' }}
                     onClick={() => setSkillModalOpen(true)}
                   >
                     <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="10" height="10" style={{ display: 'inline', marginRight: '3px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                     添加
-                  </button>
+                  </button>}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {enabledSkills.length === 0 && (
@@ -933,10 +947,10 @@ export default function AgentsPage() {
                           <div style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5' }}>{skill?.name ?? slug}</div>
                           {skill && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)', marginTop: '1px' }}>{skill.desc}</div>}
                         </div>
-                        <button
+                        {editing && <button
                           onClick={() => handleFormChange('enabled_skills', enabledSkills.filter(s => s !== slug))}
                           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', color: '#8E8E93', border: 'none', cursor: 'pointer', fontSize: '11px', lineHeight: 1, flexShrink: 0 }}
-                        >×</button>
+                        >×</button>}
                       </div>
                     )
                   })}
@@ -956,6 +970,7 @@ export default function AgentsPage() {
                       tags={guardrailAllow}
                       onChange={v => { handleFormChange('guardrail_allow', v); handleFormChange('guardrail_rules', v) }}
                       placeholder="允许做的事，如：发飞书消息、生成报告…"
+                      disabled={!editing}
                     />
                   </div>
                   <div>
@@ -967,6 +982,7 @@ export default function AgentsPage() {
                       tags={guardrailDeny}
                       onChange={v => handleFormChange('guardrail_deny', v)}
                       placeholder="禁止做的事，如：不删除文件、不对外发正式文件…"
+                      disabled={!editing}
                     />
                   </div>
                 </div>
@@ -988,7 +1004,7 @@ export default function AgentsPage() {
                 <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <div style={{ height: '26px', background: '#2C2C2E', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                     <span style={{ fontSize: '11px', color: '#8E8E93', fontFamily: "'SF Mono','Menlo',monospace" }}>{activeDocTab}.md</span>
-                    <button className="tbtn tbtn-accent" style={{ padding: '1px 8px', fontSize: '11px' }} onClick={handleSaveDoc} disabled={docLoading}>保存文档</button>
+                    {editing && <button className="tbtn tbtn-accent" style={{ padding: '1px 8px', fontSize: '11px' }} onClick={handleSaveDoc} disabled={docLoading}>保存文档</button>}
                   </div>
                   <textarea
                     className="field-textarea"
@@ -996,7 +1012,7 @@ export default function AgentsPage() {
                     spellCheck={false}
                     value={docLoading ? '加载中...' : docContent}
                     onChange={e => setDocContent(e.target.value)}
-                    disabled={docLoading}
+                    disabled={docLoading || !editing}
                   />
                 </div>
               </section>
