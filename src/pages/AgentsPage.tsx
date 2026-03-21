@@ -706,12 +706,12 @@ export default function AgentsPage() {
                   onClick={() => selectOpc(opc)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                  <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)` }}>
                     {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{agentCount} 个智能体</div>
+                    <div className="text-sm text-medium" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
+                    <div className="text-xs text-dim">{agentCount} 个智能体</div>
                   </div>
                 </div>
               )
