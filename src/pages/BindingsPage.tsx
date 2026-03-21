@@ -591,21 +591,6 @@ export default function BindingsPage() {
               </div>
             </section>
 
-            {/* 路由规则 */}
-            <section>
-              <div className="flex-between" style={{ marginBottom: '6px' }}>
-                <span className="section-label" style={{ padding: 0 }}>路由规则</span>
-              </div>
-              <div className="group">
-                <div className="group-row">
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6', flexShrink: 0, marginRight: '10px' }}></div>
-                  <div style={{ flex: 1 }}>
-                    <div className="text-xs text-medium">默认路由</div>
-                    <div className="text-xs text-dimmer">所有未匹配消息转发到关联智能体</div>
-                  </div>
-                </div>
-              </div>
-            </section>
           </div>
         </aside>
       )}

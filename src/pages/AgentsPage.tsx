@@ -768,7 +768,7 @@ export default function AgentsPage() {
                       )}
                     </div>
                     <span style={{ fontSize: '10px', color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.6)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-                      {agent.display_name}
+                      {agent.display_name}{isNewAgent && selectedAgent?.id === agent.id ? ' *' : ''}
                     </span>
                   </div>
                 )
@@ -799,7 +799,8 @@ export default function AgentsPage() {
                       {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
                     </div>
                     <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selectedAgent.display_name}</span>
-                    {selectedAgent.is_default && (
+                    {isNewAgent && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>[未保存]</span>}
+                    {selectedAgent.is_default && !isNewAgent && (
                       <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 500 }}>[领队]</span>
                     )}
                   </div>
