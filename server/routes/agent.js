@@ -72,6 +72,8 @@ export function createAgentRouter(db) {
   router.post('/create_agent', (req, res) => {
     try {
       const { config } = req.body
+      const existing = db.prepare('SELECT COUNT(*) as cnt FROM agents WHERE opc_id = ?').get(config.opc_id)
+      if (existing.cnt === 0) config.is_default = true
       db.prepare(`
         INSERT INTO agents
           (id, opc_id, name, display_name, job_title, personality, description, initials,
@@ -129,8 +131,15 @@ export function createAgentRouter(db) {
   router.post('/delete_agent', (req, res) => {
     try {
       const { id } = req.body
+      const agent = db.prepare('SELECT opc_id, is_default FROM agents WHERE id = ?').get(id)
       db.prepare('DELETE FROM bindings WHERE agent_id = ?').run(id)
       db.prepare('DELETE FROM agents WHERE id = ?').run(id)
+      // If deleted agent was the leader, promote the one with lowest order_index
+      if (agent?.is_default) {
+        const now = Math.floor(Date.now() / 1000)
+        const next = db.prepare('SELECT id FROM agents WHERE opc_id = ? ORDER BY order_index ASC LIMIT 1').get(agent.opc_id)
+        if (next) db.prepare('UPDATE agents SET is_default = 1, updated_at = ? WHERE id = ?').run(now, next.id)
+      }
       res.json(null)
     } catch (err) {
       res.status(500).send(err.message)
@@ -148,6 +157,21 @@ export function createAgentRouter(db) {
         }
       })
       reorder()
+      res.json(null)
+    } catch (err) {
+      res.status(500).send(err.message)
+    }
+  })
+
+  // set_default_agent
+  router.post('/set_default_agent', (req, res) => {
+    try {
+      const { opc_id, agent_id } = req.body
+      const now = Math.floor(Date.now() / 1000)
+      db.transaction(() => {
+        db.prepare('UPDATE agents SET is_default = 0, updated_at = ? WHERE opc_id = ?').run(now, opc_id)
+        db.prepare('UPDATE agents SET is_default = 1, updated_at = ? WHERE id = ? AND opc_id = ?').run(now, agent_id, opc_id)
+      })()
       res.json(null)
     } catch (err) {
       res.status(500).send(err.message)

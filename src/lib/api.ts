@@ -49,6 +49,8 @@ export const updateAgent = (id: string, config: AgentConfig) => call<void>('upda
 export const deleteAgent = (id: string) => call<void>('delete_agent', { id })
 export const reorderAgents = (opcId: string, agentIds: string[]) =>
   call<void>('reorder_agents', { opc_id: opcId, agent_ids: agentIds })
+export const setDefaultAgent = (opcId: string, agentId: string) =>
+  call<void>('set_default_agent', { opc_id: opcId, agent_id: agentId })
 export const getAgentDocument = (agentId: string, docType: string) =>
   call<string>('get_agent_document', { agent_id: agentId, doc_type: docType })
 export const updateAgentDocument = (agentId: string, docType: string, content: string) =>

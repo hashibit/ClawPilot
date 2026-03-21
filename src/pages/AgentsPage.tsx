@@ -1,12 +1,23 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useOpc } from '../contexts/OpcContext'
 import {
-  getAgents, createAgent, updateAgent, deleteAgent, reorderAgents,
+  getAgents, createAgent, updateAgent, deleteAgent, reorderAgents, setDefaultAgent,
   getAgentDocument, updateAgentDocument, aiGenerateAgent, getModels,
   chatWithAgent,
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType, ModelInfo, OpcConfig } from '../lib/types'
+
+const AGENT_GRADIENTS: [string, string][] = [
+  ['#8b5cf6', '#06b6d4'], // 紫→青
+  ['#f97316', '#eab308'], // 橙→黄
+  ['#ec4899', '#f97316'], // 粉→橙
+  ['#10b981', '#06b6d4'], // 绿→青
+  ['#3b82f6', '#8b5cf6'], // 蓝→紫
+  ['#ef4444', '#f97316'], // 红→橙
+  ['#a855f7', '#ec4899'], // 紫→粉
+  ['#14b8a6', '#3b82f6'], // 蓝绿→蓝
+]
 
 const DOC_TYPES: DocumentType[] = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'MEMORY', 'HEARTBEAT', 'TOOLS']
 
@@ -409,6 +420,8 @@ export default function AgentsPage() {
   const [docLoading, setDocLoading] = useState(false)
   const [form, setForm] = useState<Partial<AgentConfig>>({})
   const [editing, setEditing] = useState(false)
+  const [isNewAgent, setIsNewAgent] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<AgentConfig | null>(null)
   const [saving, setSaving] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiGenerating, setAiGenerating] = useState(false)
@@ -427,19 +440,20 @@ export default function AgentsPage() {
     getAgents(currentOpc.id)
       .then(list => {
         setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
+        const defaultAgent = list.find(a => a.is_default) ?? list[0] ?? null
         setSelectedAgent(prev => {
           if (prev) {
             const found = list.find(a => a.id === prev.id)
             if (found) return found
           }
-          return null
+          return defaultAgent
         })
         setForm(prev => {
           if ((prev as AgentConfig).id) {
             const found = list.find(a => a.id === (prev as AgentConfig).id)
             if (found) return found
           }
-          return {}
+          return defaultAgent ?? {}
         })
       })
       .catch(e => toast(String(e), 'error'))
@@ -455,7 +469,7 @@ export default function AgentsPage() {
   }, [selectedAgent?.id, activeDocTab])
 
   const handleSelectAgent = useCallback((agent: AgentConfig) => {
-    setSelectedAgent(agent); setForm(agent); setEditing(false)
+    setSelectedAgent(agent); setForm(agent); setEditing(false); setIsNewAgent(false)
   }, [])
 
   const handleFormChange = (field: keyof AgentConfig, value: unknown) => {
@@ -467,19 +481,30 @@ export default function AgentsPage() {
     setSaving(true)
     try {
       const updated: AgentConfig = { ...selectedAgent, ...form, updated_at: Math.floor(Date.now() / 1000) }
-      await updateAgent(selectedAgent.id, updated)
-      setOpcAgentsMap(prev => ({
-        ...prev,
-        [currentOpc.id]: (prev[currentOpc.id] ?? []).map(a => a.id === updated.id ? updated : a),
-      }))
-      setSelectedAgent(updated)
-      setEditing(false)
+      if (isNewAgent) {
+        await createAgent(updated)
+      } else {
+        await updateAgent(selectedAgent.id, updated)
+      }
+      const list = await getAgents(currentOpc.id)
+      setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
+      const saved = list.find(a => a.id === updated.id) ?? list[list.length - 1]
+      setSelectedAgent(saved); setIsNewAgent(false); setEditing(false)
       toast('保存成功', 'success')
     } catch (e) { toast(String(e), 'error') }
     finally { setSaving(false) }
   }
 
-  const handleCancelEdit = () => { setEditing(false); if (selectedAgent) setForm(selectedAgent) }
+  const handleCancelEdit = () => {
+    if (isNewAgent) {
+      const agents = currentOpc ? (opcAgentsMap[currentOpc.id] ?? []) : []
+      const fallback = agents.find(a => a.is_default) ?? agents[0] ?? null
+      setSelectedAgent(fallback); setForm(fallback ?? {}); setIsNewAgent(false)
+    } else {
+      if (selectedAgent) setForm(selectedAgent)
+    }
+    setEditing(false)
+  }
 
   const handleAiGenerate = async () => {
     if (!aiPrompt.trim() || !selectedAgent) return
@@ -522,18 +547,20 @@ export default function AgentsPage() {
     } catch (e) { toast(String(e), 'error') }
   }
 
-  const handleAddAgent = async (targetOpc?: OpcConfig) => {
+  const handleAddAgent = (targetOpc?: OpcConfig) => {
     const opc = targetOpc ?? currentOpc
     if (!opc) return
     const currentAgents = opcAgentsMap[opc.id] ?? []
+    const usedStarts = new Set(currentAgents.map(a => a.gradient_start))
+    const gradientPick = AGENT_GRADIENTS.find(([s]) => !usedStarts.has(s)) ?? AGENT_GRADIENTS[currentAgents.length % AGENT_GRADIENTS.length]
     const displayName = `新智能体 ${currentAgents.length + 1}`
     const now = Math.floor(Date.now() / 1000)
-    const newAgent: AgentConfig = {
+    const draft: AgentConfig = {
       id: crypto.randomUUID(), opc_id: opc.id,
       name: slugify(displayName), display_name: displayName,
       job_title: undefined, personality: undefined, description: undefined,
       initials: displayName.slice(0, 2),
-      gradient_start: '#8b5cf6', gradient_end: '#06b6d4',
+      gradient_start: gradientPick[0], gradient_end: gradientPick[1],
       is_default: false, order_index: currentAgents.length,
       model_provider: undefined, model_name: undefined,
       enabled_tools: [], disabled_tools: [], enabled_skills: [],
@@ -541,28 +568,33 @@ export default function AgentsPage() {
       reports_to: [], manages: [],
       created_at: now, updated_at: now,
     }
-    try {
-      await createAgent(newAgent)
-      const list = await getAgents(opc.id)
-      setOpcAgentsMap(prev => ({ ...prev, [opc.id]: list }))
-      if (opc.id !== currentOpc?.id) selectOpc(opc)
-      const created = list.find(a => a.id === newAgent.id) ?? list[list.length - 1]
-      setSelectedAgent(created); setForm(created); setEditing(true)
-      toast('智能体已创建', 'success')
-    } catch (e) { toast(String(e), 'error') }
+    if (opc.id !== currentOpc?.id) selectOpc(opc)
+    setSelectedAgent(draft); setForm(draft); setEditing(true); setIsNewAgent(true)
   }
 
-  const handleDeleteAgent = async (agentId: string) => {
+  const handleDeleteAgent = async (agent: AgentConfig) => {
     if (!currentOpc) return
     try {
-      await deleteAgent(agentId)
+      await deleteAgent(agent.id)
       const list = await getAgents(currentOpc.id)
       setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
-      if (selectedAgent?.id === agentId) {
-        const next = list[0] ?? null
+      if (selectedAgent?.id === agent.id) {
+        const next = list.find(a => a.is_default) ?? list[0] ?? null
         setSelectedAgent(next); setForm(next ?? {})
       }
       toast('已删除', 'success')
+    } catch (e) { toast(String(e), 'error') }
+    finally { setConfirmDelete(null) }
+  }
+
+  const handleSetDefault = async (agent: AgentConfig) => {
+    if (!currentOpc) return
+    try {
+      await setDefaultAgent(currentOpc.id, agent.id)
+      const list = await getAgents(currentOpc.id)
+      setOpcAgentsMap(prev => ({ ...prev, [currentOpc.id]: list }))
+      setSelectedAgent(list.find(a => a.id === agent.id) ?? agent)
+      toast(`${agent.display_name} 已设为领队`, 'success')
     } catch (e) { toast(String(e), 'error') }
   }
 
@@ -654,32 +686,52 @@ export default function AgentsPage() {
       {/* ── COL 2: Company list ─────────────────────────── */}
       <div className="list-pane">
         <div className="toolbar">
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>公司</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>公司智能体</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {opcs.map(opc => {
-            const isSelected = currentOpc?.id === opc.id
-            const agentCount = opcAgentsMap[opc.id] ? opcAgentsMap[opc.id].length : opc.agent_count
-            return (
-              <div
-                key={opc.id}
-                className={`list-row${isSelected ? ' selected' : ''}`}
-                onClick={() => selectOpc(opc)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                  {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 500, color: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{agentCount} 个智能体</div>
-                </div>
-              </div>
-            )
-          })}
           {opcs.length === 0 && (
             <div style={{ padding: '20px 12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>暂无公司，请先在子公司管理中创建</div>
           )}
+          {(() => {
+            const running = opcs.filter(o => o.is_running && o.office_id)
+            const stopped = opcs.filter(o => !o.is_running || !o.office_id)
+            const renderRow = (opc: OpcConfig) => {
+              const isSelected = currentOpc?.id === opc.id
+              const agentCount = opcAgentsMap[opc.id] ? opcAgentsMap[opc.id].length : opc.agent_count
+              return (
+                <div
+                  key={opc.id}
+                  className={`list-row${isSelected ? ' selected' : ''}`}
+                  onClick={() => selectOpc(opc)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                    {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{agentCount} 个智能体</div>
+                  </div>
+                </div>
+              )
+            }
+            return (
+              <>
+                {running.length > 0 && (
+                  <>
+                    <div className="section-label" style={{ padding: '8px 12px 3px' }}>运行中</div>
+                    {running.map(renderRow)}
+                  </>
+                )}
+                {stopped.length > 0 && (
+                  <>
+                    <div className="section-label" style={{ padding: '10px 12px 3px' }}>已停止</div>
+                    {stopped.map(renderRow)}
+                  </>
+                )}
+              </>
+            )
+          })()}
         </div>
       </div>
 
@@ -694,7 +746,11 @@ export default function AgentsPage() {
             {/* Agents strip */}
             <div style={{ flexShrink: 0, background: '#1a1a1f' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '10px 12px', overflowX: 'auto' }}>
-              {(opcAgentsMap[currentOpc.id] ?? []).map((agent, index) => {
+              {(() => {
+                const base = [...(opcAgentsMap[currentOpc.id] ?? [])].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
+                const list = isNewAgent && selectedAgent ? [...base, selectedAgent] : base
+                return list
+              })().map((agent, index) => {
                 const isActive = selectedAgent?.id === agent.id
                 return (
                   <div
@@ -703,11 +759,11 @@ export default function AgentsPage() {
                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, minWidth: '60px', maxWidth: '72px', background: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', border: `1px solid ${isActive ? 'rgba(139,92,246,0.35)' : 'transparent'}`, transition: 'all 0.15s' }}
                   >
                     <div style={{ position: 'relative' }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `linear-gradient(135deg,${agent.gradient_start ?? '#8b5cf6'},${agent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'white' }}>
+                      <div style={{ width: agent.is_default ? '44px' : '36px', height: agent.is_default ? '44px' : '36px', borderRadius: agent.is_default ? '12px' : '10px', background: `linear-gradient(135deg,${agent.gradient_start ?? '#8b5cf6'},${agent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: agent.is_default ? '14px' : '12px', fontWeight: 700, color: 'white' }}>
                         {agent.initials ?? agent.display_name.slice(0, 2)}
                       </div>
-                      {index === 0 && (
-                        <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: '#a78bfa', border: '1.5px solid #1c1c1e' }} />
+                      {agent.is_default && (
+                        <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: '#a78bfa', border: '1.5px solid #1a1a1f' }} />
                       )}
                     </div>
                     <span style={{ fontSize: '10px', color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.6)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
@@ -736,15 +792,29 @@ export default function AgentsPage() {
               </div>
             ) : (
               <>
-                <div className="toolbar" style={{ justifyContent: 'space-between', background: '#1a1a1f', borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
+                <div className="toolbar" style={{ justifyContent: 'space-between', background: '#1a1a1f', borderBottom: '1px solid rgba(255,255,255,0.10)', height: 'auto', padding: '12px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `linear-gradient(135deg,${selectedAgent.gradient_start ?? '#8b5cf6'},${selectedAgent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
                       {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
                     </div>
                     <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selectedAgent.display_name}</span>
+                    {selectedAgent.is_default && (
+                      <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 500 }}>[领队]</span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button className="tbtn tbtn-ghost" onClick={() => setChatAgent(selectedAgent)} style={{ color: '#06b6d4' }}>测试对话</button>
+                    <button className="tbtn tbtn-ghost" style={{ color: '#06b6d4' }} onClick={async () => {
+                      if (isNewAgent) { toast('请先保存智能体再测试对话', 'error'); return }
+                      const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
+                      if (!soul?.trim()) { toast('SOUL.md 为空，请先填写人格配置再测试对话', 'error'); return }
+                      setChatAgent(selectedAgent)
+                    }}>测试对话</button>
+                    {!selectedAgent.is_default && !editing && (
+                      <div className="tip">
+                        <button className="tbtn tbtn-ghost" onClick={() => handleSetDefault(selectedAgent)}>设为领队</button>
+                        <span className="tip-content">将该智能体设置为主要响应的智能体，默认消息会发给它</span>
+                      </div>
+                    )}
                     {editing ? (
                       <>
                         <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>取消</button>
@@ -753,7 +823,7 @@ export default function AgentsPage() {
                     ) : (
                       <>
                         <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>编辑</button>
-                        <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteAgent(selectedAgent.id)}>删除</button>
+                        <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => setConfirmDelete(selectedAgent)}>删除</button>
                       </>
                     )}
                   </div>
@@ -1012,6 +1082,38 @@ export default function AgentsPage() {
 
       {chatAgent && (
         <ChatDrawer agent={chatAgent} onClose={() => setChatAgent(null)} />
+      )}
+
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
+          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `linear-gradient(135deg,${confirmDelete.gradient_start ?? '#8b5cf6'},${confirmDelete.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                {confirmDelete.initials ?? confirmDelete.display_name.slice(0, 2)}
+              </div>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>{confirmDelete.display_name}</div>
+                {confirmDelete.is_default && (
+                  <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '2px' }}>当前领队</div>
+                )}
+              </div>
+            </div>
+            {confirmDelete.is_default ? (
+              <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.25)', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#fca5a5', lineHeight: 1.6 }}>
+                <strong style={{ color: '#f43f5e', display: 'block', marginBottom: '4px' }}>⚠️ 正在删除领队智能体</strong>
+                删除后，系统将自动从剩余智能体中按顺序提升新的领队。
+              </div>
+            ) : (
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>
+                确认删除该智能体？此操作不可撤销。
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
+              <button className="tbtn" style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e' }} onClick={() => handleDeleteAgent(confirmDelete)}>确认删除</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

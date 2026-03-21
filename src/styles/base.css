@@ -86,6 +86,17 @@ body {
 .tbtn-danger { background: rgba(244,63,94,0.12); color: #f43f5e; }
 .tbtn-danger:hover { background: rgba(244,63,94,0.2); }
 
+/* ── Tooltip ──────────────────────────────────────────── */
+.tip { position: relative; display: inline-flex; }
+.tip-content {
+  display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%); white-space: nowrap;
+  background: #2a2a2f; color: rgba(255,255,255,0.75);
+  font-size: 12px; padding: 5px 10px; border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1); pointer-events: none; z-index: 100;
+}
+.tip:hover .tip-content { display: block; }
+
 /* ── Form inputs ──────────────────────────────────────── */
 .field-input {
   width: 100%; padding: 7px 10px;
