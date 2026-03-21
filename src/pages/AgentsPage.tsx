@@ -418,7 +418,6 @@ export default function AgentsPage() {
   const [customToolInput, setCustomToolInput] = useState('')
   const dragIndex = useRef<number | null>(null)
   const dragOpcId = useRef<string | null>(null)
-  const [expandedOpcIds, setExpandedOpcIds] = useState<Set<string>>(() => currentOpc ? new Set([currentOpc.id]) : new Set())
   const [opcAgentsMap, setOpcAgentsMap] = useState<Record<string, AgentConfig[]>>({})
 
   useEffect(() => { getModels().then(setModels).catch(() => {}) }, [])
@@ -567,20 +566,6 @@ export default function AgentsPage() {
     } catch (e) { toast(String(e), 'error') }
   }
 
-  const toggleDrawer = async (opcId: string) => {
-    setExpandedOpcIds(prev => {
-      const next = new Set(prev)
-      if (next.has(opcId)) { next.delete(opcId) } else { next.add(opcId) }
-      return next
-    })
-    if (!expandedOpcIds.has(opcId) && !opcAgentsMap[opcId]) {
-      try {
-        const list = await getAgents(opcId)
-        setOpcAgentsMap(prev => ({ ...prev, [opcId]: list }))
-      } catch {}
-    }
-  }
-
   const handleDragStart = (opcId: string, index: number) => {
     dragIndex.current = index
     dragOpcId.current = opcId
@@ -666,81 +651,29 @@ export default function AgentsPage() {
 
   return (
     <>
-      {/* ── COL 2: List pane ────────────────────────────── */}
+      {/* ── COL 2: Company list ─────────────────────────── */}
       <div className="list-pane">
         <div className="toolbar">
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>智能体</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>公司</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {opcs.map(opc => {
-            const expanded = expandedOpcIds.has(opc.id)
-            const isCurrentOpc = currentOpc?.id === opc.id
-            const displayAgents = opcAgentsMap[opc.id] ?? []
+            const isSelected = currentOpc?.id === opc.id
+            const agentCount = opcAgentsMap[opc.id] ? opcAgentsMap[opc.id].length : opc.agent_count
             return (
-              <div key={opc.id}>
-                {/* Company header row */}
-                <div
-                  onClick={() => { selectOpc(opc); toggleDrawer(opc.id) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', cursor: 'pointer', background: isCurrentOpc ? 'rgba(255,255,255,0.04)' : 'none', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                >
-                  <svg style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', color: '#8E8E93', flexShrink: 0 }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                    {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{opcAgentsMap[opc.id] ? displayAgents.length : opc.agent_count} 个智能体</div>
-                  </div>
+              <div
+                key={opc.id}
+                className={`list-row${isSelected ? ' selected' : ''}`}
+                onClick={() => selectOpc(opc)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                  {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                 </div>
-                {/* Expanded agent list */}
-                {expanded && (
-                  <div>
-                    {displayAgents.length === 0 && (
-                      <div style={{ padding: '10px 14px 6px 32px', fontSize: '12px', color: '#8E8E93' }}>暂无智能体</div>
-                    )}
-                    {displayAgents.map((agent, index) => (
-                      <div
-                        key={agent.id}
-                        className={`agent-row${selectedAgent?.id === agent.id ? ' selected' : ''}`}
-                        style={{ paddingLeft: '28px', cursor: 'grab' }}
-                        onClick={() => { if (!isCurrentOpc) selectOpc(opc); handleSelectAgent(agent) }}
-                        draggable
-                        onDragStart={() => handleDragStart(opc.id, index)}
-                        onDragOver={e => handleDragOver(e, opc.id, index)}
-                        onDragEnd={() => handleDragEnd(opc.id)}
-                      >
-                        <div className="drag-handle"><span></span><span></span><span></span></div>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: `linear-gradient(135deg,${agent.gradient_start ?? '#8b5cf6'},${agent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                          {agent.initials ?? agent.display_name.slice(0, 2)}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 500, color: selectedAgent?.id === agent.id ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {agent.display_name}
-                            </span>
-                            {index === 0 && isCurrentOpc && (
-                              <span style={{ fontSize: '10px', background: 'rgba(139,92,246,0.18)', color: '#a78bfa', padding: '1px 5px', borderRadius: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>默认</span>
-                            )}
-                          </div>
-                          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {agent.model_provider && agent.model_name
-                              ? `${PROVIDER_LABELS[agent.model_provider] ?? agent.model_provider} · ${agent.enabled_tools.length} 工具`
-                              : '未配置模型'}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <div style={{ padding: '4px 10px 6px 28px' }}>
-                      <button
-                        onClick={e => { e.stopPropagation(); handleAddAgent(opc) }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 8px', borderRadius: '5px', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '11px' }}
-                      >
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="11" height="11"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                        添加智能体
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 500, color: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{agentCount} 个智能体</div>
+                </div>
               </div>
             )
           })}
@@ -752,34 +685,77 @@ export default function AgentsPage() {
 
       {/* ── COL 3: Detail pane ──────────────────────────── */}
       <main className="detail-pane">
-        {!selectedAgent ? (
+        {!currentOpc ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
-            请选择一个智能体
+            请选择一个公司
           </div>
         ) : (
           <>
-            <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `linear-gradient(135deg,${selectedAgent.gradient_start ?? '#8b5cf6'},${selectedAgent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                  {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
+            {/* Agents strip */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.12)', overflowX: 'auto', flexShrink: 0, background: 'rgba(255,255,255,0.03)' }}>
+              {(opcAgentsMap[currentOpc.id] ?? []).map((agent, index) => {
+                const isActive = selectedAgent?.id === agent.id
+                return (
+                  <div
+                    key={agent.id}
+                    onClick={() => handleSelectAgent(agent)}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, minWidth: '60px', maxWidth: '72px', background: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', border: `1px solid ${isActive ? 'rgba(139,92,246,0.35)' : 'transparent'}`, transition: 'all 0.15s' }}
+                  >
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `linear-gradient(135deg,${agent.gradient_start ?? '#8b5cf6'},${agent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: 'white' }}>
+                        {agent.initials ?? agent.display_name.slice(0, 2)}
+                      </div>
+                      {index === 0 && (
+                        <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: '#a78bfa', border: '1.5px solid #1c1c1e' }} />
+                      )}
+                    </div>
+                    <span style={{ fontSize: '10px', color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.6)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                      {agent.display_name}
+                    </span>
+                  </div>
+                )
+              })}
+              {/* Add agent button */}
+              <div
+                onClick={() => handleAddAgent()}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, minWidth: '60px', border: '1px dashed rgba(255,255,255,0.15)', transition: 'all 0.15s' }}
+              >
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                 </div>
-                <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selectedAgent.display_name}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button className="tbtn tbtn-ghost" onClick={() => setChatAgent(selectedAgent)} style={{ color: '#06b6d4' }}>测试对话</button>
-                {editing ? (
-                  <>
-                    <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>取消</button>
-                    <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
-                  </>
-                ) : (
-                  <>
-                    <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>编辑</button>
-                    <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteAgent(selectedAgent.id)}>删除</button>
-                  </>
-                )}
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>添加</span>
               </div>
             </div>
+
+            {/* Agent form */}
+            {!selectedAgent ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
+                请点击上方选择智能体
+              </div>
+            ) : (
+              <>
+                <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `linear-gradient(135deg,${selectedAgent.gradient_start ?? '#8b5cf6'},${selectedAgent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                      {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
+                    </div>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selectedAgent.display_name}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button className="tbtn tbtn-ghost" onClick={() => setChatAgent(selectedAgent)} style={{ color: '#06b6d4' }}>测试对话</button>
+                    {editing ? (
+                      <>
+                        <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>取消</button>
+                        <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>编辑</button>
+                        <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteAgent(selectedAgent.id)}>删除</button>
+                      </>
+                    )}
+                  </div>
+                </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
@@ -1018,6 +994,8 @@ export default function AgentsPage() {
               </section>
 
             </div>
+              </>
+            )}
           </>
         )}
       </main>
