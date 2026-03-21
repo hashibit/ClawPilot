@@ -299,8 +299,10 @@ export default function OfficePage() {
                   {office.name}
                 </div>
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {GRADE_LABELS[office.decoration_grade]}
-                  {office.address ? ` · ${office.address}` : ''}
+                  {selected?.id === office.id && editing && !isNewOffice
+                    ? <span style={{ color: '#f59e0b' }}>未保存</span>
+                    : <>{GRADE_LABELS[office.decoration_grade]}{office.address ? ` · ${office.address}` : ''}</>
+                  }
                 </div>
               </div>
             </div>
@@ -337,12 +339,12 @@ export default function OfficePage() {
             <div className="toolbar" style={{ justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '18px' }}>🏢</span>
-                <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selected.name}</span>
+                <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{isNewOffice ? (form.name || '新办公室') : selected.name}</span>
+                {(editing || isNewOffice) && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>未保存</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 {(editing || isNewOffice) ? (
                   <>
-                    {isNewOffice && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>未保存</span>}
                     <button className="tbtn tbtn-ghost" onClick={handleCancel}>取消</button>
                     <button className="tbtn tbtn-accent" onClick={handleSave} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
                   </>
@@ -420,18 +422,6 @@ export default function OfficePage() {
                             )
                           })}
                         </div>
-                        {!isNewOffice && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
-                            <button onClick={handleCheckSsh} disabled={sshChecking || editing} className="tbtn tbtn-ghost" style={{ fontSize: '12px', opacity: editing ? 0.5 : 1 }}>
-                              {sshChecking ? '检测中…' : '测试连接'}
-                            </button>
-                            {sshResult && (
-                              <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
-                                {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
                       {(form.access_auth_type ?? 'password') === 'password' ? (
                         <div style={{ display: 'flex', gap: '6px', width: '100%', paddingLeft: '82px' }}>
@@ -441,6 +431,18 @@ export default function OfficePage() {
                       ) : (
                         <div style={{ display: 'flex', width: '100%', paddingLeft: '82px' }}>
                           <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：~/.ssh/id_rsa" disabled={!editing} />
+                        </div>
+                      )}
+                      {!isNewOffice && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '82px' }}>
+                          <button onClick={handleCheckSsh} disabled={sshChecking} className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>
+                            {sshChecking ? '检测中…' : '测试连接'}
+                          </button>
+                          {sshResult && (
+                            <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
+                              {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
