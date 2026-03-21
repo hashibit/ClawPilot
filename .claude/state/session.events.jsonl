@@ -11,3 +11,26 @@
 {"id":"event-000002","type":"session.stop","ts":"2026-03-21T03:42:55Z","state":"stopped"}
 {"id":"event-000003","type":"tool.bash","ts":"2026-03-21T03:44:34Z","state":"stopped","data":{"command":"npm test 2>&1"}}
 {"id":"event-000004","type":"tool.bash","ts":"2026-03-21T03:56:29Z","state":"stopped","data":{"command":"cd /Users/jiechen/work/code/rust/ClawPilot && npm test 2>&1 | tail -10"}}
+{"id":"event-000005","type":"tool.bash","ts":"2026-03-21T04:15:34Z","state":"stopped","data":{"command":"cd /Users/jiechen/work/code/rust/ClawPilot && npm run dev 2>&1 &
+sleep 15
+curl -s http://localhost:5173 | head -5"}}
+{"id":"event-000006","type":"tool.bash","ts":"2026-03-21T04:15:43Z","state":"stopped","data":{"command":"curl -s http://localhost:5173 > /dev/null && echo "5173 OK" || echo "5173 not ready"
+curl -s http://localhost:1420 > /dev/null && echo "1420 OK" || echo "1420 not ready""}}
+{"id":"event-000007","type":"tool.bash","ts":"2026-03-21T04:17:51Z","state":"stopped","data":{"command":"npx playwright test 2>&1"}}
+{"id":"event-000008","type":"tool.bash","ts":"2026-03-21T04:19:01Z","state":"stopped","data":{"command":"sleep 30 && cat /private/tmp/claude-501/-Users-jiechen-work-code-rust-ClawPilot/1bf37535-bf70-45a6-a114-778ffd6e6c39/tasks/bc85hm852.output 2>&1"}}
+{"id":"event-000009","type":"tool.bash","ts":"2026-03-21T04:19:31Z","state":"stopped","data":{"command":"curl -v http://localhost:5173 2>&1 | head -20"}}
+{"id":"event-000010","type":"tool.bash","ts":"2026-03-21T04:19:42Z","state":"stopped","data":{"command":"curl -v --noproxy '*' http://localhost:5173 2>&1 | head -20"}}
+{"id":"event-000011","type":"tool.bash","ts":"2026-03-21T04:19:54Z","state":"stopped","data":{"command":"cat /Users/jiechen/work/code/rust/ClawPilot/vite.config.ts 2>/dev/null || cat /Users/jiechen/work/code/rust/ClawPilot/vite.config.js 2>/dev/null"}}
+{"id":"event-000012","type":"tool.bash","ts":"2026-03-21T04:19:54Z","state":"stopped","data":{"command":"lsof -i :1420 -i :3001 -i :5173 2>/dev/null | grep LISTEN"}}
+{"id":"event-000013","type":"tool.edit","ts":"2026-03-21T04:20:08Z","state":"stopped","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/playwright.config.ts"}}
+{"id":"event-000014","type":"tool.bash","ts":"2026-03-21T04:25:02Z","state":"stopped","data":{"command":"npx playwright install chromium 2>&1"}}
+{"id":"event-000015","type":"tool.bash","ts":"2026-03-21T04:25:11Z","state":"stopped","data":{"command":"cat /private/tmp/claude-501/-Users-jiechen-work-code-rust-ClawPilot/1bf37535-bf70-45a6-a114-778ffd6e6c39/tasks/b85f0wj67.output 2>&1"}}
+{"id":"event-000016","type":"tool.bash","ts":"2026-03-21T04:25:16Z","state":"stopped","data":{"command":"tail -5 /private/tmp/claude-501/-Users-jiechen-work-code-rust-ClawPilot/1bf37535-bf70-45a6-a114-778ffd6e6c39/tasks/b85f0wj67.output 2>&1"}}
+{"id":"event-000017","type":"tool.bash","ts":"2026-03-21T04:26:03Z","state":"stopped","data":{"command":"sleep 40 && tail -5 /private/tmp/claude-501/-Users-jiechen-work-code-rust-ClawPilot/1bf37535-bf70-45a6-a114-778ffd6e6c39/tasks/b85f0wj67.output 2>&1"}}
+{"id":"event-000018","type":"tool.bash","ts":"2026-03-21T04:26:53Z","state":"stopped","data":{"command":"cat /Users/jiechen/work/code/rust/ClawPilot/e2e/app.spec.ts"}}
+{"id":"event-000019","type":"tool.write","ts":"2026-03-21T04:27:29Z","state":"stopped","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/e2e/app.spec.ts"}}
+{"id":"event-000020","type":"tool.edit","ts":"2026-03-21T04:28:51Z","state":"stopped","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/e2e/app.spec.ts"}}
+{"id":"event-000021","type":"tool.bash","ts":"2026-03-21T04:29:08Z","state":"stopped","data":{"command":"NO_PROXY=localhost,127.0.0.1 no_proxy=localhost,127.0.0.1 npx playwright test 2>&1"}}
+{"id":"event-000022","type":"tool.bash","ts":"2026-03-21T04:29:20Z","state":"stopped","data":{"command":"orb status 2>&1 | head -5"}}
+{"id":"event-000023","type":"tool.bash","ts":"2026-03-21T04:29:28Z","state":"stopped","data":{"command":"ls /Users/jiechen/work/code/rust/ClawPilot/tests/orbstack/ 2>/dev/null || echo "测试脚本不存在""}}
+{"id":"event-000024","type":"tool.bash","ts":"2026-03-21T04:45:58Z","state":"stopped","data":{"command":"cd /Users/jiechen/work/code/rust/ClawPilot && bash tests/orbstack/test-deploy.sh 2>&1"}}

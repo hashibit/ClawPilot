@@ -37,9 +37,9 @@ check_vm() {
     fi
 }
 
-# 在 VM 上运行命令
+# 在 VM 上运行命令（通过 bash -c 执行 shell 命令字符串）
 vm_exec() {
-    orb run "${VM_NAME}" "$@"
+    orb run -m "${VM_NAME}" bash -c "$*"
 }
 
 # 测试 1: Daemon 安装
@@ -48,8 +48,8 @@ test_daemon_installation() {
     echo "测试 1: Daemon 安装"
     echo "-------------------"
 
-    # 复制 daemon 到 VM
-    orb scp "${PROJECT_DIR}/daemon/target/release/clawpilot-daemon" "${VM_NAME}:/tmp/clawpilot-daemon"
+    # 使用 VM 内构建好的 Linux 二进制
+    orb run -m "${VM_NAME}" cp /tmp/daemon-build/release/clawpilot-daemon /tmp/clawpilot-daemon
 
     # 安装 daemon
     vm_exec "sudo mv /tmp/clawpilot-daemon /usr/local/bin/"
@@ -77,7 +77,7 @@ test_daemon_start() {
     sleep 3
 
     # 验证服务运行
-    if vm_exec "curl -s http://localhost:8443/health" > /dev/null; then
+    if vm_exec "curl -s --noproxy '*' http://localhost:8443/health" > /dev/null; then
         echo "✓ Daemon 启动成功"
     else
         echo "✗ Daemon 启动失败"
@@ -93,7 +93,7 @@ test_health_check() {
     echo "-------------------"
 
     local health_response
-    health_response=$(vm_exec "curl -s http://localhost:8443/health")
+    health_response=$(vm_exec "curl -s --noproxy '*' http://localhost:8443/health")
 
     if echo "${health_response}" | grep -q '"status"'; then
         echo "✓ Health 检查通过"
@@ -110,25 +110,20 @@ test_deploy_package() {
     echo "测试 4: 部署包上传"
     echo "------------------"
 
-    # 创建测试部署包
-    local test_dir
-    test_dir=$(mktemp -d)
-    echo '{"version":"1.0.0","opc_id":"test-opc"}' > "${test_dir}/manifest.json"
-    tar -czf "${test_dir}/package.tar.gz" -C "${test_dir}" manifest.json
-
     # 获取 API key
     local api_key
     api_key=$(vm_exec "cat ~/.clawpilot/daemon.key" 2>/dev/null || echo "test-key")
 
+    # 在 VM 内创建测试文件（避免 macOS /var/folders 路径在 VM 内不可访问）
+    vm_exec 'echo "{\"version\":\"1.0.0\",\"opc_id\":\"test-opc\"}" > /tmp/test-manifest.json && tar -czf /tmp/test-package.tar.gz -C /tmp test-manifest.json'
+
     # 上传部署包
     local deploy_response
-    deploy_response=$(vm_exec "curl -s -X POST \
+    deploy_response=$(vm_exec "curl -s --noproxy '*' -X POST \
         -H 'Authorization: Bearer ${api_key}' \
-        -F 'manifest=@${test_dir}/manifest.json' \
-        -F 'package=@${test_dir}/package.tar.gz' \
+        -F 'manifest=@/tmp/test-manifest.json' \
+        -F 'package=@/tmp/test-package.tar.gz' \
         http://localhost:8443/deploy")
-
-    rm -rf "${test_dir}"
 
     if echo "${deploy_response}" | grep -q '"task_id"'; then
         echo "✓ 部署包上传成功"
@@ -150,7 +145,7 @@ test_task_status() {
 
     # 查询任务状态 (使用固定 task_id 用于测试)
     local status_response
-    status_response=$(vm_exec "curl -s \
+    status_response=$(vm_exec "curl -s --noproxy '*' \
         -H 'Authorization: Bearer ${api_key}' \
         http://localhost:8443/deploy/task-test-123")
 
@@ -176,11 +171,12 @@ main() {
     check_orbstack
     check_vm
 
-    # 构建 daemon
+    # 在 VM 内构建 daemon（生成 Linux ELF 二进制，而非 macOS Mach-O）
     echo ""
-    echo "构建 Daemon..."
-    cd "${PROJECT_DIR}/daemon"
-    cargo build --release 2>/dev/null || echo "使用现有构建"
+    echo "在 VM 内构建 Linux Daemon..."
+    orb run -m "${VM_NAME}" bash -c \
+        "source ~/.cargo/env && cargo build --release --manifest-path ${PROJECT_DIR}/daemon/Cargo.toml --target-dir /tmp/daemon-build 2>&1 | tail -3" \
+        || echo "使用现有构建"
 
     # 运行测试
     test_daemon_installation
