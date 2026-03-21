@@ -799,7 +799,7 @@ export default function AgentsPage() {
                     <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `linear-gradient(135deg,${selectedAgent.gradient_start ?? '#8b5cf6'},${selectedAgent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
                       {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
                     </div>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selectedAgent.display_name}</span>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{(editing ? (form as AgentConfig).display_name : null) || selectedAgent.display_name}</span>
                     {(isNewAgent || editing) && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>[未保存]</span>}
                     {selectedAgent.is_default && !isNewAgent && (
                       <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 500 }}>[领队]</span>
