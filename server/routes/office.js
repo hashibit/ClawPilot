@@ -10,6 +10,12 @@ import { createLogger } from '../logger.js'
 
 const log = createLogger('office')
 
+const EMPTY_OPENCLAW_CONFIG = JSON.stringify({
+  agents: { defaults: {}, list: [] },
+  channels: {},
+  models: { providers: {} },
+}, null, 2)
+
 const execAsync = promisify(execCb)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
@@ -224,8 +230,10 @@ export function createOfficeRouter(db) {
           step('✅ Daemon 已在运行')
           const apiKey = readLocalKey()
           if (office_id && apiKey) {
-            db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
-              .run(daemonUrl, apiKey, now(), office_id)
+            const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
+          const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
+          db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
+              .run(daemonUrl, apiKey, initialConfig, now(), office_id)
           }
           return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs, already_running: true })
         }

@@ -18,18 +18,17 @@ export default function OfficePage() {
   const [offices, setOffices] = useState<Office[]>([])
   const [selected, setSelected] = useState<Office | null>(null)
   const [form, setForm] = useState<Partial<Office>>({})
+  const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deployHistory, setDeployHistory] = useState<OfficeDeployment[]>([])
-  const [remoteMode, setRemoteMode] = useState(false)
   const [daemonHealth, setDaemonHealth] = useState<DaemonHealthResult | null>(null)
   const [healthChecking, setHealthChecking] = useState(false)
   const [installLogs, setInstallLogs] = useState<string[]>([])
   const [installStep, setInstallStep] = useState<'idle' | 'openclaw' | 'daemon' | 'done' | 'error'>('idle')
   const installAbortRef = useRef<boolean>(false)
 
-  const initAddressMode = (office: Partial<Office>) => {
-    setRemoteMode(office.address !== 'localhost')
-  }
+  // Derived from form.address: true = remote, false = localhost, null = unset
+  const addressMode = !form.address ? null : form.address === 'localhost' ? false : true
 
   useEffect(() => {
     loadOffices()
@@ -40,7 +39,7 @@ export default function OfficePage() {
       const list = await getOffices()
       setOffices(list)
       if (list.length > 0 && !selected) {
-        setSelected(list[0]); setForm(list[0]); initAddressMode(list[0])
+        setSelected(list[0]); setForm(list[0])
         getOfficeDeployments(list[0].id).then(setDeployHistory).catch(() => setDeployHistory([]))
       } else if (selected) {
         // refresh selected with latest data (e.g. current_opc_name updated)
@@ -64,7 +63,8 @@ export default function OfficePage() {
   }, [])
 
   const handleSelect = useCallback((office: Office) => {
-    setSelected(office); setForm(office); initAddressMode(office)
+    setSelected(office); setForm(office)
+    setEditing(false)
     setDaemonHealth(null)
     getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
     if (office.daemon_url) checkDaemon(office.daemon_url, office.daemon_api_key ?? '')
@@ -76,6 +76,14 @@ export default function OfficePage() {
 
   const handleSave = async () => {
     if (!selected) return
+    const isLocalhost = form.address === 'localhost'
+    if (isLocalhost) {
+      const conflict = offices.find(o => o.id !== selected.id && (!o.address || o.address === 'localhost'))
+      if (conflict) {
+        toast(`保存失败：「${conflict.name}」已是本机办公室，只能有一个办公室是本机设备`, 'error')
+        return
+      }
+    }
     setSaving(true)
     try {
       const addressChanged = form.address !== selected.address
@@ -94,6 +102,7 @@ export default function OfficePage() {
       await updateOffice(selected.id, updated)
       setOffices(prev => prev.map(o => o.id === updated.id ? updated : o))
       setSelected(updated)
+      setEditing(false)
       setDaemonHealth(null)
       toast('办公室信息已保存', 'success')
 
@@ -104,9 +113,10 @@ export default function OfficePage() {
     finally { setSaving(false) }
   }
 
-  const handleCancel = () => { if (selected) { setForm(selected); initAddressMode(selected) } }
-
-  const isDirty = selected && JSON.stringify(form) !== JSON.stringify(selected)
+  const handleCancel = () => {
+    setEditing(false)
+    if (selected) setForm(selected)
+  }
 
   const handleAdd = async () => {
     const now = Math.floor(Date.now() / 1000)
@@ -122,7 +132,8 @@ export default function OfficePage() {
     try {
       await createOffice(newOffice)
       await loadOffices()
-      setSelected(newOffice); setForm(newOffice); initAddressMode(newOffice)
+      setSelected(newOffice); setForm(newOffice)
+      setEditing(true)
       toast('办公室已创建', 'success')
     } catch (e) { toast(String(e), 'error') }
   }
@@ -249,13 +260,17 @@ export default function OfficePage() {
                 <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selected.name}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {isDirty && (
+                {editing ? (
                   <>
                     <button className="tbtn tbtn-ghost" onClick={handleCancel}>取消</button>
-                    <button className="tbtn tbtn-accent" onClick={handleSave} disabled={saving}>保存</button>
+                    <button className="tbtn tbtn-accent" onClick={handleSave} disabled={saving}>{saving ? '保存中…' : '保存'}</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>编辑</button>
+                    <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDelete(selected.id)}>删除</button>
                   </>
                 )}
-                <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDelete(selected.id)}>删除</button>
               </div>
             </div>
 
@@ -267,23 +282,25 @@ export default function OfficePage() {
                 <div className="group">
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">办公室名称</span>
-                    <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1 }} />
+                    <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
                   </div>
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">地址（IP）</span>
                     <div style={{ display: 'flex', gap: '6px', flex: 1, alignItems: 'center' }}>
                       {(['local', 'remote'] as const).map(t => {
-                        const active = t === 'local' ? !remoteMode : remoteMode
+                        const active = t === 'local' ? addressMode === false : addressMode === true
                         return (
                           <button key={t} onClick={() => {
-                            if (t === 'local') { setRemoteMode(false); handleFormChange('address', 'localhost') }
-                            else { setRemoteMode(true); if (!form.address || form.address === 'localhost') handleFormChange('address', '') }
+                            if (!editing) return
+                            if (t === 'local') handleFormChange('address', 'localhost')
+                            else if (form.address === 'localhost') handleFormChange('address', '')
                           }} style={{
-                            padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
+                            padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', flexShrink: 0,
                             border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
                             background: active ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)',
                             color: active ? '#c4b5fd' : 'rgba(235,235,245,0.45)',
                             fontWeight: active ? 500 : 400,
+                            opacity: editing ? 1 : 0.7,
                           }}>
                             {t === 'local' ? '本机' : '远程'}
                           </button>
@@ -291,17 +308,17 @@ export default function OfficePage() {
                       })}
                       <input
                         type="text"
-                        value={remoteMode ? (form.address ?? '') : ''}
+                        value={addressMode !== false ? (form.address ?? '') : ''}
                         onChange={e => handleFormChange('address', e.target.value)}
-                        disabled={!remoteMode}
+                        disabled={addressMode === false || !editing}
                         className="field-input"
-                        style={{ flex: 1, opacity: remoteMode ? 1 : 0.5 }}
+                        style={{ flex: 1, opacity: addressMode === false ? 0.5 : 1 }}
                         placeholder="如：192.168.1.100 或云主机 IP"
                       />
                     </div>
                   </div>
                   {/* 门禁：仅远程模式显示 */}
-                  {remoteMode && (
+                  {addressMode === true && (
                     <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start', flexDirection: 'column', padding: '8px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
                         <span className="group-label">门禁</span>
@@ -309,12 +326,13 @@ export default function OfficePage() {
                           {(['password', 'ssh_key'] as AccessAuthType[]).map(t => {
                             const active = (form.access_auth_type ?? 'password') === t
                             return (
-                              <button key={t} onClick={() => handleFormChange('access_auth_type', t)} style={{
-                                padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
+                              <button key={t} onClick={() => { if (editing) handleFormChange('access_auth_type', t) }} style={{
+                                padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', flexShrink: 0,
                                 border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
                                 background: active ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)',
                                 color: active ? '#c4b5fd' : 'rgba(235,235,245,0.45)',
                                 fontWeight: active ? 500 : 400,
+                                opacity: editing ? 1 : 0.7,
                               }}>
                                 {t === 'password' ? '用户名密码' : 'SSH 私钥'}
                               </button>
@@ -324,35 +342,28 @@ export default function OfficePage() {
                       </div>
                       {(form.access_auth_type ?? 'password') === 'password' ? (
                         <div style={{ display: 'flex', gap: '6px', width: '100%', paddingLeft: '82px' }}>
-                          <input type="text" value={form.access_user ?? ''} onChange={e => handleFormChange('access_user', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="用户名" />
-                          <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="密码" />
+                          <input type="text" value={form.access_user ?? ''} onChange={e => handleFormChange('access_user', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="用户名" disabled={!editing} />
+                          <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="密码" disabled={!editing} />
                         </div>
                       ) : (
                         <div style={{ display: 'flex', width: '100%', paddingLeft: '82px' }}>
-                          <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：~/.ssh/id_rsa" />
+                          <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：~/.ssh/id_rsa" disabled={!editing} />
                         </div>
                       )}
                     </div>
                   )}
-                  <div className="group-row" style={{ gap: '10px' }}>
-                    <span className="group-label">电话</span>
-                    <input type="text" value={form.phone ?? ''} onChange={e => handleFormChange('phone', e.target.value)} className="field-input" style={{ flex: 1 }} />
-                  </div>
-                  <div className="group-row" style={{ gap: '10px' }}>
-                    <span className="group-label">网速</span>
-                    <input type="text" value={form.internet_speed ?? ''} onChange={e => handleFormChange('internet_speed', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：1000Mbps" />
-                  </div>
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">装修档次</span>
                     <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
                       {(['HIGH', 'MEDIUM', 'LOW'] as OfficeGrade[]).map(v => (
                         <button
                           key={v}
-                          onClick={() => handleFormChange('decoration_grade', v)}
+                          onClick={() => { if (editing) handleFormChange('decoration_grade', v) }}
                           style={{
-                            padding: '5px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', border: 'none',
+                            padding: '5px 14px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', border: 'none',
                             background: form.decoration_grade === v ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
                             color: form.decoration_grade === v ? '#a78bfa' : 'rgba(235,235,245,0.6)',
+                            opacity: editing ? 1 : 0.8,
                           }}
                         >
                           {GRADE_LABELS[v]}
@@ -362,11 +373,11 @@ export default function OfficePage() {
                   </div>
                   <div className="group-row" style={{ gap: '10px' }}>
                     <span className="group-label">前台形象</span>
-                    <input type="text" value={form.receptionist_image ?? ''} onChange={e => handleFormChange('receptionist_image', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：图片 URL 或描述" />
+                    <input type="text" value={form.receptionist_image ?? ''} onChange={e => handleFormChange('receptionist_image', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="如：图片 URL 或描述" disabled={!editing} />
                   </div>
                   <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
                     <span className="group-label" style={{ paddingTop: '2px' }}>备注</span>
-                    <textarea className="field-input" rows={2} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} />
+                    <textarea className="field-input" rows={2} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} disabled={!editing} />
                   </div>
                 </div>
               </section>

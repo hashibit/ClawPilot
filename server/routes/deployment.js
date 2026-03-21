@@ -565,15 +565,76 @@ router.post('/cancel_deployment', (req, res) => {
   }
 })
 
+/** Build a minimal reset package containing only the initial openclaw config */
+function buildResetPackage(initialConfig) {
+  return new Promise((resolve, reject) => {
+    const tarPack = pack()
+    const chunks = []
+    const gz = zlib.createGzip()
+    gz.on('data', chunk => chunks.push(chunk))
+    gz.on('end', () => resolve(Buffer.concat(chunks)))
+    gz.on('error', reject)
+    tarPack.pipe(gz)
+
+    const addFile = (name, content) => {
+      const buf = typeof content === 'string' ? Buffer.from(content, 'utf8') : Buffer.from(JSON.stringify(content, null, 2), 'utf8')
+      tarPack.entry({ name, size: buf.length }, buf, err => { if (err) reject(err) })
+    }
+
+    const manifest = { opc_id: null, version: new Date().toISOString(), checksum: '', reset: true }
+    addFile('manifest.json', JSON.stringify(manifest, null, 2))
+    addFile('openclaw.json', initialConfig)
+    addFile('config/opc.json', {})
+    addFile('config/agents.json', [])
+    addFile('config/channels.json', [])
+    addFile('config/bindings.json', [])
+    addFile('config/models.json', [])
+    addFile('config/tools.json', [])
+    addFile('config/skills.json', [])
+    tarPack.finalize()
+  })
+}
+
 // ── POST /api/undeploy ───────────────────────────────────────
-router.post('/undeploy', (req, res) => {
+router.post('/undeploy', async (req, res) => {
   try {
     const { opc_id } = req.body
     const ts = now()
+
+    // Find which office this OPC is deployed to
+    const opc = db.prepare('SELECT office_id FROM opc_config WHERE id = ?').get(opc_id)
+    const office = opc?.office_id
+      ? db.prepare('SELECT daemon_url, daemon_api_key, initial_openclaw_config FROM offices WHERE id = ?').get(opc.office_id)
+      : null
+
+    // Update DB records
     db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`)
       .run(ts, opc_id)
     db.prepare(`UPDATE opc_config SET is_running = 0, office_id = NULL WHERE id = ?`).run(opc_id)
     writeLog('INFO', 'deployment', `Undeployed opc_id=${opc_id}`)
+
+    // Push initial config back to daemon to restore clean state
+    if (office?.daemon_url && office?.daemon_api_key && office?.initial_openclaw_config) {
+      try {
+        const initialConfig = office.initial_openclaw_config
+        const pkgBuf = await buildResetPackage(initialConfig)
+        const form = new FormData()
+        const manifest = { opc_id: null, version: new Date().toISOString(), checksum: '', reset: true }
+        form.append('manifest', JSON.stringify(manifest), { contentType: 'application/json' })
+        form.append('package', pkgBuf, { filename: 'package.tar.gz', contentType: 'application/gzip' })
+        const daemonUrl = office.daemon_url.replace(/\/$/, '')
+        await fetch(`${daemonUrl}/deploy`, {
+          method: 'POST',
+          headers: { ...form.getHeaders(), 'Authorization': `Bearer ${office.daemon_api_key}` },
+          body: form.getBuffer(),
+          signal: AbortSignal.timeout(15000),
+        })
+        writeLog('INFO', 'deployment', `Pushed initial config to daemon after undeploy opc_id=${opc_id}`)
+      } catch (e) {
+        writeLog('WARN', 'deployment', `Failed to push initial config: ${e.message}`)
+      }
+    }
+
     res.json(null)
   } catch (err) {
     res.status(500).send(err.message)

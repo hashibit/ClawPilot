@@ -246,6 +246,7 @@ export function runMigrations(db) {
   try { db.exec('ALTER TABLE offices ADD COLUMN access_user TEXT') } catch {}
   try { db.exec('ALTER TABLE offices ADD COLUMN access_password TEXT') } catch {}
   try { db.exec('ALTER TABLE offices ADD COLUMN ssh_key_path TEXT') } catch {}
+  try { db.exec('ALTER TABLE offices ADD COLUMN initial_openclaw_config TEXT') } catch {}
 
   // Skills table extended fields
   ;[

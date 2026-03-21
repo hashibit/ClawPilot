@@ -117,6 +117,7 @@ export default function OpcPage() {
   const [snapshots, setSnapshots] = useState<LocalSnapshot[]>([])
   const [snapshotLabel, setSnapshotLabel] = useState('')
   const [snapshotLoading, setSnapshotLoading] = useState(false)
+  const [confirmOffline, setConfirmOffline] = useState<OpcConfig | null>(null)
 
 
   const selected = currentOpc
@@ -189,13 +190,14 @@ export default function OpcPage() {
   }
 
   const handleUndeploy = async (opc: OpcConfig) => {
-    if (!confirm(`确认将「${opc.display_name}」从办公室腾退？`)) return
     try {
       await undeploy(opc.id)
-      toast('已腾退', 'success')
+      toast('已下线', 'success')
       await reload()
     } catch (e) {
-      toast(`腾退失败: ${e}`, 'error')
+      toast(`下线失败: ${e}`, 'error')
+    } finally {
+      setConfirmOffline(null)
     }
   }
 
@@ -218,6 +220,28 @@ export default function OpcPage() {
   return (
     <>
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={reload} />}
+
+      {confirmOffline && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5', marginBottom: '8px' }}>确认下线「{confirmOffline.display_name}」？</div>
+              <div style={{ fontSize: '13px', color: '#8E8E93', lineHeight: 1.6 }}>
+                执行下线后：
+                <ul style={{ margin: '8px 0 0', paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <li>智能体将停止运行</li>
+                  <li>飞书渠道将关闭</li>
+                  <li>办公室将恢复为初始默认状态</li>
+                </ul>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="tbtn tbtn-ghost" onClick={() => setConfirmOffline(null)}>取消</button>
+              <button className="tbtn tbtn-danger" onClick={() => handleUndeploy(confirmOffline)}>确认下线</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* COL2: list-pane */}
       <div className="list-pane">
@@ -321,17 +345,22 @@ export default function OpcPage() {
                   <div><div className="text-bold" style={{ fontSize: '15px', color: '#EBEBF5', lineHeight: '1.2' }}>数据概览</div></div>
                 </div>
                 <div className="group">
-                  <div className="group-row"><span className="group-label">智能体</span><span className="group-value flex-center gap-5">{selected.agent_count} 个<a href="#/agents" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none' }}>管理 →</a></span></div>
-                  <div className="group-row"><span className="group-label">飞书频道</span>
-                    <span className="group-value flex-center gap-5">
+                  <div className="group-row" style={{ justifyContent: 'space-between' }}>
+                    <span className="group-label">智能体</span>
+                    <span className="group-value flex-center gap-5" style={{ flex: 1 }}>{selected.agent_count} 个</span>
+                    <a href="#/agents" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none', flexShrink: 0 }}>管理 →</a>
+                  </div>
+                  <div className="group-row" style={{ justifyContent: 'space-between' }}>
+                    <span className="group-label">飞书频道</span>
+                    <span className="group-value flex-center gap-5" style={{ flex: 1 }}>
                       {selected.channel_count} 个
                       {stats && <span className="text-dimmer">（{stats.group_count} 群聊, {stats.dm_count} 私聊）</span>}
-                      <a href="#/bindings" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none' }}>管理 →</a>
                     </span>
+                    <a href="#/bindings" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none', flexShrink: 0 }}>管理 →</a>
                   </div>
-                  <div className="group-row">
+                  <div className="group-row" style={{ justifyContent: 'space-between' }}>
                     <span className="group-label">运行状态</span>
-                    <span className="group-value flex-center gap-5">
+                    <span className="group-value flex-center gap-5" style={{ flex: 1 }}>
                       <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: selected.is_running && selected.office_id ? '#34c759' : '#48484A' }}></span>
                       <span style={{ color: selected.is_running && selected.office_id ? '#34c759' : '#8E8E93' }}>
                         {selected.is_running && selected.office_id ? '运行中' : '已停止'}
@@ -342,16 +371,17 @@ export default function OpcPage() {
                           <a href="#/office" style={{ fontSize: '12px', color: '#a78bfa', textDecoration: 'none' }}>
                             {selected.office_name}
                           </a>
-                          <button
-                            className="tbtn tbtn-ghost"
-                            style={{ fontSize: '11px', color: '#f43f5e', padding: '1px 6px' }}
-                            onClick={() => handleUndeploy(selected)}
-                          >
-                            搬出去
-                          </button>
                         </>
                       )}
                     </span>
+                    {selected.is_running && selected.office_id && (
+                      <a
+                        style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none', flexShrink: 0, cursor: 'pointer' }}
+                        onClick={() => setConfirmOffline(selected)}
+                      >
+                        下线 →
+                      </a>
+                    )}
                   </div>
                   <div className="group-row">
                     <span className="group-label">今日消息</span>
