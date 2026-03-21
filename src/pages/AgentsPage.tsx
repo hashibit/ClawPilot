@@ -550,6 +550,7 @@ export default function AgentsPage() {
   const handleAddAgent = (targetOpc?: OpcConfig) => {
     const opc = targetOpc ?? currentOpc
     if (!opc) return
+    if (editing || isNewAgent) { toast('还有智能体未保存，请先保存', 'error'); return }
     const currentAgents = opcAgentsMap[opc.id] ?? []
     const allAgents = Object.values(opcAgentsMap).flat()
     const usedColors = new Set(allAgents.map(a => a.gradient_start))
@@ -703,7 +704,7 @@ export default function AgentsPage() {
                 <div
                   key={opc.id}
                   className={`list-row${isSelected ? ' selected' : ''}`}
-                  onClick={() => selectOpc(opc)}
+                  onClick={() => { selectOpc(opc); setIsNewAgent(false); setEditing(false) }}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)` }}>
@@ -768,7 +769,7 @@ export default function AgentsPage() {
                       )}
                     </div>
                     <span style={{ fontSize: '10px', color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.6)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-                      {agent.display_name}{isNewAgent && selectedAgent?.id === agent.id ? ' *' : ''}
+                      {agent.display_name}{(isNewAgent || editing) && selectedAgent?.id === agent.id ? ' *' : ''}
                     </span>
                   </div>
                 )
@@ -799,7 +800,7 @@ export default function AgentsPage() {
                       {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
                     </div>
                     <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selectedAgent.display_name}</span>
-                    {isNewAgent && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>[未保存]</span>}
+                    {(isNewAgent || editing) && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>[未保存]</span>}
                     {selectedAgent.is_default && !isNewAgent && (
                       <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 500 }}>[领队]</span>
                     )}
