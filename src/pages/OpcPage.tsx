@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useOpc } from '../contexts/OpcContext'
-import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats, createSnapshot, getSnapshots, restoreSnapshot, deleteSnapshot, getOffices, startDeployment, getDeploymentStatus, undeploy, deployToOffice } from '../lib/api'
+import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats, createSnapshot, getSnapshots, restoreSnapshot, deleteSnapshot, undeploy } from '../lib/api'
 import { toast } from '../components/Toast'
-import type { OpcConfig, OpcStats, DeploymentTask, Office } from '../lib/types'
+import type { OpcConfig, OpcStats } from '../lib/types'
 import type { LocalSnapshot } from '../lib/types'
 
 function fmtRelTime(ts: number) {
@@ -118,21 +118,8 @@ export default function OpcPage() {
   const [snapshotLabel, setSnapshotLabel] = useState('')
   const [snapshotLoading, setSnapshotLoading] = useState(false)
 
-  // Deploy state
-  const [offices, setOffices] = useState<Office[]>([])
-  const [selectedOfficeId, setSelectedOfficeId] = useState('')
-  const [deploying, setDeploying] = useState(false)
-  const [deployTask, setDeployTask] = useState<DeploymentTask | null>(null)
-  const pollRef = useRef<number | null>(null)
 
   const selected = currentOpc
-
-  useEffect(() => {
-    getOffices().then(list => {
-      setOffices(list)
-      if (list.length > 0 && !selectedOfficeId) setSelectedOfficeId(list[0].id)
-    }).catch(console.error)
-  }, [])
 
   useEffect(() => {
     if (!selected) return
@@ -140,9 +127,6 @@ export default function OpcPage() {
       .then(setStats)
       .catch(console.error)
     loadSnapshots(selected.id)
-    // reset deploy state when opc changes
-    setDeployTask(null)
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
   }, [selected?.id])
 
   const loadSnapshots = async (opcId: string) => {
@@ -204,56 +188,14 @@ export default function OpcPage() {
     }
   }
 
-  const startPoll = (taskId: string) => {
-    if (pollRef.current) clearInterval(pollRef.current)
-    pollRef.current = window.setInterval(async () => {
-      try {
-        const task = await getDeploymentStatus(taskId)
-        setDeployTask(task)
-        if (task.status === 'SUCCESS' || task.status === 'FAILED') {
-          clearInterval(pollRef.current!); pollRef.current = null
-          setDeploying(false)
-          if (task.status === 'SUCCESS') { toast('部署成功', 'success'); reload() }
-          else toast(`部署失败: ${task.message ?? ''}`, 'error')
-        }
-      } catch { /* ignore */ }
-    }, 2000)
-  }
-
-  const handleDeploy = async () => {
-    if (!selected || !selectedOfficeId) return
-    const selectedOffice = offices.find(o => o.id === selectedOfficeId)
-    if (!selectedOffice?.daemon_url) {
-      toast('该办公室未配置 Daemon，请先前往办公室管理页安装物业', 'error')
-      return
-    }
-    setDeploying(true)
-    setDeployTask(null)
+  const handleUndeploy = async (opc: OpcConfig) => {
+    if (!confirm(`确认将「${opc.display_name}」从办公室腾退？`)) return
     try {
-      const result = await deployToOffice(selected.id, selectedOfficeId)
-      if (!result.ok || !result.task_id) {
-        toast(`部署失败: ${result.error ?? '未知错误'}`, 'error')
-        setDeploying(false)
-        return
-      }
-      const task = await getDeploymentStatus(result.task_id)
-      setDeployTask(task)
-      startPoll(result.task_id)
+      await undeploy(opc.id)
+      toast('已腾退', 'success')
+      await reload()
     } catch (e) {
-      toast(`启动部署失败: ${e}`, 'error')
-      setDeploying(false)
-    }
-  }
-
-  const handleUndeploy = async () => {
-    if (!selected) return
-    if (!confirm(`确认下线「${selected.display_name}」？`)) return
-    try {
-      await undeploy(selected.id)
-      toast('已下线', 'success')
-      reload()
-    } catch (e) {
-      toast(`下线失败: ${e}`, 'error')
+      toast(`腾退失败: ${e}`, 'error')
     }
   }
 
@@ -400,6 +342,13 @@ export default function OpcPage() {
                           <a href="#/office" style={{ fontSize: '12px', color: '#a78bfa', textDecoration: 'none' }}>
                             {selected.office_name}
                           </a>
+                          <button
+                            className="tbtn tbtn-ghost"
+                            style={{ fontSize: '11px', color: '#f43f5e', padding: '1px 6px' }}
+                            onClick={() => handleUndeploy(selected)}
+                          >
+                            搬出去
+                          </button>
                         </>
                       )}
                     </span>
@@ -422,85 +371,6 @@ export default function OpcPage() {
                   <div className="group-row"><span className="group-label">描述</span><span className="group-value">{selected.description ?? '—'}</span></div>
                   <div className="group-row"><span className="group-label">创建时间</span><span className="group-value">{new Date(selected.created_at * 1000).toLocaleDateString()}</span></div>
                   <div className="group-row"><span className="group-label">更新时间</span><span className="group-value">{fmtRelTime(selected.updated_at)}</span></div>
-                </div>
-              </section>
-
-              {/* 一键部署 */}
-              <section>
-                <div className="section-label" style={{ padding: '0 0 6px' }}>一键部署</div>
-                <div className="group">
-                  <div className="group-row" style={{ gap: '10px' }}>
-                    <span className="group-label">目标办公室</span>
-                    {offices.length === 0 ? (
-                      <span style={{ fontSize: '12px', color: '#8E8E93' }}>暂无办公室 · <a href="#/office" style={{ color: '#a78bfa', textDecoration: 'none' }}>前往创建</a></span>
-                    ) : (
-                      <select
-                        value={selectedOfficeId}
-                        onChange={e => setSelectedOfficeId(e.target.value)}
-                        className="field-input"
-                        style={{ flex: 1 }}
-                        disabled={deploying}
-                      >
-                        {offices.map(o => (
-                          <option key={o.id} value={o.id}>{o.name}{!o.daemon_url ? ' (仿真)' : ''}</option>
-                        ))}
-                      </select>
-                    )}
-                    <button
-                      onClick={handleDeploy}
-                      disabled={deploying || offices.length === 0}
-                      className="tbtn tbtn-accent"
-                      style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-                    >
-                      {deploying ? '部署中…' : '一键部署'}
-                    </button>
-                    {selected.is_running && (
-                      <button
-                        onClick={handleUndeploy}
-                        className="tbtn tbtn-ghost"
-                        style={{ flexShrink: 0, color: '#f43f5e', whiteSpace: 'nowrap' }}
-                      >下线</button>
-                    )}
-                  </div>
-
-                  {/* 进度面板 */}
-                  {deployTask && (() => {
-                    const steps: string[] = (() => { try { return JSON.parse(deployTask.steps) } catch { return [] } })()
-                    const statusColor = deployTask.status === 'SUCCESS' ? '#34c759' : deployTask.status === 'FAILED' ? '#f43f5e' : '#f59e0b'
-                    return (
-                      <div style={{ padding: '10px 10px 4px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 600, color: statusColor }}>
-                            {deployTask.status === 'SUCCESS' ? '部署成功' : deployTask.status === 'FAILED' ? '部署失败' : '部署中…'}
-                          </span>
-                          <span style={{ fontSize: '10px', color: '#636366' }}>
-                            {deployTask.office_name ?? offices.find(o => o.id === selectedOfficeId)?.name ?? ''}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
-                          {steps.map((step, i) => {
-                            const done = i < deployTask.current_step
-                            const active = i === deployTask.current_step && deploying
-                            return (
-                              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                                <div style={{
-                                  width: '100%', height: '3px', borderRadius: '2px',
-                                  background: done ? '#34c759' : active ? '#f59e0b' : 'rgba(255,255,255,0.1)',
-                                  transition: 'background 0.4s',
-                                }} />
-                                <span style={{ fontSize: '9px', color: done ? '#34c759' : active ? '#f59e0b' : '#636366', textAlign: 'center' }}>{step}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                        {deployTask.message && (
-                          <div style={{ fontSize: '10px', color: '#636366', fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: '80px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '5px 7px', borderRadius: '5px' }}>
-                            {deployTask.message}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
                 </div>
               </section>
 

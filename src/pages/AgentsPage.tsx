@@ -585,11 +585,12 @@ export default function AgentsPage() {
   const handleDragOver = (e: React.DragEvent, opcId: string, index: number) => {
     e.preventDefault()
     if (dragIndex.current === null || dragIndex.current === index || dragOpcId.current !== opcId) return
+    const fromIndex = dragIndex.current
+    dragIndex.current = index
     setOpcAgentsMap(prev => {
       const list = [...(prev[opcId] ?? [])]
-      const [moved] = list.splice(dragIndex.current!, 1)
+      const [moved] = list.splice(fromIndex, 1)
       list.splice(index, 0, moved)
-      dragIndex.current = index
       return { ...prev, [opcId]: list }
     })
   }
@@ -684,7 +685,7 @@ export default function AgentsPage() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
-                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{displayAgents.length} 个智能体</div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>{opcAgentsMap[opc.id] ? displayAgents.length : opc.agent_count} 个智能体</div>
                   </div>
                 </div>
                 {/* Expanded agent list */}

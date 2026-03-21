@@ -177,12 +177,16 @@ export interface LogEntry {
 // ── Office ────────────────────────────────────────────────
 export type OfficeOwnership = 'RENTED' | 'OWNED'
 export type OfficeGrade = 'HIGH' | 'MEDIUM' | 'LOW'
+export type AccessAuthType = 'password' | 'ssh_key'
 
 export interface Office {
   id: string
   name: string
   address?: string
-  access_card?: string       // 门禁卡 / 登录方式
+  access_auth_type?: AccessAuthType  // 远程认证方式
+  access_user?: string               // 用户名
+  access_password?: string           // 密码（password 模式）
+  ssh_key_path?: string              // SSH 私钥路径（ssh_key 模式）
   phone?: string
   receptionist_image?: string
   ownership: OfficeOwnership

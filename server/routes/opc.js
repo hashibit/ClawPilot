@@ -22,7 +22,10 @@ export function createOpcRouter(db) {
   router.post('/get_all_opcs', (req, res) => {
     try {
       const rows = db.prepare(`
-        SELECT o.*, off.name as office_name
+        SELECT o.*,
+          off.name as office_name,
+          (SELECT COUNT(*) FROM agents WHERE opc_id = o.id) as agent_count,
+          (SELECT COUNT(*) FROM channels WHERE opc_id = o.id) as channel_count
         FROM opc_config o
         LEFT JOIN offices off ON o.office_id = off.id
         ORDER BY o.created_at
@@ -38,7 +41,11 @@ export function createOpcRouter(db) {
     try {
       const { id } = req.body
       const row = db.prepare(`
-        SELECT o.*, off.name as office_name FROM opc_config o
+        SELECT o.*,
+          off.name as office_name,
+          (SELECT COUNT(*) FROM agents WHERE opc_id = o.id) as agent_count,
+          (SELECT COUNT(*) FROM channels WHERE opc_id = o.id) as channel_count
+        FROM opc_config o
         LEFT JOIN offices off ON o.office_id = off.id WHERE o.id = ?
       `).get(id)
       if (!row) throw new Error(`Not found: ${id}`)
@@ -126,14 +133,15 @@ export function createOpcRouter(db) {
   // get_current_opc
   router.post('/get_current_opc', (req, res) => {
     try {
-      let row = db.prepare(`
-        SELECT o.*, off.name as office_name FROM opc_config o
-        LEFT JOIN offices off ON o.office_id = off.id WHERE o.is_active = 1
-      `).get()
-      if (!row) row = db.prepare(`
-        SELECT o.*, off.name as office_name FROM opc_config o
-        LEFT JOIN offices off ON o.office_id = off.id ORDER BY o.created_at
-      `).get()
+      const liveQuery = `
+        SELECT o.*,
+          off.name as office_name,
+          (SELECT COUNT(*) FROM agents WHERE opc_id = o.id) as agent_count,
+          (SELECT COUNT(*) FROM channels WHERE opc_id = o.id) as channel_count
+        FROM opc_config o
+        LEFT JOIN offices off ON o.office_id = off.id`
+      let row = db.prepare(liveQuery + ' WHERE o.is_active = 1').get()
+      if (!row) row = db.prepare(liveQuery + ' ORDER BY o.created_at').get()
       if (!row) return res.json({})
       res.json(rowToOpc(row))
     } catch (err) {

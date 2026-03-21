@@ -46,6 +46,47 @@ message OPCStats {
 }
 
 // =============================================================================
+// 办公室（物理部署环境）
+// =============================================================================
+
+// 远程门禁认证方式
+enum AccessAuthType {
+  ACCESS_AUTH_UNSPECIFIED = 0;
+  ACCESS_AUTH_PASSWORD = 1;   // 用户名 + 密码
+  ACCESS_AUTH_SSH_KEY = 2;    // 用户名 + SSH 私钥
+}
+
+// 办公室（一台可部署 OpenClaw 的主机）
+message Office {
+  string id = 1;
+  string name = 2;
+  string address = 3;                // IP 或域名，"localhost" 表示本机
+
+  // 远程门禁凭证（仅 address != localhost 时有效）
+  AccessAuthType access_auth_type = 10; // 认证方式
+  string access_user = 11;           // 用户名
+  string access_password = 12;       // 密码（access_auth_type = PASSWORD 时）
+  string ssh_key_path = 13;          // SSH 私钥路径（access_auth_type = SSH_KEY 时）
+
+  string phone = 20;
+  string receptionist_image = 21;
+  string ownership = 22;             // RENTED | OWNED
+  double monthly_rent = 23;
+  string internet_speed = 24;
+  string decoration_grade = 25;      // HIGH | MEDIUM | LOW
+  string description = 26;
+
+  string daemon_url = 30;            // Daemon HTTP endpoint
+  string daemon_api_key = 31;        // Daemon API Key
+
+  string current_opc_id = 40;
+  string current_opc_name = 41;
+
+  int64 created_at = 50;
+  int64 updated_at = 51;
+}
+
+// =============================================================================
 // 工具和技能（本地文件目录）
 // =============================================================================
 

@@ -331,3 +331,25 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-21T05:06:38Z
+
+- session_id: `3B72172E-EF7C-4535-9531-C1207528014A`
+- project: `ClawPilot`
+- branch: `ft_logger`
+- started_at: `2026-03-21T05:02:03Z`
+- ended_at: `2026-03-21T05:06:38Z`
+- duration_minutes: 484
+- changes: 7
+
+### 変更ファイル
+- `src/pages/OfficePage.tsx`
+- `src/components/Layout.tsx`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---

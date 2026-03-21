@@ -241,6 +241,11 @@ export function runMigrations(db) {
   // Daemon fields for offices
   try { db.exec('ALTER TABLE offices ADD COLUMN daemon_url TEXT') } catch {}
   try { db.exec('ALTER TABLE offices ADD COLUMN daemon_api_key TEXT') } catch {}
+  // Remote access credential fields
+  try { db.exec("ALTER TABLE offices ADD COLUMN access_auth_type TEXT DEFAULT 'password'") } catch {}
+  try { db.exec('ALTER TABLE offices ADD COLUMN access_user TEXT') } catch {}
+  try { db.exec('ALTER TABLE offices ADD COLUMN access_password TEXT') } catch {}
+  try { db.exec('ALTER TABLE offices ADD COLUMN ssh_key_path TEXT') } catch {}
 
   // Skills table extended fields
   ;[

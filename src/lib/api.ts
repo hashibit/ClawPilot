@@ -162,6 +162,7 @@ export interface InstallDaemonParams {
   ssh_port?: number
   ssh_user?: string
   ssh_key_path?: string
+  ssh_password?: string
 }
 export interface InstallDaemonResult {
   ok: boolean
@@ -186,6 +187,7 @@ export interface InstallOpenclawParams {
   ssh_port?: number
   ssh_user?: string
   ssh_key_path?: string
+  ssh_password?: string
 }
 export const installOpenclaw = (params: InstallOpenclawParams) =>
   call<{ ok: boolean; logs: string[]; error?: string }>('install_openclaw', params as unknown as Record<string, unknown>)

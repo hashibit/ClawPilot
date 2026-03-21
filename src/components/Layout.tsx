@@ -1,81 +1,198 @@
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { getProcessStatus, startOpenclaw, stopOpenclaw } from '../lib/api'
+import type { ProcessStatus } from '../lib/api'
+import { toast } from './Toast'
+
+function fmtUptime(seconds: number) {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}小时${m}分`
+  return `${m}分钟`
+}
 
 export default function Layout() {
   const location = useLocation()
   const isOverviewPage = location.pathname === '/overview' || location.pathname === '/'
+  const [collapsed, setCollapsed] = useState(false)
+  const [process, setProcess] = useState<ProcessStatus | null>(null)
+  const [acting, setActing] = useState(false)
+
+  useEffect(() => {
+    loadStatus()
+    const id = setInterval(loadStatus, 10000)
+    return () => clearInterval(id)
+  }, [])
+
+  const loadStatus = async () => {
+    try {
+      const s = await getProcessStatus()
+      setProcess(s)
+    } catch { /* ignore */ }
+  }
+
+  const handleToggleOpenclaw = async () => {
+    if (!process || acting) return
+    setActing(true)
+    try {
+      if (process.is_running) {
+        await stopOpenclaw()
+        toast('OpenClaw 已停止', 'success')
+      } else {
+        await startOpenclaw()
+        toast('OpenClaw 已启动', 'success')
+      }
+      await loadStatus()
+    } catch (e) {
+      toast(String(e), 'error')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const sidebarWidth = collapsed ? '48px' : '204px'
+
+  const NavItem = ({ to, icon, label, badge }: { to: string; icon: React.ReactNode; label: string; badge?: string }) => (
+    <NavLink to={to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} title={collapsed ? label : undefined}>
+      <span className="nav-icon ic-16" style={{ flexShrink: 0 }}>{icon}</span>
+      {!collapsed && <span className="text-sm">{label}</span>}
+      {!collapsed && badge && <span className="pro-badge">{badge}</span>}
+    </NavLink>
+  )
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
-      <aside className="sidebar">
-        <div className="toolbar" style={{ gap: '8px', padding: '0 12px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-          <div className="logo-box">
-            <svg width="13" height="13" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          </div>
-          <span className="text-sm text-bold">ClawPilot</span>
+      <aside className="sidebar" style={{ width: sidebarWidth, transition: 'width 0.2s ease', overflow: 'hidden' }}>
+        {/* Header */}
+        <div className="toolbar" style={{ gap: '8px', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)', justifyContent: 'space-between', flexShrink: 0 }}>
+          {!collapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="logo-box">
+                <svg width="13" height="13" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <span className="text-sm text-bold">ClawPilot</span>
+            </div>
+          )}
+          {collapsed && (
+            <div className="logo-box" style={{ margin: '0 auto' }}>
+              <svg width="13" height="13" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </div>
+          )}
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              title="收起菜单"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: '2px 4px', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+            >
+              <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+            </button>
+          )}
         </div>
-        <nav style={{ flex: 1, padding: '6px 8px', overflowY: 'auto' }}>
-          <div className="section-label">核心功能</div>
-          <NavLink to="/overview" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-            <span className="text-sm">数据概览</span>
-          </NavLink>
-          <NavLink to="/opc" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-            <span className="text-sm">子公司管理</span>
-          </NavLink>
-          <NavLink to="/agents" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-            <span className="text-sm">智能体管理</span>
-          </NavLink>
-          <NavLink to="/bindings" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            <span className="text-sm">飞书频道绑定</span>
-          </NavLink>
 
-          <div className="section-label" style={{ marginTop: '6px' }}>基础设施</div>
-          <NavLink to="/providers" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
-            <span className="text-sm">模型管理</span>
-          </NavLink>
-          <NavLink to="/office" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-            <span className="text-sm">办公室管理</span>
-          </NavLink>
+        {/* Expand button when collapsed */}
+        {collapsed && (
+          <button
+            onClick={() => setCollapsed(false)}
+            title="展开菜单"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+          </button>
+        )}
 
-          <div className="section-label" style={{ marginTop: '6px' }}>部署与监控</div>
-          <NavLink to="/deploy" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-            <span className="text-sm">一键部署</span>
-          </NavLink>
-          <NavLink to="/logs" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <span className="text-sm">运行日志</span>
-          </NavLink>
+        <nav style={{ flex: 1, padding: '6px 6px', overflowY: 'auto', overflowX: 'hidden' }}>
+          {!collapsed && <div className="section-label">核心功能</div>}
+          <NavItem to="/overview" label="数据概览" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          } />
+          <NavItem to="/opc" label="子公司管理" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          } />
+          <NavItem to="/agents" label="智能体管理" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          } />
+          <NavItem to="/bindings" label="飞书频道绑定" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          } />
 
-          <div className="section-label" style={{ marginTop: '6px' }}>高级功能</div>
-          <a href="#" className="nav-item">
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-            <span className="text-sm">模板市场</span>
-            <span className="pro-badge">PRO</span>
+          {!collapsed && <div className="section-label" style={{ marginTop: '6px' }}>基础设施</div>}
+          {collapsed && <div style={{ height: '6px' }} />}
+          <NavItem to="/providers" label="模型管理" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          } />
+          <NavItem to="/office" label="办公室管理" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          } />
+
+          {!collapsed && <div className="section-label" style={{ marginTop: '6px' }}>部署与监控</div>}
+          {collapsed && <div style={{ height: '6px' }} />}
+          <NavItem to="/deploy" label="一键部署" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          } />
+          <NavItem to="/logs" label="运行日志" icon={
+            <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          } />
+
+          {!collapsed && <div className="section-label" style={{ marginTop: '6px' }}>高级功能</div>}
+          {collapsed && <div style={{ height: '6px' }} />}
+          <a href="#" className="nav-item" title={collapsed ? '模板市场' : undefined}>
+            <span className="nav-icon ic-16" style={{ flexShrink: 0 }}>
+              <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </span>
+            {!collapsed && <><span className="text-sm">模板市场</span><span className="pro-badge">PRO</span></>}
           </a>
-          <a href="#" className="nav-item">
-            <svg className="nav-icon ic-16" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span className="text-sm">云同步</span>
-            <span className="pro-badge">PRO</span>
+          <a href="#" className="nav-item" title={collapsed ? '云同步' : undefined}>
+            <span className="nav-icon ic-16" style={{ flexShrink: 0 }}>
+              <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </span>
+            {!collapsed && <><span className="text-sm">云同步</span><span className="pro-badge">PRO</span></>}
           </a>
         </nav>
+
         {/* Status footer */}
-        <div style={{ padding: '10px 10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="pulse-dot" style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>
-              <span style={{ fontSize: '12px', color: '#34c759', fontWeight: 500 }}>OpenClaw 运行中</span>
+        <div style={{ padding: collapsed ? '8px 6px' : '10px 10px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          {collapsed ? (
+            // Collapsed: just the status dot
+            <div
+              title={process?.is_running ? `OpenClaw 运行中 · PID ${process.pid}` : 'OpenClaw 已停止'}
+              style={{ display: 'flex', justifyContent: 'center' }}
+            >
+              <span style={{
+                width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block',
+                background: process?.is_running ? '#34c759' : '#8E8E93',
+              }} />
             </div>
-          </div>
-          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', marginBottom: '7px' }}>PID 28471 · 3小时42分</div>
-          <button className="tbtn tbtn-ghost" style={{ width: '100%', textAlign: 'center' }}>重启服务</button>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{
+                    width: '7px', height: '7px', borderRadius: '50%', display: 'inline-block', flexShrink: 0,
+                    background: process?.is_running ? '#34c759' : '#8E8E93',
+                  }} />
+                  <span style={{ fontSize: '12px', color: process?.is_running ? '#34c759' : '#8E8E93', fontWeight: 500 }}>
+                    {process?.is_running ? 'OpenClaw 运行中' : 'OpenClaw 已停止'}
+                  </span>
+                </div>
+              </div>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '7px' }}>
+                {process?.is_running && process.pid != null
+                  ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${fmtUptime(process.uptime_seconds)}` : ''}`
+                  : '未运行'}
+              </div>
+              <button
+                className="tbtn tbtn-ghost"
+                style={{ width: '100%', textAlign: 'center', opacity: acting ? 0.5 : 1 }}
+                onClick={handleToggleOpenclaw}
+                disabled={acting}
+              >
+                {acting ? '操作中…' : process?.is_running ? '停止服务' : '启动服务'}
+              </button>
+            </>
+          )}
         </div>
       </aside>
+
       {isOverviewPage ? (
         // Two-column layout for Overview
         <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

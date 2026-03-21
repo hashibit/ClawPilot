@@ -59,6 +59,7 @@ export default function DeployPage() {
 
   // Free offices: not currently occupied (no current_opc_id)
   const freeOffices = offices.filter(o => !o.current_opc_id)
+  const selectedOffice = freeOffices.find(o => o.id === selectedOfficeId)
   // Running OPCs
   const runningOpcs = opcs.filter(o => o.is_running && o.office_id)
 
@@ -136,7 +137,7 @@ export default function DeployPage() {
       : Math.round((currentTask.current_step / DEPLOY_STEPS.length) * 100)
     : 0
 
-  const canDeploy = selectedOpcId && selectedOfficeId && !deploying
+  const canDeploy = selectedOpcId && selectedOfficeId && selectedOffice?.daemon_url && !deploying
 
   return (
     <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -187,10 +188,17 @@ export default function DeployPage() {
               >
                 <option value="">-- 请选择空闲办公室 --</option>
                 {freeOffices.map(office => (
-                  <option key={office.id} value={office.id}>{office.name}</option>
+                  <option key={office.id} value={office.id} disabled={!office.daemon_url}>
+                    {office.daemon_url ? '✅ ' : '⚠️ '}{office.name}{!office.daemon_url ? ' · 未安装物业' : ''}
+                  </option>
                 ))}
               </select>
             </div>
+            {selectedOfficeId && !selectedOffice?.daemon_url && (
+              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#f59e0b' }}>
+                该办公室尚未安装物业，请先前往「办公室管理」安装
+              </div>
+            )}
             {freeOffices.length === 0 && (
               <div style={{ padding: '8px 12px', fontSize: '12px', color: '#f59e0b' }}>
                 暂无空闲办公室，请先在「办公室管理」中创建或撤销现有部署

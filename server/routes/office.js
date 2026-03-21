@@ -95,13 +95,17 @@ export function createOfficeRouter(db) {
       const { office } = req.body
       db.prepare(`
         INSERT INTO offices
-          (id, name, address, access_card, phone, receptionist_image,
+          (id, name, address,
+           access_auth_type, access_user, access_password, ssh_key_path,
+           phone, receptionist_image,
            ownership, monthly_rent, internet_speed, decoration_grade, description,
            daemon_url, daemon_api_key, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         office.id, office.name,
-        office.address ?? null, office.access_card ?? null,
+        office.address ?? null,
+        office.access_auth_type ?? 'password', office.access_user ?? null,
+        office.access_password ?? null, office.ssh_key_path ?? null,
         office.phone ?? null, office.receptionist_image ?? null,
         office.ownership ?? 'RENTED', office.monthly_rent ?? null,
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
@@ -121,13 +125,17 @@ export function createOfficeRouter(db) {
       const { id, office } = req.body
       db.prepare(`
         UPDATE offices SET
-          name = ?, address = ?, access_card = ?, phone = ?, receptionist_image = ?,
+          name = ?, address = ?,
+          access_auth_type = ?, access_user = ?, access_password = ?, ssh_key_path = ?,
+          phone = ?, receptionist_image = ?,
           ownership = ?, monthly_rent = ?, internet_speed = ?, decoration_grade = ?,
           description = ?, daemon_url = ?, daemon_api_key = ?, updated_at = ?
         WHERE id = ?
       `).run(
         office.name,
-        office.address ?? null, office.access_card ?? null,
+        office.address ?? null,
+        office.access_auth_type ?? 'password', office.access_user ?? null,
+        office.access_password ?? null, office.ssh_key_path ?? null,
         office.phone ?? null, office.receptionist_image ?? null,
         office.ownership ?? 'RENTED', office.monthly_rent ?? null,
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',

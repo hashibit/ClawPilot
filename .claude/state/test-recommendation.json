@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-21T04:28:51Z",
-  "changed_file": "e2e/app.spec.ts",
+  "timestamp": "2026-03-21T07:08:01Z",
+  "changed_file": "src/pages/AgentsPage.tsx",
   "test_command": "npm test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"
