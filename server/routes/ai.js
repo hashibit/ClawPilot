@@ -146,21 +146,26 @@ router.post('/ai_generate_agent', async (req, res) => {
 // ── chat_with_agent ──────────────────────────────────────
 // POST /api/chat_with_agent { agent_id, messages: [{role, content}] }
 router.post('/chat_with_agent', async (req, res) => {
-  const { agent_id, messages } = req.body
-  if (!agent_id) return res.status(400).send('agent_id is required')
+  const { agent_id, messages, soul_override } = req.body
+  if (!soul_override && !agent_id) return res.status(400).send('agent_id is required')
   if (!Array.isArray(messages) || messages.length === 0) return res.status(400).send('messages is required')
 
-  // Load agent SOUL.md as system prompt
-  const docRow = db.prepare(
-    "SELECT content FROM agent_documents WHERE agent_id = ? AND document_type = 'SOUL'"
-  ).get(agent_id)
-  const agentRow = db.prepare('SELECT display_name, job_title FROM agents WHERE id = ?').get(agent_id)
-
-  let systemPrompt = `/no_think 你是一个 OpenClaw Agent。`
-  if (agentRow) systemPrompt += ` 你的名字是 ${agentRow.display_name}`
-  if (agentRow?.job_title) systemPrompt += `，职位是 ${agentRow.job_title}`
-  systemPrompt += '。'
-  if (docRow?.content?.trim()) systemPrompt = `/no_think\n\n${docRow.content}`
+  let systemPrompt
+  if (soul_override?.trim()) {
+    // Use provided SOUL content directly (unsaved editing state)
+    systemPrompt = `/no_think\n\n${soul_override}`
+  } else {
+    // Load agent SOUL.md from DB
+    const docRow = db.prepare(
+      "SELECT content FROM agent_documents WHERE agent_id = ? AND document_type = 'SOUL'"
+    ).get(agent_id)
+    const agentRow = db.prepare('SELECT display_name, job_title FROM agents WHERE id = ?').get(agent_id)
+    systemPrompt = `/no_think 你是一个 OpenClaw Agent。`
+    if (agentRow) systemPrompt += ` 你的名字是 ${agentRow.display_name}`
+    if (agentRow?.job_title) systemPrompt += `，职位是 ${agentRow.job_title}`
+    systemPrompt += '。'
+    if (docRow?.content?.trim()) systemPrompt = `/no_think\n\n${docRow.content}`
+  }
 
   // Get configured provider
   const row = db.prepare("SELECT * FROM model_providers WHERE provider_type = 'BAILIAN' AND is_enabled = 1").get()

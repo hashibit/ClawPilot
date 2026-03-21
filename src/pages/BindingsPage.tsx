@@ -311,77 +311,53 @@ export default function BindingsPage() {
                   </span>
                 </div>
 
-                {channelEditing ? (
+                {channelType === 'FEISHU' && (
                   <>
-                    {channelType === 'FEISHU' && (
-                      <>
-                        <div className="group-row" style={{ gap: '10px' }}>
-                          <span className="group-label">App ID</span>
-                          <input type="text" value={appId} onChange={e => setAppId(e.target.value)} placeholder="cli_..." className="field-input" style={{ flex: 1 }} />
-                        </div>
-                        <div className="group-row" style={{ gap: '10px' }}>
-                          <span className="group-label">App Secret</span>
-                          <input type="password" value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
-                        </div>
-                      </>
-                    )}
-                    {channelType === 'DINGTALK' && (
-                      <>
-                        <div className="group-row" style={{ gap: '10px' }}>
-                          <span className="group-label">App Key</span>
-                          <input type="text" value={dtAppKey} onChange={e => setDtAppKey(e.target.value)} placeholder="dingXXXX" className="field-input" style={{ flex: 1 }} />
-                        </div>
-                        <div className="group-row" style={{ gap: '10px' }}>
-                          <span className="group-label">App Secret</span>
-                          <input type="password" value={dtAppSecret} onChange={e => setDtAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
-                        </div>
-                        <div className="group-row" style={{ gap: '10px' }}>
-                          <span className="group-label">Webhook URL</span>
-                          <input type="text" value={dtWebhook} onChange={e => setDtWebhook(e.target.value)} placeholder="https://oapi.dingtalk.com/..." className="field-input" style={{ flex: 1 }} />
-                        </div>
-                      </>
-                    )}
-                    {channelType === 'SLACK' && (
-                      <>
-                        <div className="group-row" style={{ gap: '10px' }}>
-                          <span className="group-label">Bot Token</span>
-                          <input type="password" value={slackBotToken} onChange={e => setSlackBotToken(e.target.value)} placeholder="xoxb-..." className="field-input" style={{ flex: 1 }} />
-                        </div>
-                        <div className="group-row" style={{ gap: '10px' }}>
-                          <span className="group-label">Signing Secret</span>
-                          <input type="password" value={slackSigningSecret} onChange={e => setSlackSigningSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} />
-                        </div>
-                      </>
-                    )}
-                    <div style={{ display: 'flex', gap: '6px', padding: '6px 12px 8px' }}>
-                      <button className="tbtn tbtn-accent" onClick={handleSaveChannel} disabled={savingChannel}>保存配置</button>
-                      {channelType === 'FEISHU' && (
-                        <button className="tbtn tbtn-ghost" onClick={handleTestConnection} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
-                      )}
+                    <div className="group-row" style={{ gap: '10px' }}>
+                      <span className="group-label">App ID</span>
+                      <input type="text" value={channelEditing ? appId : (appId ? appId.slice(0, 8) + '***' : '')} onChange={e => setAppId(e.target.value)} placeholder="cli_..." className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
+                    </div>
+                    <div className="group-row" style={{ gap: '10px' }}>
+                      <span className="group-label">App Secret</span>
+                      <input type={channelEditing ? 'password' : 'text'} value={channelEditing ? appSecret : (appSecret ? '已配置' : '')} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
                     </div>
                   </>
-                ) : (
+                )}
+                {channelType === 'DINGTALK' && (
                   <>
-                    {channelType === 'FEISHU' && (
-                      <>
-                        <div className="group-row"><span className="group-label">App ID</span><span className="group-value">{appId ? appId.slice(0, 8) + '***' : '未设置'}</span></div>
-                        <div className="group-row"><span className="group-label">App Secret</span><span className="group-value text-dimmer">{appSecret ? '已配置' : '未设置'}</span></div>
-                      </>
-                    )}
-                    {channelType === 'DINGTALK' && (
-                      <>
-                        <div className="group-row"><span className="group-label">App Key</span><span className="group-value">{dtAppKey || '未设置'}</span></div>
-                        <div className="group-row"><span className="group-label">App Secret</span><span className="group-value text-dimmer">{dtAppSecret ? '已配置' : '未设置'}</span></div>
-                        <div className="group-row"><span className="group-label">Webhook</span><span className="group-value text-dimmer" style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{dtWebhook || '未设置'}</span></div>
-                      </>
-                    )}
-                    {channelType === 'SLACK' && (
-                      <>
-                        <div className="group-row"><span className="group-label">Bot Token</span><span className="group-value text-dimmer">{slackBotToken ? '已配置' : '未设置'}</span></div>
-                        <div className="group-row"><span className="group-label">Signing Secret</span><span className="group-value text-dimmer">{slackSigningSecret ? '已配置' : '未设置'}</span></div>
-                      </>
-                    )}
+                    <div className="group-row" style={{ gap: '10px' }}>
+                      <span className="group-label">App Key</span>
+                      <input type="text" value={channelEditing ? dtAppKey : (dtAppKey ? dtAppKey.slice(0, 8) + '***' : '')} onChange={e => setDtAppKey(e.target.value)} placeholder="dingXXXX" className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
+                    </div>
+                    <div className="group-row" style={{ gap: '10px' }}>
+                      <span className="group-label">App Secret</span>
+                      <input type={channelEditing ? 'password' : 'text'} value={channelEditing ? dtAppSecret : (dtAppSecret ? '已配置' : '')} onChange={e => setDtAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
+                    </div>
+                    <div className="group-row" style={{ gap: '10px' }}>
+                      <span className="group-label">Webhook URL</span>
+                      <input type="text" value={dtWebhook} onChange={e => setDtWebhook(e.target.value)} placeholder="https://oapi.dingtalk.com/..." className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
+                    </div>
                   </>
+                )}
+                {channelType === 'SLACK' && (
+                  <>
+                    <div className="group-row" style={{ gap: '10px' }}>
+                      <span className="group-label">Bot Token</span>
+                      <input type={channelEditing ? 'password' : 'text'} value={channelEditing ? slackBotToken : (slackBotToken ? '已配置' : '')} onChange={e => setSlackBotToken(e.target.value)} placeholder="xoxb-..." className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
+                    </div>
+                    <div className="group-row" style={{ gap: '10px' }}>
+                      <span className="group-label">Signing Secret</span>
+                      <input type={channelEditing ? 'password' : 'text'} value={channelEditing ? slackSigningSecret : (slackSigningSecret ? '已配置' : '')} onChange={e => setSlackSigningSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
+                    </div>
+                  </>
+                )}
+                {channelEditing && (
+                  <div style={{ display: 'flex', gap: '6px', padding: '6px 12px 8px' }}>
+                    <button className="tbtn tbtn-accent" onClick={handleSaveChannel} disabled={savingChannel}>保存配置</button>
+                    {channelType === 'FEISHU' && (
+                      <button className="tbtn tbtn-ghost" onClick={handleTestConnection} disabled={testing}>{testing ? '测试中...' : '测试连接'}</button>
+                    )}
+                  </div>
                 )}
               </div>
             </section>
@@ -475,50 +451,39 @@ export default function BindingsPage() {
               <div className="group">
                 <div className="group-row" style={{ gap: '10px' }}>
                   <span className="group-label">群组名称</span>
-                  {bindingEditing ? (
-                    <input
-                      type="text"
-                      value={bindingForm.channel_name ?? ''}
-                      onChange={e => handleBindingFormChange('channel_name', e.target.value)}
-                      className="field-input"
-                      style={{ flex: 1 }}
-                    />
-                  ) : (
-                    <span className="group-value">{bindingForm.channel_name || '—'}</span>
-                  )}
+                  <input
+                    type="text"
+                    value={bindingForm.channel_name ?? ''}
+                    onChange={e => handleBindingFormChange('channel_name', e.target.value)}
+                    className="field-input"
+                    style={{ flex: 1 }}
+                    disabled={!bindingEditing}
+                  />
                 </div>
                 <div className="group-row" style={{ gap: '10px' }}>
                   <span className="group-label">群组 ID</span>
-                  {bindingEditing ? (
-                    <input
-                      type="text"
-                      value={bindingForm.channel_id ?? ''}
-                      onChange={e => handleBindingFormChange('channel_id', e.target.value)}
-                      placeholder="oc_xxx..."
-                      className="field-input"
-                      style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}
-                    />
-                  ) : (
-                    <span className="group-value text-dimmer" style={{ fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}>{bindingForm.channel_id || '—'}</span>
-                  )}
+                  <input
+                    type="text"
+                    value={bindingForm.channel_id ?? ''}
+                    onChange={e => handleBindingFormChange('channel_id', e.target.value)}
+                    placeholder="oc_xxx..."
+                    className="field-input"
+                    style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}
+                    disabled={!bindingEditing}
+                  />
                 </div>
                 <div className="group-row" style={{ gap: '10px' }}>
                   <span className="group-label">类型</span>
-                  {bindingEditing ? (
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <select
-                        className="field-input"
-                        style={{ width: '100%' }}
-                        value={bindingForm.channel_type ?? 'GROUP'}
-                        onChange={e => handleBindingFormChange('channel_type', e.target.value)}
-                      >
-                        <option value="GROUP">群组</option>
-                        <option value="DM">私聊</option>
-                      </select>
-                    </div>
-                  ) : (
-                    <span className="group-value">{bindingForm.channel_type === 'DM' ? '私聊' : '群组'}</span>
-                  )}
+                  <select
+                    className="field-input"
+                    style={{ flex: 1 }}
+                    value={bindingForm.channel_type ?? 'GROUP'}
+                    onChange={e => handleBindingFormChange('channel_type', e.target.value)}
+                    disabled={!bindingEditing}
+                  >
+                    <option value="GROUP">群组</option>
+                    <option value="DM">私聊</option>
+                  </select>
                 </div>
               </div>
             </section>
@@ -527,43 +492,33 @@ export default function BindingsPage() {
             <section>
               <span className="section-label" style={{ padding: '0 0 8px', display: 'block' }}>绑定配置</span>
               <div className="group">
-                <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
-                  <span className="group-label" style={{ marginTop: '5px' }}>关联智能体</span>
-                  {bindingEditing ? (
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <select
-                        className="field-input"
-                        style={{ width: '100%' }}
-                        value={bindingForm.agent_id ?? ''}
-                        onChange={e => handleBindingFormChange('agent_id', e.target.value)}
-                      >
-                        <option value="">— 未选择 —</option>
-                        {agents.map(a => (
-                          <option key={a.id} value={a.id}>{a.display_name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <span className="group-value">{bindingForm.agent_name || '—'}</span>
-                  )}
+                <div className="group-row" style={{ gap: '10px' }}>
+                  <span className="group-label">关联智能体</span>
+                  <select
+                    className="field-input"
+                    style={{ flex: 1 }}
+                    value={bindingForm.agent_id ?? ''}
+                    onChange={e => handleBindingFormChange('agent_id', e.target.value)}
+                    disabled={!bindingEditing}
+                  >
+                    <option value="">— 未选择 —</option>
+                    {agents.map(a => (
+                      <option key={a.id} value={a.id}>{a.display_name}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
-                  <span className="group-label" style={{ marginTop: '5px' }}>触发模式</span>
-                  {bindingEditing ? (
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <select
-                        className="field-input"
-                        style={{ width: '100%' }}
-                        value={bindingForm.trigger_mode ?? 'MENTION'}
-                        onChange={e => handleBindingFormChange('trigger_mode', e.target.value)}
-                      >
-                        <option value="MENTION">@机器人触发</option>
-                        <option value="ALL">所有消息</option>
-                      </select>
-                    </div>
-                  ) : (
-                    <span className="group-value">{bindingForm.trigger_mode === 'ALL' ? '所有消息' : '@机器人触发'}</span>
-                  )}
+                <div className="group-row" style={{ gap: '10px' }}>
+                  <span className="group-label">触发模式</span>
+                  <select
+                    className="field-input"
+                    style={{ flex: 1 }}
+                    value={bindingForm.trigger_mode ?? 'MENTION'}
+                    onChange={e => handleBindingFormChange('trigger_mode', e.target.value)}
+                    disabled={!bindingEditing}
+                  >
+                    <option value="MENTION">@机器人触发</option>
+                    <option value="ALL">所有消息</option>
+                  </select>
                 </div>
                 <div className="group-row">
                   <span className="group-label">启用状态</span>

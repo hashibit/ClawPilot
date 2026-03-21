@@ -107,6 +107,7 @@ body {
 .field-input:focus { border-color: rgba(139,92,246,0.6); }
 .field-input::placeholder { color: rgba(255,255,255,0.3); }
 select.field-input { -webkit-appearance: none; appearance: none; cursor: pointer; }
+.field-input:disabled { background: transparent; border-color: transparent; color: rgba(255,255,255,0.45); cursor: default; }
 
 /* ── Checkbox ─────────────────────────────────────────── */
 input[type="checkbox"].mac-check {

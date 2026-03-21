@@ -118,7 +118,7 @@ function TagInput({ tags, onChange, placeholder, disabled }: {
 // ── Agent Chat Drawer ──────────────────────────────────────
 interface ChatMsg { role: 'user' | 'assistant'; content: string }
 
-function ChatDrawer({ agent, onClose }: { agent: AgentConfig; onClose: () => void }) {
+function ChatDrawer({ agent, onClose, soulOverride }: { agent: AgentConfig; onClose: () => void; soulOverride?: string }) {
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -136,7 +136,7 @@ function ChatDrawer({ agent, onClose }: { agent: AgentConfig; onClose: () => voi
     setInput('')
     setLoading(true)
     try {
-      const { reply } = await chatWithAgent(agent.id, next)
+      const { reply } = await chatWithAgent(agent.id, next, soulOverride)
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (e: any) {
       toast(e?.message ?? '请求失败', 'error')
@@ -156,7 +156,7 @@ function ChatDrawer({ agent, onClose }: { agent: AgentConfig; onClose: () => voi
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{agent.display_name}</div>
-            <div style={{ fontSize: '11px', color: '#8E8E93' }}>测试对话 · 基于 SOUL.md</div>
+            <div style={{ fontSize: '11px', color: soulOverride ? '#f59e0b' : '#8E8E93' }}>{soulOverride ? '临时测试-智能体尚未保存' : '测试对话 · 基于 SOUL.md'}</div>
           </div>
           <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '11px', padding: '4px 8px', borderRadius: '5px' }}>清空</button>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
@@ -428,6 +428,7 @@ export default function AgentsPage() {
   const [models, setModels] = useState<ModelInfo[]>([])
   const [skillModalOpen, setSkillModalOpen] = useState(false)
   const [chatAgent, setChatAgent] = useState<AgentConfig | null>(null)
+  const [chatSoulOverride, setChatSoulOverride] = useState<string | undefined>(undefined)
   const [customToolInput, setCustomToolInput] = useState('')
   const dragIndex = useRef<number | null>(null)
   const dragOpcId = useRef<string | null>(null)
@@ -807,10 +808,18 @@ export default function AgentsPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <button className="tbtn tbtn-ghost" style={{ color: '#06b6d4' }} onClick={async () => {
-                      if (isNewAgent) { toast('请先保存智能体再测试对话', 'error'); return }
-                      const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
-                      if (!soul?.trim()) { toast('SOUL.md 为空，请先填写人格配置再测试对话', 'error'); return }
-                      setChatAgent(selectedAgent)
+                      if (activeDocTab === 'SOUL' && docContent.trim()) {
+                        // Use current editor content (may be unsaved)
+                        setChatSoulOverride(docContent)
+                        setChatAgent(selectedAgent)
+                      } else if (isNewAgent) {
+                        toast('请在 SOUL.md 标签页填写人格配置后再测试对话', 'error')
+                      } else {
+                        const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
+                        if (!soul?.trim()) { toast('SOUL.md 为空，请先填写人格配置再测试对话', 'error'); return }
+                        setChatSoulOverride(undefined)
+                        setChatAgent(selectedAgent)
+                      }
                     }}>测试对话</button>
                     {!selectedAgent.is_default && !editing && (
                       <div className="tip">
@@ -1084,7 +1093,7 @@ export default function AgentsPage() {
       )}
 
       {chatAgent && (
-        <ChatDrawer agent={chatAgent} onClose={() => setChatAgent(null)} />
+        <ChatDrawer agent={chatAgent} onClose={() => { setChatAgent(null); setChatSoulOverride(undefined) }} soulOverride={chatSoulOverride} />
       )}
 
       {confirmDelete && (

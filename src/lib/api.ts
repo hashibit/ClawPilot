@@ -261,5 +261,5 @@ export const installSkill = (slug: string) => call<LocalSkill>('install_skill', 
 export const uninstallSkill = (slug: string) => call<{ ok: boolean }>('uninstall_skill', { slug })
 
 // ── Agent Chat ─────────────────────────────────────────────
-export const chatWithAgent = (agentId: string, messages: { role: string; content: string }[]) =>
-  call<{ reply: string }>('chat_with_agent', { agent_id: agentId, messages })
+export const chatWithAgent = (agentId: string | null, messages: { role: string; content: string }[], soulOverride?: string) =>
+  call<{ reply: string }>('chat_with_agent', { agent_id: agentId, messages, ...(soulOverride ? { soul_override: soulOverride } : {}) })
