@@ -4,9 +4,6 @@ import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
 import { createLogger } from '../logger.js'
-const log = createLogger('process')
-
-const router = Router()
 
 const PID_FILE = join(homedir(), '.openclaw', 'openclaw.pid')
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || 'openclaw'
@@ -57,6 +54,10 @@ function getUptimeSeconds(pid) {
     return null
   }
 }
+
+export function createProcessRouter(_db) {
+  const log = createLogger('process')
+  const router = Router()
 
 // POST /api/get_process_status
 router.post('/get_process_status', (_req, res) => {
@@ -133,4 +134,8 @@ router.post('/reload_openclaw', (_req, res) => {
   }
 })
 
-export default router
+  return router
+}
+
+// Backward compatibility
+export default createProcessRouter

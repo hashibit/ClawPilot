@@ -1,45 +1,69 @@
 import express from 'express'
 import cors from 'cors'
-import { DB_PATH } from './db.js'
-import { accessLogger, createLogger } from './logger.js'
+import { createLogger } from './logger.js'
 
-import opcRouter from './routes/opc.js'
-import agentRouter from './routes/agent.js'
-import modelRouter from './routes/model.js'
-import channelRouter from './routes/channel.js'
-import bindingRouter from './routes/binding.js'
-import deploymentRouter from './routes/deployment.js'
-import logRouter from './routes/log.js'
-import snapshotRouter from './routes/snapshot.js'
-import aiRouter from './routes/ai.js'
-import officeRouter from './routes/office.js'
-import processRouter from './routes/process.js'
-import toolRouter from './routes/tool.js'
-import skillRouter from './routes/skill.js'
+// Route factory imports
+import { createOpcRouter } from './routes/opc.js'
+import { createAgentRouter } from './routes/agent.js'
+import { createModelRouter } from './routes/model.js'
+import { createChannelRouter } from './routes/channel.js'
+import { createBindingRouter } from './routes/binding.js'
+import { createDeploymentRouter } from './routes/deployment.js'
+import { createLogRouter } from './routes/log.js'
+import { createSnapshotRouter } from './routes/snapshot.js'
+import { createAiRouter } from './routes/ai.js'
+import { createOfficeRouter } from './routes/office.js'
+import { createProcessRouter } from './routes/process.js'
+import { createToolRouter } from './routes/tool.js'
+import { createSkillRouter } from './routes/skill.js'
 
 const log = createLogger('server')
 
-const app = express()
-app.use(cors())
-app.use(express.json())
-app.use(accessLogger)
+// ── App Factory ────────────────────────────────────────────
 
-app.use('/api', opcRouter)
-app.use('/api', agentRouter)
-app.use('/api', modelRouter)
-app.use('/api', channelRouter)
-app.use('/api', bindingRouter)
-app.use('/api', deploymentRouter)
-app.use('/api', logRouter)
-app.use('/api', snapshotRouter)
-app.use('/api', aiRouter)
-app.use('/api', officeRouter)
-app.use('/api', processRouter)
-app.use('/api', toolRouter)
-app.use('/api', skillRouter)
+export function createApp(db) {
+  const app = express()
+  app.use(cors())
+  app.use(express.json())
 
-const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-  log.info(`listening on http://localhost:${PORT}`)
-  log.info(`DB: ${DB_PATH}`)
-})
+  // Mount routes with injected db
+  app.use('/api', createOpcRouter(db))
+  app.use('/api', createAgentRouter(db))
+  app.use('/api', createModelRouter(db))
+  app.use('/api', createChannelRouter(db))
+  app.use('/api', createBindingRouter(db))
+  app.use('/api', createDeploymentRouter(db))
+  app.use('/api', createLogRouter(db))
+  app.use('/api', createSnapshotRouter(db))
+  app.use('/api', createAiRouter(db))
+  app.use('/api', createOfficeRouter(db))
+  app.use('/api', createProcessRouter(db))
+  app.use('/api', createToolRouter(db))
+  app.use('/api', createSkillRouter(db))
+
+  return app
+}
+
+// ── Production Startup ─────────────────────────────────────
+
+async function main() {
+  const { default: db, DB_PATH } = await import('./db.js')
+  const { accessLogger } = await import('./logger.js')
+
+  const app = createApp(db)
+  app.use(accessLogger)
+
+  const PORT = process.env.PORT || 3001
+  app.listen(PORT, () => {
+    log.info(`listening on http://localhost:${PORT}`)
+    log.info(`DB: ${DB_PATH}`)
+  })
+}
+
+// 只在直接运行时启动服务器（不是被导入时）
+if (process.argv[1] && process.argv[1].endsWith('index.js')) {
+  main().catch(err => {
+    console.error('Failed to start server:', err)
+    process.exit(1)
+  })
+}

@@ -1,5 +1,4 @@
 import { Router } from 'express'
-import db from '../db.js'
 import { randomUUID, createHash } from 'crypto'
 import zlib from 'zlib'
 import { pack } from 'tar-stream'
@@ -8,16 +7,18 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
-const log = createLogger('deployment')
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE_ROOT = path.resolve(__dirname, '../..')
 
-const router = Router()
 const now = () => Math.floor(Date.now() / 1000)
 
-// In-memory cache: opc_id → { buf: Buffer, checksum: string }
-const packageCache = new Map()
+export function createDeploymentRouter(db) {
+  const log = createLogger('deployment')
+  const router = Router()
+
+  // In-memory cache: opc_id → { buf: Buffer, checksum: string }
+  const packageCache = new Map()
 
 function writeLog(level, component, message) {
   try {
@@ -748,4 +749,8 @@ router.post('/deploy_to_office', async (req, res) => {
   }
 })
 
-export default router
+  return router
+}
+
+// Backward compatibility
+export default createDeploymentRouter

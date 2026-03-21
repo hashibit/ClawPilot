@@ -1,9 +1,5 @@
 import { Router } from 'express'
-import db from '../db.js'
 import { createLogger } from '../logger.js'
-const log = createLogger('ai')
-
-const router = Router()
 
 const SYSTEM_PROMPT = `/no_think 你是一个 OpenClaw Agent 人格配置生成器。根据用户的描述，生成完整的 Agent 配置，包含 7 个人格文档。
 
@@ -29,6 +25,10 @@ SOUL.md 重要规范：
 - 按角色类型适配护栏内容（财务类：生成报告允许，转账禁止；合规类：查阅法规允许，发正式意见禁止等）
 
 只输出 JSON，不要有任何其他内容。`
+
+export function createAiRouter(db) {
+  const log = createLogger('ai')
+  const router = Router()
 
 // ai_generate_agent
 router.post('/ai_generate_agent', async (req, res) => {
@@ -205,4 +205,8 @@ router.post('/chat_with_agent', async (req, res) => {
   }
 })
 
-export default router
+  return router
+}
+
+// Backward compatibility
+export default createAiRouter

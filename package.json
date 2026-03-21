@@ -13,7 +13,11 @@
     "tauri:build": "tauri build",
     "server": "cd server && npm start",
     "server:dev": "cd server && npm run dev",
-    "dev:web": "vite"
+    "dev:web": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
@@ -22,12 +26,20 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.45.0",
     "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6.4.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.0",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^2.0.0",
     "concurrently": "^9.2.1",
+    "jsdom": "^24.1.0",
+    "msw": "^2.0.0",
     "typescript": "^5.5.3",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "vitest": "^2.0.0"
   }
 }
