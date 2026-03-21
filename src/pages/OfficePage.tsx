@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, installDaemon, installOpenclaw } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, installDaemon, installOpenclaw } from '../lib/api'
 import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment, AccessAuthType } from '../lib/types'
@@ -28,6 +28,8 @@ export default function OfficePage() {
   const [installLogs, setInstallLogs] = useState<string[]>([])
   const [installStep, setInstallStep] = useState<'idle' | 'openclaw' | 'daemon' | 'done' | 'error'>('idle')
   const installAbortRef = useRef<boolean>(false)
+  const [sshChecking, setSshChecking] = useState(false)
+  const [sshResult, setSshResult] = useState<{ ok: boolean; latency_ms?: number; error?: string } | null>(null)
 
   // Derived from form.address: true = remote, false = localhost, null = unset
   const addressMode = (form.address === null || form.address === undefined) ? null : form.address === 'localhost' ? false : true
@@ -69,6 +71,7 @@ export default function OfficePage() {
     setSelected(office); setForm(office)
     setEditing(false)
     setDaemonHealth(null)
+    setSshResult(null)
     getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
     if (office.daemon_url) checkDaemon(office.daemon_url, office.daemon_api_key ?? '')
   }, [checkDaemon, isNewOffice])
@@ -164,19 +167,75 @@ export default function OfficePage() {
     } catch (e) { toast(String(e), 'error') }
   }
 
+  // Parse "host" or "host:port" → { host, port }
+  const parseAddress = (addr: string): { host: string; port: number } => {
+    const m = addr.match(/^(.+):(\d+)$/)
+    return m ? { host: m[1], port: Number(m[2]) } : { host: addr, port: 22 }
+  }
+
+  const isValidAddress = (addr: string | undefined | null) => {
+    if (!addr || !addr.trim()) return false
+    if (addr === 'localhost') return true
+    const { host } = parseAddress(addr)
+    // IP: four octets 0-255
+    const ipRe = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+    const m = host.match(ipRe)
+    if (m) return m.slice(1).every(n => Number(n) <= 255)
+    // hostname
+    return /^[a-zA-Z0-9]([a-zA-Z0-9\-\.]*[a-zA-Z0-9])?$/.test(host)
+  }
+
+  const handleCheckSsh = async () => {
+    if (!selected?.address || selected.address === 'localhost') return
+    setSshChecking(true)
+    setSshResult(null)
+    const { host, port } = parseAddress(selected.address)
+    try {
+      const r = await checkSshConnection(host, port)
+      setSshResult(r)
+    } catch (e: any) {
+      setSshResult({ ok: false, error: e?.message ?? '检测失败' })
+    } finally {
+      setSshChecking(false)
+    }
+  }
+
   const handleInstallLatest = async () => {
     if (!selected) return
     if (isNewOffice) { toast('请先保存办公室后再安装物业', 'error'); return }
     if (installStep === 'openclaw' || installStep === 'daemon') return
+
+    // Address validation
+    if (!isValidAddress(selected.address)) {
+      toast('请先设置有效的办公室地址（本机或合法 IP/主机名）', 'error'); return
+    }
+    const isRemoteAddr = selected.address !== 'localhost'
+    if (isRemoteAddr) {
+      setSshChecking(true)
+      setSshResult(null)
+      let connOk = false
+      try {
+        const { host: chkHost, port: chkPort } = parseAddress(selected.address!)
+        const r = await checkSshConnection(chkHost, chkPort)
+        setSshResult(r)
+        connOk = r.ok
+      } catch {
+        setSshResult({ ok: false, error: '网络检测失败' })
+      } finally {
+        setSshChecking(false)
+      }
+      if (!connOk) { toast('无法连通远程主机，请检查地址和网络后重试', 'error'); return }
+    }
     installAbortRef.current = false
     setInstallLogs([])
     setInstallStep('openclaw')
     const lg = (line: string) => setInstallLogs(prev => [...prev, line])
     const saved = selected
     const isRemote = !(!saved.address || saved.address === 'localhost')
+    const { host: sshHost, port: sshPort } = isRemote ? parseAddress(saved.address!) : { host: '', port: 22 }
     const sshBase = isRemote ? {
-      ssh_host: saved.address,
-      ssh_port: 22,
+      ssh_host: sshHost,
+      ssh_port: sshPort,
       ...(saved.access_auth_type === 'ssh_key'
         ? { ssh_key_path: saved.ssh_key_path }
         : { ssh_user: saved.access_user ?? 'root', ssh_password: saved.access_password }),
@@ -361,6 +420,18 @@ export default function OfficePage() {
                             )
                           })}
                         </div>
+                        {!isNewOffice && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                            <button onClick={handleCheckSsh} disabled={sshChecking || editing} className="tbtn tbtn-ghost" style={{ fontSize: '12px', opacity: editing ? 0.5 : 1 }}>
+                              {sshChecking ? '检测中…' : '测试连接'}
+                            </button>
+                            {sshResult && (
+                              <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
+                                {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       {(form.access_auth_type ?? 'password') === 'password' ? (
                         <div style={{ display: 'flex', gap: '6px', width: '100%', paddingLeft: '82px' }}>

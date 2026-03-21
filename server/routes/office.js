@@ -198,6 +198,26 @@ export function createOfficeRouter(db) {
     }
   })
 
+  // check_ssh_connection — TCP probe to host:port (default 22)
+  router.post('/check_ssh_connection', async (req, res) => {
+    const { host, port = 22 } = req.body
+    if (!host) return res.json({ ok: false, error: '未提供主机地址' })
+    const net = await import('net')
+    const start = Date.now()
+    try {
+      await new Promise((resolve, reject) => {
+        const socket = net.default.createConnection({ host, port: Number(port) })
+        socket.setTimeout(5000)
+        socket.once('connect', () => { socket.destroy(); resolve() })
+        socket.once('timeout', () => { socket.destroy(); reject(new Error('连接超时') ) })
+        socket.once('error', reject)
+      })
+      res.json({ ok: true, latency_ms: Date.now() - start })
+    } catch (err) {
+      res.json({ ok: false, error: err.message })
+    }
+  })
+
   // get_opc_office
   router.post('/get_opc_office', (req, res) => {
     try {
