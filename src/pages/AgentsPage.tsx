@@ -757,7 +757,7 @@ export default function AgentsPage() {
                   <div
                     key={agent.id}
                     onClick={() => handleSelectAgent(agent)}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, minWidth: '60px', maxWidth: '72px', background: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', border: `1px solid ${isActive ? 'rgba(139,92,246,0.35)' : 'transparent'}`, transition: 'all 0.15s' }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', background: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', border: `1px solid ${isActive ? 'rgba(139,92,246,0.35)' : 'transparent'}`, transition: 'all 0.15s' }}
                   >
                     <div style={{ position: 'relative' }}>
                       <div style={{ width: agent.is_default ? '44px' : '36px', height: agent.is_default ? '44px' : '36px', borderRadius: agent.is_default ? '12px' : '10px', background: `linear-gradient(135deg,${agent.gradient_start ?? '#8b5cf6'},${agent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: agent.is_default ? '14px' : '12px', fontWeight: 700, color: 'white' }}>
@@ -776,7 +776,7 @@ export default function AgentsPage() {
               {/* Add agent button */}
               <div
                 onClick={() => handleAddAgent()}
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, minWidth: '60px', border: '1px dashed rgba(255,255,255,0.15)', transition: 'all 0.15s' }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed rgba(255,255,255,0.15)', transition: 'all 0.15s' }}
               >
                 <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <svg fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
