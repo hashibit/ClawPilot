@@ -692,7 +692,8 @@ export default function AgentsPage() {
         ) : (
           <>
             {/* Agents strip */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.12)', overflowX: 'auto', flexShrink: 0, background: 'rgba(255,255,255,0.03)' }}>
+            <div style={{ flexShrink: 0, background: '#1a1a1f' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '10px 12px', overflowX: 'auto' }}>
               {(opcAgentsMap[currentOpc.id] ?? []).map((agent, index) => {
                 const isActive = selectedAgent?.id === agent.id
                 return (
@@ -726,6 +727,7 @@ export default function AgentsPage() {
                 <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>添加</span>
               </div>
             </div>
+            </div>
 
             {/* Agent form */}
             {!selectedAgent ? (
@@ -734,7 +736,7 @@ export default function AgentsPage() {
               </div>
             ) : (
               <>
-                <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+                <div className="toolbar" style={{ justifyContent: 'space-between', background: '#1a1a1f', borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: `linear-gradient(135deg,${selectedAgent.gradient_start ?? '#8b5cf6'},${selectedAgent.gradient_end ?? '#06b6d4'})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
                       {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
