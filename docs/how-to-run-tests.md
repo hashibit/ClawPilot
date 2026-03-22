@@ -12,11 +12,13 @@
 1. [快速开始](#快速开始)
 2. [Server 测试](#server-测试)
 3. [前端测试](#前端测试)
-4. [Daemon 测试](#daemon-测试)
-5. [E2E 测试](#e2e-测试)
-6. [OrbStack 真实部署测试](#orbstack-真实部署测试)
-7. [CI/CD 集成](#cicd-集成)
-8. [故障排除](#故障排除)
+4. [Tauri 后端测试](#tauri-后端测试)
+5. [Daemon 测试](#daemon-测试)
+6. [E2E 测试](#e2e-测试)
+7. [OrbStack 真实部署测试](#orbstack-真实部署测试)
+8. [CI/CD 集成](#cicd-集成)
+9. [故障排除](#故障排除)
+10. [手动测试（TEST_PATHS.md）](#手动测试清单)
 
 ---
 
@@ -32,7 +34,8 @@ cd daemon && cargo check && cd ..
 
 # 运行所有自动化测试
 npm run test                    # 前端测试
-cd server && npm run test       # Server 测试
+cd server && npm run test       # Server 测试（单元 + 集成 + 安全 + 性能）
+cd src-tauri && cargo test      # Tauri 后端 Rust 测试
 cd daemon && cargo test         # Daemon 测试
 npx playwright test             # E2E 测试
 ```
@@ -60,6 +63,7 @@ server/
 │   │   ├── agent.test.js
 │   │   ├── channel.test.js
 │   │   ├── binding.test.js
+│   │   ├── boundary.test.js
 │   │   ├── office.test.js
 │   │   ├── snapshot.test.js
 │   │   ├── log.test.js
@@ -67,8 +71,12 @@ server/
 │   │   ├── tool.test.js
 │   │   ├── model.test.js
 │   │   └── process.test.js
-│   └── integration/       # 集成测试
-│       └── opc-lifecycle.test.js
+│   ├── integration/       # 集成测试
+│   │   └── opc-lifecycle.test.js
+│   ├── security/          # 安全测试
+│   │   └── security.test.js
+│   └── performance/       # 性能测试
+│       └── performance.test.js
 └── vitest.config.js
 ```
 
@@ -154,6 +162,57 @@ afterEach(() => server.resetHandlers())
 
 // 测试后关闭 server
 afterAll(() => server.close())
+```
+
+---
+
+## Tauri 后端测试
+
+### 测试框架
+
+- **单元测试**: Rust 内置 `#[test]`
+- **异步测试**: `#[tokio::test]`
+
+### 目录结构
+
+```
+src-tauri/src/
+├── commands_test.rs            # Tauri 命令测试
+├── integration_tests.rs        # 集成测试
+├── utils/
+│   ├── crypto.rs               # 加密工具（内联测试）
+│   ├── crypto_test.rs          # 加密工具扩展测试
+│   └── path.rs                 # 路径工具（内联测试）
+├── database/
+│   ├── pool.rs                 # 连接池（内联测试）
+│   └── migrations.rs           # 迁移（内联测试）
+├── models/
+│   ├── opc.rs / agent.rs / channel.rs / ...  # 数据模型（内联测试）
+├── services/
+│   ├── opc_service.rs / agent_service.rs / ...  # 服务层（内联测试）
+│   └── opc_service_test.rs     # OPC 服务扩展测试
+└── openclaw/
+    ├── config.rs / stats.rs / process.rs  # OpenClaw 模块（内联测试）
+```
+
+### 运行测试
+
+```bash
+cd src-tauri
+
+# 运行所有测试
+cargo test
+
+# 输出详细信息
+cargo test -- --nocapture
+
+# 运行特定测试模块
+cargo test commands_test
+cargo test integration_tests
+cargo test utils::crypto
+
+# 发布模式测试
+cargo test --release
 ```
 
 ---
@@ -372,8 +431,15 @@ jobs:
         with:
           node-version: '20'
       - run: cd server && npm ci
-      - run: cd server && npm test
+      - run: cd server && npm test          # 单元 + 集成 + 安全 + 性能
       - run: cd server && npm run test:coverage
+
+  tauri-backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cd src-tauri && cargo test
 
   frontend-test:
     runs-on: ubuntu-latest
@@ -410,8 +476,11 @@ jobs:
 |---------|------|-------|--------|
 | Server 单元 | ✅ | ✅ | ✅ |
 | Server 集成 | ✅ | ✅ | ✅ |
+| Server 安全 | ✅ | ✅ | ✅ |
+| Server 性能 | ✅ | ✅ | ✅ |
 | 前端单元 | ✅ | ✅ | ✅ |
 | 前端集成 | ✅ | ✅ | ✅ |
+| Tauri 后端（Rust）| ✅ | ✅ | ✅ |
 | Daemon 单元 | ✅ | ✅ | ✅ |
 | E2E | ✅ | ✅ | ✅ |
 | OrbStack | ✅ | - | ✅ |
@@ -451,6 +520,16 @@ npm install
 **问题**: MSW 拦截失败
 - 检查 `src/__tests__/mocks/handlers.ts` 中的路由匹配
 - 确保请求路径以 `/api` 开头
+
+### Tauri 后端测试
+
+**问题**: 编译失败（依赖缺失）
+```bash
+cd src-tauri && cargo update
+```
+
+**问题**: 测试依赖 Tauri runtime 报错
+- 纯逻辑单元测试不应依赖 Tauri context，检查测试代码是否正确隔离
 
 ### Daemon 测试
 
@@ -509,7 +588,11 @@ orb stop && orb start
     ├─────────────────────────────┤
     │  Server 集成 (supertest)    │  ← 验证业务流程
     ├─────────────────────────────┤
-    │     单元测试 (~150)         │  ← 验证单个功能
+    │  Server 安全 / 性能测试      │  ← 验证安全边界与响应时间
+    ├─────────────────────────────┤
+    │  Tauri 后端 Rust 测试        │  ← 验证命令层 / 服务层 / 数据层
+    ├─────────────────────────────┤
+    │     单元测试 (~150)          │  ← 验证单个功能
     └─────────────────────────────┘
 ```
 
@@ -519,26 +602,50 @@ orb stop && orb start
 
 ### 手动测试清单
 
-以下场景需要手动验证：
+完整的 UI 功能测试路径见 **[TEST_PATHS.md](TEST_PATHS.md)**，覆盖 10 个页面、~270 个交互元素及 8 条关键用户流程。
 
-1. **UI 交互**
-   - 拖拽排序 Agent
-   - 表单验证错误提示
-   - 模态框打开/关闭动画
+执行方式：启动开发服务器后，逐项勾选 TEST_PATHS.md 中的 `[ ]` 条目。
 
-2. **文件操作**
-   - Skill 上传/下载
-   - Snapshot 导出/导入
-   - 部署包下载
+```bash
+# 启动开发服务器
+npm run dev
+# 打开浏览器 → 手动逐项执行 TEST_PATHS.md 中的测试路径
+```
 
-3. **网络异常**
-   - 离线模式
-   - 超时重试
-   - 断网恢复
+#### 页面覆盖范围
 
-4. **并发场景**
-   - 多用户同时编辑
-   - 部署任务并发执行
+| 页面 | 路由 | 交互元素 |
+|------|------|---------|
+| Layout 侧边栏 | 全局 | 导航链接 / 收起展开 / 进程控制 |
+| Overview | `#/overview` | 进程控制卡片 / 时间筛选 / 数据展示 |
+| OPC 配置 | `#/opc` | 公司列表 / 创建 Modal / 快照管理 |
+| Agents 管理 | `#/agents` | Agent 编辑 / 工具配置 / 聊天测试 |
+| Bindings 配置 | `#/bindings` | 飞书/钉钉/Slack 渠道 / 群组绑定 |
+| Providers | `#/providers` | API Key 配置 / 连接测试 / 模型列表 |
+| Office | `#/office` | 本机/远程模式 / Daemon 安装向导 |
+| Deploy | `#/deploy` | 部署配置 / 进度条 / 撤销部署 |
+| Logs | `#/logs` | 实时日志 / 过滤面板 / 级别 checkbox |
+| Settings | `#/settings` | 16 种语言切换 / RTL 布局验证 |
+
+#### 关键用户流程（TEST_PATHS.md 第 10 节）
+
+| 流程 | 说明 |
+|------|------|
+| 流程 A | 创建并配置完整 OPC 团队 |
+| 流程 B | 部署 OPC 到办公室 |
+| 流程 C | 下线 OPC |
+| 流程 D | 测试 Agent 对话 |
+| 流程 E | 安装技能 |
+| 流程 F | 切换语言 / 验证 RTL |
+| 流程 G | 查看和过滤日志 |
+| 流程 H | 创建配置快照并恢复 |
+
+#### 需额外关注的手动场景（E2E 暂未覆盖）
+
+- **拖拽排序**：Agents 页面拖拽重排后自动保存
+- **文件操作**：Skill 上传/下载、Snapshot 导出/导入、部署包下载
+- **网络异常**：离线模式、超时重试、断网恢复
+- **并发场景**：多用户同时编辑、部署任务并发执行
 
 ### 测试数据
 
