@@ -1,720 +1,451 @@
-# ClawPilot 功能路径清单
+# ClawPilot 功能测试路径清单
 
-> 版本：0.1.0 | 更新：2026-03-22 | 路由模式：HashRouter (`/#/`)
-
----
-
-## 目录
-
-1. [页面导航路径总览](#1-页面导航路径总览)
-2. [侧边栏 (Layout)](#2-侧边栏-layout)
-3. [数据概览 /overview](#3-数据概览-overview)
-4. [子公司管理 /opc](#4-子公司管理-opc)
-5. [智能体管理 /agents](#5-智能体管理-agents)
-6. [飞书频道绑定 /bindings](#6-飞书频道绑定-bindings)
-7. [模型管理 /providers](#7-模型管理-providers)
-8. [办公室管理 /office](#8-办公室管理-office)
-9. [一键部署 /deploy](#9-一键部署-deploy)
-10. [运行日志 /logs](#10-运行日志-logs)
-11. [设置 /settings](#11-设置-settings)
-12. [弹窗 / 对话框汇总](#12-弹窗--对话框汇总)
-13. [完整交互流程](#13-完整交互流程)
+**版本**：2026-03-22
+**覆盖页面**：10 个（Layout + 9 页面）
+**交互元素总计**：~270 个
 
 ---
 
-## 1. 页面导航路径总览
+## 全局导航（Layout 侧边栏）
 
-```
-启动应用
-  └── /#/overview (默认重定向)
-      ├── /#/opc
-      │   └── → /#/agents  (点击"管理智能体"链接)
-      │   └── → /#/bindings (点击"管理频道"链接)
-      │   └── → /#/office  (点击"管理办公室"链接)
-      ├── /#/agents
-      ├── /#/bindings
-      ├── /#/providers
-      ├── /#/office
-      ├── /#/deploy
-      ├── /#/logs
-      ├── /#/settings
-      ├── /# (模板市场 — PRO, 未实现)
-      └── /# (云同步 — PRO, 未实现)
-```
+### 导航链接
+- [ ] 点击 **Overview** → 跳转 `#/overview`
+- [ ] 点击 **OPC** → 跳转 `#/opc`
+- [ ] 点击 **Agents** → 跳转 `#/agents`
+- [ ] 点击 **Bindings** → 跳转 `#/bindings`
+- [ ] 点击 **Providers** → 跳转 `#/providers`
+- [ ] 点击 **Office** → 跳转 `#/office`
+- [ ] 点击 **Deploy** → 跳转 `#/deploy`
+- [ ] 点击 **Logs** → 跳转 `#/logs`
+- [ ] 点击 **Settings** → 跳转 `#/settings`
+- [ ] 点击 **Templates**（PRO badge）→ 无跳转（功能未开放）
+- [ ] 点击 **Cloud Sync**（PRO badge）→ 无跳转（功能未开放）
 
----
+### 侧边栏收起/展开
+- [ ] 点击折叠按钮 → 侧边栏收起，仅显示图标
+- [ ] 点击展开按钮 → 侧边栏恢复完整宽度
 
-## 2. 侧边栏 (Layout)
-
-位置：所有页面持久显示
-
-### 2.1 顶部工具栏
-
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | ClawPilot Logo | 静态 | — | 展开时 |
-| 2 | 收起菜单 `«` | Button | 侧边栏折叠（width: 204px → 48px） | !collapsed |
-| 3 | 展开菜单 `»` | Button | 侧边栏展开 | collapsed |
-
-### 2.2 导航项
-
-| # | 标签 | 分组 | 路由 | 类型 |
-|---|------|------|------|------|
-| 1 | 数据概览 | 核心功能 | `/#/overview` | NavLink |
-| 2 | 子公司管理 | 核心功能 | `/#/opc` | NavLink |
-| 3 | 智能体管理 | 核心功能 | `/#/agents` | NavLink |
-| 4 | 飞书频道绑定 | 核心功能 | `/#/bindings` | NavLink |
-| 5 | 模型管理 | 基础设施 | `/#/providers` | NavLink |
-| 6 | 办公室管理 | 基础设施 | `/#/office` | NavLink |
-| 7 | 一键部署 | 部署与监控 | `/#/deploy` | NavLink |
-| 8 | 运行日志 | 部署与监控 | `/#/logs` | NavLink |
-| 9 | 模板市场 PRO | 高级功能 | `#` | 锚点（未实现） |
-| 10 | 云同步 PRO | 高级功能 | `#` | 锚点（未实现） |
-| 11 | 设置 | — | `/#/settings` | NavLink |
-
-### 2.3 状态区（底部）
-
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | OpenClaw 运行状态点 | 静态 | 绿色=运行/灰色=停止 | 始终 |
-| 2 | 状态文字 + PID + 运行时长 | 静态 | — | !collapsed |
-| 3 | 启动服务 | Button | 调用 `startOpenclaw()` | !is_running |
-| 4 | 停止服务 | Button | 调用 `stopOpenclaw()` | is_running |
-| 5 | 操作中… | Button（disabled） | — | acting |
-
-**注**：侧边栏状态每 **10 秒**自动轮询刷新。
+### 进程控制（底部区域）
+- [ ] 进程未运行时：点击 **启动服务** → `acting` 状态 → 进程运行，按钮切换为「停止」
+- [ ] 进程运行时：点击 **停止服务** → `acting` 状态 → 进程停止，按钮切换为「启动」
+- [ ] `acting` 期间按钮 disabled，无法重复点击
 
 ---
 
-## 3. 数据概览 `/overview`
+## 1. 概览页（Overview `#/overview`）
 
-### 3.1 工具栏
+### OpenClaw 进程控制卡片
+- [ ] 进程运行：显示绿色「运行中」badge + **停止** 按钮
+- [ ] 进程停止：显示红色「已停止」badge + **启动** 按钮
+- [ ] 点击 **启动** → 调用 `start` → 按钮 disabled → 成功后状态更新
+- [ ] 点击 **重载配置** → 调用 `reload` → 按钮 disabled → 成功后 Toast
+- [ ] 点击 **停止** → 调用 `stop` → 按钮 disabled → 成功后状态更新
+- [ ] 进程操作失败时：显示错误 Toast
 
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 今天 | Button（tbtn-ghost） | ⚠️ 未实现 |
-| 2 | 本周 | Button（tbtn-ghost） | ⚠️ 未实现 |
-| 3 | 本月 | Button（tbtn-accent） | ⚠️ 未实现 |
+### 时间维度筛选（消息趋势）
+- [ ] 点击 **今天** → 样式高亮，数据切换
+- [ ] 点击 **本周** → 样式高亮，数据切换
+- [ ] 点击 **本月** → 样式高亮，数据切换（默认选中）
 
-**注**：进程状态每 **5 秒**自动轮询刷新。
-
-### 3.2 OpenClaw 进程区
-
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 启动 | Button（绿色） | `handleProcAction('start')` | !is_running |
-| 2 | 重载配置 | Button（ghost） | `handleProcAction('reload')` | is_running |
-| 3 | 停止 | Button（红色） | `handleProcAction('stop')` | is_running |
-
-### 3.3 统计卡片（只读）
-
-- 公司总数、智能体总数、飞书频道、今日消息（实时统计）
-
-### 3.4 消息趋势区
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 查看详情 | Button（文字链） | ⚠️ 未实现 |
+### 数据展示
+- [ ] 核心指标卡片：公司数 / 智能体数 / 飞书渠道数 / 今日消息 各显示正确
+- [ ] 消息趋势图表渲染
+- [ ] 按公司消息分布列表渲染
+- [ ] 活跃公司列表渲染
+- [ ] 点击 **查看详情** → （未实现，无跳转）
 
 ---
 
-## 4. 子公司管理 `/opc`
+## 2. OPC 配置页（`#/opc`）
 
-布局：左列（列表）+ 右列（详情）
+### 左侧列表
+- [ ] 公司列表按运行状态分组（「运行中」/ 「已停止」）
+- [ ] 点击公司行 → 右侧详情面板更新，显示该公司信息
+- [ ] 选中行高亮显示
+- [ ] 无公司时：显示「暂无公司」空状态提示
 
-### 4.1 列表列（COL2）
+### 创建新公司
+- [ ] 点击 **创建新OPC公司** 按钮 → 弹出 **创建Modal**
+  #### 创建 Modal 内部
+  - [ ] 内部名称 input：输入英文标识，空值提交时提示「请填写名称」
+  - [ ] 显示名称 input：输入中文显示名
+  - [ ] 描述 input：可选填
+  - [ ] 头像颜色：5 个色块可选择（点击切换选中状态）
+  - [ ] 点击 **取消** → Modal 关闭，不创建
+  - [ ] 点击 **创建** → `saving` 状态（按钮 disabled）→ 成功后 Modal 关闭，列表刷新
+  - [ ] 创建失败时：Toast 显示错误信息
 
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | OPC 行 | ListRow | `selectOpc(opc)` → 选中并展示详情 | 始终 |
-| 2 | 创建新OPC公司 | Button（tbtn-ghost） | `setShowCreate(true)` → 弹出创建弹窗 | 底部固定 |
-
-**创建弹窗（CreateModal）**：
-
-| # | 元素 | 类型 | 必填 |
-|---|------|------|------|
-| 1 | 英文名称 | text input | ✅ |
-| 2 | 显示名称 | text input | ✅ |
-| 3 | 描述 | text input | 可选 |
-| 4 | 主题色（5 个预设） | 色块按钮 | — |
-| 5 | 取消 | Button | — |
-| 6 | 创建 | Button（disabled: saving） | — |
-
-### 4.2 详情列（COL3）
-
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 导出 JSON | Button | `handleExport(selected)` → 下载 JSON 文件 | selected 存在 |
-| 2 | 删除公司 | Button（红色） | `handleDelete(selected)` → `window.confirm` | selected 存在 |
-| 3 | 管理智能体 | Link | `→ /#/agents` | 始终 |
-| 4 | 管理飞书频道 | Link | `→ /#/bindings` | 始终 |
-| 5 | 管理办公室 | Link | `→ /#/office` | 始终 |
-| 6 | 下线此公司 | Button（链接样式） | `setConfirmOffline(selected)` → 弹出确认框 | is_running && office_id 存在 |
-
-**下线确认弹窗（ConfirmOfflineModal）**：
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 取消 | Button | `setConfirmOffline(null)` |
-| 2 | 确认下线 | Button（红色） | `handleUndeploy(confirmOffline)` |
-
-### 4.3 快照管理（COL3 底部）
-
-| # | 元素 | 类型 | 行为 | 备注 |
-|---|------|------|------|------|
-| 1 | 快照备注输入框 | text input | 输入快照名称；Enter 触发创建 | — |
-| 2 | 创建快照 | Button | `handleCreateSnapshot()` | disabled: !snapshotLabel.trim() |
-| 3 | 恢复快照 | Button（每行） | `window.confirm` → `handleRestoreSnapshot(snap)` | — |
-| 4 | 删除快照 ×  | Button（每行） | `window.confirm` → `handleDeleteSnapshot(snap)` | — |
+### 详情面板（选中公司后）
+- [ ] 顶部工具栏：**导出** 按钮 → 导出该公司配置 JSON
+- [ ] 顶部工具栏：**删除** 按钮（红色）→ 删除公司，列表刷新
+- [ ] **数据概览** 区域：智能体数量 + **管理 →** 链接 → 跳转 `#/agents`
+- [ ] **数据概览** 区域：飞书频道数量 + **管理 →** 链接 → 跳转 `#/bindings`
+- [ ] **运行状态** 区域：显示运行中/已停止状态
+- [ ] 运行中时：显示 **下线 →** 按钮 → 弹出确认 Modal
+  #### 确认下线 Modal
+  - [ ] 显示下线警告（智能体停止 / 渠道关闭 / 办公室恢复）
+  - [ ] 点击 **取消** → Modal 关闭
+  - [ ] 点击 **确认下线** → 执行下线操作，状态更新
+- [ ] **今日消息** 区域：显示数量
+- [ ] **基本信息** 区域：展示内部名称 / 描述 / 创建时间 / 更新时间
+- [ ] **配置快照** 区域：
+  - [ ] 快照备注 input：输入备注文字，按 Enter 或点击按钮创建
+  - [ ] 点击 **创建快照** 按钮 → `snapshotLoading` disabled → 快照列表刷新
+  - [ ] 无快照时：显示空状态提示
+  - [ ] 快照列表行：显示标签（自动/手动备份）+ 时间
+  - [ ] 每条快照：**恢复** 按钮 → 恢复该快照配置
+  - [ ] 每条快照：**×** 删除按钮 → 删除该快照
 
 ---
 
-## 5. 智能体管理 `/agents`
+## 3. Agents 管理页（`#/agents`）
 
-布局：顶部智能体条 + 主编辑区（三列滚动布局）
+### 左侧 OPC 列表
+- [ ] 显示所有 OPC 公司，点击切换当前上下文
+- [ ] 选中公司后，加载该公司的 Agent 列表
 
-### 5.1 智能体选择条（水平滚动）
+### Agent 列表区域
+- [ ] 列表显示每个 Agent（头像 / 名称 / 当前模型）
+- [ ] 点击 Agent 行 → 右侧编辑面板加载该 Agent
+- [ ] 可拖拽排序（拖拽后自动保存排序）
+- [ ] 新建 Agent：点击 **+** 图标 → 创建新 Agent，进入编辑模式
 
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 智能体头像卡片 | 卡片按钮 | `handleSelectAgent(agent)` → 选中，高亮紫色 |
-| 2 | 添加 + | Button | `handleAddAgent()` → 创建新智能体草稿 |
-| 3 | 拖拽重排 | Drag Handle | `handleDragStart/Over/End` → 重排后保存顺序 |
+### Agent 编辑面板
+#### 顶部工具栏
+- [ ] **取消** 按钮 → 放弃编辑
+- [ ] **保存** 按钮（或 **保存中…** disabled）→ 保存 Agent 配置
+- [ ] **AI 生成** 按钮 → 调用 AI 接口生成配置
+  - [ ] AI 生成描述 input：输入一句话描述
+  - [ ] 生成中显示 **生成中...** disabled 状态
+- [ ] 保存后可进行聊天测试
 
-### 5.2 编辑工具栏
+#### 基本信息 Tab
+- [ ] 名称 input：修改 Agent 名称
+- [ ] Emoji input：修改 Agent 表情
+- [ ] 描述 textarea：修改 Agent 描述
 
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 测试对话 | Button | `setChatAgent(selectedAgent)` → 打开聊天抽屉 | !isNewAgent && SOUL.md 非空 |
-| 2 | 设为领队 | Button（tbtn-ghost） | `handleSetDefault(selectedAgent)` | !is_default && !editing |
-| 3 | 编辑 | Button | `setEditing(true)` | !editing |
-| 4 | 取消 | Button | `setEditing(false)` → 丢弃修改 | editing |
-| 5 | 保存智能体 | Button（紫色） | `handleSaveAgent()` | editing |
-| 6 | 删除 | Button（红色） | `setConfirmDelete(selected)` → 弹出确认框 | !editing |
+#### 文档编辑 Tab（SOUL / IDENTITY / AGENTS / USER / MEMORY / HEARTBEAT / TOOLS）
+- [ ] 点击各 Tab 切换文档类型
+- [ ] Markdown 编辑器：输入修改文档内容
+- [ ] 每个文档 Tab 点击 **保存** → 文档保存
 
-**删除确认弹窗（ConfirmDeleteModal）**：
+#### 模型配置
+- [ ] 模型 select：下拉选择 AI 模型（显示已存储模型 + 可用模型）
+- [ ] 显示当前选中模型信息
 
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 取消 | Button | `setConfirmDelete(null)` |
-| 2 | 确认删除 | Button（红色） | `handleDeleteAgent(confirmDelete)` |
+#### 工具配置
+- [ ] 工具列表：网页搜索 / 网页阅读 / 飞书消息 / 代码解释器 / 文件读取 / 图像生成 / 视觉理解 / HTTP 请求 / 语音识别 / 语音合成
+- [ ] 每个工具：toggle 开关启用/禁用
 
-### 5.3 AI 快速生成区
+#### 技能配置
+- [ ] 技能列表：显示已安装技能
+- [ ] 点击 **+ 安装技能** → 弹出 **技能 Modal**
+  #### 技能 Modal
+  - [ ] 搜索 input：实时检索 ClawHub 技能
+  - [ ] 技能列表行：点击行 → 标记为选中
+  - [ ] 已安装技能：显示 **卸载** 按钮 → 卸载确认 → 成功 Toast
+  - [ ] 未安装技能：显示 **安装** 按钮（disabled 时显示「安装中…」）→ 安装成功 Toast
+  - [ ] 点击 **完成** → Modal 关闭
 
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | AI 提示词 | text input | Enter 触发生成 | editing |
-| 2 | AI 生成 | Button（紫色） | `handleAiGenerate()` | editing && !aiGenerating && prompt 非空 |
+#### 守护规则
+- [ ] Allow 区域 textarea：输入允许的操作描述
+- [ ] Deny 区域 textarea：输入禁止的操作描述
 
-### 5.4 基本信息区（需编辑模式）
+#### 聊天测试抽屉（ChatDrawer）
+- [ ] 点击 **测试对话** → 右侧滑出聊天抽屉
+- [ ] 未保存时点击：提示「请先保存智能体再测试对话」
+- [ ] SOUL.md 为空时点击：提示「SOUL.md 为空，请先填写人格配置」
+- [ ] 聊天 textarea：输入消息，Enter 发送，Shift+Enter 换行
+- [ ] **发送** 按钮：disabled={输入为空 || 加载中}
+- [ ] **清除** 按钮 → 清空聊天记录
+- [ ] **关闭** 按钮 → 收起聊天抽屉
 
-| # | 字段 | 类型 | disabled 条件 |
-|---|------|------|--------------|
-| 1 | 显示名称 | text input | !editing |
-| 2 | 英文标识 | text input | !editing |
-| 3 | 简介 | textarea（2行） | !editing |
-| 4 | 职位名称 | text input | !editing |
-
-### 5.5 模型与工具配置区（需编辑模式）
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 模型选择 | select（按 provider 分组） | 更新 model_provider + model_name |
-| 2 | 工具权限 | Toggle 按钮（每个工具） | `toggleTool(tool.id)` 启用/禁用 |
-| 3 | 自定义工具输入框 | text input | Enter → 添加到工具列表 |
-
-### 5.6 技能配置区（需编辑模式）
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 添加技能 | Button | `setSkillModalOpen(true)` → 打开技能选择弹窗 |
-| 2 | 技能卡片 × 删除 | Button（每个技能） | `handleFormChange('enabled_skills', ...)` 移除 |
-
-**技能选择弹窗（SkillModal）**：
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 技能列表 | 可选列表 | 选中技能 |
-| 2 | 关闭 | Button / 点击遮罩 | `setSkillModalOpen(false)` |
-
-### 5.7 护栏规则区（需编辑模式）
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 允许规则输入框 | TagInput（绿色标签） | Enter 添加；× 删除标签 |
-| 2 | 禁止规则输入框 | TagInput（红色标签） | Enter 添加；× 删除标签 |
-
-### 5.8 人格文档区
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | SOUL Tab | Tab 按钮 | `setActiveDocTab('SOUL')` |
-| 2 | IDENTITY Tab | Tab 按钮 | `setActiveDocTab('IDENTITY')` |
-| 3 | AGENTS Tab | Tab 按钮 | `setActiveDocTab('AGENTS')` |
-| 4 | USER Tab | Tab 按钮 | `setActiveDocTab('USER')` |
-| 5 | MEMORY Tab | Tab 按钮 | `setActiveDocTab('MEMORY')` |
-| 6 | HEARTBEAT Tab | Tab 按钮 | `setActiveDocTab('HEARTBEAT')` |
-| 7 | 文档编辑区 | textarea（12行） | 编辑 Markdown 文档内容 |
-| 8 | 保存文档 | Button | `handleSaveDoc()` 独立保存文档（无需保存智能体） |
-
-### 5.9 聊天测试抽屉（ChatDrawer）
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 消息输入框 | text input | Enter 发送消息 |
-| 2 | 发送 | Button | 调用对话 API |
-| 3 | 关闭 ✕ | Button | `setChatAgent(null)` |
+#### Agent 删除
+- [ ] **删除** 按钮（红色）→ 删除 Agent，列表刷新，详情面板清空
 
 ---
 
-## 6. 飞书频道绑定 `/bindings`
+## 4. 绑定配置页（Bindings `#/bindings`）
 
-布局：左列（渠道配置）+ 中列（群组列表）+ 右列（群组详情）
+### 左侧 OPC 列表
+- [ ] 点击 OPC 行 → 加载该公司的绑定配置
+- [ ] 显示每个 OPC 的运行状态和频道数量
 
-### 6.1 渠道选择区（COL2 顶部）
+### 渠道配置面板
+- [ ] 三种渠道类型切换：**飞书** / **钉钉** / **Slack**（按钮点击切换）
+- [ ] 当前选中的渠道类型高亮
 
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | FEISHU 按钮 | Toggle | `setChannelType('FEISHU')` |
-| 2 | DINGTALK 按钮 | Toggle | `setChannelType('DINGTALK')` |
-| 3 | SLACK 按钮 | Toggle | `setChannelType('SLACK')` |
-| 4 | 重新配置 / 关闭配置 | Button | `setChannelEditing(!channelEditing)` |
+#### 飞书渠道
+- [ ] 连接状态 badge 显示（已连接/未连接）
+- [ ] 配置信息显示（App ID / Base URL / 掩码后的 Secret）
+- [ ] 点击 **重新配置** / **编辑** → 展开编辑表单
+  #### 飞书编辑表单
+  - [ ] App ID input（`cli_...`格式）
+  - [ ] App Secret input（密码掩码）
+  - [ ] **保存配置** 按钮 → 保存（disabled 时显示「保存中…」）
+  - [ ] **测试连接** 按钮 → `testing` disabled → 显示成功/失败 Toast
+  - [ ] **取消** 按钮 → 退出编辑模式
 
-### 6.2 渠道配置表单（channelEditing = true）
+#### 钉钉渠道
+- [ ] App Key input
+- [ ] App Secret input
+- [ ] Webhook URL input
+- [ ] **保存配置** + **测试连接** 同飞书
 
-**飞书（Feishu）**：
+#### Slack 渠道
+- [ ] Bot Token input
+- [ ] Signing Secret input
+- [ ] **保存配置** + **测试连接** 同飞书
 
-| # | 字段 | 类型 |
-|---|------|------|
-| 1 | App ID | text input |
-| 2 | App Secret | password input |
+### 群组绑定面板
+- [ ] 显示该公司所有群组绑定列表
+- [ ] 每行：群组名 / 状态（已绑定/已禁用）/ 关联智能体
+- [ ] 点击群组行 → 右侧详情面板加载
+- [ ] 点击 **+ 添加群组** → 创建新群组绑定（默认名「新群组」）
 
-**钉钉（DingTalk）**：
-
-| # | 字段 | 类型 |
-|---|------|------|
-| 1 | App Key | text input |
-| 2 | App Secret | password input |
-| 3 | Webhook URL | text input |
-
-**Slack**：
-
-| # | 字段 | 类型 |
-|---|------|------|
-| 1 | Bot Token | password input |
-| 2 | Signing Secret | password input |
-
-**操作按钮**：
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 保存配置 | Button（紫色） | `handleSaveChannel()` |
-| 2 | 测试连接 | Button（ghost） | `handleTestConnection()` |
-
-### 6.3 群组列表（COL2/COL3 中）
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 群组行 | ListRow | `handleSelectBinding(binding)` → 选中，右侧显示详情 |
-| 2 | 添加群组绑定 ＋ | Button | `handleAddBinding()` → 新建绑定草稿并选中 |
-
-### 6.4 群组详情（COL4 右侧，需选中群组）
-
-**查看模式**：
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 编辑 | Button | `setBindingEditing(true)` |
-| 2 | 删除 | Button（红色） | `handleDeleteBinding(selectedBinding.id)` |
-
-**编辑模式**：
-
-| # | 字段/元素 | 类型 | 行为 |
-|---|---------|------|------|
-| 1 | 群组名称 | text input | 更新 bindingForm.name |
-| 2 | 群组 ID | text input | 更新 bindingForm.chat_id |
-| 3 | 群组类型 | select（GROUP/DM） | 更新 bindingForm.binding_type |
-| 4 | 关联智能体 | select（agent 列表） | 更新 bindingForm.agent_id + agent_name |
-| 5 | 触发模式 | select（MENTION/ALL） | 更新 bindingForm.trigger_mode |
-| 6 | 启用状态 | 自定义 Toggle | `handleFormChange('is_enabled', !v)` |
-| 7 | 取消 | Button | `handleCancelBinding()` |
-| 8 | 保存 | Button（紫色） | `handleSaveBinding()` |
+#### 群组详情面板（右侧）
+- [ ] **×** 关闭按钮 → 关闭面板
+- [ ] **编辑** 按钮 → 启用编辑模式
+- [ ] **删除** 按钮（红色）→ 删除绑定
+- [ ] 编辑模式下：
+  - [ ] **取消** → 恢复原始数据
+  - [ ] **保存** → 保存（disabled 时显示「保存中…」）
+- [ ] 群组信息区域：
+  - [ ] 群组名称 input（编辑模式可输入）
+  - [ ] 群组 ID input（`oc_xxx...`格式）
+  - [ ] 类型 select：群组 / 私聊
+- [ ] 绑定配置区域：
+  - [ ] 关联智能体 select：下拉选择该 OPC 下的 Agent
+  - [ ] 触发模式 select：@机器人触发 / 所有消息
+  - [ ] 启用状态 toggle 按钮：启用 ↔ 禁用（编辑模式下可切换）
 
 ---
 
-## 7. 模型管理 `/providers`
+## 5. 模型提供商页（Providers `#/providers`）
 
-布局：Provider 卡片 + 模型列表
+### Provider 列表
+- [ ] 阿里云百炼卡片：显示连接状态（已连接/已配置/未配置）
+- [ ] 显示 Base URL / API Key（掩码）/ 可用模型数量
 
-### 7.1 Bailian Provider 卡片
+### 测试与编辑
+- [ ] **测试连接** 按钮（disabled={未配置 || 测试中}）→ 测试 API → 显示结果 badge（✓ 成功 / ✗ 失败）
+- [ ] **编辑配置** 按钮 → 展开编辑表单，隐藏测试结果
 
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 编辑配置 | Button | `setEditingBailian(true)` | !editingBailian |
-| 2 | 测试连接 | Button | `handleTest()` | !editingBailian && configured |
+#### 编辑表单（BailianEditForm）
+- [ ] **Coding Plan** 快速填入按钮 → 自动填入 Coding Plan URL
+- [ ] **按量计费** 快速填入按钮 → 自动填入按量 URL
+- [ ] Base URL input：手动输入
+- [ ] API Key input：输入 `sk-...` 格式密钥
+- [ ] 密钥格式实时校验：
+  - [ ] Coding Plan URL + 非 `sk-sp-` Key → 显示格式不匹配警告
+  - [ ] 按量计费 URL + `sk-sp-` Key → 显示格式不匹配警告
+  - [ ] 格式匹配时：**保存** 按钮解锁
+- [ ] **保存** 按钮（disabled={密钥为空 || URL为空 || 格式不匹配 || 保存中}）→ 保存配置
+- [ ] **取消** 按钮 → 退出编辑模式
 
-**编辑配置表单（editingBailian = true）**：
-
-| # | 字段/元素 | 类型 | 行为 |
-|---|---------|------|------|
-| 1 | Base URL | text input | 更新 baseUrl（`urlOk` 实时验证） |
-| 2 | API Key | password input | 更新 apiKey（`keyOk` 实时验证） |
-| 3 | Coding Plan 快速填入 | Button | `setBaseUrl('https://coding.dashscope...')` |
-| 4 | 按量计费 快速填入 | Button | `setBaseUrl('https://dashscope.ali...')` |
-| 5 | 保存 | Button（紫色） | `handleSave(config)` （多项 disabled 条件） |
-| 6 | 取消 | Button | `onCancel()` |
-
-**实时验证提示**：
-- ⚠️ 黄色警告：URL 与 API Key 格式不匹配（`mismatch = true`）
-- 💡 紫色提示：当前 URL 格式说明
-
-### 7.2 模型列表（只读）
-
-- 展示所有可用模型：名称、上下文长度、输入价格、能力标签（无交互）
+### 可用模型列表
+- [ ] Coding Plan 模型表格：模型名 / 上下文长度 / 输入价格 / 能力标签
+- [ ] 加载中时显示「加载中...」骨架
+- [ ] 视觉（Vision）标签 / 流式（Streaming）标签 badge 显示
 
 ---
 
-## 8. 办公室管理 `/office`
+## 6. 办公室管理页（Office `#/office`）
 
-布局：左列（列表）+ 右列（详情）
+### 左侧列表
+- [ ] 显示所有办公室，每行显示名称 + 状态
+- [ ] 点击行 → 右侧详情面板加载
+- [ ] 无办公室时：显示「暂无办公室」空状态
+- [ ] **添加办公室** 按钮 → 新建办公室（默认名「新办公室 N」），并选中进入编辑模式
 
-### 8.1 办公室列表（COL2）
+### 详情面板工具栏
+- [ ] **取消** 按钮 → 放弃编辑（恢复原始数据）
+- [ ] **保存** 按钮（disabled={保存中}）→ 保存配置，Toast 提示
+- [ ] **编辑** 按钮 → 启用编辑模式
+- [ ] **删除** 按钮（红色）→ 删除办公室
 
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 办公室行 | ListRow | `handleSelect(office)` → 选中 |
-| 2 | 添加办公室 ＋ | Button | `handleAdd()` → 新建草稿 |
+### 基本信息（编辑模式下可修改）
+- [ ] 办公室名称 input
+- [ ] 地址模式切换：**本机** / **远程** 按钮
+  - [ ] 本机模式：地址 input 显示「localhost」（禁用）
+  - [ ] 远程模式：地址 input 可输入 IP/域名
+- [ ] 门禁认证方式（远程模式下）：**用户名密码** / **SSH 私钥** 按钮切换
+  - [ ] 用户名密码：用户名 input + 密码 input
+  - [ ] SSH 私钥：SSH Key 路径 input
+- [ ] 装修档次：**高档** / **中档** / **普通** 按钮选择
+- [ ] 前台形象 input
+- [ ] 备注 textarea
 
-### 8.2 编辑工具栏（COL3 顶部）
+### 物业信息区域
+- [ ] **刷新** 按钮 → 检测 daemon 连接状态（disabled={检测中}）
+- [ ] 安装状态 badge：未安装 / 已安装 / 已安装并运行 / 已安装（离线）
+- [ ] 物业版本显示
+- [ ] **安装最新物业** 按钮 → 触发两步安装向导
+  #### Step 1：安装 OpenClaw
+  - [ ] 日志区域实时滚动（SSH 执行日志）
+  - [ ] 成功后显示 ✅ 标记，Step 2 解锁
+  #### Step 2：安装 Daemon
+  - [ ] 日志区域实时滚动
+  - [ ] 成功后 daemon_url + api_key 自动回填
+  - [ ] 提示「点击保存生效」
+- [ ] **收起** 按钮 → 折叠安装日志面板
 
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 编辑 | Button | `setEditing(true)` | !editing |
-| 2 | 取消 | Button | `setEditing(false)` → 丢弃 | editing |
-| 3 | 保存 | Button（紫色） | `handleSave()` | editing |
-| 4 | 删除 | Button（红色） | `handleDelete(selected.id)` → `window.confirm` | !editing |
-
-### 8.3 基本信息表单（需编辑模式）
-
-| # | 字段 | 类型 | 显示条件 |
-|---|------|------|----------|
-| 1 | 办公室名称 | text input | — |
-| 2 | 本机 | Toggle 按钮 | — |
-| 3 | 远程 | Toggle 按钮 | — |
-| 4 | 远程地址 | text input | addressMode = true（远程） |
-| 5 | 用户名密码 认证 | Toggle 按钮 | addressMode = true |
-| 6 | SSH 私钥 认证 | Toggle 按钮 | addressMode = true |
-| 7 | 用户名 | text input | addressMode = true && authType = password |
-| 8 | 密码 | password input | addressMode = true && authType = password |
-| 9 | SSH 私钥路径 | text input | addressMode = true && authType = ssh |
-| 10 | 装修档次：高 | Toggle 按钮 | — |
-| 11 | 装修档次：中 | Toggle 按钮 | — |
-| 12 | 装修档次：低 | Toggle 按钮 | — |
-| 13 | 前台形象 | text input | — |
-| 14 | 备注 | textarea（2行） | — |
-
-### 8.4 物业信息区（只读）
-
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 刷新健康状态 | Button（ghost） | `checkDaemon(selected)` | selected.daemon_url 存在 |
-| 2 | 安装最新物业 | Button（紫色） | `handleInstallLatest()` | !installing |
-| 3 | 安装中… | Button（disabled） | — | installing |
-| 4 | 收起日志 | Button | 清空 installLogs | installLogs.length > 0 |
+### 当前部署与历史
+- [ ] 当前部署公司名称显示（未部署时显示「未部署」）
+- [ ] 部署历史列表：状态（运行中 / 已撤销）+ 时间
 
 ---
 
-## 9. 一键部署 `/deploy`
+## 7. 部署页（Deploy `#/deploy`）
 
-### 9.1 工具栏
+### 运行中 OPC 列表
+- [ ] 显示所有「运行中」的 OPC 公司
+- [ ] 每行显示运行状态 + **撤销部署** 按钮（红色）
+- [ ] 点击 **撤销部署** → 执行 undeploy → 列表刷新
 
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 立即部署 | Button（紫色） | `handleDeploy()` | !deploying && canDeploy |
-| 2 | 取消部署 | Button（红色） | `handleCancel()` | deploying |
+### 部署配置
+- [ ] **选择子公司** select：
+  - [ ] 选项显示所有 OPC（运行中的额外显示「运行中·N」）
+  - [ ] 选择后，触发加载对应 Office 列表
+- [ ] **选择办公室** select（disabled={未选 OPC}）：
+  - [ ] 选项显示可用 Office（显示安装状态）
+  - [ ] 未安装物业的 Office 显示 ⚠️ 警告标识
+- [ ] 选中未安装物业的 Office：显示黄色警告提示「请先安装物业」
+- [ ] 无可用 Office：显示「暂无空闲办公室」提示
 
-**`canDeploy` 条件**：selectedOpcId 非空 && selectedOfficeId 非空 && selectedOffice.daemon_url 存在
+### 部署控制
+- [ ] **立即部署** 按钮（disabled={未选完整配置 || 部署中}）→ 触发部署流程
+- [ ] **取消部署** 按钮（红色，部署中显示）→ 取消当前部署任务
+- [ ] 部署进度条：4 步（准备配置文件 → 写入目标目录 → 重载进程 → 健康检查）
+  - [ ] 每步状态：等待中 / 进行中... / 已完成 / 失败
+- [ ] 部署成功：Toast「部署成功！」
+- [ ] 部署失败：Toast「部署失败: {原因}」
+- [ ] 部署取消：Toast「部署已取消」
 
-### 9.2 部署配置区
-
-| # | 元素 | 类型 | 行为 | 禁用条件 |
-|---|------|------|------|----------|
-| 1 | 选择子公司 | select | `handleOpcChange(val)` → 更新 opcId + 重置 officeId | — |
-| 2 | 选择办公室 | select | 更新 selectedOfficeId | !selectedOpcId |
-
-**警告提示**（条件显示）：
-- ⚠️ 所选办公室未安装物业（selectedOffice.daemon_url 为空）
-- ⚠️ 暂无空闲办公室（freeOffices.length = 0）
-
-### 9.3 部署进度区（deploying = true）
-
-- **进度条**：width 动画（0 → 100%）
-- **步骤卡片**（4 列网格）：
-  - 状态图标（✓完成 / ✗失败 / ⏳进行中）
-  - 每个步骤名 + 子状态文字
-
-**无可点击元素（只读）**
-
-### 9.4 运行中子公司区
-
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | 撤销部署 | Button（每行） | `handleUndeploy(opc)` |
-
-### 9.5 最近部署记录区（只读）
-
-- 每行显示：状态徽章、OPC名、办公室名、相对时间
-- **无交互元素**
+### 最近部署历史
+- [ ] 列表显示历史部署记录
+- [ ] 每行：OPC名 / 办公室名 / 状态（成功/已回滚/运行中/等待中）/ 相对时间（刚刚/N分钟前/N小时前/N天前）
 
 ---
 
-## 10. 运行日志 `/logs`
+## 8. 日志页（Logs `#/logs`）
 
-### 10.1 日志流工具栏
+### 日志流顶部控制
+- [ ] **实时** 绿色 badge：未暂停时持续闪烁
+- [ ] **暂停**（Clear）按钮 → 停止显示新日志，显示「Logs cleared (local)」
+- [ ] **继续**（Resume）按钮（暂停时显示）→ 恢复实时日志流
 
-| # | 元素 | 类型 | 行为 | 显示条件 |
-|---|------|------|------|----------|
-| 1 | 实时指示器（绿点 + 直播） | 静态 | — | !cleared |
-| 2 | 清空 | Button（ghost） | `handleClear()` → 暂停更新，清空显示 | !cleared |
-| 3 | 恢复 | Button（ghost） | `handleResume()` → 重新拉取日志 | cleared |
+### 日志内容区
+- [ ] 日志列表自动滚动到最新条目
+- [ ] 按级别着色：INFO（白）/ WARN（黄）/ ERROR（红）/ DEBUG（灰）/ SYSTEM（紫）
+- [ ] 无日志时：显示「No logs」
+- [ ] 暂停时：显示「Logs cleared (local)」
 
-**自动更新**：每 **3 秒**拉取最新 200 条日志；自动滚动到底部
+### 右侧过滤面板
+#### 日志级别 Checkbox
+- [ ] INFO checkbox：取消选中 → 日志流隐藏 INFO 级别
+- [ ] WARN checkbox：取消选中 → 隐藏 WARN
+- [ ] ERROR checkbox：取消选中 → 隐藏 ERROR
+- [ ] DEBUG checkbox：取消选中 → 隐藏 DEBUG
+- [ ] SYSTEM checkbox：取消选中 → 隐藏 SYSTEM
 
-### 10.2 过滤面板（右侧固定 168px）
+#### 组件过滤
+- [ ] 组件名称 input：输入组件名 → 仅显示匹配组件的日志
 
-| # | 元素 | 类型 | 行为 |
-|---|------|------|------|
-| 1 | INFO Checkbox | mac-check | `toggleLevel('INFO')` |
-| 2 | WARN Checkbox | mac-check | `toggleLevel('WARN')` |
-| 3 | ERROR Checkbox | mac-check | `toggleLevel('ERROR')` |
-| 4 | DEBUG Checkbox | mac-check | `toggleLevel('DEBUG')` |
-| 5 | SYSTEM Checkbox | mac-check | `toggleLevel('SYSTEM')` |
-| 6 | 组件名称搜索 | text input | `setFilterComponent(val)` 实时过滤 |
-| 7 | 级别选择器 | select（全部/INFO/WARN/…） | `setFilterLevel(val)` |
+#### 级别精确过滤（select）
+- [ ] 下拉选择单一级别（All / INFO / WARN / ERROR / DEBUG / SYSTEM）
 
----
-
-## 11. 设置 `/settings`
-
-### 11.1 语言选择（16 个按钮网格）
-
-| # | 语言 | 代码 | 行为 | RTL |
-|---|------|------|------|-----|
-| 1 | 简体中文 | zh-CN | `setLanguage('zh-CN')` | — |
-| 2 | 繁體中文 | zh-TW | `setLanguage('zh-TW')` | — |
-| 3 | English | en | `setLanguage('en')` | — |
-| 4 | 日本語 | ja | `setLanguage('ja')` | — |
-| 5 | 한국어 | ko | `setLanguage('ko')` | — |
-| 6 | Français | fr | `setLanguage('fr')` | — |
-| 7 | Deutsch | de | `setLanguage('de')` | — |
-| 8 | Español | es | `setLanguage('es')` | — |
-| 9 | Português | pt | `setLanguage('pt')` | — |
-| 10 | Русский | ru | `setLanguage('ru')` | — |
-| 11 | العربية | ar | `setLanguage('ar')` | ✅ RTL |
-| 12 | हिन्दी | hi | `setLanguage('hi')` | — |
-| 13 | Bahasa Indonesia | id | `setLanguage('id')` | — |
-| 14 | ไทย | th | `setLanguage('th')` | — |
-| 15 | Tiếng Việt | vi | `setLanguage('vi')` | — |
-| 16 | Italiano | it | `setLanguage('it')` | — |
-
-副作用：
-- 更新 `localStorage['clawpilot_lang']`
-- 更新 `document.documentElement.dir`（ar → `rtl`，其他 → `ltr`）
-- 更新 `document.documentElement.lang`
-
-### 11.2 主题设置（只读）
-
-- 当前仅深色主题，无切换功能
-
-### 11.3 关于（只读）
-
-- ClawPilot Logo + 版本号（0.1.0）
+#### 计数
+- [ ] 底部显示当前过滤结果总条数
 
 ---
 
-## 12. 弹窗 / 对话框汇总
+## 9. 设置页（Settings `#/settings`）
 
-| # | 弹窗名称 | 触发页面 | 触发方式 | 确认操作 | 取消操作 |
-|---|---------|---------|---------|---------|---------|
-| 1 | 创建 OPC 弹窗 | OpcPage | 点击"创建新OPC公司" | 调用 `createOpc()` | `setShowCreate(false)` |
-| 2 | OPC 下线确认弹窗 | OpcPage | 点击"下线此公司" | `handleUndeploy(opc)` | `setConfirmOffline(null)` |
-| 3 | 删除智能体确认弹窗 | AgentsPage | 点击"删除" | `handleDeleteAgent(agent)` | `setConfirmDelete(null)` |
-| 4 | 技能选择弹窗 | AgentsPage | 点击"添加技能" | 选择并关闭 | `setSkillModalOpen(false)` |
-| 5 | 聊天测试抽屉 | AgentsPage | 点击"测试对话" | — | `setChatAgent(null)` |
-| 6 | 浏览器 confirm | OpcPage | 删除 OPC | `handleDelete()` | 取消（浏览器原生） |
-| 7 | 浏览器 confirm | OpcPage | 恢复/删除快照 | 相应操作 | 取消 |
-| 8 | 浏览器 confirm | OfficePage | 删除办公室 | `handleDelete()` | 取消 |
+### 语言切换
+- [ ] 16 个语言按钮网格：en / zh-CN / zh-TW / ja / ko / fr / de / es / pt / ru / ar / hi / id / th / vi / it
+- [ ] 点击任意语言按钮 → 页面立即切换语言，选中按钮高亮
+- [ ] 切换 **ar**（阿拉伯语）→ 页面变为 RTL 布局，顶部显示 RTL 提示横幅
+- [ ] 切换回非 RTL 语言 → 恢复 LTR 布局，横幅消失
+- [ ] 刷新页面 → localStorage 持久化，保持上次选择的语言
 
----
+### 主题
+- [ ] 显示当前主题「深色」（固定，无切换按钮）
 
-## 13. 完整交互流程
-
-### 流程 1：创建新 OPC 公司
-
-```
-侧边栏 → 点击"子公司管理"
-  └── 列表列底部 → 点击"创建新OPC公司"
-      └── CreateModal 打开
-          ├── 输入英文名称（必填）
-          ├── 输入显示名称（必填）
-          ├── 输入描述（可选）
-          ├── 选择主题色（5 个预设之一）
-          └── 点击"创建"
-              ├── success → Toast "创建成功" + 列表刷新
-              └── error → Toast 错误信息
-```
-
-### 流程 2：配置智能体
-
-```
-侧边栏 → 点击"智能体管理"
-  └── 智能体条 → 点击"添加 +"（或选择已有智能体）
-      └── 工具栏 → 点击"编辑"
-          ├── 填写基本信息（名称/标识/简介/职位）
-          ├── 选择模型（provider + model）
-          ├── 启用/禁用工具权限
-          ├── 添加/删除技能
-          ├── 配置护栏规则（允许/禁止列表）
-          ├── 切换文档 Tab → 编辑 SOUL.md 等文档
-          │   └── 点击"保存文档"（独立保存）
-          └── 点击"保存智能体"
-              ├── success → Toast "已保存"
-              └── error → Toast 错误信息
-```
-
-### 流程 3：AI 快速生成智能体人格
-
-```
-AgentsPage → 编辑模式下
-  └── AI 生成区 → 输入描述（如"专业客服，擅长解决技术问题"）
-      └── 点击"AI 生成" 或 Enter
-          ├── aiGenerating = true（按钮 disabled）
-          ├── 调用 AI 接口生成 SOUL.md 内容
-          └── 填充到文档编辑区
-```
-
-### 流程 4：绑定飞书群组
-
-```
-侧边栏 → 点击"飞书频道绑定"
-  ├── 选择渠道类型（FEISHU/DINGTALK/SLACK）
-  ├── 点击"重新配置" → 展开配置表单
-  │   ├── 填写 App ID + App Secret
-  │   └── 点击"保存配置" / "测试连接"
-  └── 群组列表 → 点击"添加绑定 +"
-      └── 右侧详情面板（编辑模式）
-          ├── 输入群组名称
-          ├── 输入群组 ID
-          ├── 选择群组类型（GROUP/DM）
-          ├── 选择关联智能体
-          ├── 选择触发模式（MENTION/ALL）
-          ├── 切换启用状态 Toggle
-          └── 点击"保存"
-```
-
-### 流程 5：部署 OPC 公司
-
-```
-前提：OPC 已创建 + 办公室已安装物业
-
-侧边栏 → 点击"一键部署"
-  ├── 选择子公司（下拉）
-  ├── 选择办公室（下拉，仅显示空闲的）
-  ├── 确认无警告提示
-  └── 点击"立即部署"
-      ├── deploying = true
-      ├── 进度条动画 + 步骤卡片实时更新（每 2 秒轮询）
-      │   步骤：连接验证 → 配置生成 → 文件传输 → 服务启动 → 健康检查
-      ├── status = 'SUCCESS' → 进度完成，可查看运行中列表
-      └── status = 'FAILED' → 错误高亮，可重新部署
-```
-
-### 流程 6：测试智能体对话
-
-```
-AgentsPage → 选中智能体（已有 SOUL.md）
-  └── 工具栏 → 点击"测试对话"
-      └── ChatDrawer 打开（右侧抽屉）
-          ├── 消息输入框 → 输入消息
-          ├── Enter 或点击发送
-          ├── 查看 AI 回复
-          └── 点击 ✕ 关闭
-```
-
-### 流程 7：查看和过滤日志
-
-```
-侧边栏 → 点击"运行日志"
-  ├── 日志流实时更新（每 3 秒，自动滚动到底）
-  ├── 右侧过滤面板：
-  │   ├── 勾选/取消 INFO/WARN/ERROR/DEBUG/SYSTEM
-  │   ├── 输入组件名过滤
-  │   └── 选择日志级别
-  ├── 点击"清空" → 暂停更新
-  └── 点击"恢复" → 重新拉取日志
-```
-
-### 流程 8：OPC 快照与恢复
-
-```
-OpcPage → 选中某个 OPC
-  └── 快照管理区（详情面板底部）
-      ├── 输入快照备注 → 点击"创建快照" 或 Enter
-      ├── 快照列表中 → 点击某个"恢复"按钮
-      │   └── window.confirm → 确认 → 恢复该快照
-      └── 点击某个"×"删除按钮
-          └── window.confirm → 确认 → 删除该快照
-```
-
-### 流程 9：安装物业（Daemon）
-
-```
-OfficePage → 选中某个远程办公室
-  └── 物业信息区
-      ├── 点击"刷新" → 检查 daemon 健康状态
-      └── 点击"安装最新物业"
-          ├── installStep: idle → openclaw → daemon → done
-          ├── installLogs 实时追加
-          └── 点击"收起" → 清空日志
-```
-
-### 流程 10：切换界面语言
-
-```
-侧边栏 → 点击"设置"
-  └── 语言设置区 → 点击任意语言按钮
-      ├── 界面立即切换（React re-render）
-      ├── localStorage['clawpilot_lang'] 更新
-      ├── document.documentElement.lang 更新
-      └── 若选 ar（阿拉伯语）：
-          └── document.documentElement.dir = 'rtl' → 布局翻转
-```
+### 关于
+- [ ] 显示应用版本号
+- [ ] 显示应用描述
 
 ---
 
-## 附录：元素统计
+## 10. 关键交互流程
 
-| 页面 | 按钮 | 输入框 | Select | Checkbox | Modal/Drawer |
-|------|------|--------|--------|----------|--------------|
-| Layout（侧边栏） | 14 | 0 | 0 | 0 | 0 |
-| Overview | 4 | 0 | 0 | 0 | 0 |
-| OpcPage | 10 | 3 | 0 | 0 | 2 |
-| AgentsPage | 30+ | 8 | 2 | 0 | 3 |
-| BindingsPage | 15 | 7 | 4 | 0 | 0 |
-| ProvidersPage | 6 | 2 | 0 | 0 | 0 |
-| OfficePage | 12 | 6 | 0 | 0 | 0 |
+### 流程 A：创建并配置一个完整 OPC 团队
+1. `#/opc` → 点击**创建新OPC公司** → 填写名称/描述/选颜色 → **创建**
+2. `#/agents` → 选中新公司 → 点击 **+** → 填写 Agent 信息（SOUL.md）→ **保存**
+3. `#/providers` → **编辑配置** → 填写 API Key + URL → **保存** → **测试连接**
+4. `#/bindings` → 选中新公司 → **重新配置**飞书 → 填写 App ID/Secret → **保存** → **测试连接** → **+ 添加群组** → 绑定 Agent → **保存**
+
+### 流程 B：部署 OPC 到办公室
+1. `#/office` → 选择办公室 → **安装最新物业** → 完成两步安装 → **保存**
+2. `#/deploy` → 选择 OPC → 选择已安装物业的办公室 → **立即部署** → 等待 4 步完成
+3. `#/opc` → 选中已部署公司 → 查看**运行状态**确认为「运行中」
+
+### 流程 C：下线 OPC
+1. `#/opc` → 选中运行中的公司 → 点击**下线 →** → 确认下线 Modal → **确认下线**
+2. 或 `#/deploy` → 在运行中 OPC 列表点击**撤销部署**
+
+### 流程 D：测试 Agent 对话
+1. `#/agents` → 选中已保存的 Agent → 点击**测试对话**
+2. 聊天抽屉展开 → 在 textarea 输入消息 → Enter 发送
+3. 查看 AI 回复 → **清除**对话 → **关闭**抽屉
+
+### 流程 E：安装技能
+1. `#/agents` → 选中 Agent → 点击**+ 安装技能** → 技能 Modal 打开
+2. 搜索框输入关键词 → 找到技能 → 点击**安装** → 等待安装完成 → **完成**
+
+### 流程 F：切换语言
+1. `#/settings` → 点击目标语言（如 `ja`）→ 全局 UI 立即切换为日语
+2. 刷新页面 → 语言设置保持
+3. 切换 `ar` → 检查 RTL 布局生效，侧边栏边框方向正确
+
+### 流程 G：查看和过滤日志
+1. `#/logs` → 日志实时滚动
+2. 取消 ERROR checkbox → ERROR 日志消失
+3. 组件 input 输入「opc」→ 仅显示 opc 组件日志
+4. 级别 select 选「WARN」→ 仅显示 WARN
+5. **暂停** → 日志停止更新 → **继续** → 恢复
+
+### 流程 H：创建配置快照并恢复
+1. `#/opc` → 选中公司 → 快照区域输入备注 → **创建快照**
+2. 修改 Agent 配置（模拟配置变更）
+3. 返回 `#/opc` → 快照列表找到之前的快照 → **恢复** → 配置回滚
+
+---
+
+## 元素统计
+
+| 页面 | 按钮 | 输入框 | Select | Checkbox | Modal/抽屉 |
+|------|------|--------|--------|----------|------------|
+| Layout | 3 | 0 | 0 | 0 | 0 |
+| Overview | 6 | 0 | 0 | 0 | 0 |
+| OpcPage | 12 | 5 | 0 | 0 | 2 |
+| AgentsPage | 25+ | 10+ | 3 | 10+ | 2 |
+| BindingsPage | 15 | 8 | 3 | 0 | 0 |
+| ProvidersPage | 5 | 2 | 0 | 0 | 0 |
+| OfficePage | 14 | 7 | 0 | 0 | 0 |
 | DeployPage | 5 | 0 | 2 | 0 | 0 |
-| LogsPage | 3 | 1 | 1 | 5 | 0 |
+| LogsPage | 2 | 1 | 1 | 5 | 0 |
 | SettingsPage | 16 | 0 | 0 | 0 | 0 |
-| **合计** | **~115** | **~27** | **9** | **5** | **5** |
+| **合计** | **~103** | **~33** | **~9** | **~15** | **4** |
 
 ---
 
-## 附录：尚未实现的功能（⚠️）
+## 未实现功能（点击无效）
 
-| 功能 | 位置 | 说明 |
+| 元素 | 位置 | 说明 |
 |------|------|------|
-| 今天/本周/本月过滤 | Overview 工具栏 | 按钮无绑定逻辑 |
-| 查看消息趋势详情 | Overview 消息趋势区 | 按钮无绑定逻辑 |
-| 模板市场 | 侧边栏 PRO | 链接指向 # |
-| 云同步 | 侧边栏 PRO | 链接指向 # |
+| Templates | 侧边栏 | PRO 功能，`href="#"`，无路由 |
+| Cloud Sync | 侧边栏 | PRO 功能，`href="#"`，无路由 |
+| 查看详情 | Overview | 按钮存在但无 onClick 绑定 |
+| 今天/本周/本月 | Overview | 按钮存在但无实际数据切换逻辑 |
