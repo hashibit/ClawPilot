@@ -184,3 +184,5 @@
 {"event":"subagent_stop","timestamp":"2026-03-22T11:22:01Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-22T11:22:24Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-22T11:23:07Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-22T12:11:06Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-22T12:18:54Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
