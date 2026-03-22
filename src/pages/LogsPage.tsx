@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getLogs } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { LogEntry } from '../lib/types'
@@ -23,6 +24,7 @@ function formatTs(ts: number): string {
 }
 
 export default function LogsPage() {
+  const { t } = useTranslation()
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [displayLogs, setDisplayLogs] = useState<LogEntry[]>([])
   const [filterLevel, setFilterLevel] = useState<string>('')
@@ -51,7 +53,6 @@ export default function LogsPage() {
     }
   }, [filterLevel, filterComponent])
 
-  // Apply level filter on top of fetched logs
   useEffect(() => {
     if (cleared) {
       setDisplayLogs([])
@@ -60,7 +61,6 @@ export default function LogsPage() {
     setDisplayLogs(logs.filter(log => enabledLevels.has(log.level.toUpperCase())))
   }, [logs, enabledLevels, cleared])
 
-  // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
     const el = streamRef.current
     if (el) el.scrollTop = el.scrollHeight
@@ -90,23 +90,23 @@ export default function LogsPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 600 }}>运行日志</span>
-            <span style={{ fontSize: '11px', color: '#8E8E93' }}>实时流</span>
+            <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('logs.title')}</span>
+            <span style={{ fontSize: '11px', color: '#8E8E93' }}>{t('logs.realtimeLabel')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {!cleared && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '2px 8px', background: 'rgba(52,199,89,0.12)', borderRadius: '5px' }}>
                 <span className="pulse-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>
-                <span style={{ fontSize: '11px', color: '#34c759' }}>实时</span>
+                <span style={{ fontSize: '11px', color: '#34c759' }}>{t('logs.live')}</span>
               </div>
             )}
             {cleared ? (
               <button className="tbtn tbtn-ghost" style={{ padding: '2px 8px' }} onClick={handleResume}>
-                恢复
+                {t('logs.resume')}
               </button>
             ) : (
               <button className="tbtn tbtn-ghost" style={{ padding: '2px 8px' }} onClick={handleClear}>
-                清空
+                {t('logs.clear')}
               </button>
             )}
           </div>
@@ -118,7 +118,7 @@ export default function LogsPage() {
         >
           {displayLogs.length === 0 ? (
             <div style={{ fontSize: '12px', color: '#8E8E93', padding: '8px 0' }}>
-              {cleared ? '日志已清空（本地）' : '暂无日志'}
+              {cleared ? t('logs.cleared') : t('logs.noLogs')}
             </div>
           ) : (
             displayLogs.map(log => (
@@ -136,10 +136,10 @@ export default function LogsPage() {
       {/* Filters panel */}
       <div style={{ width: '168px', borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
         <div className="toolbar" style={{ justifyContent: 'flex-start' }}>
-          <span style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5' }}>过滤</span>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5' }}>{t('logs.filter')}</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-          <div className="section-label" style={{ padding: '0 0 5px' }}>日志级别</div>
+          <div className="section-label" style={{ padding: '0 0 5px' }}>{t('logs.levelFilter')}</div>
           {LOG_LEVELS.map(level => {
             const colorMap: Record<string, string> = {
               INFO: 'rgba(235,235,245,0.85)',
@@ -161,31 +161,31 @@ export default function LogsPage() {
             )
           })}
 
-          <div className="section-label" style={{ padding: '10px 0 5px' }}>组件过滤</div>
+          <div className="section-label" style={{ padding: '10px 0 5px' }}>{t('logs.componentFilter')}</div>
           <input
             type="text"
             value={filterComponent}
             onChange={e => setFilterComponent(e.target.value)}
-            placeholder="组件名称..."
+            placeholder={t('logs.componentPlaceholder')}
             className="field-input"
             style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
           />
 
-          <div className="section-label" style={{ padding: '10px 0 5px' }}>级别过滤</div>
+          <div className="section-label" style={{ padding: '10px 0 5px' }}>{t('logs.levelSelect')}</div>
           <select
             value={filterLevel}
             onChange={e => setFilterLevel(e.target.value)}
             className="field-input"
             style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
           >
-            <option value="">全部</option>
+            <option value="">{t('logs.allLevels')}</option>
             {LOG_LEVELS.map(l => (
               <option key={l} value={l}>{l}</option>
             ))}
           </select>
 
           <div style={{ marginTop: '12px', fontSize: '11px', color: '#8E8E93' }}>
-            共 {displayLogs.length} 条
+            {t('logs.total', { count: displayLogs.length })}
           </div>
         </div>
       </div>

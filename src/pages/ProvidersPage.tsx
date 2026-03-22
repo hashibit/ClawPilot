@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getProviders, updateProvider, getModels, testProvider } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { ProviderConfig, ModelInfo, ProviderType, TestProviderResult } from '../lib/types'
@@ -11,8 +12,8 @@ import type { ProviderConfig, ModelInfo, ProviderType, TestProviderResult } from
 //   OpenAI  → https://dashscope.aliyuncs.com/compatible-mode/v1
 //   Anthropic → https://dashscope.aliyuncs.com/anthropic
 
-function maskKey(key?: string): string {
-  if (!key) return '未设置'
+function maskKey(key?: string, t?: (k: string) => string): string {
+  if (!key) return t ? t('common.not_set') : '未设置'
   if (key.length <= 8) return '****'
   return key.slice(0, 6) + '****' + key.slice(-4)
 }
@@ -37,6 +38,7 @@ interface BailianEditProps {
 }
 
 function BailianEditForm({ existing, onSave, onCancel, saving }: BailianEditProps) {
+  const { t } = useTranslation()
   const [apiKey, setApiKey] = useState(existing?.api_key ?? '')
   const [baseUrl, setBaseUrl] = useState(
     existing?.base_url ?? (existing?.is_coding_plan ? 'https://coding.dashscope.aliyuncs.com/v1' : '')
@@ -107,13 +109,13 @@ function BailianEditForm({ existing, onSave, onCancel, saving }: BailianEditProp
       {/* 校验提示 */}
       {mismatch && (
         <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 8px', background: 'rgba(245,158,11,0.1)', borderRadius: '5px' }}>
-          ⚠ {baseUrl.includes('coding') ? 'Coding Plan URL 需搭配 sk-sp-xxx 格式密钥' : '按量计费 URL 需搭配 sk-xxx 格式密钥（非 sk-sp-）'}
+          ⚠ {baseUrl.includes('coding') ? t('providers.bailian_coding_mismatch') : t('providers.bailian_pay_mismatch')}
         </div>
       )}
       {baseUrl.length > 0 && (
         <div style={{ fontSize: '11px', color: '#a78bfa', padding: '4px 8px', background: 'rgba(139,92,246,0.1)', borderRadius: '5px' }}>
-          将测试 {baseUrl.includes('anthropic') ? 'Anthropic' : 'OpenAI'} 格式
-          {isCodingPlan ? '（Coding Plan）' : ''}
+          {t('providers.will_test_format', { format: baseUrl.includes('anthropic') ? 'Anthropic' : 'OpenAI' })}
+          {isCodingPlan ? `（Coding Plan）` : ''}
         </div>
       )}
 
@@ -124,9 +126,9 @@ function BailianEditForm({ existing, onSave, onCancel, saving }: BailianEditProp
           onClick={handleSave}
           disabled={saving || !apiKey || !baseUrl || !keyOk || !urlOk || mismatch}
         >
-          {saving ? '保存中...' : '保存'}
+          {saving ? t('common.saving') : t('common.button_save')}
         </button>
-        <button className="tbtn tbtn-ghost" style={{ flex: 1 }} onClick={onCancel}>取消</button>
+        <button className="tbtn tbtn-ghost" style={{ flex: 1 }} onClick={onCancel}>{t('common.button_cancel')}</button>
       </div>
     </div>
   )
@@ -146,6 +148,7 @@ function TestBadge({ ok, label }: { ok: boolean; label: string }) {
 }
 
 export default function ProvidersPage() {
+  const { t } = useTranslation()
   const [providers, setProviders] = useState<ProviderConfig[]>([])
   const [models, setModels] = useState<ModelInfo[]>([])
   const [editingBailian, setEditingBailian] = useState(false)
@@ -175,7 +178,7 @@ export default function ProvidersPage() {
       await load()
       setEditingBailian(false)
       setTestResult(null)
-      toast('配置已保存', 'success')
+      toast(t('providers.config_saved'), 'success')
     } catch (e) {
       toast(String(e), 'error')
     } finally {
@@ -192,7 +195,7 @@ export default function ProvidersPage() {
       const isAnthropicUrl = (bailian?.base_url ?? '').includes('anthropic')
       const ok = isAnthropicUrl ? result.anthropic_ok : result.openai_ok
       const fmt = isAnthropicUrl ? 'Anthropic' : 'OpenAI'
-      toast(ok ? `${fmt} 连接成功` : `${fmt} 连接失败`, ok ? 'success' : 'error')
+      toast(ok ? t('providers.connect_success', { fmt }) : t('providers.connect_failed', { fmt }), ok ? 'success' : 'error')
     } catch (e) {
       toast(String(e), 'error')
     } finally {
@@ -205,13 +208,13 @@ export default function ProvidersPage() {
   return (
     <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div className="toolbar">
-        <span style={{ fontSize: '15px', fontWeight: 600 }}>模型管理</span>
+        <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
         {/* ── 百炼配置卡片 ───────────────────────────── */}
         <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>Provider 配置</div>
+          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('providers.provider_config')}</div>
           <div className="provider-card" style={{ padding: '14px' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -232,10 +235,10 @@ export default function ProvidersPage() {
                 )}
                 {configured ? (
                   <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: bailian?.is_available ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)', color: bailian?.is_available ? '#34c759' : '#8E8E93' }}>
-                    {bailian?.is_available ? '已连接' : '已配置'}
+                    {bailian?.is_available ? t('common.status_connected') : t('common.status_configured')}
                   </span>
                 ) : (
-                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: '#8E8E93' }}>未配置</span>
+                  <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', color: '#8E8E93' }}>{t('common.status_not_configured')}</span>
                 )}
               </div>
             </div>
@@ -253,18 +256,18 @@ export default function ProvidersPage() {
                   <div className="group-row">
                     <span className="group-label">Base URL</span>
                     <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px', color: !configured ? '#8E8E93' : undefined }}>
-                      {bailian?.base_url || '未设置'}
+                      {bailian?.base_url || t('common.not_set')}
                     </span>
                   </div>
                   <div className="group-row">
                     <span className="group-label">API Key</span>
                     <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px', color: !configured ? '#8E8E93' : undefined }}>
-                      {maskKey(bailian?.api_key)}
+                      {maskKey(bailian?.api_key, t)}
                     </span>
                   </div>
                   <div className="group-row">
-                    <span className="group-label">可用模型</span>
-                    <span className="group-value">{bailianModels.length} 个</span>
+                    <span className="group-label">{t('providers.available_models')}</span>
+                    <span className="group-value">{t('providers.model_count', { count: bailianModels.length })}</span>
                   </div>
                 </div>
 
@@ -291,14 +294,14 @@ export default function ProvidersPage() {
                     disabled={!configured || testing}
                     onClick={handleTest}
                   >
-                    {testing ? '测试中...' : '测试连接'}
+                    {testing ? t('common.testing') : t('common.button_test')}
                   </button>
                   <button
                     className="tbtn tbtn-ghost"
                     style={{ flex: 1 }}
                     onClick={() => { setEditingBailian(true); setTestResult(null) }}
                   >
-                    编辑配置
+                    {t('providers.edit_config')}
                   </button>
                 </div>
               </>
@@ -308,20 +311,20 @@ export default function ProvidersPage() {
 
         {/* ── 模型列表 ────────────────────────────────── */}
         <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>可用模型（百炼 Coding Plan）</div>
+          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('providers.available_models_bailian')}</div>
           <div className="group">
             <table>
               <thead>
                 <tr>
-                  <th>模型</th>
-                  <th>上下文</th>
-                  <th>输入</th>
-                  <th>能力</th>
+                  <th>{t('providers.col_model')}</th>
+                  <th>{t('providers.col_context')}</th>
+                  <th>{t('providers.col_input')}</th>
+                  <th>{t('providers.col_capability')}</th>
                 </tr>
               </thead>
               <tbody>
                 {bailianModels.length === 0 ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', color: '#8E8E93', padding: '12px' }}>加载中...</td></tr>
+                  <tr><td colSpan={4} style={{ textAlign: 'center', color: '#8E8E93', padding: '12px' }}>{t('common.loading')}</td></tr>
                 ) : (
                   bailianModels.map(m => (
                     <tr key={m.id}>
@@ -338,8 +341,8 @@ export default function ProvidersPage() {
                         text{m.supports_vision ? ' + image' : ''}
                       </td>
                       <td>
-                        {m.supports_vision && <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', marginRight: '4px' }}>视觉</span>}
-                        {m.supports_streaming && <span className="tag" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>流式</span>}
+                        {m.supports_vision && <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', marginRight: '4px' }}>{t('providers.cap_vision')}</span>}
+                        {m.supports_streaming && <span className="tag" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>{t('providers.cap_streaming')}</span>}
                       </td>
                     </tr>
                   ))

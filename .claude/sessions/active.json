@@ -1,10 +1,4 @@
 {
-  "session-1773991277": {
-    "short_id": "session-1773",
-    "last_seen": 1773991277,
-    "pid": "63166",
-    "status": "active"
-  },
   "A16A1710-384A-4426-A7BC-E3C208BC4F13": {
     "short_id": "A16A1710-384",
     "last_seen": 1774064562,
@@ -15,6 +9,18 @@
     "short_id": "session-1774",
     "last_seen": 1774069323,
     "pid": "77029",
+    "status": "active"
+  },
+  "session-1774139632": {
+    "short_id": "session-1774",
+    "last_seen": 1774139632,
+    "pid": "47464",
+    "status": "active"
+  },
+  "session-1774139645": {
+    "short_id": "session-1774",
+    "last_seen": 1774139645,
+    "pid": "48110",
     "status": "active"
   }
 }

@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getAllOpcs, getOffices, startDeployment, getDeploymentStatus, cancelDeployment, undeploy, getRecentDeployments } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { OpcConfig, Office, DeploymentTask } from '../lib/types'
 
-const DEPLOY_STEPS = ['准备配置文件', '写入目标目录', '重载进程', '健康检查']
+const DEPLOY_STEPS = ['prepare_config', 'write_dir', 'reload_process', 'health_check']
 
-function formatRelativeTime(ts: number): string {
+function formatRelativeTime(ts: number, t: (key: string, opts?: any) => string): string {
   const diff = Math.floor(Date.now() / 1000) - ts
   const minutes = Math.floor(diff / 60)
   const hours = Math.floor(diff / 3600)
   const days = Math.floor(diff / 86400)
-  if (days > 0) return `${days}天前`
-  if (hours > 0) return `${hours}小时前`
-  if (minutes > 0) return `${minutes}分钟前`
-  return '刚刚'
+  if (days > 0) return t('common.time_days_ago', { count: days })
+  if (hours > 0) return t('common.time_hours_ago', { count: hours })
+  if (minutes > 0) return t('common.time_minutes_ago', { count: minutes })
+  return t('common.time_just_now')
 }
 
 export default function DeployPage() {
+  const { t } = useTranslation()
   const [opcs, setOpcs] = useState<OpcConfig[]>([])
   const [offices, setOffices] = useState<Office[]>([])
   const [selectedOpcId, setSelectedOpcId] = useState('')
@@ -71,7 +73,7 @@ export default function DeployPage() {
         stopPolling()
         setDeploying(false)
         toast(
-          task.status === 'SUCCESS' ? '部署成功！' : `部署失败: ${task.message ?? '未知错误'}`,
+          task.status === 'SUCCESS' ? t('deploy.deploy_success') : t('deploy.deploy_failed', { msg: task.message ?? t('common.unknown_error') }),
           task.status === 'SUCCESS' ? 'success' : 'error',
         )
         await loadData()
@@ -102,14 +104,14 @@ export default function DeployPage() {
     try {
       await cancelDeployment(currentTask.id)
       stopPolling(); setDeploying(false)
-      toast('部署已取消', 'info')
+      toast(t('deploy.deploy_cancelled'), 'info')
     } catch (e) { toast(String(e), 'error') }
   }
 
   const handleUndeploy = async (opc: OpcConfig) => {
     try {
       await undeploy(opc.id)
-      toast(`${opc.display_name} 已撤销部署`, 'success')
+      toast(t('deploy.undeploy_success', { name: opc.display_name }), 'success')
       await loadData()
     } catch (e) { toast(String(e), 'error') }
   }
@@ -142,13 +144,13 @@ export default function DeployPage() {
   return (
     <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '15px', fontWeight: 600 }}>一键部署</span>
+        <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('deploy.section_title')}</span>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {deploying ? (
-            <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={handleCancel}>取消部署</button>
+            <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={handleCancel}>{t('deploy.cancel_deploy')}</button>
           ) : (
             <button className="tbtn tbtn-success" onClick={handleDeploy} disabled={!canDeploy}>
-              立即部署
+              {t('deploy.deploy_now')}
             </button>
           )}
         </div>
@@ -158,27 +160,27 @@ export default function DeployPage() {
 
         {/* 部署配置 */}
         <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>部署配置</div>
+          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.deploy_config')}</div>
           <div className="group">
             <div className="group-row" style={{ gap: '10px' }}>
-              <span className="group-label">选择子公司</span>
+              <span className="group-label">{t('deploy.select_opc')}</span>
               <select
                 value={selectedOpcId}
                 onChange={e => handleOpcChange(e.target.value)}
                 className="field-input"
                 style={{ flex: 1 }}
               >
-                <option value="">-- 请选择子公司 --</option>
+                <option value="">{t('deploy.placeholder_select_opc')}</option>
                 {opcs.map(opc => (
                   <option key={opc.id} value={opc.id}>
                     {opc.display_name}
-                    {opc.is_running && opc.office_name ? ` （运行中·${opc.office_name}）` : ''}
+                    {opc.is_running && opc.office_name ? ` (${t('common.status_running')}·${opc.office_name})` : ''}
                   </option>
                 ))}
               </select>
             </div>
             <div className="group-row" style={{ gap: '10px' }}>
-              <span className="group-label">选择办公室</span>
+              <span className="group-label">{t('deploy.select_office')}</span>
               <select
                 value={selectedOfficeId}
                 onChange={e => setSelectedOfficeId(e.target.value)}
@@ -186,22 +188,22 @@ export default function DeployPage() {
                 style={{ flex: 1 }}
                 disabled={!selectedOpcId}
               >
-                <option value="">-- 请选择空闲办公室 --</option>
+                <option value="">{t('deploy.placeholder_select_office')}</option>
                 {freeOffices.map(office => (
                   <option key={office.id} value={office.id} disabled={!office.daemon_url}>
-                    {office.daemon_url ? '✅ ' : '⚠️ '}{office.name}{!office.daemon_url ? ' · 未安装物业' : ''}
+                    {office.daemon_url ? '✅ ' : '⚠️ '}{office.name}{!office.daemon_url ? ` · ${t('deploy.no_daemon')}` : ''}
                   </option>
                 ))}
               </select>
             </div>
             {selectedOfficeId && !selectedOffice?.daemon_url && (
               <div style={{ padding: '8px 12px', fontSize: '12px', color: '#f59e0b' }}>
-                该办公室尚未安装物业，请先前往「办公室管理」安装
+                {t('deploy.office_no_daemon')}
               </div>
             )}
             {freeOffices.length === 0 && (
               <div style={{ padding: '8px 12px', fontSize: '12px', color: '#f59e0b' }}>
-                暂无空闲办公室，请先在「办公室管理」中创建或撤销现有部署
+                {t('deploy.no_free_offices')}
               </div>
             )}
           </div>
@@ -210,7 +212,7 @@ export default function DeployPage() {
         {/* 部署进度 */}
         {currentTask && (
           <section>
-            <div className="section-label" style={{ padding: '0 0 7px' }}>部署进度</div>
+            <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.deploy_progress')}</div>
             <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg,#8b5cf6,#06b6d4)', borderRadius: '2px', transition: 'width 0.4s ease' }}></div>
             </div>
@@ -218,11 +220,12 @@ export default function DeployPage() {
               {DEPLOY_STEPS.map((label, i) => {
                 const status = stepStatus(i)
                 const stepLabel = taskSteps[i] ?? label
+                const stepLabelI18n = t(`deploy.step_${DEPLOY_STEPS[i]}`)
                 const colorMap = {
-                  done: { bg: 'rgba(52,199,89,0.15)', stroke: '#34c759', text: '#34c759', sub: '已完成' },
-                  running: { bg: 'rgba(139,92,246,0.15)', stroke: '#a78bfa', text: '#a78bfa', sub: '进行中...' },
-                  pending: { bg: 'rgba(255,255,255,0.06)', stroke: '#8E8E93', text: '#8E8E93', sub: '等待中' },
-                  failed: { bg: 'rgba(244,63,94,0.15)', stroke: '#f43f5e', text: '#f43f5e', sub: '失败' },
+                  done: { bg: 'rgba(52,199,89,0.15)', stroke: '#34c759', text: '#34c759', sub: t('common.status_done') },
+                  running: { bg: 'rgba(139,92,246,0.15)', stroke: '#a78bfa', text: '#a78bfa', sub: t('common.status_running_ellipsis') },
+                  pending: { bg: 'rgba(255,255,255,0.06)', stroke: '#8E8E93', text: '#8E8E93', sub: t('common.status_waiting') },
+                  failed: { bg: 'rgba(244,63,94,0.15)', stroke: '#f43f5e', text: '#f43f5e', sub: t('common.status_failed') },
                 }[status]
                 return (
                   <div key={label} className={`step-card${status === 'done' ? ' done' : ''}`}>
@@ -241,7 +244,7 @@ export default function DeployPage() {
                         )}
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', fontWeight: 500, color: colorMap.text }}>{label}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 500, color: colorMap.text }}>{stepLabelI18n}</div>
                         <div style={{ fontSize: '10px', color: '#8E8E93' }}>{colorMap.sub}</div>
                       </div>
                     </div>
@@ -256,7 +259,7 @@ export default function DeployPage() {
         {/* 运行中的子公司 */}
         {runningOpcs.length > 0 && (
           <section>
-            <div className="section-label" style={{ padding: '0 0 7px' }}>运行中</div>
+            <div className="section-label" style={{ padding: '0 0 7px' }}>{t('common.status_running')}</div>
             <div className="group">
               {runningOpcs.map(opc => (
                 <div key={opc.id} className="group-row" style={{ gap: '8px' }}>
@@ -264,7 +267,7 @@ export default function DeployPage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{opc.display_name}</div>
                     <div style={{ fontSize: '11px', color: '#8E8E93' }}>
-                      🏢 {opc.office_name ?? '未知办公室'}
+                      🏢 {opc.office_name ?? t('deploy.unknown_office')}
                     </div>
                   </div>
                   <button
@@ -272,7 +275,7 @@ export default function DeployPage() {
                     style={{ fontSize: '11px', color: '#f43f5e' }}
                     onClick={() => handleUndeploy(opc)}
                   >
-                    撤销部署
+                    {t('deploy.undeploy')}
                   </button>
                 </div>
               ))}
@@ -283,15 +286,15 @@ export default function DeployPage() {
         {/* 最近部署记录 */}
         {recentDeployments.length > 0 && (
           <section>
-            <div className="section-label" style={{ padding: '0 0 7px' }}>最近部署</div>
+            <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.recent_deployments')}</div>
             <div className="group">
               {recentDeployments.map(task => {
                 const statusColorMap: Record<string, { bg: string; color: string; label: string }> = {
-                  SUCCESS:  { bg: 'rgba(52,199,89,0.15)',   color: '#34c759', label: '成功' },
-                  FAILED:   { bg: 'rgba(244,63,94,0.15)',   color: '#f43f5e', label: '失败' },
-                  ROLLBACK: { bg: 'rgba(245,158,11,0.15)',  color: '#f59e0b', label: '已回滚' },
-                  RUNNING:  { bg: 'rgba(139,92,246,0.15)',  color: '#a78bfa', label: '运行中' },
-                  PENDING:  { bg: 'rgba(255,255,255,0.06)', color: '#8E8E93', label: '等待中' },
+                  SUCCESS:  { bg: 'rgba(52,199,89,0.15)',   color: '#34c759', label: t('common.status_success') },
+                  FAILED:   { bg: 'rgba(244,63,94,0.15)',   color: '#f43f5e', label: t('common.status_failed') },
+                  ROLLBACK: { bg: 'rgba(245,158,11,0.15)',  color: '#f59e0b', label: t('deploy.status_rollback') },
+                  RUNNING:  { bg: 'rgba(139,92,246,0.15)',  color: '#a78bfa', label: t('common.status_running') },
+                  PENDING:  { bg: 'rgba(255,255,255,0.06)', color: '#8E8E93', label: t('common.status_waiting') },
                 }
                 const sc = statusColorMap[task.status] ?? statusColorMap.PENDING
                 return (
@@ -304,7 +307,7 @@ export default function DeployPage() {
                       )}
                     </div>
                     <span style={{ fontSize: '11px', color: '#8E8E93', flexShrink: 0 }}>
-                      {formatRelativeTime(task.completed_at ?? task.created_at)}
+                      {formatRelativeTime(task.completed_at ?? task.created_at, t)}
                     </span>
                   </div>
                 )

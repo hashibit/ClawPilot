@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-21T07:41:55.009Z",
+  "timestamp": "2026-03-22T05:59:27.328Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
@@ -8,7 +8,6 @@
     ".claude/memory/session-log.md",
     ".claude/sessions/.last_inbox_check",
     ".claude/sessions/active.json",
-    ".claude/state/breezing-timeline.jsonl",
     ".claude/state/compaction-events.jsonl",
     ".claude/state/harness-usage.json",
     ".claude/state/instructions-loaded.jsonl",
@@ -18,12 +17,13 @@
     ".claude/state/session-skills-used.json",
     ".claude/state/session.events.jsonl",
     ".claude/state/session.json",
-    ".claude/state/sessions/3B72172E-EF7C-4535-9531-C1207528014A.events.jsonl",
-    ".claude/state/sessions/3B72172E-EF7C-4535-9531-C1207528014A.json",
-    ".claude/state/sessions/A2A01B00-DF95-4B49-A576-A997415B7084.events.jsonl",
-    ".claude/state/sessions/A2A01B00-DF95-4B49-A576-A997415B7084.json",
-    ".claude/state/task-quality-gate.json",
-    ".claude/state/test-recommendation.json"
+    ".claude/state/test-recommendation.json",
+    ".claude/state/tool-failure-counter.txt",
+    "dist/assets/index-DBtuqkzI.css",
+    "dist/index.html",
+    "package-lock.json",
+    "package.json",
+    "playwright-report/index.html"
   ],
   "metrics": null
 }

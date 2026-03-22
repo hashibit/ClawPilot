@@ -2,10 +2,41 @@
 *, *::before, *::after { box-sizing: border-box; -webkit-font-smoothing: antialiased; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
+  /* Extended font stack: CJK, Arabic, Devanagari, Thai */
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter',
+    'Noto Sans SC', 'Noto Sans TC', 'Noto Sans JP', 'Noto Sans KR',
+    'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans Thai',
+    'Segoe UI', sans-serif;
   background: #000000; color: #FFFFFF; font-size: 14px;
   line-height: 1.5; overflow: hidden;
   display: flex;
+}
+
+/* ── RTL support ──────────────────────────────────────── */
+/* When html[dir=rtl], flip sidebar border and layout */
+html[dir='rtl'] .sidebar {
+  border-right: none;
+  border-left: 1px solid rgba(255,255,255,0.15);
+}
+html[dir='rtl'] .list-pane {
+  border-right: none;
+  border-left: 1px solid rgba(255,255,255,0.15);
+}
+/* Nav items: flip icon/text order via row-reverse is handled inline;
+   but ensure text in RTL nav reads correctly */
+html[dir='rtl'] .nav-item {
+  flex-direction: row-reverse;
+}
+html[dir='rtl'] .section-label {
+  text-align: right;
+}
+
+/* ── Long-text overflow guard (for DE, RU, etc.) ─────── */
+.nav-item .text-sm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Scrollbar ────────────────────────────────────────── */

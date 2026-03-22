@@ -8,6 +8,7 @@ import BindingsPage from './pages/BindingsPage'
 import DeployPage from './pages/DeployPage'
 import LogsPage from './pages/LogsPage'
 import OfficePage from './pages/OfficePage'
+import SettingsPage from './pages/SettingsPage'
 import { OpcProvider } from './contexts/OpcContext'
 import { ToastContainer } from './components/Toast'
 
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="deploy" element={<DeployPage />} />
           <Route path="logs" element={<LogsPage />} />
           <Route path="office" element={<OfficePage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
       <ToastContainer />

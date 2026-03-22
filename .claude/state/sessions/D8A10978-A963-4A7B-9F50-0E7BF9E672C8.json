@@ -1,0 +1,39 @@
+{
+  "session_id": "D8A10978-A963-4A7B-9F50-0E7BF9E672C8",
+  "parent_session_id": null,
+  "state": "stopped",
+  "state_version": 1,
+  "started_at": "2026-03-22T00:34:05Z",
+  "updated_at": "2026-03-22T00:34:06Z",
+  "resume_token": "A50134CD-C12A-4F6D-AE50-BCE2B733DBDB",
+  "event_seq": 2,
+  "last_event_id": "event-000002",
+  "fork_count": 0,
+  "orchestration": {
+    "max_state_retries": 3,
+    "retry_backoff_seconds": 10
+  },
+  "cwd": "/Users/jiechen/work/code/rust/ClawPilot",
+  "project_name": "ClawPilot",
+  "prompt_seq": 1,
+  "git": {
+    "branch": "ft_logger",
+    "uncommitted_changes": 11,
+    "last_commit": "bc09a15"
+  },
+  "plans": {
+    "exists": true,
+    "last_modified": 1774017634,
+    "wip_tasks": 0,
+    "todo_tasks": 0,
+    "pending_tasks": 0,
+    "completed_tasks": 9
+  },
+  "changes_this_session": [],
+  "intent": "literal",
+  "last_message_length": 101,
+  "last_message_hash": "5b4c83d6329ffe50",
+  "ended_at": "2026-03-22T00:34:06Z",
+  "duration_minutes": 480,
+  "memory_logged": true
+}

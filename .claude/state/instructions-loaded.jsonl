@@ -20,4 +20,9 @@
 {"event":"","timestamp":"2026-03-21T05:02:03Z","session_id":"6c2e457b-d39b-4e65-bc6f-7016253e5dab","agent_id":"InstructionsLoaded","agent_type":"","cwd":"/Users/jiechen/work/code/rust/ClawPilot"}
 {"event":"","timestamp":"2026-03-21T07:07:23Z","session_id":"6c2e457b-d39b-4e65-bc6f-7016253e5dab","agent_id":"InstructionsLoaded","agent_type":"","cwd":"/Users/jiechen/work/code/rust/ClawPilot"}
 {"event":"","timestamp":"2026-03-21T07:45:43Z","session_id":"6c2e457b-d39b-4e65-bc6f-7016253e5dab","agent_id":"InstructionsLoaded","agent_type":"","cwd":"/Users/jiechen/work/code/rust/ClawPilot"}
+<<<<<<< HEAD
 {"event":"","timestamp":"2026-03-21T13:56:56Z","session_id":"933cd220-4b44-4a0a-806c-9fd337eb774b","agent_id":"InstructionsLoaded","agent_type":"","cwd":"/Users/jiechen/work/code/rust/ClawPilot"}
+=======
+{"event":"","timestamp":"2026-03-22T00:33:51Z","session_id":"187d6369-7a37-4ac2-a7d1-a83b80896413","agent_id":"InstructionsLoaded","agent_type":"","cwd":"/Users/jiechen/work/code/rust/ClawPilot"}
+{"event":"","timestamp":"2026-03-22T00:34:04Z","session_id":"d84b7723-9a62-490c-aa87-1c809877e259","agent_id":"InstructionsLoaded","agent_type":"","cwd":"/Users/jiechen/work/code/rust/ClawPilot"}
+>>>>>>> a36d811 (update)
