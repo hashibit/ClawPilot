@@ -146,3 +146,17 @@ lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
 npm run dev
 # 然后告诉 Claude Code 执行 agent-browser 测试，或人工逐项验证
 ```
+
+## 远程主机测试（OrbStack）
+
+部分场景（Office 远程模式、SSH 连通检测、安装物业到远程主机）需要真实的远程主机。
+可用 **OrbStack** 在本机快速创建 Linux VM：
+
+```bash
+orb list                          # 查看现有 VM，如 clawpilot-test (192.168.139.170)
+orb create ubuntu clawpilot-test  # 如需新建
+```
+
+详细配置步骤见 [`office.md`](./office.md) 的「测试环境准备」章节。
+
+**已验证的 VM 规格**：OrbStack Ubuntu 25.04 arm64，`clawpilot-test`，IP `192.168.139.170`

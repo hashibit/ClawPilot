@@ -125,6 +125,7 @@ export default function OfficePage() {
     const handleCancel = () => {
         if (isNewOffice) {
             setIsNewOffice(false)
+            setEditing(false)
             const prev = offices[0] ?? null
             setSelected(prev); setForm(prev ?? {})
             if (prev) getOfficeDeployments(prev.id).then(setDeployHistory).catch(() => setDeployHistory([]))
@@ -379,7 +380,7 @@ export default function OfficePage() {
                                                 return (
                                                     <button key={addrType} onClick={() => {
                                                         if (!editing) return
-                                                        if (t === 'local') handleFormChange('address', 'localhost')
+                                                        if (addrType === 'local') handleFormChange('address', 'localhost')
                                                         else if (addressMode !== true) handleFormChange('address', '')
                                                     }} style={{
                                                         padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', flexShrink: 0,

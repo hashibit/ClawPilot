@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updatedAt": "2026-03-22T11:56:44.654Z",
+  "updatedAt": "2026-03-22T14:41:54.562Z",
   "skills": {
     "harness-plan": {
       "count": 1,
@@ -32,9 +32,9 @@
   "agents": {},
   "hooks": {
     "session-init": {
-      "triggered": 19,
+      "triggered": 20,
       "blocked": 0,
-      "lastTriggered": "2026-03-22T00:34:05.175Z"
+      "lastTriggered": "2026-03-22T14:41:54.562Z"
     }
   }
 }

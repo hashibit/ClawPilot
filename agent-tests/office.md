@@ -4,6 +4,50 @@
 
 ---
 
+## 测试环境准备
+
+### 远程主机（OrbStack VM）
+
+涉及「远程模式」的测试（SSH 连通检测、远程安装物业）需要一台真实的远程主机。
+推荐使用 **OrbStack** 在本机创建 Linux VM 代替真实服务器：
+
+```bash
+# 查看现有 VM（已有 clawpilot-test）
+orb list
+
+# 如需新建
+orb create ubuntu clawpilot-test
+
+# 获取 VM IP
+orb list   # 第四列即 IP，如 192.168.139.170
+```
+
+**一次性配置（首次使用）：**
+
+```bash
+# 1. 安装 SSH 服务
+orb run -m clawpilot-test sudo apt-get install -y openssh-server
+orb run -m clawpilot-test sudo systemctl start ssh
+
+# 2. 注入本机公钥（支持 jiechen 和 root 登录）
+cat ~/.ssh/id_rsa.pub | orb run -m clawpilot-test tee /home/jiechen/.ssh/authorized_keys
+orb run -m clawpilot-test chmod 700 /home/jiechen/.ssh
+orb run -m clawpilot-test chmod 600 /home/jiechen/.ssh/authorized_keys
+
+cat ~/.ssh/id_rsa.pub | orb run -m clawpilot-test sudo tee /root/.ssh/authorized_keys
+orb run -m clawpilot-test sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+orb run -m clawpilot-test sudo systemctl restart ssh
+
+# 3. 验证
+ssh -i ~/.ssh/id_rsa root@192.168.139.170 "echo ok"
+```
+
+**在 UI 中配置 Office 对应 VM：**
+- 地址：`192.168.139.170`（或 `orb list` 中显示的 IP）
+- 认证：SSH 私钥，路径 `~/.ssh/id_rsa`
+
+---
+
 ## CRUD
 
 **创建 Office**
