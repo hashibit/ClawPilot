@@ -25,7 +25,7 @@ export function createOpcRouter(db) {
         SELECT o.*,
           off.name as office_name,
           (SELECT COUNT(*) FROM agents WHERE opc_id = o.id) as agent_count,
-          (o.group_count + o.dm_count) as channel_count
+          (SELECT COUNT(*) FROM channels WHERE opc_id = o.id) as channel_count
         FROM opc_config o
         LEFT JOIN offices off ON o.office_id = off.id
         ORDER BY o.created_at
@@ -44,7 +44,7 @@ export function createOpcRouter(db) {
         SELECT o.*,
           off.name as office_name,
           (SELECT COUNT(*) FROM agents WHERE opc_id = o.id) as agent_count,
-          (o.group_count + o.dm_count) as channel_count
+          (SELECT COUNT(*) FROM channels WHERE opc_id = o.id) as channel_count
         FROM opc_config o
         LEFT JOIN offices off ON o.office_id = off.id WHERE o.id = ?
       `).get(id)
@@ -137,7 +137,7 @@ export function createOpcRouter(db) {
         SELECT o.*,
           off.name as office_name,
           (SELECT COUNT(*) FROM agents WHERE opc_id = o.id) as agent_count,
-          (o.group_count + o.dm_count) as channel_count
+          (SELECT COUNT(*) FROM channels WHERE opc_id = o.id) as channel_count
         FROM opc_config o
         LEFT JOIN offices off ON o.office_id = off.id`
       let row = db.prepare(liveQuery + ' WHERE o.is_active = 1').get()
