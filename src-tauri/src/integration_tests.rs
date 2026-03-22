@@ -39,6 +39,8 @@ mod tests {
             message_growth: 0.0,
             created_at: 0,
             updated_at: 0,
+            office_id: None,
+            office_name: None,
         }
     }
 
