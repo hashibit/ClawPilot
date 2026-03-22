@@ -1,0 +1,77 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: ClawPilot
+      - button "收起" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]: 核心功能
+      - link "数据概览" [ref=e16] [cursor=pointer]:
+        - /url: "#/overview"
+        - img [ref=e18]
+        - generic [ref=e20]: 数据概览
+      - link "子公司管理" [ref=e21] [cursor=pointer]:
+        - /url: "#/opc"
+        - img [ref=e23]
+        - generic [ref=e25]: 子公司管理
+      - link "智能体管理" [ref=e26] [cursor=pointer]:
+        - /url: "#/agents"
+        - img [ref=e28]
+        - generic [ref=e30]: 智能体管理
+      - link "飞书频道绑定" [ref=e31] [cursor=pointer]:
+        - /url: "#/bindings"
+        - img [ref=e33]
+        - generic [ref=e35]: 飞书频道绑定
+      - generic [ref=e36]: 基础设施
+      - link "模型管理" [ref=e37] [cursor=pointer]:
+        - /url: "#/providers"
+        - img [ref=e39]
+        - generic [ref=e41]: 模型管理
+      - link "办公室管理" [ref=e42] [cursor=pointer]:
+        - /url: "#/office"
+        - img [ref=e44]
+        - generic [ref=e46]: 办公室管理
+      - generic [ref=e47]: 部署与监控
+      - link "一键部署" [ref=e48] [cursor=pointer]:
+        - /url: "#/deploy"
+        - img [ref=e50]
+        - generic [ref=e52]: 一键部署
+      - link "运行日志" [ref=e53] [cursor=pointer]:
+        - /url: "#/logs"
+        - img [ref=e55]
+        - generic [ref=e57]: 运行日志
+      - generic [ref=e58]: 高级功能
+      - link "模板市场 PRO" [ref=e59] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e61]
+        - generic [ref=e63]: 模板市场
+        - generic [ref=e64]: PRO
+      - link "云同步 PRO" [ref=e65] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e67]
+        - generic [ref=e69]: 云同步
+        - generic [ref=e70]: PRO
+      - link "设置" [ref=e72] [cursor=pointer]:
+        - /url: "#/settings"
+        - img [ref=e74]
+        - generic [ref=e77]: 设置
+    - generic [ref=e78]:
+      - generic [ref=e82]: OpenClaw 已停止
+      - generic [ref=e83]: 未运行
+      - button "启动服务" [ref=e84] [cursor=pointer]
+  - generic [ref=e85]:
+    - generic [ref=e86]:
+      - generic [ref=e88]: 我的公司
+      - generic [ref=e89]:
+        - generic [ref=e90]: 暂无公司，点击下方按钮创建
+        - button "创建新OPC公司" [ref=e92] [cursor=pointer]:
+          - img [ref=e93]
+          - text: 创建新OPC公司
+    - main [ref=e95]:
+      - generic [ref=e96]: 请选择一个公司
+```

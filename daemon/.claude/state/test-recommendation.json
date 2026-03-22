@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-22T11:27:59Z",
-  "changed_file": "/Users/jiechen/work/code/rust/ClawPilot/src-tauri/src/database/migrations.rs",
+  "timestamp": "2026-03-22T11:49:24Z",
+  "changed_file": "/Users/jiechen/work/code/rust/ClawPilot/playwright.config.ts",
   "test_command": "cargo test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"

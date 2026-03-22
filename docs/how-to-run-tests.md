@@ -14,7 +14,7 @@
 3. [前端测试](#前端测试)
 4. [Tauri 后端测试](#tauri-后端测试)
 5. [Daemon 测试](#daemon-测试)
-6. [E2E 测试](#e2e-测试)
+6. [agent-browser 测试](#agent-browser-测试非-e2e-代码断言)
 7. [OrbStack 真实部署测试](#orbstack-真实部署测试)
 8. [CI/CD 集成](#cicd-集成)
 9. [故障排除](#故障排除)
@@ -39,13 +39,12 @@ npm run test                    # 前端测试
 cd server && npm run test       # Server 测试（单元 + 集成 + 安全 + 性能）
 cd src-tauri && cargo test      # Tauri 后端 Rust 测试
 cd daemon && cargo test         # Daemon 测试
-npx playwright test             # E2E 测试
+npx playwright test             # i18n 自动化测试（i18n.spec.ts）
 
-# 2. 浏览器 UI 测试（Claude Code 使用 agent-browser skill 自动执行）
-# 启动开发服务器，然后由 AI 驾驶浏览器验证 10 个页面 + 8 条用户流程
+# 2. agent-browser 测试（Claude Code 驾驶浏览器执行，场景见 agent-tests/scenarios.md）
 lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
 npm run dev &
-# → Claude Code 调用 agent-browser skill 执行 UI 测试
+# → 告诉 Claude Code 执行 agent-browser 测试
 ```
 
 ---
@@ -278,48 +277,54 @@ cargo test --test deploy_test
 
 ### 测试框架
 
-- **框架**: Playwright v1.45
-- **浏览器**: Chromium（默认）
-
 ### 目录结构
 
 ```
-├── e2e/
-│   └── app.spec.ts        # E2E 测试用例
-└── playwright.config.ts   # Playwright 配置
+agent-tests/
+├── i18n.spec.ts    # i18n 自动化测试（代码断言，16 语言 + RTL + 持久化）
+├── scenarios.md    # agent-browser 测试总览（自然语言）
+└── office.md       # Office 管理 agent-browser 测试（详细，25 个测试点）
 ```
 
-### 运行测试
+### i18n 自动化测试
+
+`i18n.spec.ts` 覆盖 16 种语言切换、RTL 布局、语言持久化、文本溢出检查，共约 44 个用例，有代码断言，结果确定。
 
 ```bash
-# 安装 Playwright 浏览器（首次运行）
+# 安装浏览器（首次运行）
 npx playwright install chromium
 
-# 运行 E2E 测试
+# 运行
 npm run test:e2e
 
-# 带 UI 界面运行（调试使用）
+# 带 UI 界面运行（调试）
 npx playwright test --ui
-
-# 生成报告
-npx playwright show-report
 ```
 
-### 测试环境
+### agent-browser 测试
 
-Playwright 会自动：
-1. 启动开发服务器 (`npm run dev`)
-2. 在 Chromium 中运行测试
-3. 停止服务器
+场景以自然语言定义，由 Claude Code 调用 `agent-browser` skill 驾驶浏览器执行，pass/fail 由 AI 根据截图和页面状态判断，无代码断言。
 
-### E2E 测试场景
+| 场景 | 来源文件 | 测试点 |
+|------|----------|--------|
+| 基础页面加载 | `scenarios.md` | 所有路由正常渲染、无报错 |
+| OPC 管理 | `scenarios.md` | 创建 / 编辑 / 删除 / 快照导入导出 |
+| Agent 管理 | `scenarios.md` | 创建 / 编辑文档 / 工具配置 / 拖拽排序 |
+| 渠道与绑定 | `scenarios.md` | 飞书 / 钉钉 / Slack 凭证配置、Binding 启停 |
+| 模型提供商 | `scenarios.md` | API Key 配置、连接测试、模型列表刷新 |
+| Office 管理 | `office.md` | CRUD / 地址模式 / 门禁认证 / 物业安装 / Daemon 健康 |
+| 部署流程 | `scenarios.md` | 完整部署、撤销部署、部署包下载 |
+| 日志 | `scenarios.md` | 实时流、级别 / 组件过滤、清除旧日志 |
+| 网络异常处理 | `scenarios.md` | Server 离线时页面降级展示 |
+| 表单验证 | `scenarios.md` | 必填字段校验拦截提交 |
 
-- 首页加载
-- OPC 列表页导航
-- 创建 OPC 流程
-- Agent 管理流程
-- Office 管理流程
-- Settings 页面访问
+执行方式：
+
+```bash
+lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
+npm run dev &
+# → 告诉 Claude Code 执行 agent-browser 测试
+```
 
 ---
 
@@ -466,7 +471,7 @@ jobs:
       - uses: dtolnay/rust-action@stable
       - run: cd daemon && cargo test
 
-  e2e-test:
+  playwright-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -606,40 +611,17 @@ orb stop && orb start
 
 ---
 
-## 浏览器自动化测试（AI 执行）
+## agent-browser 测试（AI 驾驶浏览器）
 
-Claude Code 可通过 `claude-code-harness:agent-browser` skill 自动驾驶浏览器执行 UI 测试，无需人工操作。
+Claude Code 通过 `claude-code-harness:agent-browser` skill 驾驶浏览器执行。场景以自然语言定义于 `agent-tests/`，涵盖所有页面的导航与渲染、表单交互、关键用户流程，截图留证。
 
 ### 执行方式
 
-1. 确保开发服务器已启动（端口 1420 / 3001）：
-   ```bash
-   # 如端口被占用，先清理进程
-   lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
-   # 启动服务器（后台）
-   npm run dev &
-   ```
-
-2. 告诉 Claude Code 执行浏览器测试，它会自动使用 `agent-browser` skill 完成以下验证：
-   - 页面导航与渲染
-   - 表单交互（创建 / 编辑 / 删除）
-   - 关键用户流程（A–H）
-   - 截图留证
-
-### 覆盖范围
-
-| 页面 | 路由 | 验证项 |
-|------|------|--------|
-| Layout 侧边栏 | 全局 | 导航链接 / 收起展开 / 进程控制 |
-| Overview | `#/overview` | 进程控制卡片 / 时间筛选 / 数据展示 |
-| OPC 配置 | `#/opc` | 公司列表 / 创建 Modal / 快照管理 |
-| Agents 管理 | `#/agents` | Agent 编辑 / 工具配置 / 聊天测试 |
-| Bindings 配置 | `#/bindings` | 飞书/钉钉/Slack 渠道 / 群组绑定 |
-| Providers | `#/providers` | API Key 配置 / 连接测试 / 模型列表 |
-| Office | `#/office` | 本机/远程模式 / Daemon 安装向导 |
-| Deploy | `#/deploy` | 部署配置 / 进度条 / 撤销部署 |
-| Logs | `#/logs` | 实时日志 / 过滤面板 / 级别 checkbox |
-| Settings | `#/settings` | 16 种语言切换 / RTL 布局验证 |
+```bash
+lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
+npm run dev &
+# → 告诉 Claude Code 执行 agent-browser 测试
+```
 
 ### 暂无法自动化的场景（需人工验证）
 
@@ -647,66 +629,6 @@ Claude Code 可通过 `claude-code-harness:agent-browser` skill 自动驾驶浏�
 - **文件操作**：Skill 上传/下载、Snapshot 导出/导入、部署包下载
 - **网络异常**：离线模式、超时重试、断网恢复
 - **并发场景**：多用户同时编辑、部署任务并发执行
-
----
-
-## 补充说明
-
-### 手动测试清单
-
-完整的 UI 功能测试路径覆盖 10 个页面、~270 个交互元素及 8 条关键用户流程。
-
-执行方式：启动开发服务器后，由 Claude Code 使用 `agent-browser` skill 自动执行，或人工逐项验证。
-
-```bash
-# 启动开发服务器
-npm run dev
-```
-
-#### 页面覆盖范围
-
-| 页面 | 路由 | 交互元素 |
-|------|------|---------|
-| Layout 侧边栏 | 全局 | 导航链接 / 收起展开 / 进程控制 |
-| Overview | `#/overview` | 进程控制卡片 / 时间筛选 / 数据展示 |
-| OPC 配置 | `#/opc` | 公司列表 / 创建 Modal / 快照管理 |
-| Agents 管理 | `#/agents` | Agent 编辑 / 工具配置 / 聊天测试 |
-| Bindings 配置 | `#/bindings` | 飞书/钉钉/Slack 渠道 / 群组绑定 |
-| Providers | `#/providers` | API Key 配置 / 连接测试 / 模型列表 |
-| Office | `#/office` | 本机/远程模式 / Daemon 安装向导 |
-| Deploy | `#/deploy` | 部署配置 / 进度条 / 撤销部署 |
-| Logs | `#/logs` | 实时日志 / 过滤面板 / 级别 checkbox |
-| Settings | `#/settings` | 16 种语言切换 / RTL 布局验证 |
-
-#### 关键用户流程（TEST_PATHS.md 第 10 节）
-
-| 流程 | 说明 |
-|------|------|
-| 流程 A | 创建并配置完整 OPC 团队 |
-| 流程 B | 部署 OPC 到办公室 |
-| 流程 C | 下线 OPC |
-| 流程 D | 测试 Agent 对话 |
-| 流程 E | 安装技能 |
-| 流程 F | 切换语言 / 验证 RTL |
-| 流程 G | 查看和过滤日志 |
-| 流程 H | 创建配置快照并恢复 |
-
-#### 需额外关注的手动场景（E2E 暂未覆盖）
-
-- **拖拽排序**：Agents 页面拖拽重排后自动保存
-- **文件操作**：Skill 上传/下载、Snapshot 导出/导入、部署包下载
-- **网络异常**：离线模式、超时重试、断网恢复
-- **并发场景**：多用户同时编辑、部署任务并发执行
-
-### 测试数据
-
-测试使用以下固定数据：
-
-- **OPC ID**: `opc-test-{timestamp}`
-- **Agent ID**: `agent-test-{timestamp}`
-- **Office ID**: `office-test-{timestamp}`
-
-所有测试数据在测试结束后自动清理。
 
 ---
 

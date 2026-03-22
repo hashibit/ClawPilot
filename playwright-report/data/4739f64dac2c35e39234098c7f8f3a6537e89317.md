@@ -1,0 +1,170 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: ClawPilot
+      - button "Collapse menu" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]: Core
+      - link "Overview" [ref=e16] [cursor=pointer]:
+        - /url: "#/overview"
+        - img [ref=e18]
+        - generic [ref=e20]: Overview
+      - link "Subsidiaries" [ref=e21] [cursor=pointer]:
+        - /url: "#/opc"
+        - img [ref=e23]
+        - generic [ref=e25]: Subsidiaries
+      - link "Agents" [ref=e26] [cursor=pointer]:
+        - /url: "#/agents"
+        - img [ref=e28]
+        - generic [ref=e30]: Agents
+      - link "Lark Channels" [ref=e31] [cursor=pointer]:
+        - /url: "#/bindings"
+        - img [ref=e33]
+        - generic [ref=e35]: Lark Channels
+      - generic [ref=e36]: Infrastructure
+      - link "Models" [ref=e37] [cursor=pointer]:
+        - /url: "#/providers"
+        - img [ref=e39]
+        - generic [ref=e41]: Models
+      - link "Office" [ref=e42] [cursor=pointer]:
+        - /url: "#/office"
+        - img [ref=e44]
+        - generic [ref=e46]: Office
+      - generic [ref=e47]: Deploy & Monitor
+      - link "Deploy" [ref=e48] [cursor=pointer]:
+        - /url: "#/deploy"
+        - img [ref=e50]
+        - generic [ref=e52]: Deploy
+      - link "Logs" [ref=e53] [cursor=pointer]:
+        - /url: "#/logs"
+        - img [ref=e55]
+        - generic [ref=e57]: Logs
+      - generic [ref=e58]: Advanced
+      - link "Templates PRO" [ref=e59] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e61]
+        - generic [ref=e63]: Templates
+        - generic [ref=e64]: PRO
+      - link "Cloud Sync PRO" [ref=e65] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e67]
+        - generic [ref=e69]: Cloud Sync
+        - generic [ref=e70]: PRO
+      - link "Settings" [ref=e72] [cursor=pointer]:
+        - /url: "#/settings"
+        - img [ref=e74]
+        - generic [ref=e77]: Settings
+    - generic [ref=e78]:
+      - generic [ref=e82]: OpenClaw Stopped
+      - generic [ref=e83]: Not running
+      - button "Start Service" [ref=e84] [cursor=pointer]
+  - generic [ref=e86]:
+    - generic [ref=e88]: Settings
+    - generic [ref=e89]:
+      - generic [ref=e90]:
+        - generic [ref=e91]: Language
+        - generic [ref=e92]: Choose the UI display language
+        - generic [ref=e93]:
+          - button "🇨🇳 简体中文 zh-CN" [ref=e94] [cursor=pointer]:
+            - generic [ref=e95]: 🇨🇳
+            - generic [ref=e96]:
+              - generic [ref=e97]: 简体中文
+              - generic [ref=e98]: zh-CN
+          - button "🇹🇼 繁體中文 zh-TW" [ref=e99] [cursor=pointer]:
+            - generic [ref=e100]: 🇹🇼
+            - generic [ref=e101]:
+              - generic [ref=e102]: 繁體中文
+              - generic [ref=e103]: zh-TW
+          - button "🇺🇸 English en" [active] [ref=e104] [cursor=pointer]:
+            - generic [ref=e105]: 🇺🇸
+            - generic [ref=e106]:
+              - generic [ref=e107]: English
+              - generic [ref=e108]: en
+            - img [ref=e110]
+          - button "🇯🇵 日本語 ja" [ref=e112] [cursor=pointer]:
+            - generic [ref=e113]: 🇯🇵
+            - generic [ref=e114]:
+              - generic [ref=e115]: 日本語
+              - generic [ref=e116]: ja
+          - button "🇰🇷 한국어 ko" [ref=e117] [cursor=pointer]:
+            - generic [ref=e118]: 🇰🇷
+            - generic [ref=e119]:
+              - generic [ref=e120]: 한국어
+              - generic [ref=e121]: ko
+          - button "🇫🇷 Français fr" [ref=e122] [cursor=pointer]:
+            - generic [ref=e123]: 🇫🇷
+            - generic [ref=e124]:
+              - generic [ref=e125]: Français
+              - generic [ref=e126]: fr
+          - button "🇩🇪 Deutsch de" [ref=e127] [cursor=pointer]:
+            - generic [ref=e128]: 🇩🇪
+            - generic [ref=e129]:
+              - generic [ref=e130]: Deutsch
+              - generic [ref=e131]: de
+          - button "🇪🇸 Español es" [ref=e132] [cursor=pointer]:
+            - generic [ref=e133]: 🇪🇸
+            - generic [ref=e134]:
+              - generic [ref=e135]: Español
+              - generic [ref=e136]: es
+          - button "🇧🇷 Português pt" [ref=e137] [cursor=pointer]:
+            - generic [ref=e138]: 🇧🇷
+            - generic [ref=e139]:
+              - generic [ref=e140]: Português
+              - generic [ref=e141]: pt
+          - button "🇷🇺 Русский ru" [ref=e142] [cursor=pointer]:
+            - generic [ref=e143]: 🇷🇺
+            - generic [ref=e144]:
+              - generic [ref=e145]: Русский
+              - generic [ref=e146]: ru
+          - button "🇸🇦 العربية ar · RTL" [ref=e147] [cursor=pointer]:
+            - generic [ref=e148]: 🇸🇦
+            - generic [ref=e149]:
+              - generic [ref=e150]: العربية
+              - generic [ref=e151]: ar · RTL
+          - button "🇮🇳 हिन्दी hi" [ref=e152] [cursor=pointer]:
+            - generic [ref=e153]: 🇮🇳
+            - generic [ref=e154]:
+              - generic [ref=e155]: हिन्दी
+              - generic [ref=e156]: hi
+          - button "🇮🇩 Bahasa Indonesia id" [ref=e157] [cursor=pointer]:
+            - generic [ref=e158]: 🇮🇩
+            - generic [ref=e159]:
+              - generic [ref=e160]: Bahasa Indonesia
+              - generic [ref=e161]: id
+          - button "🇹🇭 ไทย th" [ref=e162] [cursor=pointer]:
+            - generic [ref=e163]: 🇹🇭
+            - generic [ref=e164]:
+              - generic [ref=e165]: ไทย
+              - generic [ref=e166]: th
+          - button "🇻🇳 Tiếng Việt vi" [ref=e167] [cursor=pointer]:
+            - generic [ref=e168]: 🇻🇳
+            - generic [ref=e169]:
+              - generic [ref=e170]: Tiếng Việt
+              - generic [ref=e171]: vi
+          - button "🇮🇹 Italiano it" [ref=e172] [cursor=pointer]:
+            - generic [ref=e173]: 🇮🇹
+            - generic [ref=e174]:
+              - generic [ref=e175]: Italiano
+              - generic [ref=e176]: it
+      - generic [ref=e177]:
+        - generic [ref=e178]: Theme
+        - generic [ref=e179]: Only dark theme is supported
+        - generic [ref=e180]:
+          - img [ref=e181]
+          - generic [ref=e183]: Dark
+          - img [ref=e184]
+      - generic [ref=e186]:
+        - generic [ref=e187]: About
+        - generic [ref=e188]:
+          - generic [ref=e189]:
+            - img [ref=e191]
+            - generic [ref=e193]: ClawPilot
+          - generic [ref=e194]: OpenClaw visual team configuration management desktop app
+          - generic [ref=e195]: Version 0.1.0
+```

@@ -1,0 +1,209 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: ClawPilot
+      - button "收起" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]: 核心功能
+      - link "数据概览" [ref=e16] [cursor=pointer]:
+        - /url: "#/overview"
+        - img [ref=e18]
+        - generic [ref=e20]: 数据概览
+      - link "子公司管理" [ref=e21] [cursor=pointer]:
+        - /url: "#/opc"
+        - img [ref=e23]
+        - generic [ref=e25]: 子公司管理
+      - link "智能体管理" [ref=e26] [cursor=pointer]:
+        - /url: "#/agents"
+        - img [ref=e28]
+        - generic [ref=e30]: 智能体管理
+      - link "飞书频道绑定" [ref=e31] [cursor=pointer]:
+        - /url: "#/bindings"
+        - img [ref=e33]
+        - generic [ref=e35]: 飞书频道绑定
+      - generic [ref=e36]: 基础设施
+      - link "模型管理" [ref=e37] [cursor=pointer]:
+        - /url: "#/providers"
+        - img [ref=e39]
+        - generic [ref=e41]: 模型管理
+      - link "办公室管理" [ref=e42] [cursor=pointer]:
+        - /url: "#/office"
+        - img [ref=e44]
+        - generic [ref=e46]: 办公室管理
+      - generic [ref=e47]: 部署与监控
+      - link "一键部署" [ref=e48] [cursor=pointer]:
+        - /url: "#/deploy"
+        - img [ref=e50]
+        - generic [ref=e52]: 一键部署
+      - link "运行日志" [ref=e53] [cursor=pointer]:
+        - /url: "#/logs"
+        - img [ref=e55]
+        - generic [ref=e57]: 运行日志
+      - generic [ref=e58]: 高级功能
+      - link "模板市场 PRO" [ref=e59] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e61]
+        - generic [ref=e63]: 模板市场
+        - generic [ref=e64]: PRO
+      - link "云同步 PRO" [ref=e65] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e67]
+        - generic [ref=e69]: 云同步
+        - generic [ref=e70]: PRO
+      - link "设置" [ref=e72] [cursor=pointer]:
+        - /url: "#/settings"
+        - img [ref=e74]
+        - generic [ref=e77]: 设置
+    - generic [ref=e78]:
+      - generic [ref=e82]: OpenClaw 已停止
+      - generic [ref=e83]: 未运行
+      - button "启动服务" [ref=e84] [cursor=pointer]
+  - generic [ref=e85]:
+    - generic [ref=e86]:
+      - generic [ref=e88]: 公司智能体
+      - generic [ref=e89]:
+        - generic [ref=e90]: 运行中
+        - generic [ref=e91] [cursor=pointer]:
+          - generic [ref=e92]: 手
+          - generic [ref=e93]:
+            - generic [ref=e94]: 手机助手公司
+            - generic [ref=e95]: 4 个智能体
+        - generic [ref=e96] [cursor=pointer]:
+          - generic [ref=e97]: 自媒
+          - generic [ref=e98]:
+            - generic [ref=e99]: 自媒体公司
+            - generic [ref=e100]: 5 个智能体
+        - generic [ref=e101]: 已停止
+        - generic [ref=e102] [cursor=pointer]:
+          - generic [ref=e103]: 互
+          - generic [ref=e104]:
+            - generic [ref=e105]: 互联网公司
+            - generic [ref=e106]: 5 个智能体
+    - main [ref=e107]:
+      - generic [ref=e109]:
+        - generic [ref=e110] [cursor=pointer]:
+          - generic [ref=e112]: PM
+          - generic [ref=e114]: 产品经理
+        - generic [ref=e115] [cursor=pointer]:
+          - generic [ref=e117]: DA
+          - generic [ref=e118]: 数据分析师
+        - generic [ref=e119] [cursor=pointer]:
+          - generic [ref=e121]: UX
+          - generic [ref=e122]: UX设计师
+        - generic [ref=e123] [cursor=pointer]:
+          - generic [ref=e125]: 新智
+          - generic [ref=e126]: 社媒运营专家
+        - generic [ref=e127] [cursor=pointer]:
+          - generic [ref=e129]: 新智
+          - generic [ref=e130]: 新智能体aaaaa
+        - generic [ref=e131] [cursor=pointer]:
+          - img [ref=e133]
+          - generic [ref=e135]: 添加
+      - generic [ref=e136]:
+        - generic [ref=e137]:
+          - generic [ref=e138]: PM
+          - generic [ref=e139]: 产品经理
+          - generic [ref=e140]: "[领队]"
+        - generic [ref=e141]:
+          - button "测试对话" [ref=e142] [cursor=pointer]
+          - button "编辑" [ref=e143] [cursor=pointer]
+          - button "删除" [ref=e144] [cursor=pointer]
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e147]: AI 快速生成
+          - generic [ref=e148]:
+            - img [ref=e150]
+            - textbox "用一句话描述智能体，AI 自动生成完整配置…" [disabled] [ref=e152]
+            - button "AI 生成" [disabled] [ref=e153] [cursor=pointer]
+        - generic [ref=e154]:
+          - generic [ref=e155]: 基本信息
+          - generic [ref=e156]:
+            - generic [ref=e157]:
+              - generic [ref=e158]: 显示名称
+              - textbox [disabled] [ref=e159]: 产品经理
+            - generic [ref=e160]:
+              - generic [ref=e161]: 英文标识
+              - textbox [disabled] [ref=e162]: product-manager
+            - generic [ref=e163]:
+              - generic [ref=e164]: 简介
+              - textbox [disabled] [ref=e165]: 负责产品规划
+            - generic [ref=e166]:
+              - generic [ref=e167]: 职位名称
+              - textbox [disabled] [ref=e168]: 产品负责人
+        - generic [ref=e169]:
+          - generic [ref=e170]: 模型与工具
+          - generic [ref=e171]:
+            - generic [ref=e172]:
+              - generic [ref=e173]: 使用模型
+              - generic [ref=e174]:
+                - combobox [disabled] [ref=e175]:
+                  - option "— 未选择 —"
+                  - option "MiniMax M2.5"
+                  - option "GLM-4.7"
+                  - option "GLM-5"
+                  - option "Kimi K2.5"
+                  - option "Qwen3 Coder Next"
+                  - option "Qwen3 Coder Plus"
+                  - option "Qwen3 Max (0123)"
+                  - option "Qwen3.5 Plus" [selected]
+                  - option "ABAB 6.5 Chat"
+                  - option "DeepSeek Coder"
+                  - option "DeepSeek V3"
+                - img
+            - generic [ref=e176]: 工具权限3 个已启用
+            - generic [ref=e177]:
+              - button "网页搜索" [ref=e178]
+              - button "网页阅读" [ref=e179]
+              - button "飞书消息" [ref=e180]
+              - button "代码解释器" [ref=e181]
+              - button "文件读取" [ref=e182]
+              - button "图像生成" [ref=e183]
+              - button "视觉理解" [ref=e184]
+              - button "HTTP 请求" [ref=e185]
+              - button "语音识别" [ref=e186]
+              - button "语音合成" [ref=e187]
+              - button "search ×" [ref=e188]:
+                - text: search
+                - generic [ref=e189]: ×
+              - button "browser ×" [ref=e190]:
+                - text: browser
+                - generic [ref=e191]: ×
+              - button "analytics ×" [ref=e192]:
+                - text: analytics
+                - generic [ref=e193]: ×
+              - textbox "+ 自定义工具 ID" [disabled] [ref=e195]
+        - generic [ref=e196]:
+          - generic [ref=e198]:
+            - generic [ref=e199]: 技能配置
+            - generic [ref=e200]: 1 个技能
+          - generic [ref=e202]:
+            - generic [ref=e203]: 🔌
+            - generic [ref=e205]: web-search
+        - generic [ref=e206]:
+          - generic [ref=e207]: 护栏规则
+          - generic [ref=e208]:
+            - generic [ref=e209]:
+              - generic [ref=e210]: 允许规则
+              - generic [ref=e213]: 禁止讨论竞品
+            - generic [ref=e215]: 禁止规则
+        - generic [ref=e218]:
+          - generic [ref=e220]: 人格配置
+          - generic [ref=e221]:
+            - button "SOUL" [ref=e222] [cursor=pointer]
+            - button "IDENTITY" [ref=e223] [cursor=pointer]
+            - button "AGENTS" [ref=e224] [cursor=pointer]
+            - button "USER" [ref=e225] [cursor=pointer]
+            - button "MEMORY" [ref=e226] [cursor=pointer]
+            - button "HEARTBEAT" [ref=e227] [cursor=pointer]
+            - button "TOOLS" [ref=e228] [cursor=pointer]
+          - generic [ref=e229]: 定义 Agent 的人格、沟通风格与行为边界，每次会话开始时加载。
+          - generic [ref=e230]:
+            - generic [ref=e232]: SOUL.md
+            - textbox [disabled] [ref=e233]: 你是一名经验丰富的产品经理，擅长需求分析和产品规划。你关注用户体验，善于在商业价值和技术可行性之间取得平衡。
+```

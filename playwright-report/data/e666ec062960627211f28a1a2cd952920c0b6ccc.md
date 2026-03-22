@@ -1,0 +1,173 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: ClawPilot
+      - button "طي القائمة" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]: الوظائف الأساسية
+      - link "نظرة عامة" [ref=e16] [cursor=pointer]:
+        - /url: "#/overview"
+        - img [ref=e18]
+        - generic [ref=e20]: نظرة عامة
+      - link "الشركات الفرعية" [ref=e21] [cursor=pointer]:
+        - /url: "#/opc"
+        - img [ref=e23]
+        - generic [ref=e25]: الشركات الفرعية
+      - link "الوكلاء" [ref=e26] [cursor=pointer]:
+        - /url: "#/agents"
+        - img [ref=e28]
+        - generic [ref=e30]: الوكلاء
+      - link "قنوات Lark" [ref=e31] [cursor=pointer]:
+        - /url: "#/bindings"
+        - img [ref=e33]
+        - generic [ref=e35]: قنوات Lark
+      - generic [ref=e36]: البنية التحتية
+      - link "النماذج" [ref=e37] [cursor=pointer]:
+        - /url: "#/providers"
+        - img [ref=e39]
+        - generic [ref=e41]: النماذج
+      - link "المكتب" [ref=e42] [cursor=pointer]:
+        - /url: "#/office"
+        - img [ref=e44]
+        - generic [ref=e46]: المكتب
+      - generic [ref=e47]: النشر والمراقبة
+      - link "النشر" [ref=e48] [cursor=pointer]:
+        - /url: "#/deploy"
+        - img [ref=e50]
+        - generic [ref=e52]: النشر
+      - link "السجلات" [ref=e53] [cursor=pointer]:
+        - /url: "#/logs"
+        - img [ref=e55]
+        - generic [ref=e57]: السجلات
+      - generic [ref=e58]: الميزات المتقدمة
+      - link "سوق القوالب PRO" [ref=e59] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e61]
+        - generic [ref=e63]: سوق القوالب
+        - generic [ref=e64]: PRO
+      - link "المزامنة السحابية PRO" [ref=e65] [cursor=pointer]:
+        - /url: "#"
+        - img [ref=e67]
+        - generic [ref=e69]: المزامنة السحابية
+        - generic [ref=e70]: PRO
+      - link "الإعدادات" [ref=e72] [cursor=pointer]:
+        - /url: "#/settings"
+        - img [ref=e74]
+        - generic [ref=e77]: الإعدادات
+    - generic [ref=e78]:
+      - generic [ref=e82]: OpenClaw متوقف
+      - generic [ref=e83]: غير مُشغَّل
+      - button "تشغيل الخدمة" [ref=e84] [cursor=pointer]
+  - generic [ref=e86]:
+    - generic [ref=e88]: الإعدادات
+    - generic [ref=e89]:
+      - generic [ref=e90]:
+        - generic [ref=e91]: اللغة / Language
+        - generic [ref=e92]: اختر لغة الواجهة
+        - generic [ref=e93]:
+          - button "🇨🇳 简体中文 zh-CN" [ref=e94] [cursor=pointer]:
+            - generic [ref=e95]: 🇨🇳
+            - generic [ref=e96]:
+              - generic [ref=e97]: 简体中文
+              - generic [ref=e98]: zh-CN
+          - button "🇹🇼 繁體中文 zh-TW" [ref=e99] [cursor=pointer]:
+            - generic [ref=e100]: 🇹🇼
+            - generic [ref=e101]:
+              - generic [ref=e102]: 繁體中文
+              - generic [ref=e103]: zh-TW
+          - button "🇺🇸 English en" [ref=e104] [cursor=pointer]:
+            - generic [ref=e105]: 🇺🇸
+            - generic [ref=e106]:
+              - generic [ref=e107]: English
+              - generic [ref=e108]: en
+          - button "🇯🇵 日本語 ja" [ref=e109] [cursor=pointer]:
+            - generic [ref=e110]: 🇯🇵
+            - generic [ref=e111]:
+              - generic [ref=e112]: 日本語
+              - generic [ref=e113]: ja
+          - button "🇰🇷 한국어 ko" [ref=e114] [cursor=pointer]:
+            - generic [ref=e115]: 🇰🇷
+            - generic [ref=e116]:
+              - generic [ref=e117]: 한국어
+              - generic [ref=e118]: ko
+          - button "🇫🇷 Français fr" [ref=e119] [cursor=pointer]:
+            - generic [ref=e120]: 🇫🇷
+            - generic [ref=e121]:
+              - generic [ref=e122]: Français
+              - generic [ref=e123]: fr
+          - button "🇩🇪 Deutsch de" [ref=e124] [cursor=pointer]:
+            - generic [ref=e125]: 🇩🇪
+            - generic [ref=e126]:
+              - generic [ref=e127]: Deutsch
+              - generic [ref=e128]: de
+          - button "🇪🇸 Español es" [ref=e129] [cursor=pointer]:
+            - generic [ref=e130]: 🇪🇸
+            - generic [ref=e131]:
+              - generic [ref=e132]: Español
+              - generic [ref=e133]: es
+          - button "🇧🇷 Português pt" [ref=e134] [cursor=pointer]:
+            - generic [ref=e135]: 🇧🇷
+            - generic [ref=e136]:
+              - generic [ref=e137]: Português
+              - generic [ref=e138]: pt
+          - button "🇷🇺 Русский ru" [ref=e139] [cursor=pointer]:
+            - generic [ref=e140]: 🇷🇺
+            - generic [ref=e141]:
+              - generic [ref=e142]: Русский
+              - generic [ref=e143]: ru
+          - button "🇸🇦 العربية ar · RTL" [active] [ref=e144] [cursor=pointer]:
+            - generic [ref=e145]: 🇸🇦
+            - generic [ref=e146]:
+              - generic [ref=e147]: العربية
+              - generic [ref=e148]: ar · RTL
+            - img [ref=e150]
+          - button "🇮🇳 हिन्दी hi" [ref=e152] [cursor=pointer]:
+            - generic [ref=e153]: 🇮🇳
+            - generic [ref=e154]:
+              - generic [ref=e155]: हिन्दी
+              - generic [ref=e156]: hi
+          - button "🇮🇩 Bahasa Indonesia id" [ref=e157] [cursor=pointer]:
+            - generic [ref=e158]: 🇮🇩
+            - generic [ref=e159]:
+              - generic [ref=e160]: Bahasa Indonesia
+              - generic [ref=e161]: id
+          - button "🇹🇭 ไทย th" [ref=e162] [cursor=pointer]:
+            - generic [ref=e163]: 🇹🇭
+            - generic [ref=e164]:
+              - generic [ref=e165]: ไทย
+              - generic [ref=e166]: th
+          - button "🇻🇳 Tiếng Việt vi" [ref=e167] [cursor=pointer]:
+            - generic [ref=e168]: 🇻🇳
+            - generic [ref=e169]:
+              - generic [ref=e170]: Tiếng Việt
+              - generic [ref=e171]: vi
+          - button "🇮🇹 Italiano it" [ref=e172] [cursor=pointer]:
+            - generic [ref=e173]: 🇮🇹
+            - generic [ref=e174]:
+              - generic [ref=e175]: Italiano
+              - generic [ref=e176]: it
+        - generic [ref=e177]:
+          - img [ref=e178]
+          - text: RTL layout active — text flows right to left
+      - generic [ref=e180]:
+        - generic [ref=e181]: المظهر
+        - generic [ref=e182]: المظهر الداكن فقط متاح حالياً
+        - generic [ref=e183]:
+          - img [ref=e184]
+          - generic [ref=e186]: داكن
+          - img [ref=e187]
+      - generic [ref=e189]:
+        - generic [ref=e190]: حول
+        - generic [ref=e191]:
+          - generic [ref=e192]:
+            - img [ref=e194]
+            - generic [ref=e196]: ClawPilot
+          - generic [ref=e197]: تطبيق سطح المكتب لإدارة تكوين فريق OpenClaw
+          - generic [ref=e198]: الإصدار 0.1.0
+```
