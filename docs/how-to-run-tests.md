@@ -26,18 +26,26 @@
 
 ### 一键运行所有测试
 
+> **说"执行所有测试"时，Claude Code 会依次执行以下全部步骤（自动化 + 浏览器 UI）**
+
 ```bash
 # 安装所有依赖
 npm install
 cd server && npm install && cd ..
 cd daemon && cargo check && cd ..
 
-# 运行所有自动化测试
+# 1. 自动化测试
 npm run test                    # 前端测试
 cd server && npm run test       # Server 测试（单元 + 集成 + 安全 + 性能）
 cd src-tauri && cargo test      # Tauri 后端 Rust 测试
 cd daemon && cargo test         # Daemon 测试
 npx playwright test             # E2E 测试
+
+# 2. 浏览器 UI 测试（Claude Code 使用 agent-browser skill 自动执行）
+# 启动开发服务器，然后由 AI 驾驶浏览器验证 10 个页面 + 8 条用户流程
+lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
+npm run dev &
+# → Claude Code 调用 agent-browser skill 执行 UI 测试
 ```
 
 ---
@@ -598,18 +606,61 @@ orb stop && orb start
 
 ---
 
+## 浏览器自动化测试（AI 执行）
+
+Claude Code 可通过 `claude-code-harness:agent-browser` skill 自动驾驶浏览器执行 UI 测试，无需人工操作。
+
+### 执行方式
+
+1. 确保开发服务器已启动（端口 1420 / 3001）：
+   ```bash
+   # 如端口被占用，先清理进程
+   lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
+   # 启动服务器（后台）
+   npm run dev &
+   ```
+
+2. 告诉 Claude Code 执行浏览器测试，它会自动使用 `agent-browser` skill 完成以下验证：
+   - 页面导航与渲染
+   - 表单交互（创建 / 编辑 / 删除）
+   - 关键用户流程（A–H）
+   - 截图留证
+
+### 覆盖范围
+
+| 页面 | 路由 | 验证项 |
+|------|------|--------|
+| Layout 侧边栏 | 全局 | 导航链接 / 收起展开 / 进程控制 |
+| Overview | `#/overview` | 进程控制卡片 / 时间筛选 / 数据展示 |
+| OPC 配置 | `#/opc` | 公司列表 / 创建 Modal / 快照管理 |
+| Agents 管理 | `#/agents` | Agent 编辑 / 工具配置 / 聊天测试 |
+| Bindings 配置 | `#/bindings` | 飞书/钉钉/Slack 渠道 / 群组绑定 |
+| Providers | `#/providers` | API Key 配置 / 连接测试 / 模型列表 |
+| Office | `#/office` | 本机/远程模式 / Daemon 安装向导 |
+| Deploy | `#/deploy` | 部署配置 / 进度条 / 撤销部署 |
+| Logs | `#/logs` | 实时日志 / 过滤面板 / 级别 checkbox |
+| Settings | `#/settings` | 16 种语言切换 / RTL 布局验证 |
+
+### 暂无法自动化的场景（需人工验证）
+
+- **拖拽排序**：Agents 页面拖拽重排后自动保存
+- **文件操作**：Skill 上传/下载、Snapshot 导出/导入、部署包下载
+- **网络异常**：离线模式、超时重试、断网恢复
+- **并发场景**：多用户同时编辑、部署任务并发执行
+
+---
+
 ## 补充说明
 
 ### 手动测试清单
 
-完整的 UI 功能测试路径见 **[TEST_PATHS.md](TEST_PATHS.md)**，覆盖 10 个页面、~270 个交互元素及 8 条关键用户流程。
+完整的 UI 功能测试路径覆盖 10 个页面、~270 个交互元素及 8 条关键用户流程。
 
-执行方式：启动开发服务器后，逐项勾选 TEST_PATHS.md 中的 `[ ]` 条目。
+执行方式：启动开发服务器后，由 Claude Code 使用 `agent-browser` skill 自动执行，或人工逐项验证。
 
 ```bash
 # 启动开发服务器
 npm run dev
-# 打开浏览器 → 手动逐项执行 TEST_PATHS.md 中的测试路径
 ```
 
 #### 页面覆盖范围

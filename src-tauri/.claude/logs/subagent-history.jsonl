@@ -3,3 +3,5 @@
 {"event":"subagent_stop","timestamp":"2026-03-20T07:08:09Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-20T09:34:13Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-22T11:29:19Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-22T11:29:47Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-22T11:31:56Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
