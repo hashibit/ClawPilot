@@ -113,7 +113,7 @@ describe('Binding Routes', () => {
       expect(res.status).toBe(200)
 
       const bindingsRes = await request(app).post('/api/get_bindings').send({ opc_id: opc.id })
-      expect(bindingsRes.body[0].is_enabled).toBe(0)
+      expect(bindingsRes.body[0].is_enabled).toBe(false)
     })
   })
 

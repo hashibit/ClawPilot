@@ -59,6 +59,8 @@ export function createOpcRouter(db) {
   router.post('/create_opc', (req, res) => {
     try {
       const { config } = req.body
+      if (!config.name) throw new Error('OPC name cannot be empty')
+      config.name = config.name.replace(/<[^>]*>/g, '')
       db.prepare(`
         INSERT INTO opc_config
           (id, name, display_name, description, avatar_color, avatar_initials,

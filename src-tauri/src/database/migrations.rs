@@ -87,7 +87,7 @@ mod tests {
         let pool = in_memory_pool();
         run_migrations(&pool).expect("migrations should succeed");
         let v = current_version(&pool).expect("should get version");
-        assert_eq!(v, 1, "user_version should be 1 after migration");
+        assert_eq!(v, 2, "user_version should be 2 after migration");
     }
 
     #[test]
@@ -96,7 +96,7 @@ mod tests {
         run_migrations(&pool).expect("first run");
         run_migrations(&pool).expect("second run should not error");
         let v = current_version(&pool).expect("version after double run");
-        assert_eq!(v, 1);
+        assert_eq!(v, 2);
     }
 
     #[test]
@@ -137,6 +137,6 @@ mod tests {
 
     #[test]
     fn test_target_version_constant() {
-        assert_eq!(target_version(), 1);
+        assert_eq!(target_version(), 2);
     }
 }

@@ -42,7 +42,7 @@ describe('Snapshot Routes', () => {
   // --- create_snapshot ---
   describe('create_snapshot', () => {
     it('创建配置快照', async () => {
-      makeAgent(db, opc.id)
+      const agent = makeAgent(db, opc.id)
       makeAgent(db, opc.id)
       const channel = makeChannel(db, opc.id)
       makeBinding(db, opc.id, agent.id, channel.id)
@@ -80,14 +80,13 @@ describe('Snapshot Routes', () => {
       makeAgent(db, opc.id, { display_name: 'Agent 1' })
       makeAgent(db, opc.id, { display_name: 'Agent 2' })
 
-      await request(app).post('/api/create_snapshot').send({
+      const createRes = await request(app).post('/api/create_snapshot').send({
         opc_id: opc.id,
         label: 'With Agents'
       })
 
-      const snapshotsRes = await request(app).post('/api/get_snapshots').send({ opc_id: opc.id })
-      const snapshot = snapshotsRes.body[0]
-      const config = JSON.parse(snapshot.config_data)
+      const snapshotRes = await request(app).post('/api/get_snapshot').send({ id: createRes.body })
+      const config = JSON.parse(snapshotRes.body.config_data)
       expect(config.agents).toHaveLength(2)
     })
 
@@ -96,19 +95,15 @@ describe('Snapshot Routes', () => {
       const channel = makeChannel(db, opc.id)
       makeBinding(db, opc.id, agent.id, channel.id)
 
-      await request(app).post('/api/create_snapshot').send({
+      const createRes = await request(app).post('/api/create_snapshot').send({
         opc_id: opc.id,
         label: 'With Bindings'
       })
 
-      const snapshotsRes = await request(app).post('/api/get_snapshots').send({ opc_id: opc.id })
-      const snapshot = snapshotsRes.body[0]
-      expect(snapshot.config_data).toBeTruthy()
-      // 快照应包含配置数据
-      if (snapshot.config_data) {
-        const config = JSON.parse(snapshot.config_data)
-        expect(config).toHaveProperty('bindings')
-      }
+      const snapshotRes = await request(app).post('/api/get_snapshot').send({ id: createRes.body })
+      expect(snapshotRes.body.config_data).toBeTruthy()
+      const config = JSON.parse(snapshotRes.body.config_data)
+      expect(config).toHaveProperty('bindings')
     })
   })
 

@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-21T03:53:11Z",
-  "changed_file": "tests/health_test.rs",
+  "timestamp": "2026-03-22T11:27:59Z",
+  "changed_file": "/Users/jiechen/work/code/rust/ClawPilot/src-tauri/src/database/migrations.rs",
   "test_command": "cargo test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"

@@ -487,3 +487,4 @@ find /Use"}}
 {"id":"event-000441","type":"tool.bash","ts":"2026-03-22T11:22:55Z","state":"stopped","data":{"command":"find /Users/jiechen/work/code/rust/ClawPilot/src-tauri/src -name "*.rs" | xargs grep -l "#\[test\]\|#\[tokio::test\]" 2>/dev/null | grep -v target | sort"}}
 {"id":"event-000442","type":"tool.bash","ts":"2026-03-22T11:23:41Z","state":"stopped","data":{"command":"unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY && echo "代理已清除""}}
 {"id":"event-000443","type":"tool.bash","ts":"2026-03-22T11:23:46Z","state":"stopped","data":{"command":"npm run test 2>&1"}}
+{"id":"event-000444","type":"tool.bash","ts":"2026-03-22T11:29:00Z","state":"stopped","data":{"command":"cd /Users/jiechen/work/code/rust/ClawPilot && unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY && npm run test 2>&1 | tail -8"}}

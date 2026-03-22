@@ -41,7 +41,7 @@ describe('Boundary Conditions', () => {
     it('应处理不存在的 ID 查询', async () => {
       const res = await request(app).post('/api/get_opc').send({ id: 'non-existent-id' })
       expect(res.status).toBe(500)
-      expect(res.body).toContain('Not found')
+      expect(res.text).toContain('Not found')
     })
   })
 

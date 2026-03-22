@@ -72,6 +72,7 @@ export function createAgentRouter(db) {
   router.post('/create_agent', (req, res) => {
     try {
       const { config } = req.body
+      if (!config.name) throw new Error('Agent name cannot be empty')
       const existing = db.prepare('SELECT COUNT(*) as cnt FROM agents WHERE opc_id = ?').get(config.opc_id)
       if (existing.cnt === 0) config.is_default = true
       db.prepare(`
