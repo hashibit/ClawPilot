@@ -389,9 +389,8 @@
     "trigger_mode_all": "Todas as mensagens",
     "empty_bindings_text": "Sem grupos vinculados",
     "unnamed_group": "(Grupo sem nome)",
-    "status_bound": "Vinculado",
-    "status_disabled": "Desabilitado",
-    "unbound_agent": "Sem agente vinculado"
+    "unbound_agent": "Sem agente vinculado",
+    "channel_id_required": "Por favor, insira um ID de grupo"
   },
   "providers": {
     "section_title": "Gerenciamento de modelos",
@@ -487,11 +486,9 @@
     "button_add_office": "Adicionar escritório",
     "button_install_latest": "Instalar versão mais recente",
     "label_office_name": "Nome do escritório",
-    "label_address": "Endereço (IP)",
     "label_access_control": "Controle de acesso",
     "label_decoration_grade": "Grau de decoração",
     "label_receptionist_image": "Imagem do recepcionista",
-    "label_notes": "Notas",
     "label_installation_status": "Status de instalação",
     "label_property_version": "Versão da propriedade",
     "label_deployment_opc": "Empresa implantada",
@@ -556,9 +553,6 @@
     "success_message": "Implantação bem-sucedida!",
     "error_message_format": "Falha na implantação: {{msg}}",
     "cancelled_message": "Implantação cancelada",
-    "step_prepare_config": "Preparar configuração",
-    "step_write_target": "Escrever no destino",
-    "step_reload_process": "Recarregar processo",
-    "step_health_check": "Verificação de saúde"
+    "step_write_target": "Escrever no destino"
   }
 }

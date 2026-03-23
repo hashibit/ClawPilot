@@ -388,7 +388,8 @@
     "unnamed_group": "(Grup Tanpa Nama)",
     "status_bound": "Terikat",
     "status_disabled": "Nonaktif",
-    "unbound_agent": "Tidak ada agen terikat"
+    "unbound_agent": "Tidak ada agen terikat",
+    "channel_id_required": "Masukkan ID grup"
   },
   "providers": {
     "section_title": "Manajemen Model",
@@ -486,7 +487,6 @@
     "label_access_control": "Kontrol Akses",
     "label_decoration_grade": "Tingkat Dekorasi",
     "label_receptionist_image": "Gambar Resepsionis",
-    "label_notes": "Catatan",
     "label_installation_status": "Status Instalasi",
     "label_property_version": "Versi Properti",
     "label_deployment_opc": "Perusahaan yang Diterapkan",

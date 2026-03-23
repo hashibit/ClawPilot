@@ -388,7 +388,8 @@
     "unnamed_group": "(Gruppo senza nome)",
     "status_bound": "Associato",
     "status_disabled": "Disabilitato",
-    "unbound_agent": "Nessun agente associato"
+    "unbound_agent": "Nessun agente associato",
+    "channel_id_required": "Inserisci un ID gruppo"
   },
   "providers": {
     "section_title": "Gestione modelli",
@@ -486,7 +487,6 @@
     "label_access_control": "Controllo accesso",
     "label_decoration_grade": "Livello decorazione",
     "label_receptionist_image": "Immagine receptionist",
-    "label_notes": "Note",
     "label_installation_status": "Stato installazione",
     "label_property_version": "Versione proprietà",
     "label_deployment_opc": "Azienda distribuita",

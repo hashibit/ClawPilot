@@ -161,6 +161,10 @@ export default function BindingsPage() {
 
     const handleSaveBinding = async () => {
         if (!selectedBinding) return
+        if (!bindingForm.channel_id?.trim()) {
+            toast(t('bindings.channel_id_required'), 'error')
+            return
+        }
         setSavingBinding(true)
         try {
             const updated: BindingRule = { ...selectedBinding, ...bindingForm, updated_at: Math.floor(Date.now() / 1000) } as BindingRule

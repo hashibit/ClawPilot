@@ -155,11 +155,15 @@ export function createOpcRouter(db) {
   router.post('/get_opc_stats', (req, res) => {
     try {
       const { opc_id } = req.body
-      const row = db.prepare(
-        'SELECT agent_count, channel_count, group_count, dm_count, message_count_today, message_growth FROM opc_config WHERE id = ?'
+      const base = db.prepare(
+        'SELECT message_count_today, message_growth FROM opc_config WHERE id = ?'
       ).get(opc_id)
-      if (!row) throw new Error(`Not found: ${opc_id}`)
-      res.json(row)
+      if (!base) throw new Error(`Not found: ${opc_id}`)
+      const agent_count = db.prepare('SELECT COUNT(*) as cnt FROM agents WHERE opc_id = ?').get(opc_id).cnt
+      const channel_count = db.prepare('SELECT COUNT(*) as cnt FROM channels WHERE opc_id = ?').get(opc_id).cnt
+      const group_count = db.prepare("SELECT COUNT(*) as cnt FROM bindings WHERE opc_id = ? AND channel_type = 'GROUP'").get(opc_id).cnt
+      const dm_count = db.prepare("SELECT COUNT(*) as cnt FROM bindings WHERE opc_id = ? AND channel_type = 'DM'").get(opc_id).cnt
+      res.json({ agent_count, channel_count, group_count, dm_count, message_count_today: base.message_count_today, message_growth: base.message_growth })
     } catch (err) {
       res.status(500).send(err.message)
     }

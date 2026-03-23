@@ -388,7 +388,8 @@
     "unnamed_group": "(مجموعة بدون اسم)",
     "status_bound": "مرتبط",
     "status_disabled": "معطّل",
-    "unbound_agent": "لا يوجد وكيل مرتبط"
+    "unbound_agent": "لا يوجد وكيل مرتبط",
+    "channel_id_required": "الرجاء إدخال معرف المجموعة"
   },
   "providers": {
     "section_title": "إدارة النماذج",
@@ -486,7 +487,6 @@
     "label_access_control": "التحكم في الوصول",
     "label_decoration_grade": "مستوى الديكور",
     "label_receptionist_image": "صورة الموظف",
-    "label_notes": "ملاحظات",
     "label_installation_status": "حالة التثبيت",
     "label_property_version": "إصدار العقار",
     "label_deployment_opc": "الشركة المنشورة",

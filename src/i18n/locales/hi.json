@@ -388,7 +388,8 @@
     "unnamed_group": "(बिना नाम का समूह)",
     "status_bound": "जुड़ा हुआ",
     "status_disabled": "अक्षम",
-    "unbound_agent": "कोई एजेंट नहीं जुड़ा"
+    "unbound_agent": "कोई एजेंट नहीं जुड़ा",
+    "channel_id_required": "कृपया ग्रुप आईडी दर्ज करें"
   },
   "providers": {
     "section_title": "मॉडल प्रबंधन",
@@ -486,7 +487,6 @@
     "label_access_control": "पहुंच नियंत्रण",
     "label_decoration_grade": "सजावट ग्रेड",
     "label_receptionist_image": "रिसेप्शनिस्ट छवि",
-    "label_notes": "नोट्स",
     "label_installation_status": "इंस्टॉलेशन स्थिति",
     "label_property_version": "संपत्ति संस्करण",
     "label_deployment_opc": "तैनात कंपनी",

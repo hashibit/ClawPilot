@@ -8,10 +8,10 @@ import type { LocalSnapshot } from '../lib/types'
 
 function fmtRelTime(ts: number, t: (key: string, opts?: any) => string) {
   const diff = Math.floor((Date.now() / 1000 - ts))
-  if (diff < 3600) return `${Math.floor(diff / 60)}${t('common.time_minutes_ago')}`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('common.time_hours_ago')}`
-  if (diff < 604800) return `${Math.floor(diff / 86400)}${t('common.time_days_ago')}`
-  return `${Math.floor(diff / 604800)}${t('common.time_days_ago')}`
+  if (diff < 3600) return t('common.time_minutes_ago', { count: Math.floor(diff / 60) })
+  if (diff < 86400) return t('common.time_hours_ago', { count: Math.floor(diff / 3600) })
+  if (diff < 604800) return t('common.time_days_ago', { count: Math.floor(diff / 86400) })
+  return t('common.time_days_ago', { count: Math.floor(diff / 86400) })
 }
 
 const GRAD_PRESETS = [

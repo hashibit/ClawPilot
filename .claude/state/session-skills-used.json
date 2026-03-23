@@ -1,1 +1,8 @@
-{"used": [], "session_start": "2026-03-22T14:41:54Z"}
+{
+  "used": [
+    "claude-code-harness:agent-browser",
+    "claude-code-harness:agent-browser"
+  ],
+  "session_start": "2026-03-22T14:41:54Z",
+  "last_used": "2026-03-23T00:05:29Z"
+}

@@ -395,3 +395,33 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-22T14:48:33Z
+
+- session_id: `B2EFB6A0-CD4D-407F-8528-F06F631880E4`
+- project: `ClawPilot`
+- branch: `ft_i18n`
+- started_at: `2026-03-22T14:41:54Z`
+- ended_at: `2026-03-22T14:48:33Z`
+- duration_minutes: 486
+- changes: 9
+- commits: 1
+
+### 変更ファイル
+- `agent-tests/opc.md`
+- `agent-tests/agents.md`
+- `agent-tests/bindings.md`
+- `agent-tests/providers.md`
+- `agent-tests/deploy.md`
+- `agent-tests/logs.md`
+- `agent-tests/overview.md`
+- `agent-tests/settings.md`
+- `agent-tests/scenarios.md`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---

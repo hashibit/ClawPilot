@@ -389,9 +389,8 @@
     "trigger_mode_all": "Alle Nachrichten",
     "empty_bindings_text": "Keine gebundenen Gruppen",
     "unnamed_group": "(Unbenannte Gruppe)",
-    "status_bound": "Gebunden",
-    "status_disabled": "Deaktiviert",
-    "unbound_agent": "Kein Agent gebunden"
+    "unbound_agent": "Kein Agent gebunden",
+    "channel_id_required": "Bitte geben Sie eine Gruppen-ID ein"
   },
   "providers": {
     "section_title": "Modellverwaltung",
@@ -487,11 +486,9 @@
     "button_add_office": "Büro hinzufügen",
     "button_install_latest": "Neueste Version installieren",
     "label_office_name": "Büroname",
-    "label_address": "Adresse (IP)",
     "label_access_control": "Zugangskontrolle",
     "label_decoration_grade": "Ausstattungsklasse",
     "label_receptionist_image": "Empfangsbild",
-    "label_notes": "Notizen",
     "label_installation_status": "Installationsstatus",
     "label_property_version": "Immobilienversion",
     "label_deployment_opc": "Bereitgestelltes Unternehmen",
@@ -556,9 +553,6 @@
     "success_message": "Bereitstellung erfolgreich!",
     "error_message_format": "Bereitstellung fehlgeschlagen: {{msg}}",
     "cancelled_message": "Bereitstellung abgebrochen",
-    "step_prepare_config": "Konfiguration vorbereiten",
-    "step_write_target": "In Ziel schreiben",
-    "step_reload_process": "Prozess neu laden",
-    "step_health_check": "Gesundheitsprüfung"
+    "step_write_target": "In Ziel schreiben"
   }
 }

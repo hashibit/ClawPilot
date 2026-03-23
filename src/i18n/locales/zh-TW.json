@@ -389,7 +389,8 @@
     "trigger_mode_all": "所有訊息",
     "empty_bindings_text": "暫無綁定群組",
     "unnamed_group": "（未命名群組）",
-    "unbound_agent": "未綁定智能體"
+    "unbound_agent": "未綁定智能體",
+    "channel_id_required": "請填寫群組 ID"
   },
   "providers": {
     "section_title": "模型管理",
@@ -485,11 +486,9 @@
     "button_add_office": "新增辦公室",
     "button_install_latest": "安裝最新物業",
     "label_office_name": "辦公室名稱",
-    "label_address": "位址（IP）",
     "label_access_control": "門禁",
     "label_decoration_grade": "裝修檔次",
     "label_receptionist_image": "前台形象",
-    "label_notes": "備註",
     "label_installation_status": "安裝狀態",
     "label_property_version": "物業版本",
     "label_deployment_opc": "部署公司",
@@ -554,9 +553,6 @@
     "success_message": "部署成功！",
     "error_message_format": "部署失敗: {{msg}}",
     "cancelled_message": "部署已取消",
-    "step_prepare_config": "準備設定檔",
-    "step_write_target": "寫入目標目錄",
-    "step_reload_process": "重載行程",
-    "step_health_check": "健康檢查"
+    "step_write_target": "寫入目標目錄"
   }
 }

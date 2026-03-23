@@ -389,7 +389,8 @@
     "trigger_mode_all": "すべてのメッセージ",
     "empty_bindings_text": "バインドされたグループなし",
     "unnamed_group": "（名称未設定グループ）",
-    "unbound_agent": "エージェント未バインド"
+    "unbound_agent": "エージェント未バインド",
+    "channel_id_required": "グループ ID を入力してください"
   },
   "providers": {
     "section_title": "モデル管理",
@@ -485,11 +486,9 @@
     "button_add_office": "オフィスを追加",
     "button_install_latest": "最新物件をインストール",
     "label_office_name": "オフィス名",
-    "label_address": "アドレス（IP）",
     "label_access_control": "アクセス制御",
     "label_decoration_grade": "装飾グレード",
     "label_receptionist_image": "受付イメージ",
-    "label_notes": "メモ",
     "label_installation_status": "インストール状態",
     "label_property_version": "物件バージョン",
     "label_deployment_opc": "デプロイ会社",
@@ -554,9 +553,6 @@
     "success_message": "デプロイ成功！",
     "error_message_format": "デプロイ失敗: {{msg}}",
     "cancelled_message": "デプロイをキャンセルしました",
-    "step_prepare_config": "設定ファイル準備",
-    "step_write_target": "ターゲットへ書き込み",
-    "step_reload_process": "プロセスリロード",
-    "step_health_check": "ヘルスチェック"
+    "step_write_target": "ターゲットへ書き込み"
   }
 }

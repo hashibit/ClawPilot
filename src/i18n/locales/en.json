@@ -389,7 +389,8 @@
     "trigger_mode_all": "All messages",
     "empty_bindings_text": "No bound groups",
     "unnamed_group": "(Unnamed Group)",
-    "unbound_agent": "No agent bound"
+    "unbound_agent": "No agent bound",
+    "channel_id_required": "Please enter a group ID"
   },
   "providers": {
     "section_title": "Model Management",

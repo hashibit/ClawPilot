@@ -301,9 +301,8 @@
     "trigger_mode_all": "모든 메시지",
     "empty_bindings_text": "바인딩된 그룹 없음",
     "unnamed_group": "(이름 없는 그룹)",
-    "status_bound": "바인딩됨",
-    "status_disabled": "비활성화됨",
-    "unbound_agent": "에이전트 미바인딩"
+    "unbound_agent": "에이전트 미바인딩",
+    "channel_id_required": "그룹 ID를 입력해 주세요"
   },
   "providers": {
     "section_title": "모델 관리",
@@ -399,11 +398,9 @@
     "button_add_office": "사무실 추가",
     "button_install_latest": "최신 부동산 설치",
     "label_office_name": "사무실 이름",
-    "label_address": "주소 (IP)",
     "label_access_control": "출입 제어",
     "label_decoration_grade": "인테리어 등급",
     "label_receptionist_image": "안내원 이미지",
-    "label_notes": "메모",
     "label_installation_status": "설치 상태",
     "label_property_version": "부동산 버전",
     "label_deployment_opc": "배포 회사",
@@ -468,10 +465,7 @@
     "success_message": "배포 성공!",
     "error_message_format": "배포 실패: {{msg}}",
     "cancelled_message": "배포 취소됨",
-    "step_prepare_config": "설정 준비",
-    "step_write_target": "대상에 쓰기",
-    "step_reload_process": "프로세스 리로드",
-    "step_health_check": "헬스 체크"
+    "step_write_target": "대상에 쓰기"
   },
   "common": {
     "pro": "PRO",

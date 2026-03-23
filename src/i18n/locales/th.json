@@ -388,7 +388,8 @@
     "unnamed_group": "(กลุ่มไม่มีชื่อ)",
     "status_bound": "เชื่อมโยงแล้ว",
     "status_disabled": "ปิดใช้งาน",
-    "unbound_agent": "ยังไม่มีเอเจนต์เชื่อมโยง"
+    "unbound_agent": "ยังไม่มีเอเจนต์เชื่อมโยง",
+    "channel_id_required": "กรุณากรอก ID กลุ่ม"
   },
   "providers": {
     "section_title": "การจัดการโมเดล",
@@ -486,7 +487,6 @@
     "label_access_control": "การควบคุมการเข้าถึง",
     "label_decoration_grade": "ระดับการตกแต่ง",
     "label_receptionist_image": "ภาพพนักงานต้อนรับ",
-    "label_notes": "หมายเหตุ",
     "label_installation_status": "สถานะการติดตั้ง",
     "label_property_version": "เวอร์ชันอสังหาริมทรัพย์",
     "label_deployment_opc": "บริษัทที่ติดตั้ง",

@@ -388,7 +388,8 @@
     "unnamed_group": "(Группа без названия)",
     "status_bound": "Привязано",
     "status_disabled": "Отключено",
-    "unbound_agent": "Агент не привязан"
+    "unbound_agent": "Агент не привязан",
+    "channel_id_required": "Пожалуйста, введите ID группы"
   },
   "providers": {
     "section_title": "Управление моделями",
@@ -486,7 +487,6 @@
     "label_access_control": "Контроль доступа",
     "label_decoration_grade": "Класс отделки",
     "label_receptionist_image": "Изображение ресепшна",
-    "label_notes": "Заметки",
     "label_installation_status": "Статус установки",
     "label_property_version": "Версия объекта",
     "label_deployment_opc": "Развёрнутая компания",

@@ -389,9 +389,8 @@
     "trigger_mode_all": "Tous les messages",
     "empty_bindings_text": "Aucun groupe lié",
     "unnamed_group": "(Groupe sans nom)",
-    "status_bound": "Lié",
-    "status_disabled": "Désactivé",
-    "unbound_agent": "Aucun agent lié"
+    "unbound_agent": "Aucun agent lié",
+    "channel_id_required": "Veuillez saisir un ID de groupe"
   },
   "providers": {
     "section_title": "Gestion des modèles",
@@ -487,11 +486,9 @@
     "button_add_office": "Ajouter un bureau",
     "button_install_latest": "Installer la dernière version",
     "label_office_name": "Nom du bureau",
-    "label_address": "Adresse (IP)",
     "label_access_control": "Contrôle d'accès",
     "label_decoration_grade": "Niveau de décoration",
     "label_receptionist_image": "Image de l'accueil",
-    "label_notes": "Notes",
     "label_installation_status": "État d'installation",
     "label_property_version": "Version de la propriété",
     "label_deployment_opc": "Entreprise déployée",
@@ -556,9 +553,6 @@
     "success_message": "Déploiement réussi !",
     "error_message_format": "Échec du déploiement : {{msg}}",
     "cancelled_message": "Déploiement annulé",
-    "step_prepare_config": "Préparer la config",
-    "step_write_target": "Écrire dans la cible",
-    "step_reload_process": "Recharger le processus",
-    "step_health_check": "Vérification de santé"
+    "step_write_target": "Écrire dans la cible"
   }
 }

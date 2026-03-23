@@ -388,7 +388,8 @@
     "unnamed_group": "(Nhóm chưa đặt tên)",
     "status_bound": "Đã liên kết",
     "status_disabled": "Đã tắt",
-    "unbound_agent": "Chưa có tác nhân liên kết"
+    "unbound_agent": "Chưa có tác nhân liên kết",
+    "channel_id_required": "Vui lòng nhập ID nhóm"
   },
   "providers": {
     "section_title": "Quản lý mô hình",
@@ -486,7 +487,6 @@
     "label_access_control": "Kiểm soát truy cập",
     "label_decoration_grade": "Cấp độ trang trí",
     "label_receptionist_image": "Hình ảnh lễ tân",
-    "label_notes": "Ghi chú",
     "label_installation_status": "Trạng thái cài đặt",
     "label_property_version": "Phiên bản bất động sản",
     "label_deployment_opc": "Công ty triển khai",

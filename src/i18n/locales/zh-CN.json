@@ -349,6 +349,7 @@
     "group_info": "群组信息",
     "group_name": "群组名称",
     "group_id": "群组 ID",
+    "channel_id_required": "请填写群组 ID",
     "channel_type": "类型",
     "type_group": "群组",
     "type_dm": "私聊",
