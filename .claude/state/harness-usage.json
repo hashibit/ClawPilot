@@ -1,14 +1,14 @@
 {
   "version": "1.0",
-  "updatedAt": "2026-03-23T00:05:29.085Z",
+  "updatedAt": "2026-03-25T01:55:11.246Z",
   "skills": {
     "harness-plan": {
       "count": 1,
       "lastUsed": "2026-03-19T01:00:18.954Z"
     },
     "orbstack": {
-      "count": 1,
-      "lastUsed": "2026-03-20T15:07:50.132Z"
+      "count": 2,
+      "lastUsed": "2026-03-25T01:55:11.245Z"
     },
     "agent-browser": {
       "count": 3,
@@ -32,9 +32,9 @@
   "agents": {},
   "hooks": {
     "session-init": {
-      "triggered": 20,
+      "triggered": 21,
       "blocked": 0,
-      "lastTriggered": "2026-03-22T14:41:54.562Z"
+      "lastTriggered": "2026-03-25T01:54:47.590Z"
     }
   }
 }

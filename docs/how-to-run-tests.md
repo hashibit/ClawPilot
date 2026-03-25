@@ -352,34 +352,69 @@ npm run dev &
 
 如果自动脚本失败，可以手动执行：
 
+#### 0. SSH 环境准备（首次执行一次）
+
+OrbStack VM 默认不启动 sshd，需要先完成以下 setup：
+
+```bash
+# 创建 VM（如已创建可跳过）
+orbctl create ubuntu clawpilot-test
+
+# 安装并启动 sshd
+orbctl run -m clawpilot-test -u root bash -c "apt-get install -y openssh-server && systemctl enable ssh && systemctl start ssh"
+
+# 注入 OrbStack 公钥
+PUBKEY=$(cat ~/.orbstack/ssh/id_ed25519.pub)
+orbctl run -m clawpilot-test -u root bash -c "
+  mkdir -p /home/$USER/.ssh
+  echo '$PUBKEY' > /home/$USER/.ssh/authorized_keys
+  chown -R $USER:$USER /home/$USER/.ssh
+  chmod 700 /home/$USER/.ssh
+  chmod 600 /home/$USER/.ssh/authorized_keys
+"
+
+# 获取 VM IP
+VM_IP=$(orbctl list --format json | python3 -c "import sys,json; [print(m['ip']) for m in json.load(sys.stdin) if m['name']=='clawpilot-test']")
+echo "VM IP: $VM_IP"
+```
+
+之后所有 SSH/SCP 操作统一使用：
+
+```bash
+SSH="ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP"
+SCP="scp -i ~/.orbstack/ssh/id_ed25519"
+```
+
 #### 1. 创建测试 VM
 
 ```bash
-orb create ubuntu clawpilot-test
+orbctl create ubuntu clawpilot-test
 ```
 
 #### 2. 安装 Daemon
 
 ```bash
+# 获取 VM IP
+VM_IP=$(orbctl info clawpilot-test | grep 'IPv4' | awk '{print $2}')
+
 # 复制到 VM
-orb scp daemon/target/release/clawpilot-daemon clawpilot-test:/tmp/
+scp -i ~/.orbstack/ssh/id_ed25519 daemon/target/release/clawpilot-daemon $USER@$VM_IP:/tmp/
 
 # 安装到系统路径
-orb ssh clawpilot-test "sudo mv /tmp/clawpilot-daemon /usr/local/bin/"
-orb ssh clawpilot-test "sudo chmod +x /usr/local/bin/clawpilot-daemon"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "sudo mv /tmp/clawpilot-daemon /usr/local/bin/ && sudo chmod +x /usr/local/bin/clawpilot-daemon"
 ```
 
 #### 3. 启动 Daemon
 
 ```bash
-orb ssh clawpilot-test "nohup clawpilot-daemon --listen 0.0.0.0:8443 > /tmp/daemon.log 2>&1 &"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "nohup clawpilot-daemon --listen 0.0.0.0:8443 > /tmp/daemon.log 2>&1 &"
 sleep 3
 ```
 
 #### 4. 验证 Health
 
 ```bash
-orb ssh clawpilot-test "curl http://localhost:8443/health"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:8443/health"
 ```
 
 预期输出：
@@ -395,12 +430,11 @@ echo '{"version":"1.0.0"}' > manifest.json
 tar -czf package.tar.gz manifest.json
 
 # 上传到 VM
-orb scp manifest.json clawpilot-test:/tmp/
-orb scp package.tar.gz clawpilot-test:/tmp/
+scp -i ~/.orbstack/ssh/id_ed25519 manifest.json package.tar.gz $USER@$VM_IP:/tmp/
 
 # 执行部署
-API_KEY=$(orb ssh clawpilot-test "cat ~/.clawpilot/daemon.key 2>/dev/null || echo 'test-key'")
-orb ssh clawpilot-test "curl -X POST \
+API_KEY=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "cat ~/.clawpilot/daemon.key 2>/dev/null || echo 'test-key'")
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl -X POST \
   -H 'Authorization: Bearer ${API_KEY}' \
   -F 'manifest=@/tmp/manifest.json' \
   -F 'package=@/tmp/package.tar.gz' \
@@ -410,8 +444,8 @@ orb ssh clawpilot-test "curl -X POST \
 #### 6. 清理
 
 ```bash
-orb ssh clawpilot-test "pkill -f clawpilot-daemon || true"
-orb delete clawpilot-test
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "pkill -f clawpilot-daemon || true"
+orbctl delete clawpilot-test
 ```
 
 ### 测试覆盖场景
@@ -573,16 +607,33 @@ npx playwright install chromium
 **问题**: VM 创建失败
 ```bash
 # 手动创建
-orb create ubuntu clawpilot-test --arch arm64
+orbctl create ubuntu clawpilot-test
 ```
 
-**问题**: SSH 连接失败
+**问题**: SSH 连接失败（Connection refused）
 ```bash
-# 检查 OrbStack 状态
-orb status
+# sshd 未启动，执行 setup（见步骤 0）
+orbctl run -m clawpilot-test -u root systemctl start ssh
+```
 
-# 重启 OrbStack
-orb stop && orb start
+**问题**: SSH 认证失败（Permission denied）
+```bash
+# 重新注入公钥
+PUBKEY=$(cat ~/.orbstack/ssh/id_ed25519.pub)
+orbctl run -m clawpilot-test -u root bash -c "echo '$PUBKEY' >> /home/$USER/.ssh/authorized_keys"
+```
+
+**问题**: 不知道 VM 的 IP
+```bash
+orbctl info clawpilot-test | grep IPv4
+# 或
+orbctl list
+```
+
+**问题**: OrbStack 服务异常
+```bash
+orbctl status
+orbctl stop && open -a OrbStack
 ```
 
 ---

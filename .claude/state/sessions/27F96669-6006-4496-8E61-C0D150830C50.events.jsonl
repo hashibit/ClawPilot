@@ -1,0 +1,9 @@
+{"type":"session.start","ts":"2026-03-25T01:54:47Z","state":"initialized","data":{"cc_session_id":"037b7874-5329-4aa8-9e5a-6716d2b6db40"}}
+{"id":"event-000001","type":"session.start","ts":"2026-03-25T01:54:47Z","state":"initialized"}
+{"id":"event-000002","type":"tool.skill","ts":"2026-03-25T01:55:11Z","state":"initialized"}
+{"id":"event-000003","type":"tool.bash","ts":"2026-03-25T01:55:27Z","state":"initialized","data":{"command":"orbctl status 2>&1 && orbctl doctor 2>&1 | head -20"}}
+{"id":"event-000004","type":"tool.bash","ts":"2026-03-25T01:55:33Z","state":"initialized","data":{"command":"curl -v --max-time 10 https://cdn-images.orbstack.dev/streams/v1/images.json 2>&1 | head -20"}}
+{"id":"event-000005","type":"tool.bash","ts":"2026-03-25T01:56:34Z","state":"initialized","data":{"command":"orbctl status 2>&1"}}
+{"id":"event-000006","type":"tool.bash","ts":"2026-03-25T01:56:49Z","state":"initialized","data":{"command":"orbctl create ubuntu dev-vm 2>&1"}}
+{"id":"event-000007","type":"tool.bash","ts":"2026-03-25T01:56:52Z","state":"initialized","data":{"command":"orbctl list 2>&1"}}
+{"id":"event-000008","type":"session.stop","ts":"2026-03-25T01:56:55Z","state":"stopped"}

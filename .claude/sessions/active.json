@@ -1,20 +1,8 @@
 {
-  "session-1774139632": {
+  "session-1774403687": {
     "short_id": "session-1774",
-    "last_seen": 1774139632,
-    "pid": "47464",
-    "status": "active"
-  },
-  "session-1774139645": {
-    "short_id": "session-1774",
-    "last_seen": 1774139645,
-    "pid": "48110",
-    "status": "active"
-  },
-  "session-1774190514": {
-    "short_id": "session-1774",
-    "last_seen": 1774190514,
-    "pid": "79140",
+    "last_seen": 1774403687,
+    "pid": "91235",
     "status": "active"
   }
 }

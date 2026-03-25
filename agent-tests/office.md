@@ -12,39 +12,38 @@
 推荐使用 **OrbStack** 在本机创建 Linux VM 代替真实服务器：
 
 ```bash
-# 查看现有 VM（已有 clawpilot-test）
-orb list
+# 查看现有 VM
+orbctl list
 
 # 如需新建
-orb create ubuntu clawpilot-test
+orbctl create ubuntu clawpilot-test
 
 # 获取 VM IP
-orb list   # 第四列即 IP，如 192.168.139.170
+orbctl info clawpilot-test | grep IPv4
 ```
 
 **一次性配置（首次使用）：**
 
 ```bash
-# 1. 安装 SSH 服务
-orb run -m clawpilot-test sudo apt-get install -y openssh-server
-orb run -m clawpilot-test sudo systemctl start ssh
+# 1. 安装 sshd 并注入 OrbStack 公钥
+orbctl run -m clawpilot-test -u root bash -c "apt-get install -y openssh-server && systemctl enable ssh && systemctl start ssh"
 
-# 2. 注入本机公钥（支持 jiechen 和 root 登录）
-cat ~/.ssh/id_rsa.pub | orb run -m clawpilot-test tee /home/jiechen/.ssh/authorized_keys
-orb run -m clawpilot-test chmod 700 /home/jiechen/.ssh
-orb run -m clawpilot-test chmod 600 /home/jiechen/.ssh/authorized_keys
+PUBKEY=$(cat ~/.orbstack/ssh/id_ed25519.pub)
+orbctl run -m clawpilot-test -u root bash -c "
+  mkdir -p /home/$USER/.ssh
+  echo '$PUBKEY' > /home/$USER/.ssh/authorized_keys
+  chown -R $USER:$USER /home/$USER/.ssh
+  chmod 700 /home/$USER/.ssh && chmod 600 /home/$USER/.ssh/authorized_keys
+"
 
-cat ~/.ssh/id_rsa.pub | orb run -m clawpilot-test sudo tee /root/.ssh/authorized_keys
-orb run -m clawpilot-test sudo sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-orb run -m clawpilot-test sudo systemctl restart ssh
-
-# 3. 验证
-ssh -i ~/.ssh/id_rsa root@192.168.139.170 "echo ok"
+# 2. 验证
+VM_IP=$(orbctl info clawpilot-test | grep IPv4 | awk '{print $2}')
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "echo ok"
 ```
 
 **在 UI 中配置 Office 对应 VM：**
-- 地址：`192.168.139.170`（或 `orb list` 中显示的 IP）
-- 认证：SSH 私钥，路径 `~/.ssh/id_rsa`
+- 地址：`$VM_IP`（`orbctl info clawpilot-test | grep IPv4` 查看）
+- 认证：SSH 私钥，路径 `~/.orbstack/ssh/id_ed25519`
 
 ---
 
