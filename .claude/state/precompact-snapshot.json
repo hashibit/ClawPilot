@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-22T23:54:51.080Z",
+  "timestamp": "2026-03-23T11:27:02.450Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
@@ -17,13 +17,13 @@
     ".claude/state/session-skills-used.json",
     ".claude/state/session.events.jsonl",
     ".claude/state/session.json",
+    ".claude/state/sessions/B2EFB6A0-CD4D-407F-8528-F06F631880E4.events.jsonl",
+    ".claude/state/sessions/B2EFB6A0-CD4D-407F-8528-F06F631880E4.json",
     ".claude/state/test-recommendation.json",
     ".claude/state/tool-failure-counter.txt",
     ".gitignore",
-    "agent-tests/i18n.spec.ts",
-    "agent-tests/office.md",
-    "agent-tests/scenarios.md",
-    "daemon/.claude/logs/subagent-history.jsonl"
+    "agent-tests/agents.md",
+    "agent-tests/bindings.md"
   ],
   "metrics": null
 }

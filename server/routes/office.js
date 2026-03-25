@@ -218,6 +218,57 @@ export function createOfficeRouter(db) {
     }
   })
 
+  // check_ssh_auth — validate IP/IP:port format and test actual SSH authentication
+  router.post('/check_ssh_auth', async (req, res) => {
+    const { address, auth_type, user = 'root', password, key_path } = req.body
+    if (!address) return res.json({ ok: false, error: '未提供地址' })
+
+    // Validate address: must be IP or IP:port (not arbitrary hostname)
+    const ipPortRe = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?$/
+    const m = address.match(ipPortRe)
+    if (!m) return res.json({ ok: false, error: '地址格式无效，请填写 IP 或 IP:端口' })
+    const octets = m[1].split('.').map(Number)
+    if (octets.some(n => n > 255)) return res.json({ ok: false, error: 'IP 地址无效' })
+    const host = m[1]
+    const port = m[2] ? Number(m[2]) : 22
+    const sshUser = user || 'root'
+
+    const start = Date.now()
+    try {
+      if (auth_type === 'ssh_key') {
+        // Test SSH key auth: expect exit 0 (connected) or exit 1 (auth ok, no shell)
+        const keyPath = key_path ? resolve(key_path.replace(/^~/, homedir())) : null
+        if (!keyPath || !existsSync(keyPath)) {
+          return res.json({ ok: false, error: 'SSH 密钥文件不存在' })
+        }
+        await execAsync(
+          `ssh -i "${keyPath}" -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -p ${port} ${sshUser}@${host} "exit" 2>&1`,
+          { timeout: 8000 }
+        )
+      } else {
+        // Password auth via sshpass
+        if (!password) return res.json({ ok: false, error: '请填写 SSH 密码' })
+        const escaped = password.replace(/'/g, `'\\''`)
+        await execAsync(
+          `sshpass -p '${escaped}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p ${port} ${sshUser}@${host} "exit" 2>&1`,
+          { timeout: 8000 }
+        )
+      }
+      res.json({ ok: true, latency_ms: Date.now() - start })
+    } catch (err) {
+      const msg = String(err.message || err.stderr || err)
+      if (msg.includes('Permission denied') || msg.includes('Authentication failed')) {
+        res.json({ ok: false, error: '认证失败，请检查用户名和密码/密钥' })
+      } else if (msg.includes('Connection refused') || msg.includes('connect to host')) {
+        res.json({ ok: false, error: '无法连接到主机，请检查地址和端口' })
+      } else if (msg.includes('sshpass') && msg.includes('not found')) {
+        res.json({ ok: false, error: '服务器缺少 sshpass，请用 SSH 密钥认证' })
+      } else {
+        res.json({ ok: false, error: msg.split('\n')[0] })
+      }
+    }
+  })
+
   // get_opc_office
   router.post('/get_opc_office', (req, res) => {
     try {

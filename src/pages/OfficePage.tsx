@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, installDaemon, installOpenclaw } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDaemon, installOpenclaw } from '../lib/api'
 import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment, AccessAuthType } from '../lib/types'
@@ -190,12 +190,27 @@ export default function OfficePage() {
     }
 
     const handleCheckSsh = async () => {
-        if (!selected?.address || selected.address === 'localhost') return
+        const addr = form.address?.trim()
+        if (!addr || addr === 'localhost') {
+            toast('地址必须是 IP 或 IP:端口格式', 'error')
+            return
+        }
+        // Validate IP/IP:port format
+        const ipPortRe = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?$/
+        if (!ipPortRe.test(addr)) {
+            toast('地址格式无效，请填写 IP 或 IP:端口', 'error')
+            return
+        }
         setSshChecking(true)
         setSshResult(null)
-        const { host, port } = parseAddress(selected.address)
         try {
-            const r = await checkSshConnection(host, port)
+            const r = await checkSshAuth({
+                address: addr,
+                auth_type: form.access_auth_type ?? 'password',
+                user: form.access_user ?? 'root',
+                password: form.access_password,
+                key_path: form.ssh_key_path,
+            })
             setSshResult(r)
         } catch (e: any) {
             setSshResult({ ok: false, error: e?.message ?? '检测失败' })
@@ -438,18 +453,16 @@ export default function OfficePage() {
                                                     <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder={t('office.placeholder_ssh_key')} disabled={!editing} />
                                                 </div>
                                             )}
-                                            {!isNewOffice && (
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '82px' }}>
-                                                    <button onClick={handleCheckSsh} disabled={sshChecking} className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>
-                                                        {sshChecking ? '检测中…' : '测试连接'}
-                                                    </button>
-                                                    {sshResult && (
-                                                        <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
-                                                            {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '82px' }}>
+                                                <button onClick={handleCheckSsh} disabled={sshChecking} className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>
+                                                    {sshChecking ? '检测中…' : '测试连接'}
+                                                </button>
+                                                {sshResult && (
+                                                    <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
+                                                        {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                     <div className="group-row" style={{ gap: '10px' }}>

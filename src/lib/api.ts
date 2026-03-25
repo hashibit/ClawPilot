@@ -150,6 +150,14 @@ export const checkDaemonHealth = (daemon_url: string, daemon_api_key: string) =>
 export const checkSshConnection = (host: string, port = 22) =>
   call<{ ok: boolean; latency_ms?: number; error?: string }>('check_ssh_connection', { host, port })
 
+export const checkSshAuth = (params: {
+  address: string
+  auth_type?: string
+  user?: string
+  password?: string
+  key_path?: string
+}) => call<{ ok: boolean; latency_ms?: number; error?: string }>('check_ssh_auth', params as unknown as Record<string, unknown>)
+
 // ── Office ────────────────────────────────────────────────
 export const getOffices = () => call<Office[]>('get_offices')
 export const getOffice = (id: string) => call<Office>('get_office', { id })
