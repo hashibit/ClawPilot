@@ -1,7 +1,8 @@
 {
   "used": [
-    "orbstack"
+    "orbstack",
+    "claude-code-harness:agent-browser"
   ],
   "session_start": "2026-03-25T01:54:47Z",
-  "last_used": "2026-03-25T01:55:11Z"
+  "last_used": "2026-03-25T11:13:44Z"
 }

@@ -45,7 +45,10 @@ export interface AgentConfig {
   gradient_end?: string
   is_default: boolean
   order_index: number
+  model?: string           // 'provider_name/model_id' e.g. 'bailian/qwen3.5-plus'
+  /** @deprecated use model */
   model_provider?: string
+  /** @deprecated use model */
   model_name?: string
   enabled_tools: string[]
   disabled_tools: string[]
@@ -60,14 +63,14 @@ export interface AgentConfig {
 }
 
 // ── Model / Provider ──────────────────────────────────────
-export type ProviderType = 'BAILIAN' | 'VOLCENGINE' | 'MINIMAX'
+export type ProviderApi = 'openai-completions' | 'anthropic-messages' | 'gemini'
 
 export interface ProviderConfig {
   id: string
-  provider_type: ProviderType
-  api_key?: string
-  base_url?: string
-  is_coding_plan: boolean
+  name: string          // user-defined, unique key in openclaw.json
+  api: ProviderApi
+  base_url: string
+  api_key: string
   is_enabled: boolean
   is_available: boolean
   last_tested?: number
@@ -75,24 +78,35 @@ export interface ProviderConfig {
   updated_at: number
 }
 
-export interface TestProviderResult {
-  openai_ok: boolean
-  anthropic_ok: boolean
-  openai_error?: string
-  anthropic_error?: string
-}
-
 export interface ModelInfo {
   id: string
-  name: string
+  provider_name: string
+  model_id: string
   display_name: string
-  provider_type: ProviderType
   context_window: number
-  input_price: number
-  output_price: number
+  max_tokens: number
+  input_types: string   // JSON string: '["text","image"]'
+  cost_input: number
+  cost_output: number
   supports_vision: boolean
   supports_function_calling: boolean
   supports_streaming: boolean
+  is_custom: boolean
+  sort_order: number
+  updated_at: number
+}
+
+export interface KnownProvider {
+  suggestName: string
+  api: ProviderApi
+  matchUrls: string[]
+  models: Partial<ModelInfo>[]
+}
+
+export interface SuggestProviderResult {
+  name: string
+  api: ProviderApi
+  models: Partial<ModelInfo>[]
 }
 
 // ── Channel ───────────────────────────────────────────────

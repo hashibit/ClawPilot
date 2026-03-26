@@ -78,16 +78,16 @@ export function createAgentRouter(db) {
       db.prepare(`
         INSERT INTO agents
           (id, opc_id, name, display_name, job_title, personality, description, initials,
-           gradient_start, gradient_end, is_default, order_index, model_provider, model_name,
+           gradient_start, gradient_end, is_default, order_index, model,
            enabled_tools, disabled_tools, enabled_skills, guardrail_rules, reports_to, manages,
            created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         config.id, config.opc_id, config.name, config.display_name,
         config.job_title ?? null, config.personality ?? null, config.description ?? null,
         config.initials ?? null, config.gradient_start ?? null, config.gradient_end ?? null,
         config.is_default ? 1 : 0, config.order_index ?? 0,
-        config.model_provider ?? null, config.model_name ?? null,
+        config.model ?? null,
         toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
         toJsonStr(config.enabled_skills), serializeGuardrail(config),
         toJsonStr(config.reports_to), toJsonStr(config.manages),
@@ -107,7 +107,7 @@ export function createAgentRouter(db) {
         UPDATE agents SET
           name = ?, display_name = ?, job_title = ?, personality = ?, description = ?,
           initials = ?, gradient_start = ?, gradient_end = ?, is_default = ?, order_index = ?,
-          model_provider = ?, model_name = ?,
+          model = ?,
           enabled_tools = ?, disabled_tools = ?, enabled_skills = ?,
           guardrail_rules = ?, reports_to = ?, manages = ?, updated_at = ?
         WHERE id = ?
@@ -116,7 +116,7 @@ export function createAgentRouter(db) {
         config.job_title ?? null, config.personality ?? null, config.description ?? null,
         config.initials ?? null, config.gradient_start ?? null, config.gradient_end ?? null,
         config.is_default ? 1 : 0, config.order_index ?? 0,
-        config.model_provider ?? null, config.model_name ?? null,
+        config.model ?? null,
         toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
         toJsonStr(config.enabled_skills), serializeGuardrail(config),
         toJsonStr(config.reports_to), toJsonStr(config.manages),

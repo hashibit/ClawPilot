@@ -22,11 +22,6 @@ const AGENT_COLORS: string[] = [
 
 const DOC_TYPES: DocumentType[] = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'MEMORY', 'HEARTBEAT', 'TOOLS']
 
-const PROVIDER_LABELS: Record<string, string> = {
-    BAILIAN: '阿里云百炼',
-    VOLCENGINE: '火山方舟',
-    MINIMAX: 'MiniMax',
-}
 
 interface RemoteSkill {
     slug: string
@@ -570,7 +565,7 @@ export default function AgentsPage() {
             initials: displayName.slice(0, 2),
             gradient_start: colorPick, gradient_end: colorPick,
             is_default: false, order_index: currentAgents.length,
-            model_provider: undefined, model_name: undefined,
+            model: undefined,
             enabled_tools: [], disabled_tools: [], enabled_skills: [],
             guardrail_rules: [], guardrail_allow: [], guardrail_deny: [],
             reports_to: [], manages: [],
@@ -639,26 +634,21 @@ export default function AgentsPage() {
     }
 
     // ── Model selection helpers ──────────────────────────────
-    const selectedModelCombo = form.model_provider && form.model_name
-        ? `${form.model_provider}||${form.model_name}` : ''
-    const comboInList = models.some(m => `${m.provider_type}||${m.name}` === selectedModelCombo)
-    const hasCustomModel = Boolean(selectedModelCombo && !comboInList)
+    // model field format: 'provider_name/model_id' e.g. 'bailian/qwen3.5-plus'
+    // Backward compat: derive from legacy fields if model is unset
+    const selectedModel = form.model
+        ?? (form.model_provider && form.model_name ? `${form.model_provider}/${form.model_name}` : '')
+    const modelInList = models.some(m => `${m.provider_name}/${m.model_id}` === selectedModel)
+    const hasCustomModel = Boolean(selectedModel && !modelInList)
 
     const modelsByProvider = models.reduce((acc, m) => {
-        acc[m.provider_type] = acc[m.provider_type] ?? []
-        acc[m.provider_type].push(m)
+        acc[m.provider_name] = acc[m.provider_name] ?? []
+        acc[m.provider_name].push(m)
         return acc
     }, {} as Record<string, ModelInfo[]>)
 
-    const handleModelSelect = (combo: string) => {
-        if (!combo) {
-            handleFormChange('model_provider', undefined)
-            handleFormChange('model_name', undefined)
-            return
-        }
-        const [provider, name] = combo.split('||')
-        handleFormChange('model_provider', provider)
-        handleFormChange('model_name', name)
+    const handleModelSelect = (value: string) => {
+        handleFormChange('model', value || undefined)
     }
 
     // ── Tool helpers ─────────────────────────────────────────
@@ -909,20 +899,20 @@ export default function AgentsPage() {
                                                     <select
                                                         className="field-input"
                                                         style={{ width: '100%', paddingRight: '24px' }}
-                                                        value={selectedModelCombo}
+                                                        value={selectedModel}
                                                         onChange={e => handleModelSelect(e.target.value)}
                                                         disabled={!editing}
                                                     >
                                                         <option value="">{t('agents.model_none')}</option>
                                                         {hasCustomModel && (
                                                             <optgroup label={t('agents.model_stored')}>
-                                                                <option value={selectedModelCombo}>{form.model_name}({t('agents.model_stored')})</option>
+                                                                <option value={selectedModel}>{selectedModel} ({t('agents.model_stored')})</option>
                                                             </optgroup>
                                                         )}
-                                                        {Object.entries(modelsByProvider).map(([provider, mlist]) => (
-                                                            <optgroup key={provider} label={PROVIDER_LABELS[provider] ?? provider}>
+                                                        {Object.entries(modelsByProvider).map(([providerName, mlist]) => (
+                                                            <optgroup key={providerName} label={providerName}>
                                                                 {mlist.map(m => (
-                                                                    <option key={m.id} value={`${m.provider_type}||${m.name}`}>{m.display_name}</option>
+                                                                    <option key={m.id} value={`${m.provider_name}/${m.model_id}`}>{m.display_name || m.model_id}</option>
                                                                 ))}
                                                             </optgroup>
                                                         ))}

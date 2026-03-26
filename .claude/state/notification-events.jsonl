@@ -50,3 +50,6 @@
 {"event":"notification","notification_type":"idle_prompt","session_id":"3a00b7b3-afd3-4dca-80b2-0e1cb034f8e2","agent_type":"","timestamp":"2026-03-23T00:36:14Z"}
 {"event":"notification","notification_type":"idle_prompt","session_id":"3a00b7b3-afd3-4dca-80b2-0e1cb034f8e2","agent_type":"","timestamp":"2026-03-23T09:41:01Z"}
 {"event":"notification","notification_type":"idle_prompt","session_id":"3a00b7b3-afd3-4dca-80b2-0e1cb034f8e2","agent_type":"","timestamp":"2026-03-23T11:31:47Z"}
+{"event":"notification","notification_type":"idle_prompt","session_id":"037b7874-5329-4aa8-9e5a-6716d2b6db40","agent_type":"","timestamp":"2026-03-25T10:39:20Z"}
+{"event":"notification","notification_type":"idle_prompt","session_id":"037b7874-5329-4aa8-9e5a-6716d2b6db40","agent_type":"","timestamp":"2026-03-25T10:59:43Z"}
+{"event":"notification","notification_type":"idle_prompt","session_id":"037b7874-5329-4aa8-9e5a-6716d2b6db40","agent_type":"","timestamp":"2026-03-25T11:29:59Z"}

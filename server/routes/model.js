@@ -1,209 +1,161 @@
 import { Router } from 'express'
-import { createLogger } from '../logger.js'
+import { v4 as uuidv4 } from 'uuid'
+import { detectProvider, KNOWN_PROVIDERS } from '../known-providers.js'
 
 const now = () => Math.floor(Date.now() / 1000)
 
-function getEndpoints(baseUrl, isCodingPlan) {
-  if (isCodingPlan) {
-    return {
-      openai: 'https://coding.dashscope.aliyuncs.com/v1',
-      anthropic: 'https://coding.dashscope.aliyuncs.com/apps/anthropic',
-    }
-  }
-  const b = (baseUrl || '').replace(/\/$/, '')
-  return {
-    openai: b || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    anthropic: 'https://dashscope.aliyuncs.com/anthropic',
-  }
-}
-
 function rowToProvider(row) {
   if (!row) return null
-  return {
-    ...row,
-    id: String(row.id),
-    is_enabled: row.is_enabled === 1,
-    is_available: row.is_available === 1,
-    is_coding_plan: row.is_coding_plan === 1,
-  }
+  return { ...row, is_enabled: row.is_enabled === 1, is_available: row.is_available === 1 }
 }
 
 function rowToModel(row) {
   if (!row) return null
   return {
     ...row,
-    id: String(row.id),
     supports_vision: row.supports_vision === 1,
     supports_function_calling: row.supports_function_calling === 1,
     supports_streaming: row.supports_streaming === 1,
+    is_custom: row.is_custom === 1,
   }
 }
 
 export function createModelRouter(db) {
-  const log = createLogger('model')
   const router = Router()
 
-  // get_providers
+  // GET /get_providers — 所有 provider 实例
   router.post('/get_providers', (req, res) => {
     try {
-      const rows = db.prepare('SELECT * FROM model_providers ORDER BY id').all()
+      const rows = db.prepare('SELECT * FROM model_providers_v2 ORDER BY created_at').all()
       res.json(rows.map(rowToProvider))
-    } catch (err) {
-      res.status(500).send(err.message)
-    }
+    } catch (err) { res.status(500).send(err.message) }
   })
 
-  // get_provider
-  router.post('/get_provider', (req, res) => {
+  // POST /suggest_provider — 根据 baseUrl 推断配置
+  router.post('/suggest_provider', (req, res) => {
+    const { base_url } = req.body
+    const match = detectProvider(base_url)
+    if (!match) return res.json(null)
+    // 检查 name 是否已被占用，如果是，加数字后缀
+    let name = match.suggestName
+    let suffix = 2
+    while (db.prepare('SELECT id FROM model_providers_v2 WHERE name = ?').get(name)) {
+      name = `${match.suggestName}-${suffix++}`
+    }
+    res.json({ name, api: match.api, models: match.models })
+  })
+
+  // POST /create_provider
+  router.post('/create_provider', (req, res) => {
     try {
-      const { provider_type } = req.body
-      const row = db.prepare('SELECT * FROM model_providers WHERE provider_type = ?').get(provider_type)
-      if (!row) throw new Error(`Not found: ${provider_type}`)
+      const { name, api, base_url, api_key } = req.body
+      if (!name || !api || !base_url) return res.status(400).send('name, api, base_url required')
+      const id = uuidv4()
+      const n = now()
+      db.prepare(`
+        INSERT INTO model_providers_v2 (id, name, api, base_url, api_key, is_enabled, is_available, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)
+      `).run(id, name, api, base_url, api_key ?? '', n, n)
+      const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
       res.json(rowToProvider(row))
     } catch (err) {
+      if (err.message.includes('UNIQUE')) return res.status(409).send(`Provider name "${req.body.name}" already exists`)
       res.status(500).send(err.message)
     }
   })
 
-  // update_provider
+  // POST /update_provider
   router.post('/update_provider', (req, res) => {
     try {
-      const { config } = req.body
+      const { id, name, api, base_url, api_key, is_enabled } = req.body
+      if (!id) return res.status(400).send('id required')
       db.prepare(`
-        INSERT INTO model_providers (provider_type, api_key, base_url, is_coding_plan, is_enabled, is_available, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(provider_type) DO UPDATE SET
-          api_key = excluded.api_key,
-          base_url = excluded.base_url,
-          is_coding_plan = excluded.is_coding_plan,
-          is_enabled = excluded.is_enabled,
-          is_available = excluded.is_available,
-          updated_at = excluded.updated_at
-      `).run(
-        config.provider_type,
-        config.api_key ?? '',
-        config.base_url ?? '',
-        config.is_coding_plan ? 1 : 0,
-        config.is_enabled ? 1 : 0,
-        config.is_available ? 1 : 0,
-        now(), now()
-      )
-      res.json(null)
+        UPDATE model_providers_v2
+        SET name=?, api=?, base_url=?, api_key=?, is_enabled=?, updated_at=?
+        WHERE id=?
+      `).run(name, api, base_url, api_key ?? '', is_enabled ? 1 : 0, now(), id)
+      const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
+      if (!row) return res.status(404).send('Not found')
+      res.json(rowToProvider(row))
     } catch (err) {
+      if (err.message.includes('UNIQUE')) return res.status(409).send(`Provider name "${req.body.name}" already exists`)
       res.status(500).send(err.message)
     }
   })
 
-  // get_models
+  // POST /delete_provider
+  router.post('/delete_provider', (req, res) => {
+    try {
+      const { id } = req.body
+      if (!id) return res.status(400).send('id required')
+      db.prepare('DELETE FROM model_providers_v2 WHERE id = ?').run(id)
+      res.json(null)
+    } catch (err) { res.status(500).send(err.message) }
+  })
+
+  // POST /get_models — 获取某 provider 的所有模型
   router.post('/get_models', (req, res) => {
     try {
-      const rows = db.prepare('SELECT * FROM model_info ORDER BY provider_type, name').all()
+      const { provider_name } = req.body
+      const rows = provider_name
+        ? db.prepare('SELECT * FROM model_info_v2 WHERE provider_name = ? ORDER BY sort_order, model_id').all(provider_name)
+        : db.prepare('SELECT * FROM model_info_v2 ORDER BY provider_name, sort_order, model_id').all()
       res.json(rows.map(rowToModel))
-    } catch (err) {
-      res.status(500).send(err.message)
-    }
+    } catch (err) { res.status(500).send(err.message) }
   })
 
-  // test_provider
-  router.post('/test_provider', async (req, res) => {
-    const { provider_type } = req.body
-    const row = db.prepare('SELECT * FROM model_providers WHERE provider_type = ?').get(provider_type)
-
-    if (provider_type !== 'BAILIAN') {
-      const hasKey = !!(row?.api_key)
-      const ok = hasKey ? 1 : 0
-      db.prepare('UPDATE model_providers SET is_available = ?, last_tested = ? WHERE provider_type = ?')
-        .run(ok, now(), provider_type)
-      return res.json({ openai_ok: hasKey, anthropic_ok: false })
-    }
-
-    const apiKey = row?.api_key ?? ''
-    const baseUrl = (row?.base_url ?? '').replace(/\/$/, '')
-    const isAnthropicUrl = baseUrl.includes('anthropic')
-
-    console.log(`[test_provider] baseUrl=${baseUrl} format=${isAnthropicUrl ? 'anthropic' : 'openai'}`)
-
-    const TEST_MODEL = 'qwen3.5-plus'
-    const TIMEOUT_MS = 15000
-
-    let openai_ok = false, anthropic_ok = false
-    let openai_error, anthropic_error
-
-    if (isAnthropicUrl) {
-      try {
-        const r = await fetch(`${baseUrl}/v1/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'User-Agent': 'anthropic-sdk-node/0.32.1',
-          },
-          body: JSON.stringify({
-            model: TEST_MODEL,
-            system: '/no_think',
-            messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
-            max_tokens: 5,
-            thinking: { type: 'disabled' },
-          }),
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        })
-        if (r.ok) {
-          anthropic_ok = true
-          console.log('[test_provider] anthropic OK')
-        } else {
-          const text = await r.text().catch(() => '')
-          anthropic_error = `HTTP ${r.status}: ${text.slice(0, 120)}`
-          console.log(`[test_provider] anthropic FAIL: ${anthropic_error}`)
-        }
-      } catch (e) {
-        anthropic_error = e.message?.slice(0, 120)
-        console.log(`[test_provider] anthropic ERROR: ${anthropic_error}`)
+  // POST /set_models — 批量设置某 provider 的模型列表（覆盖写）
+  router.post('/set_models', (req, res) => {
+    try {
+      const { provider_name, models } = req.body
+      if (!provider_name || !Array.isArray(models)) return res.status(400).send('provider_name and models[] required')
+      const n = now()
+      const upsert = db.prepare(`
+        INSERT INTO model_info_v2
+          (id, provider_name, model_id, display_name, context_window, max_tokens, input_types,
+           cost_input, cost_output, supports_vision, supports_function_calling, supports_streaming,
+           is_custom, sort_order, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(provider_name, model_id) DO UPDATE SET
+          display_name=excluded.display_name,
+          context_window=excluded.context_window,
+          max_tokens=excluded.max_tokens,
+          input_types=excluded.input_types,
+          cost_input=excluded.cost_input,
+          cost_output=excluded.cost_output,
+          supports_vision=excluded.supports_vision,
+          is_custom=excluded.is_custom,
+          sort_order=excluded.sort_order,
+          updated_at=excluded.updated_at
+      `)
+      // 删除不在新列表里的模型（仅限当前 provider）
+      const keepIds = models.map(m => m.model_id)
+      if (keepIds.length > 0) {
+        const placeholders = keepIds.map(() => '?').join(',')
+        db.prepare(`DELETE FROM model_info_v2 WHERE provider_name = ? AND model_id NOT IN (${placeholders})`).run(provider_name, ...keepIds)
+      } else {
+        db.prepare('DELETE FROM model_info_v2 WHERE provider_name = ?').run(provider_name)
       }
-    } else {
-      try {
-        const r = await fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'User-Agent': 'anthropic-sdk-node/0.32.1',
-          },
-          body: JSON.stringify({
-            model: TEST_MODEL,
-            messages: [
-              { role: 'system', content: '/no_think' },
-              { role: 'user', content: 'hi' },
-            ],
-            max_tokens: 5,
-            stream: false,
-            enable_thinking: false,
-          }),
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        })
-        if (r.ok) {
-          openai_ok = true
-          console.log('[test_provider] openai OK')
-        } else {
-          const text = await r.text().catch(() => '')
-          openai_error = `HTTP ${r.status}: ${text.slice(0, 120)}`
-          console.log(`[test_provider] openai FAIL: ${openai_error}`)
-        }
-      } catch (e) {
-        openai_error = e.message?.slice(0, 120)
-        console.log(`[test_provider] openai ERROR: ${openai_error}`)
-      }
-    }
+      models.forEach((m, idx) => {
+        upsert.run(
+          uuidv4(), provider_name, m.model_id, m.display_name ?? m.model_id,
+          m.context_window ?? 0, m.max_tokens ?? 0, m.input_types ?? '["text"]',
+          m.cost_input ?? 0, m.cost_output ?? 0,
+          m.supports_vision ? 1 : 0, m.supports_function_calling ? 1 : 0, 1,
+          m.is_custom ? 1 : 0, idx, n
+        )
+      })
+      const rows = db.prepare('SELECT * FROM model_info_v2 WHERE provider_name = ? ORDER BY sort_order, model_id').all(provider_name)
+      res.json(rows.map(rowToModel))
+    } catch (err) { res.status(500).send(err.message) }
+  })
 
-    const ok = openai_ok || anthropic_ok
-    db.prepare('UPDATE model_providers SET is_available = ?, last_tested = ? WHERE provider_type = ?')
-      .run(ok ? 1 : 0, now(), provider_type)
-
-    res.json({ openai_ok, anthropic_ok, openai_error, anthropic_error })
+  // POST /get_known_providers — 返回注册表（不含 api_key）
+  router.post('/get_known_providers', (req, res) => {
+    res.json(KNOWN_PROVIDERS.map(p => ({ suggestName: p.suggestName, api: p.api, matchUrls: p.matchUrls, models: p.models })))
   })
 
   return router
 }
 
-// Backward compatibility
 export default createModelRouter

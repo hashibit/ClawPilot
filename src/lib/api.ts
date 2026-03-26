@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type {
   OpcConfig, OpcStats,
   AgentConfig,
-  ProviderConfig, ModelInfo, TestProviderResult,
+  ProviderConfig, ModelInfo, KnownProvider, SuggestProviderResult,
   ChannelConfig,
   BindingRule,
   DeploymentTask, OfficeDeployment,
@@ -57,13 +57,17 @@ export const updateAgentDocument = (agentId: string, docType: string, content: s
   call<void>('update_agent_document', { agent_id: agentId, doc_type: docType, content })
 
 // ── Model / Provider ──────────────────────────────────────
-export const getProviders = () => call<ProviderConfig[]>('get_providers')
-export const getProvider = (providerType: string) =>
-  call<ProviderConfig>('get_provider', { provider_type: providerType })
-export const updateProvider = (config: ProviderConfig) => call<void>('update_provider', { config })
-export const getModels = () => call<ModelInfo[]>('get_models')
-export const testProvider = (providerType: string) =>
-  call<TestProviderResult>('test_provider', { provider_type: providerType })
+export const getProviders = () => call<ProviderConfig[]>('get_providers', {})
+export const createProvider = (data: Omit<ProviderConfig, 'id' | 'created_at' | 'updated_at' | 'is_available'>) =>
+  call<ProviderConfig>('create_provider', data)
+export const updateProvider = (data: Partial<ProviderConfig> & { id: string }) =>
+  call<ProviderConfig>('update_provider', data)
+export const deleteProvider = (id: string) => call<null>('delete_provider', { id })
+export const getModels = (provider_name?: string) => call<ModelInfo[]>('get_models', { provider_name })
+export const setModels = (provider_name: string, models: Partial<ModelInfo>[]) =>
+  call<ModelInfo[]>('set_models', { provider_name, models })
+export const suggestProvider = (base_url: string) => call<SuggestProviderResult | null>('suggest_provider', { base_url })
+export const getKnownProviders = () => call<KnownProvider[]>('get_known_providers', {})
 
 // ── Channel ───────────────────────────────────────────────
 export const getChannels = (opcId: string) => call<ChannelConfig[]>('get_channels', { opc_id: opcId })

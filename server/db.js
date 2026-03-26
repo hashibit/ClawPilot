@@ -260,6 +260,47 @@ export function runMigrations(db) {
     'is_installed INTEGER NOT NULL DEFAULT 0',
     'install_path TEXT',
   ].forEach(col => { try { db.exec(`ALTER TABLE skills ADD COLUMN ${col}`) } catch {} })
+
+  // Migration: add model field to agents table (replaces model_provider + model_name)
+  try { db.exec(`ALTER TABLE agents ADD COLUMN model TEXT`) } catch {}
+
+  // Migration: rebuild model_providers with new schema (name-based, not provider_type-based)
+  // 新表用 _v2 后缀先建，再重命名
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS model_providers_v2 (
+      id          TEXT NOT NULL PRIMARY KEY,
+      name        TEXT NOT NULL,
+      api         TEXT NOT NULL DEFAULT 'openai-completions',
+      base_url    TEXT NOT NULL DEFAULT '',
+      api_key     TEXT NOT NULL DEFAULT '',
+      is_enabled  INTEGER NOT NULL DEFAULT 1,
+      is_available INTEGER NOT NULL DEFAULT 0,
+      last_tested INTEGER,
+      created_at  INTEGER NOT NULL,
+      updated_at  INTEGER NOT NULL,
+      UNIQUE(name)
+    );
+
+    CREATE TABLE IF NOT EXISTS model_info_v2 (
+      id                        TEXT NOT NULL PRIMARY KEY,
+      provider_name             TEXT NOT NULL,
+      model_id                  TEXT NOT NULL,
+      display_name              TEXT NOT NULL DEFAULT '',
+      context_window            INTEGER NOT NULL DEFAULT 0,
+      max_tokens                INTEGER NOT NULL DEFAULT 0,
+      input_types               TEXT NOT NULL DEFAULT '["text"]',
+      cost_input                REAL NOT NULL DEFAULT 0,
+      cost_output               REAL NOT NULL DEFAULT 0,
+      supports_vision           INTEGER NOT NULL DEFAULT 0,
+      supports_function_calling INTEGER NOT NULL DEFAULT 0,
+      supports_streaming        INTEGER NOT NULL DEFAULT 1,
+      is_custom                 INTEGER NOT NULL DEFAULT 0,
+      sort_order                INTEGER NOT NULL DEFAULT 0,
+      updated_at                INTEGER NOT NULL,
+      UNIQUE(provider_name, model_id),
+      FOREIGN KEY (provider_name) REFERENCES model_providers_v2(name) ON DELETE CASCADE
+    );
+  `)
 }
 
 export function seedBaseData(db) {
