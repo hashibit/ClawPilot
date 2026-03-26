@@ -23,17 +23,7 @@ const AGENT_COLORS: string[] = [
 const DOC_TYPES: DocumentType[] = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'MEMORY', 'HEARTBEAT', 'TOOLS']
 
 
-interface RemoteSkill {
-    slug: string
-    name: string
-    description: string
-    description_zh?: string
-    downloads: number
-    stars: number
-    category: string
-    version: string
-    ownerName: string
-}
+import type { RemoteSkillResult as RemoteSkill } from '../lib/api'
 
 function slugify(name: string): string {
     return name.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '') || 'agent'
@@ -187,20 +177,16 @@ function SkillModal({ enabled, onClose, onToggle }: {
         import('../lib/api').then(api => api.getSkills()).then(setDbSkills).catch(() => { })
     }, [])
 
-    // ClawHub search (debounced)
+    // ClawHub search via server proxy (debounced)
     useEffect(() => {
         if (!search.trim()) { setRemoteSkills([]); return }
         if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
         searchTimerRef.current = setTimeout(async () => {
             setSearching(true)
             try {
-                const r = await fetch(
-                    `https://lightmake.site/api/skills?page=1&pageSize=24&sortBy=score&order=desc&keyword=${encodeURIComponent(search.trim())}`
-                )
-                if (r.ok) {
-                    const data = await r.json()
-                    setRemoteSkills(data?.data?.skills ?? [])
-                }
+                const api = await import('../lib/api')
+                const results = await api.searchSkills(search.trim())
+                setRemoteSkills(results)
             } catch { /* offline */ }
             finally { setSearching(false) }
         }, 400)

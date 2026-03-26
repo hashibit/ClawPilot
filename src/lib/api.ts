@@ -275,6 +275,21 @@ export const syncSkills = () => call<{ ok: boolean; count: number }>('sync_skill
 export const installSkill = (slug: string) => call<LocalSkill>('install_skill', { slug })
 export const uninstallSkill = (slug: string) => call<{ ok: boolean }>('uninstall_skill', { slug })
 
+export interface RemoteSkillResult {
+  slug: string
+  name: string
+  description: string
+  description_zh?: string
+  downloads: number
+  stars: number
+  ownerName: string
+  version: string
+  score?: number
+}
+/** source defaults to 'clawhub' (Convex). Pass 'lightmake' to use the old backend. */
+export const searchSkills = (q: string, source: 'clawhub' | 'lightmake' = 'clawhub', limit = 25) =>
+  call<RemoteSkillResult[]>('search_skills', { q, source, limit })
+
 // ── Agent Chat ─────────────────────────────────────────────
 export const chatWithAgent = (agentId: string | null, messages: { role: string; content: string }[], soulOverride?: string) =>
   call<{ reply: string }>('chat_with_agent', { agent_id: agentId, messages, ...(soulOverride ? { soul_override: soulOverride } : {}) })

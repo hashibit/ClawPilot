@@ -10,7 +10,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const SKILLS_DIR = path.resolve(__dirname, '../../skills')
 
 const now = () => Math.floor(Date.now() / 1000)
-const CLAWHUB_BASE = 'https://lightmake.site/api'
+const CLAWHUB_CONVEX = 'https://wry-manatee-359.convex.cloud/api/action'
+const LIGHTMAKE_BASE = 'https://lightmake.site/api'
+/** @deprecated kept for backward compat in sync_skills */
+const CLAWHUB_BASE = LIGHTMAKE_BASE
 
 function ensureSkillsDir() {
   if (!fs.existsSync(SKILLS_DIR)) fs.mkdirSync(SKILLS_DIR, { recursive: true })
@@ -235,6 +238,54 @@ export function createSkillRouter(db) {
       res.json({ ok: true })
     } catch (err) {
       log.error(`uninstall_skill: ${err.message}`)
+      res.status(500).send(err.message)
+    }
+  })
+
+  // search_skills — proxies to clawhub.ai (Convex) or lightmake.site
+  // body: { q: string, source?: 'clawhub' | 'lightmake', limit?: number }
+  router.post('/search_skills', async (req, res) => {
+    try {
+      const { q, source = 'clawhub', limit = 25 } = req.body
+      if (!q?.trim()) return res.json([])
+
+      if (source === 'clawhub') {
+        const r = await fetch(CLAWHUB_CONVEX, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'convex-client': 'npm-1.34.0' },
+          body: JSON.stringify({
+            path: 'search:searchSkills',
+            format: 'convex_encoded_json',
+            args: [{ query: q.trim(), highlightedOnly: false, nonSuspiciousOnly: false, limit }],
+          }),
+          signal: AbortSignal.timeout(10000),
+        })
+        if (!r.ok) return res.status(502).send(`clawhub ${r.status}`)
+        const data = await r.json()
+        if (data.errorMessage) return res.status(502).send(data.errorMessage)
+        const skills = (data.value ?? []).map(item => ({
+          slug: item.skill.slug,
+          name: item.skill.displayName,
+          description: item.skill.summary ?? '',
+          downloads: Math.round(item.skill.stats?.downloads ?? 0),
+          stars: Math.round(item.skill.stats?.stars ?? 0),
+          ownerName: item.ownerHandle ?? '',
+          version: item.version?.version ?? '',
+          score: item.score,
+        }))
+        return res.json(skills)
+      } else {
+        // lightmake.site
+        const r = await fetch(
+          `${LIGHTMAKE_BASE}/skills?page=1&pageSize=${limit}&sortBy=score&order=desc&keyword=${encodeURIComponent(q.trim())}`,
+          { signal: AbortSignal.timeout(10000) }
+        )
+        if (!r.ok) return res.status(502).send(`lightmake ${r.status}`)
+        const data = await r.json()
+        return res.json(data?.data?.skills ?? [])
+      }
+    } catch (err) {
+      log.error(`search_skills: ${err.message}`)
       res.status(500).send(err.message)
     }
   })
