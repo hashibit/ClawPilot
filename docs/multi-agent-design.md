@@ -6,6 +6,44 @@
 
 ---
 
+## 架构原则
+
+### Agent 是纯 LLM 执行者
+
+OpenClaw agent 在本系统中只做一件事：**接收任务 context，调用 LLM，输出结果**。agent 不持有任务状态，不知道 DAG 结构，不决定下一步干什么。一切调度、依赖分析、重试、超时、产物管理均由 Daemon 负责。
+
+这条原则的好处：
+- agent 可以随时上下线，不影响整体调度正确性
+- DAG 逻辑集中在 Daemon，易于推理和调试
+- agent 代码保持简单，无需处理并发和状态
+
+### 调度算法在 Daemon（Rust）实现，不在 OpenClaw 里
+
+所有 DAG 调度逻辑（sweep、依赖检查、重试策略、版本管理）作为 `scheduler/` 模块实现在 `daemon/` crate 中，**不通过 OpenClaw 的 heartbeat 或 plugin 机制实现**。
+
+`daemon/` 是运行在远程服务器上的单一二进制，同时承载 OPC 部署（`deploy/`）和多智能体调度（`scheduler/`）两个功能，用户只需启动一个服务。
+
+原因：
+- **保密性**：调度算法是 ClawPilot 的核心竞争力，不能暴露在 agent 的 HEARTBEAT.md 或 Python 脚本里
+- **可靠性**：Rust 进程比 agent 内嵌脚本更稳定，daemon 重启可恢复完整状态
+- **可观测性**：所有状态存 SQLite，可随时查询；不依赖 OpenClaw 的日志
+- **部署简单**：用户只装一个二进制，不需要管理多个进程
+
+### 与 claude-code-harness 的关系
+
+`claude-code-harness` 是 Claude Code 开发环境的 agent 调度框架，用于开发时协调多个 Claude Code 实例。本系统是生产运行时的业务调度，两者**完全不同层次**：
+
+| | claude-code-harness | ClawPilot Daemon |
+|-|--------------------|-----------------|
+| 运行时机 | 开发时 | 生产运行时 |
+| 调度对象 | Claude Code 实例 | OpenClaw agent |
+| 任务类型 | 代码实现/审查 | 业务任务 |
+| 持久化 | 无（会话级） | SQLite（跨会话） |
+
+可以用 harness 来**开发** ClawPilot Daemon 本身，但 Daemon 不依赖 harness。
+
+---
+
 ## 两个独立系统
 
 ```
@@ -299,25 +337,43 @@ GET    /api/plans/:id                -- 计划详情 + DAG 执行状态
 
 ## Daemon 目录结构
 
+Cargo workspace：crate 分开维护，编译为单一二进制，用户只需启动一个服务。
+
 ```
-server/                              -- Rust 实现，调度算法保密
-├── src/
-│   ├── main.rs
-│   ├── db/                          -- SQLite 连接 + 迁移
-│   ├── routes/
-│   │   ├── plans.rs
-│   │   └── agents.rs
-│   ├── services/
-│   │   ├── dag.rs                   -- DAG 驱动：依赖检查、任务派发
-│   │   ├── worker.rs                -- startTask、stopTask、runningTasks
-│   │   ├── recovery.rs              -- 启动恢复、超时检测、自动审批
-│   │   ├── openclaw.rs              -- openclaw CLI 调用封装
-│   │   ├── inbox.rs                 -- 信箱投递
-│   │   ├── artifacts.rs             -- 产物目录管理
-│   │   └── context.rs              -- buildContext（组装 agent message）
-│   └── handlers/                   -- 任务类型注册表
+daemon/                              -- Cargo workspace 根
+├── Cargo.toml                       -- [workspace] members = ["bin", "crates/deploy", "crates/scheduler"]
 │
-└── artifacts/                       -- 共享产物存储根目录
+├── bin/                             -- 二进制 crate（唯一入口）
+│   ├── Cargo.toml
+│   └── src/
+│       └── main.rs                  -- 启动唯一 axum 实例，合并 deploy + scheduler 路由，注册定时器
+│
+├── crates/
+│   ├── deploy/                      -- 【现有】OPC 部署 lib crate
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── routes.rs            -- POST /deploy, GET /deploy/:id, POST /rollback
+│   │       ├── run.rs               -- run_deploy, run_rollback
+│   │       ├── auth.rs
+│   │       ├── error.rs
+│   │       └── state.rs
+│   │
+│   └── scheduler/                   -- 【新增】多智能体调度 lib crate（调度算法保密）
+│       ├── Cargo.toml
+│       └── src/
+│           ├── lib.rs
+│           ├── routes.rs            -- POST /api/plans, PATCH /api/plans/:id/approve, ...
+│           ├── db.rs                -- SQLite 建表 + 迁移（plans/tasks/artifacts/inbox/agents）
+│           ├── dag.rs               -- DAG 驱动：get_ready_tasks, dag_sweep
+│           ├── worker.rs            -- start_task, stop_task, running_tasks
+│           ├── recovery.rs          -- recover_on_startup, handle_timeouts, auto_approve
+│           ├── openclaw.rs          -- openclaw CLI 封装（agents list / agent --message）
+│           ├── inbox.rs             -- 信箱投递
+│           ├── artifacts.rs         -- 产物目录管理
+│           └── context.rs           -- build_context（组装派发给 agent 的 message）
+│
+└── artifacts/                       -- 共享产物存储根目录（agent 和 daemon 均可访问）
 ```
 
 ---
@@ -581,3 +637,207 @@ tokio::spawn(async {
   ]
 }
 ```
+
+---
+
+## Agent 测试方案
+
+> 本节为系统集成测试场景，在代码实现后逐条验证。每个场景描述**前置条件、操作步骤、预期结果**，以 curl 或飞书操作为测试入口。
+
+---
+
+### 测试环境准备
+
+| 项目 | 说明 |
+|------|------|
+| OpenClaw 实例 | 本地运行，含以下 agent：`orchestrator`、`worker-frontend`、`worker-backend`、`worker-docs` |
+| Daemon | 本地启动，监听 `http://localhost:3001/api` |
+| 飞书 | 已绑定 orchestrator，测试账号可发消息 |
+| 共享文件系统 | `./artifacts/` 目录存在且可读写 |
+| `openclaw agents list --json` | 返回上述 4 个 agent |
+
+---
+
+### T01 — 完整正向流程（Happy Path）
+
+**目标**：验证从飞书下发指令到用户收到完成通知的完整链路。
+
+**前置**：所有 agent 空闲，Daemon 已启动。
+
+**步骤**：
+1. 用户在飞书私聊 orchestrator，发送：`帮我写一个介绍页，包含前端和后端`
+2. 等待 orchestrator 回复计划摘要（含 plan slug）并请求确认
+3. 用户回复：`确认`
+4. 等待约 N 分钟
+
+**预期结果**：
+- [ ] `GET /api/plans/{slug}` 返回 `status: executing`，t1/t2/t3 并行启动
+- [ ] t1、t2、t3 各自完成后，`./artifacts/tasks/{task_id}/` 下有产出文件
+- [ ] t4（aggregate）在 t1、t2、t3 全部 completed 后自动启动
+- [ ] t5（report）在 t4 完成后自动启动
+- [ ] plan status 最终变为 `completed`
+- [ ] orchestrator 主动在飞书发消息告知用户完成，`reply_to` 正确对应最初发指令的用户
+
+---
+
+### T02 — 用户超时未确认，Daemon 自动批准
+
+**目标**：验证 `auto_approve_expired_plans` 定时逻辑正常工作。
+
+**前置**：Daemon `auto_approve_timeout` 配置为 2 分钟（测试用）。
+
+**步骤**：
+1. 用户发送指令，orchestrator 回复计划并等待确认
+2. **不回复**，等待超过 2 分钟
+
+**预期结果**：
+- [ ] Daemon 定时器触发后，plan status 由 `pending_approval` → `approved` → `executing`
+- [ ] DAG 正常执行，最终完成
+
+---
+
+### T03 — Agent Busy，Sweep 重试派发
+
+**目标**：验证同一 agent 串行执行、sweep 机制在 agent 空闲后捡起等待任务。
+
+**前置**：DAG 中 `worker-frontend` 被分配了两个任务 t1、t2（t2 依赖 t1）。调整测试 DAG：
+
+```json
+"tasks": [
+  { "id": "t1", "depends_on": [],     "receiver": "worker-frontend" },
+  { "id": "t2", "depends_on": ["t1"], "receiver": "worker-frontend" },
+  { "id": "t3", "depends_on": ["t2"], "receiver": "worker-frontend" }
+]
+```
+
+**步骤**：
+1. approve 计划，DAG 启动
+2. 在 t1 执行期间，查询 agent 状态
+
+**预期结果**：
+- [ ] t1 执行时，`GET /api/agents/worker-frontend` 返回 `status: busy`
+- [ ] t2 处于 `pending`（依赖未满足），不会提前派发
+- [ ] t1 完成后，t2 自动进入 `in_progress`（sweep 触发）
+- [ ] t2 完成后，t3 自动进入 `in_progress`
+- [ ] 整个过程 worker-frontend 始终只有一个任务在跑
+
+---
+
+### T04 — 任务失败重试，耗尽后标记 failed
+
+**目标**：验证 `retry_count` / `max_retries` 逻辑与 `task_failed` 信箱消息。
+
+**前置**：将某 worker agent 的 SOUL 临时改为"总是返回失败"，`max_retries = 2`。
+
+**步骤**：
+1. 下发包含该 worker 任务的计划并 approve
+2. 观察任务状态变化
+
+**预期结果**：
+- [ ] 任务首次失败后 `retry_count = 1`，状态重置为 `pending`，进入下次 sweep
+- [ ] 第二次失败后 `retry_count = 2`，再次重置
+- [ ] 第三次失败后 `retry_count = 3 >= max_retries`，任务状态变为 `failed`
+- [ ] orchestrator inbox 收到 `task_failed` 消息，payload 含 `error` 和 `retry_count: 3`
+- [ ] 依赖该任务的下游任务保持 `pending`，DAG 不再推进
+
+---
+
+### T05 — 用户取消计划
+
+**目标**：验证 cancel 级联取消所有未完成任务，并标记产物 invalidated。
+
+**步骤**：
+1. approve 计划，等待 t1 进入 `in_progress`
+2. 调用 `PATCH /api/plans/{slug}/cancel`
+
+**预期结果**：
+- [ ] plan status → `cancelled`
+- [ ] in_progress 的任务：子进程被 kill，随后发送 `stop` 消息，任务状态 → `cancelled`
+- [ ] pending 的任务直接标记 `cancelled`
+- [ ] 已完成任务对应的产物 status → `invalidated`
+- [ ] `GET /api/plans/{slug}` 各任务状态符合上述预期
+
+---
+
+### T06 — 用户要求修改计划（版本迭代）
+
+**目标**：验证计划版本切换：旧版本标记 superseded，新版本从头执行。
+
+**步骤**：
+1. orchestrator 提交 v1 计划，处于 `pending_approval`
+2. 用户回复：`再加一个测试模块`
+3. orchestrator 提交 v2 计划（`parent_plan_id = v1.id`），再次等待确认
+4. 用户回复：`确认`
+
+**预期结果**：
+- [ ] v1 plan status → `superseded`
+- [ ] v2 plan status → `approved` → `executing`
+- [ ] v2 包含新增的测试任务节点
+- [ ] `GET /api/plans/{v1_slug}` 返回 `status: superseded`
+
+---
+
+### T07 — Daemon 重启恢复
+
+**目标**：验证 `recover_on_startup` 逻辑：in_progress 任务重置，DAG 重新推进。
+
+**步骤**：
+1. approve 计划，等待至少一个任务进入 `in_progress`
+2. **强制重启 Daemon 进程**
+3. 等待 Daemon 启动完成
+
+**预期结果**：
+- [ ] Daemon 启动时，in_progress 的任务状态重置为 `pending`
+- [ ] OpenClaw 发送 stop 消息（如果 gateway 在线）
+- [ ] 定时器首次触发后，sweep 重新派发这些任务
+- [ ] DAG 继续正常推进，最终 completed
+
+---
+
+### T08 — 并发计划执行
+
+**目标**：验证多个计划同时执行时，agent 资源不冲突，每个计划独立推进。
+
+**步骤**：
+1. 用户 A 下发计划 P1（使用 worker-frontend、worker-backend）
+2. 用户 B 下发计划 P2（使用 worker-backend、worker-docs）
+3. 两个计划均 approve
+
+**预期结果**：
+- [ ] P1 和 P2 独立调度，互不影响
+- [ ] worker-backend 同一时刻只执行一个任务（busy 时，另一计划的任务等待 sweep）
+- [ ] P1、P2 最终均 completed，各自用 reply_to 回复正确的用户
+
+---
+
+### T09 — Agent 离线（openclaw agents list 中消失）
+
+**目标**：验证 daemon sync 检测到 agent 离线后的行为。
+
+**步骤**：
+1. 在任务执行过程中，停止 OpenClaw 中某个 worker agent
+2. 等待 daemon 定时器执行 `sync_agents_from_openclaw`
+
+**预期结果**：
+- [ ] agents 表中该 agent `status` 更新为 `offline`
+- [ ] `GET /api/agents/{agent_id}` 返回 `status: offline`
+- [ ] 正在执行的任务超时后按重试逻辑处理（不会立即失败）
+- [ ] agent 重新上线后，`status` 恢复 `idle`，任务在下次 sweep 正常派发
+
+---
+
+### T10 — Context 完整性验证
+
+**目标**：验证 daemon 派发任务时组装的 context 包含所有必要信息，agent 能正确执行并返回符合 result_schema 的结果。
+
+**步骤**：
+1. 下发一个有输入产物依赖的任务（t2 依赖 t1 的产出）
+2. 等待 t1 完成后 t2 启动
+3. 查看 t2 的 openclaw 执行日志（或 agent 回复内容）
+
+**预期结果**：
+- [ ] t2 收到的 message 包含：任务ID、类型、参数、所属计划、输入产物路径
+- [ ] 输入产物路径指向 `./artifacts/tasks/{t1_id}/`，且文件实际存在
+- [ ] t2 输出文件写入 `./artifacts/tasks/{t2_id}/`
+- [ ] t2 返回的 JSON 符合 publisher 定义的 `result_schema`
+- [ ] daemon 成功解析结果，task status → `completed`
