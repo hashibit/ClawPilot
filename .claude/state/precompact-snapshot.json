@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-26T15:22:53.086Z",
+  "timestamp": "2026-03-28T01:32:34.493Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
@@ -20,10 +20,10 @@
     ".claude/state/session.json",
     ".claude/state/sessions/27F96669-6006-4496-8E61-C0D150830C50.events.jsonl",
     ".claude/state/sessions/27F96669-6006-4496-8E61-C0D150830C50.json",
-    ".claude/state/sessions/B2EFB6A0-CD4D-407F-8528-F06F631880E4.events.jsonl",
-    ".claude/state/sessions/B2EFB6A0-CD4D-407F-8528-F06F631880E4.json",
     ".claude/state/test-recommendation.json",
-    ".claude/state/tool-failure-counter.txt"
+    ".claude/state/tool-failure-counter.txt",
+    "agent-tests/office.md",
+    "docs/how-to-run-tests.md"
   ],
   "metrics": null
 }

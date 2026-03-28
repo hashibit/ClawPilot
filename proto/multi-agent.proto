@@ -1,0 +1,411 @@
+syntax = "proto3";
+
+package clawpilot;
+
+// =============================================================================
+// 多智能体协同系统
+// =============================================================================
+// 本文件定义多智能体协同框架的所有数据模型和 Daemon 服务接口。
+//
+// 两个核心系统：
+//   - OpenClaw：Agent 身份、LLM 执行（权威来源：agent 列表）
+//   - ClawPilot Daemon：任务调度、DAG 驱动、状态管理（权威来源：任务执行状态）
+//
+// 数据流：
+//   用户飞书 → 主 agent 拆解 DAG → POST /api/plans
+//           → 用户确认 → PATCH /api/plans/:id/approve
+//           → Daemon 驱动 DAG 执行 → openclaw agent --message
+//           → 任务完成 → 通知主 agent → 主 agent 飞书回复用户
+
+// =============================================================================
+// 枚举
+// =============================================================================
+
+// 计划状态
+enum PlanStatus {
+  PLAN_STATUS_UNSPECIFIED = 0;
+  PLAN_STATUS_PENDING_APPROVAL = 1;  // 等待用户确认
+  PLAN_STATUS_APPROVED = 2;          // 已批准，等待执行开始
+  PLAN_STATUS_EXECUTING = 3;         // DAG 执行中
+  PLAN_STATUS_COMPLETED = 4;         // 全部任务完成
+  PLAN_STATUS_CANCELLED = 5;         // 用户取消
+  PLAN_STATUS_SUPERSEDED = 6;        // 被新版本替代
+}
+
+// 任务状态
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;       // 等待依赖完成
+  TASK_STATUS_IN_PROGRESS = 2;   // 执行中（openclaw agent 进程运行中）
+  TASK_STATUS_COMPLETED = 3;     // 已完成
+  TASK_STATUS_FAILED = 4;        // 失败（重试耗尽）
+  TASK_STATUS_CANCELLED = 5;     // 已取消（计划取消时级联）
+}
+
+// 产物状态
+enum ArtifactStatus {
+  ARTIFACT_STATUS_UNSPECIFIED = 0;
+  ARTIFACT_STATUS_VALID = 1;        // 有效
+  ARTIFACT_STATUS_INVALIDATED = 2;  // 已作废（计划被取消或替代）
+}
+
+// 信箱消息类型
+enum InboxMessageType {
+  INBOX_MSG_UNSPECIFIED = 0;
+  INBOX_MSG_TASK_STARTED = 1;    // daemon → publisher：任务已开始执行
+  INBOX_MSG_TASK_DONE = 2;       // worker → publisher：任务完成
+  INBOX_MSG_TASK_FAILED = 3;     // worker → publisher：任务失败（重试耗尽）
+  INBOX_MSG_TASK_CANCELLED = 4;  // publisher → worker：取消任务
+  INBOX_MSG_TASK_PROGRESS = 5;   // worker → publisher：进度汇报（可选）
+}
+
+// Agent 状态
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  AGENT_STATUS_IDLE = 1;    // 空闲，可接受新任务
+  AGENT_STATUS_BUSY = 2;    // 执行中，跳过直到任务完成
+  AGENT_STATUS_OFFLINE = 3; // 不在线（openclaw agents list 中未出现）
+}
+
+// =============================================================================
+// 核心数据模型
+// =============================================================================
+
+// 计划（由主 agent 创建，包含完整 DAG）
+message Plan {
+  // 由主 agent 生成的 slug，如 plan-develop-xx-website-20260328-a3f2
+  string id = 1;
+
+  // 版本号（用户要求修改时递增，旧版本标记 superseded）
+  int32 version = 2;
+
+  // 关联同一需求的不同版本（修改时指向前一个版本 id）
+  string parent_plan_id = 3;
+
+  // 发布此计划的 agent id（通常是 orchestrator）
+  string publisher_agent_id = 4;
+
+  // 用户所在回复渠道，如 "feishu"
+  string reply_channel = 5;
+
+  // 用户标识，用于主动回复（飞书 open_id，如 ou_xxx）
+  string reply_to = 6;
+
+  PlanStatus status = 7;
+
+  // 计划原始内容（markdown 或 JSON）
+  string content = 8;
+
+  int64 created_at = 10;
+  int64 approved_at = 11;  // 批准时间，0 表示未批准
+  int64 completed_at = 12; // 完成时间，0 表示未完成
+}
+
+// 任务（DAG 节点）
+message Task {
+  string id = 1;
+  string plan_id = 2;
+
+  // 所属计划版本（版本切换时用于识别旧版本任务）
+  int32 plan_version = 3;
+
+  // 下达任务的 agent id（通常是 orchestrator）
+  string publisher_agent_id = 4;
+
+  // 执行此任务的 agent id
+  string receiver_agent_id = 5;
+
+  // 任务类型（如 write_frontend / write_backend / aggregate / report）
+  string type = 6;
+
+  // 优先级（越大越先执行）
+  int32 priority = 7;
+
+  // 任务参数（JSON），由 publisher 定义
+  string params = 8;
+
+  // 输入产物 id 列表（JSON array）
+  string input_artifact_ids = 9;
+
+  // 期望结果格式（JSON Schema），由 publisher 定义，daemon 在 context 中告知 worker
+  string result_schema = 10;
+
+  TaskStatus status = 11;
+
+  int32 retry_count = 12;
+  int32 max_retries = 13;     // 默认 3
+  int32 timeout_seconds = 14; // 默认 3600
+
+  // 任务结果（JSON），格式由 result_schema 约定
+  string result = 20;
+
+  // 产出产物 id 列表（JSON array），由 worker 写入
+  string output_artifact_ids = 21;
+
+  // 失败原因
+  string error = 22;
+
+  int64 created_at = 30;
+  int64 in_progress_at = 31;  // 开始执行时间，0 表示未开始
+  int64 completed_at = 32;    // 完成时间，0 表示未完成
+}
+
+// 任务依赖关系（DAG 边）
+message TaskDependency {
+  string task_id = 1;
+  string depends_on_task_id = 2;
+}
+
+// 产物（agent 执行任务产出的文件）
+message Artifact {
+  string id = 1;
+
+  // 产出此产物的 agent id
+  string owner_agent_id = 2;
+
+  string task_id = 3;
+  string plan_id = 4;
+
+  string filename = 5;
+
+  // 共享文件系统路径，如 ./artifacts/tasks/{task_id}/{filename}
+  string file_path = 6;
+
+  string mime_type = 7;  // 默认 application/octet-stream
+  int64 size_bytes = 8;
+
+  ArtifactStatus status = 9;
+
+  int64 created_at = 10;
+}
+
+// 信箱消息（agent 间异步通知）
+message InboxMessage {
+  string id = 1;
+  string to_agent_id = 2;
+  string from_agent_id = 3; // "daemon" 或具体 agent id
+  InboxMessageType type = 4;
+  string task_id = 5;
+
+  // 消息载荷（JSON），不同消息类型有不同的字段
+  string payload = 6;
+
+  bool read = 7;
+  int64 created_at = 8;
+}
+
+// Agent 注册信息（由 daemon 从 openclaw 同步维护）
+message AgentInfo {
+  string id = 1;
+  string name = 2;
+  AgentStatus status = 3;
+
+  // 可接受的任务类型列表（JSON array，如 ["write_frontend", "aggregate"]）
+  string capabilities = 4;
+
+  // 最后一次在 openclaw agents list 中出现的时间
+  int64 last_seen_at = 5;
+}
+
+// =============================================================================
+// 信箱消息 Payload 结构
+// =============================================================================
+
+// INBOX_MSG_TASK_STARTED payload
+message TaskStartedPayload {
+  string receiver_agent_id = 1;
+  int64 started_at = 2;
+}
+
+// INBOX_MSG_TASK_DONE payload
+message TaskDonePayload {
+  string result = 1;                    // JSON，符合 result_schema
+  repeated string output_artifact_ids = 2;
+}
+
+// INBOX_MSG_TASK_FAILED payload
+message TaskFailedPayload {
+  string error = 1;
+  int32 retry_count = 2;
+}
+
+// INBOX_MSG_TASK_CANCELLED payload
+message TaskCancelledPayload {
+  string reason = 1;
+}
+
+// INBOX_MSG_TASK_PROGRESS payload
+message TaskProgressPayload {
+  int32 progress = 1;   // 0-100
+  string message = 2;
+}
+
+// =============================================================================
+// 正在执行的任务快照（内存状态，不持久化）
+// =============================================================================
+
+message RunningTask {
+  string task_id = 1;
+  string agent_id = 2;
+  string type = 3;
+  string plan_id = 4;
+  int64 started_at = 5;
+  int64 pid = 6; // openclaw 子进程 PID
+}
+
+// =============================================================================
+// Daemon Service 接口
+// =============================================================================
+
+// ---- Plan Service ----
+
+service PlanService {
+  // 创建计划（含完整 DAG），由主 agent 调用
+  // 对应 POST /api/plans
+  rpc CreatePlan(CreatePlanRequest) returns (Plan);
+
+  // 批准计划，立即触发 DAG 执行，由主 agent 在用户确认后调用
+  // 对应 PATCH /api/plans/:id/approve
+  rpc ApprovePlan(ApprovePlanRequest) returns (Plan);
+
+  // 取消计划，级联取消所有 pending/in_progress 任务
+  // 对应 PATCH /api/plans/:id/cancel
+  rpc CancelPlan(CancelPlanRequest) returns (Plan);
+
+  // 查询计划详情（含 DAG 执行状态），供 UI 监控使用
+  // 对应 GET /api/plans/:id
+  rpc GetPlan(GetPlanRequest) returns (PlanDetail);
+}
+
+// CreatePlan 请求（主 agent 提交完整 DAG）
+message CreatePlanRequest {
+  // 由主 agent 生成的 slug
+  string id = 1;
+
+  string publisher_agent_id = 2;
+  string reply_channel = 3;  // 如 "feishu"
+  string reply_to = 4;       // 如 "ou_xxx"
+  string content = 5;        // 计划内容
+
+  // 可选：关联旧版本（修改计划时传入）
+  string parent_plan_id = 6;
+
+  // 完整 DAG：任务列表
+  repeated TaskSpec tasks = 10;
+
+  // 完整 DAG：依赖关系列表
+  repeated TaskDependencySpec dependencies = 11;
+}
+
+// DAG 中单个任务的规格（创建计划时提交）
+message TaskSpec {
+  string id = 1;
+  string receiver_agent_id = 2;
+  string type = 3;
+  int32 priority = 4;
+  string params = 5;          // JSON
+  string result_schema = 6;   // JSON Schema
+  int32 timeout_seconds = 7;
+  int32 max_retries = 8;
+}
+
+// DAG 依赖关系规格
+message TaskDependencySpec {
+  string task_id = 1;
+  string depends_on_task_id = 2;
+}
+
+// ApprovePlan 请求
+message ApprovePlanRequest {
+  string plan_id = 1;
+}
+
+// CancelPlan 请求
+message CancelPlanRequest {
+  string plan_id = 1;
+  string reason = 2;  // 取消原因（可选）
+}
+
+// GetPlan 请求
+message GetPlanRequest {
+  string plan_id = 1;
+}
+
+// 计划详情（含 DAG 执行状态）
+message PlanDetail {
+  Plan plan = 1;
+  repeated TaskSummary tasks = 2;
+}
+
+// 任务概要（用于 DAG 状态展示）
+message TaskSummary {
+  string id = 1;
+  string type = 2;
+  string receiver_agent_id = 3;
+  TaskStatus status = 4;
+  repeated string depends_on = 5;  // depends_on_task_id 列表
+  int64 in_progress_at = 6;
+  int64 completed_at = 7;
+  string error = 8;
+}
+
+// ---- Agent Service ----
+
+service AgentService {
+  // 查询所有 agent 状态概览，供 UI 监控使用
+  // 对应 GET /api/agents
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
+
+  // 查询单个 agent 详情（含当前执行的任务）
+  // 对应 GET /api/agents/:agent_id
+  rpc GetAgent(GetAgentRequest) returns (AgentDetail);
+
+  // 查询 agent 的任务历史（支持分页）
+  // 对应 GET /api/agents/:agent_id/tasks
+  rpc GetAgentTasks(GetAgentTasksRequest) returns (GetAgentTasksResponse);
+}
+
+// ListAgents 请求
+message ListAgentsRequest {
+  // 可选过滤
+  AgentStatus status_filter = 1;  // 0 = 不过滤
+}
+
+// ListAgents 响应
+message ListAgentsResponse {
+  repeated AgentOverview agents = 1;
+}
+
+// Agent 概览（用于列表展示）
+message AgentOverview {
+  string agent_id = 1;
+  AgentStatus status = 2;
+  RunningTask running_task = 3;  // 当前执行的任务，idle 时为空
+}
+
+// GetAgent 请求
+message GetAgentRequest {
+  string agent_id = 1;
+}
+
+// Agent 详情
+message AgentDetail {
+  AgentInfo info = 1;
+  RunningTask running_task = 2;      // 当前执行的任务
+  repeated TaskSummary recent_tasks = 3; // 最近完成的任务（最多 10 条）
+}
+
+// GetAgentTasks 请求
+message GetAgentTasksRequest {
+  string agent_id = 1;
+  int32 page = 2;       // 从 1 开始
+  int32 page_size = 3;  // 默认 20
+}
+
+// GetAgentTasks 响应
+message GetAgentTasksResponse {
+  repeated Task tasks = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}

@@ -15,7 +15,7 @@
   },
   "cwd": "/Users/jiechen/work/code/rust/ClawPilot",
   "project_name": "ClawPilot",
-  "prompt_seq": 1,
+  "prompt_seq": 0,
   "git": {
     "branch": "ft_providers",
     "uncommitted_changes": 4,
@@ -41,6 +41,5 @@
   "last_message_hash": "1d39d59dc6ede5f3",
   "ended_at": "2026-03-28T01:35:48Z",
   "duration_minutes": 481,
-  "memory_logged": true,
-  "intent": "literal"
+  "memory_logged": true
 }

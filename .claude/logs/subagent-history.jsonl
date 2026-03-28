@@ -275,3 +275,5 @@
 {"event":"subagent_stop","timestamp":"2026-03-28T01:29:15Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-28T01:29:43Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-28T01:31:11Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-28T01:34:28Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-28T01:35:48Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
