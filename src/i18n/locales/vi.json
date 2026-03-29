@@ -426,7 +426,8 @@
     "table_header_input": "Đầu vào",
     "table_header_capabilities": "Khả năng",
     "tag_vision": "Thị giác",
-    "tag_streaming": "Phát trực tiếp"
+    "tag_streaming": "Phát trực tiếp",
+    "no_providers": "Chưa có nhà cung cấp"
   },
   "office": {
     "section_title": "Văn phòng",

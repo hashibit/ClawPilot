@@ -426,7 +426,8 @@
     "table_header_input": "อินพุต",
     "table_header_capabilities": "ความสามารถ",
     "tag_vision": "วิสัยทัศน์",
-    "tag_streaming": "สตรีมมิ่ง"
+    "tag_streaming": "สตรีมมิ่ง",
+    "no_providers": "ยังไม่มีผู้ให้บริการ"
   },
   "office": {
     "section_title": "สำนักงาน",

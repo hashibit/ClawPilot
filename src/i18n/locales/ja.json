@@ -428,7 +428,8 @@
     "table_header_input": "入力",
     "table_header_capabilities": "能力",
     "tag_vision": "ビジョン",
-    "tag_streaming": "ストリーミング"
+    "tag_streaming": "ストリーミング",
+    "no_providers": "プロバイダーがありません"
   },
   "office": {
     "section_title": "オフィス",

@@ -426,7 +426,8 @@
     "table_header_input": "Input",
     "table_header_capabilities": "Kemampuan",
     "tag_vision": "Visi",
-    "tag_streaming": "Streaming"
+    "tag_streaming": "Streaming",
+    "no_providers": "Belum ada provider"
   },
   "office": {
     "section_title": "Kantor",
