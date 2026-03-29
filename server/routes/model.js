@@ -155,24 +155,66 @@ export function createModelRouter(db) {
     const { base_url, api_key, api } = req.body
     if (!base_url || !api) return res.status(400).send('base_url and api required')
     const start = Date.now()
-    try {
-      let url, headers = {}
-      if (api === 'anthropic-messages') {
-        url = base_url.replace(/\/$/, '') + '/models'
-        headers = { 'x-api-key': api_key ?? '', 'anthropic-version': '2023-06-01' }
-      } else if (api === 'gemini') {
-        // Gemini uses query param key; base_url is typically the base API root
-        const base = base_url.replace(/\/$/, '')
-        url = `${base}/models?key=${encodeURIComponent(api_key ?? '')}`
-      } else {
-        // openai-completions compatible
-        url = base_url.replace(/\/$/, '') + '/models'
-        headers = { 'Authorization': `Bearer ${api_key ?? ''}` }
-      }
+
+    async function doFetch(url, options) {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 10000)
-      const r = await fetch(url, { headers, signal: controller.signal })
-      clearTimeout(timer)
+      try {
+        const r = await fetch(url, { ...options, signal: controller.signal })
+        clearTimeout(timer)
+        return r
+      } catch (err) {
+        clearTimeout(timer)
+        throw err
+      }
+    }
+
+    try {
+      const base = base_url.replace(/\/$/, '')
+      let r
+
+      if (api === 'anthropic-messages') {
+        const headers = { 'x-api-key': api_key ?? '', 'anthropic-version': '2023-06-01' }
+        r = await doFetch(`${base}/models`, { headers })
+        // 部分兼容 Anthropic 的 provider 不支持 /models，改用 /messages 探测
+        if (r.status === 404) {
+          r = await doFetch(`${base}/messages`, {
+            method: 'POST',
+            headers: { ...headers, 'content-type': 'application/json' },
+            body: JSON.stringify({ model: '_ping_', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+          })
+          // 400/422 = 参数错误但服务器可达；401/403 = key 无效；均视为可连通
+          if ([400, 401, 403, 422].includes(r.status)) {
+            const latency_ms = Date.now() - start
+            if (r.status === 401 || r.status === 403) {
+              return res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: API Key 无效` })
+            }
+            return res.json({ ok: true, latency_ms })
+          }
+        }
+      } else if (api === 'gemini') {
+        r = await doFetch(`${base}/models?key=${encodeURIComponent(api_key ?? '')}`, {})
+      } else {
+        // openai-completions compatible
+        const headers = { 'Authorization': `Bearer ${api_key ?? ''}` }
+        r = await doFetch(`${base}/models`, { headers })
+        // 部分 OpenAI 兼容 provider 不支持 /models，改用 /chat/completions 探测
+        if (r.status === 404) {
+          r = await doFetch(`${base}/chat/completions`, {
+            method: 'POST',
+            headers: { ...headers, 'content-type': 'application/json' },
+            body: JSON.stringify({ model: '_ping_', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 }),
+          })
+          if ([400, 401, 403, 422].includes(r.status)) {
+            const latency_ms = Date.now() - start
+            if (r.status === 401 || r.status === 403) {
+              return res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: API Key 无效` })
+            }
+            return res.json({ ok: true, latency_ms })
+          }
+        }
+      }
+
       const latency_ms = Date.now() - start
       if (r.ok) {
         res.json({ ok: true, latency_ms })
