@@ -1,9 +1,0 @@
-{"type":"session.start","ts":"2026-03-29T21:59:33Z","state":"initialized","data":{"cc_session_id":"d9017663-77b9-4715-ac1a-bef0cdd4d7eb"}}
-{"id":"event-000001","type":"session.start","ts":"2026-03-29T21:59:33Z","state":"initialized"}
-{"id":"event-000002","type":"tool.bash","ts":"2026-03-29T22:16:55Z","state":"initialized","data":{"command":"cd /Users/jiechen/work/code/rust/ClawPilot && for file in src/i18n/locales/*.json; do
-  if [ "$file" != "src/i18n/locales/zh-CN.json" ] && [ "$file" != "src/i18n/locales/en.json" ]; then
-    echo "Pro"}}
-{"id":"event-000003","type":"tool.edit","ts":"2026-03-29T22:18:25Z","state":"initialized","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/src/components/Layout.tsx"}}
-{"id":"event-000004","type":"tool.edit","ts":"2026-03-29T22:19:44Z","state":"initialized","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/src/components/Layout.tsx"}}
-{"id":"event-000005","type":"tool.edit","ts":"2026-03-29T22:20:37Z","state":"initialized","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/src/components/Layout.tsx"}}
-{"id":"event-000006","type":"session.stop","ts":"2026-03-29T22:21:03Z","state":"stopped"}
