@@ -19,10 +19,12 @@
     "advanced": "Advanced"
   },
   "process": {
-    "running": "OpenClaw Running",
+    "running": "Local OpenClaw Running",
     "localMachine": "Local",
     "stopped": "OpenClaw Stopped",
     "notRunning": "Not running",
+    "checking": "Checking...",
+    "checkingDesc": "Connecting to daemon...",
     "start": "Start Service",
     "stop": "Stop Service",
     "acting": "Working…",

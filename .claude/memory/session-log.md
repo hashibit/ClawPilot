@@ -511,3 +511,24 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-29T22:21:03Z
+
+- session_id: `B15A5A4F-4908-47EC-A23D-D174F4E9C652`
+- project: `ClawPilot`
+- branch: `ft_providers`
+- started_at: `2026-03-29T21:59:33Z`
+- ended_at: `2026-03-29T22:21:03Z`
+- duration_minutes: 501
+- changes: 3
+
+### 変更ファイル
+- `src/components/Layout.tsx`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---

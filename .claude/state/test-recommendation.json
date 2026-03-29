@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-29T19:49:03Z",
-  "changed_file": "daemon/src/scheduler/openclaw.rs",
+  "timestamp": "2026-03-29T22:20:37Z",
+  "changed_file": "src/components/Layout.tsx",
   "test_command": "npm test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"

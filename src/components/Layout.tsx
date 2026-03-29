@@ -30,19 +30,25 @@ export default function Layout() {
   const isOverviewPage = location.pathname === '/overview' || location.pathname === '/'
   const [collapsed, setCollapsed] = useState(false)
   const [process, setProcess] = useState<ProcessStatus | null>(null)
+  const [processLoading, setProcessLoading] = useState(true)
   const [acting, setActing] = useState(false)
 
   useEffect(() => {
-    loadStatus()
-    const id = setInterval(loadStatus, 120000)
+    loadStatus(true) // initial load with loading indicator
+    const id = setInterval(() => loadStatus(false), 120000) // silent refresh
     return () => clearInterval(id)
   }, [])
 
-  const loadStatus = async () => {
+  const loadStatus = async (isInitial = false) => {
+    if (isInitial) setProcessLoading(true)
     try {
       const s = await getProcessStatus()
       setProcess(s)
-    } catch { /* ignore */ }
+    } catch {
+      setProcess(null)
+    } finally {
+      if (isInitial) setProcessLoading(false)
+    }
   }
 
   const handleToggleOpenclaw = async () => {
@@ -174,12 +180,12 @@ export default function Layout() {
         <div style={{ padding: collapsed ? '8px 6px' : '10px 10px', borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
           {collapsed ? (
             <div
-              title={process?.is_running ? `${t('process.running')} · PID ${process.pid}` : t('process.stopped')}
+              title={processLoading && !process ? t('process.checking') : process?.is_running ? `${t('process.running')} · PID ${process.pid}` : t('process.stopped')}
               style={{ display: 'flex', justifyContent: 'center' }}
             >
               <span style={{
                 width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block',
-                background: process?.is_running ? '#34c759' : '#8E8E93',
+                background: processLoading && !process ? '#f59e0b' : process?.is_running ? '#34c759' : '#8E8E93',
               }} />
             </div>
           ) : (
@@ -188,28 +194,32 @@ export default function Layout() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{
                     width: '7px', height: '7px', borderRadius: '50%', display: 'inline-block', flexShrink: 0,
-                    background: process?.is_running ? '#34c759' : '#8E8E93',
+                    background: processLoading && !process ? '#f59e0b' : process?.is_running ? '#34c759' : '#8E8E93',
                   }} />
-                  <span style={{ fontSize: '12px', color: process?.is_running ? '#34c759' : '#8E8E93', fontWeight: 500 }}>
-                    {process?.is_running
-                      ? t('process.running')
-                      : <><span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{t('process.localMachine')}</span> {t('process.stopped')}</>
+                  <span style={{ fontSize: '12px', color: processLoading && !process ? '#f59e0b' : process?.is_running ? '#34c759' : '#8E8E93', fontWeight: 500 }}>
+                    {processLoading && !process
+                      ? t('process.checking')
+                      : process?.is_running
+                        ? t('process.running')
+                        : <><span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{t('process.localMachine')}</span> {t('process.stopped')}</>
                     }
                   </span>
                 </div>
               </div>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '7px' }}>
-                {process?.is_running && process.pid != null
-                  ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${fmtUptime(process.uptime_seconds, i18n.language)}` : ''}`
-                  : t('process.notRunning')}
+                {processLoading && !process
+                  ? t('process.checkingDesc')
+                  : process?.is_running && process.pid != null
+                    ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${fmtUptime(process.uptime_seconds, i18n.language)}` : ''}`
+                    : t('process.notRunning')}
               </div>
               <button
                 className="tbtn tbtn-ghost"
-                style={{ width: '100%', textAlign: 'center', opacity: acting ? 0.5 : 1 }}
+                style={{ width: '100%', textAlign: 'center', opacity: (acting || (processLoading && !process)) ? 0.5 : 1 }}
                 onClick={handleToggleOpenclaw}
-                disabled={acting}
+                disabled={acting || (processLoading && !process)}
               >
-                {acting ? t('process.acting') : process?.is_running ? t('process.stop') : t('process.start')}
+                {acting ? t('process.acting') : (processLoading && !process) ? t('process.checking') : process?.is_running ? t('process.stop') : t('process.start')}
               </button>
             </>
           )}
