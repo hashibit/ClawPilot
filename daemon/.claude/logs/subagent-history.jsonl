@@ -23,3 +23,5 @@
 {"event":"subagent_stop","timestamp":"2026-03-29T18:22:40Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-29T18:52:07Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
 {"event":"subagent_stop","timestamp":"2026-03-29T18:59:30Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-29T19:12:32Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}
+{"event":"subagent_stop","timestamp":"2026-03-29T19:15:00Z","agent_id":"unknown","transcript_path":"","transcript_preview":""}

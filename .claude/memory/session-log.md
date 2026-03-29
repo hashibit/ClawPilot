@@ -489,3 +489,25 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-29T19:10:38Z
+
+- session_id: `C82A9E51-8B28-4CB7-8E5F-CA9C0CF717D9`
+- project: `ClawPilot`
+- branch: `ft_providers`
+- started_at: `2026-03-29T19:02:49Z`
+- ended_at: `2026-03-29T19:10:38Z`
+- duration_minutes: 487
+- changes: 1
+- commits: 1
+
+### 変更ファイル
+- `package.json`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---

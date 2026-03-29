@@ -15,6 +15,3 @@
 {"id":"event-000010","type":"tool.bash","ts":"2026-03-29T19:09:31Z","state":"initialized","data":{"command":"curl -s http://localhost:16667/api/get_all_opcs -X POST -H "Content-Type: application/json" -d '{}' | head -50"}}
 {"id":"event-000011","type":"tool.edit","ts":"2026-03-29T19:10:03Z","state":"initialized","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/package.json"}}
 {"id":"event-000012","type":"session.stop","ts":"2026-03-29T19:10:38Z","state":"stopped"}
-{"id":"event-000013","type":"tool.bash","ts":"2026-03-29T19:11:00Z","state":"stopped","data":{"command":"sqlite3 server/dev.db "SELECT id, name, address, daemon_url, daemon_api_key FROM offices;""}}
-{"id":"event-000014","type":"tool.bash","ts":"2026-03-29T19:11:41Z","state":"stopped","data":{"command":"lsof -i :16668 | grep LISTEN || echo "Port 16668 not listening""}}
-{"id":"event-000015","type":"tool.bash","ts":"2026-03-29T19:11:41Z","state":"stopped","data":{"command":"ps aux | grep -i openclaw | grep -v grep"}}
