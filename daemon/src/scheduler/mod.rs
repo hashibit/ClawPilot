@@ -8,8 +8,6 @@ pub mod db;
 pub mod dag;
 pub mod worker;
 pub mod recovery;
-pub mod openclaw;
-pub mod inbox;
 pub mod artifacts;
 pub mod context;
 pub mod routes;

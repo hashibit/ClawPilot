@@ -6,6 +6,9 @@ cd "$SCRIPT_DIR"
 
 mkdir -p logs
 
+# Unset proxy env vars (for Node.js services, not for Claude)
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
+
 # Kill existing processes on ports
 echo "Cleaning up existing processes..."
 lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null || true
@@ -20,6 +23,9 @@ echo "Logs will be written to logs/ directory"
 echo ""
 
 # Start vite
+# Kill all children on exit/Ctrl+C
+trap 'echo ""; echo "Stopping services..."; kill $(jobs -p) 2>/dev/null; exit 0' INT TERM EXIT
+
 echo "Starting Vite..."
 npx vite > logs/vite.log 2>&1 &
 VITE_PID=$!
@@ -36,11 +42,7 @@ echo "  Server started (PID: $SERVER_PID) -> logs/server.log"
 # Start daemon
 echo "Starting Daemon..."
 cd "$SCRIPT_DIR/daemon"
-if [ ! -f ./target/debug/clawpilot-daemon ]; then
-    echo "  Building daemon..."
-    cargo build
-fi
-./target/debug/clawpilot-daemon --listen 127.0.0.1:16668 > ../logs/daemon.log 2>&1 &
+cargo watch -x 'run -- --listen 127.0.0.1:16668' > ../logs/daemon.log 2>&1 &
 DAEMON_PID=$!
 cd "$SCRIPT_DIR"
 echo "  Daemon started (PID: $DAEMON_PID) -> logs/daemon.log"
@@ -81,12 +83,16 @@ echo "=========================================="
 echo ""
 
 # Check for errors in logs
-ERROR_COUNT=$(grep -c "ERROR\|error\|Error\|panicked" logs/*.log 2>/dev/null || echo "0")
-if [ "$ERROR_COUNT" -eq 0 ]; then
+# Filter real errors: exclude cargo code-snippet lines (e.g. "  42 | pub fn foo()")
+ERROR_LINES=$(grep -n "ERROR\|error\|Error\|panicked" logs/*.log 2>/dev/null \
+    | grep -v ':[[:space:]]*[0-9]\+[[:space:]]*|' \
+    || true)
+if [ -z "$ERROR_LINES" ]; then
     echo "✓ No errors found in logs"
 else
-    echo "⚠ Found $ERROR_COUNT error(s) in logs"
-    echo "  Run: grep -E 'ERROR|error|Error|panicked' logs/*.log"
+    ERROR_COUNT=$(echo "$ERROR_LINES" | grep -c .)
+    echo "⚠ Found $ERROR_COUNT error(s) in logs:"
+    echo "$ERROR_LINES" | sed 's/^/  /'
 fi
 
 echo ""

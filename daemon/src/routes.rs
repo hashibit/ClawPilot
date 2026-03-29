@@ -34,7 +34,6 @@ pub async fn health(State(state): State<AppState>) -> Json<Value> {
 #[derive(Debug, Deserialize)]
 pub struct Manifest {
     pub opc_id: String,
-    pub version: Option<String>,
     pub checksum: Option<String>,
 }
 

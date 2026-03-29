@@ -82,11 +82,6 @@ pub fn list_plan_artifacts(db: &Db, plan_id: &str) -> anyhow::Result<Vec<Artifac
     Ok(all_artifacts)
 }
 
-/// Get an artifact by ID
-pub fn get_artifact(db: &Db, artifact_id: &str) -> anyhow::Result<Artifact> {
-    db.get_artifact(artifact_id)
-}
-
 /// Get artifacts by IDs
 pub fn get_artifacts_by_ids(db: &Db, artifact_ids: &[String]) -> anyhow::Result<Vec<Artifact>> {
     db.get_artifacts_by_ids(artifact_ids)

@@ -366,21 +366,6 @@ impl Task {
         }
     }
 
-    /// Parse input_artifact_ids JSON string into Vec<String>
-    pub fn parse_input_artifacts(&self) -> Result<Vec<String>, serde_json::Error> {
-        serde_json::from_str(&self.input_artifact_ids)
-    }
-
-    /// Parse output_artifact_ids JSON string into Vec<String>
-    pub fn parse_output_artifacts(&self) -> Result<Vec<String>, serde_json::Error> {
-        serde_json::from_str(&self.output_artifact_ids)
-    }
-
-    /// Set output artifacts from Vec<String>
-    pub fn set_output_artifacts(&mut self, artifacts: Vec<String>) -> Result<(), serde_json::Error> {
-        self.output_artifact_ids = serde_json::to_string(&artifacts)?;
-        Ok(())
-    }
 }
 
 /// Task dependency (DAG edge)
@@ -488,60 +473,15 @@ impl AgentInfo {
         }
     }
 
-    /// Parse capabilities JSON string into Vec<String>
-    pub fn parse_capabilities(&self) -> Result<Vec<String>, serde_json::Error> {
-        serde_json::from_str(&self.capabilities)
-    }
 }
 
 /// Running task snapshot (in-memory, not persisted)
 #[derive(Debug, Clone)]
 pub struct RunningTask {
     pub task_id: String,
-    pub agent_id: String,
     pub type_: String,
     pub plan_id: String,
     pub started_at: i64,
-    pub run_id: String,
-}
-
-// =============================================================================
-// Agent Activity Models
-// =============================================================================
-
-/// Single agent's activity state
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentActivity {
-    pub agent_id: String,
-    pub status: AgentStatus,
-
-    // Busy state fields
-    pub busy_since: Option<i64>,
-    pub busy_duration_seconds: Option<i64>,
-    pub current_task: Option<ActiveTaskInfo>,
-
-    // Idle state fields
-    pub idle_since: Option<i64>,
-    pub idle_duration_seconds: Option<i64>,
-    pub last_task: Option<LastTaskInfo>,
-}
-
-/// Currently executing task information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ActiveTaskInfo {
-    pub task_id: String,
-    pub task_type: String,
-    pub plan_id: String,
-    pub run_id: String,
-}
-
-/// Last executed task information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LastTaskInfo {
-    pub task_id: String,
-    pub task_type: String,
-    pub plan_id: String,
-    pub completed_at: i64,
 }
 
 // =============================================================================
@@ -701,15 +641,3 @@ pub struct TaskFailedPayload {
     pub retry_count: i32,
 }
 
-/// TaskCancelled payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskCancelledPayload {
-    pub reason: String,
-}
-
-/// TaskProgress payload
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskProgressPayload {
-    pub progress: i32,
-    pub message: String,
-}

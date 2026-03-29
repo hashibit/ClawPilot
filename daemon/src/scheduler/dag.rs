@@ -2,7 +2,7 @@
 //!
 //! Handles task dependency resolution and dispatches ready tasks.
 
-use crate::scheduler::{Db, models::*, Worker};
+use crate::scheduler::{Db, Worker};
 
 /// DAG scheduler for traversing and executing task graphs
 #[derive(Clone)]
@@ -65,55 +65,6 @@ impl DagScheduler {
         }
     }
 
-    /// Handle task completion and trigger dependent task dispatch
-    pub fn on_task_completed(&self, task_id: &str) -> Result<(), anyhow::Error> {
-        // Get the task to find its plan
-        let task = self.db.get_task(task_id)?;
-
-        // Sweep the plan to dispatch dependent tasks
-        self.sweep(&task.plan_id);
-
-        // Check if all tasks in the plan are complete
-        self.check_plan_completion(&task.plan_id)?;
-
-        Ok(())
-    }
-
-    /// Check if all tasks in a plan are complete, and mark plan as completed if so
-    fn check_plan_completion(&self, plan_id: &str) -> Result<(), anyhow::Error> {
-        let tasks = self.db.get_tasks_by_plan(plan_id)?;
-
-        let all_complete = tasks
-            .iter()
-            .all(|t| t.status == TaskStatus::Completed
-                || t.status == TaskStatus::Failed
-                || t.status == TaskStatus::Blocked);
-
-        if all_complete {
-            tracing::info!("All tasks complete for plan {}, marking as completed", plan_id);
-            self.db.set_plan_completed(plan_id)?;
-        }
-
-        Ok(())
-    }
-
-    /// Handle task failure and check if plan should be marked as failed
-    pub fn on_task_failed(&self, task_id: &str) -> Result<(), anyhow::Error> {
-        let task = self.db.get_task(task_id)?;
-
-        // Check if any tasks in the plan are still pending or in progress
-        let tasks = self.db.get_tasks_by_plan(&task.plan_id)?;
-        let still_running = tasks
-            .iter()
-            .any(|t| t.status == TaskStatus::Pending || t.status == TaskStatus::InProgress);
-
-        if !still_running {
-            // All tasks have completed or failed
-            self.check_plan_completion(&task.plan_id)?;
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]

@@ -81,11 +81,9 @@ impl Worker {
         // Track running task
         let running = RunningTask {
             task_id: task.id.clone(),
-            agent_id: task.receiver_agent_id.clone(),
             type_: task.type_.clone(),
             plan_id: task.plan_id.clone(),
             started_at: Utc::now().timestamp(),
-            run_id: run_id.clone(),
         };
         self.running_tasks.insert(task.receiver_agent_id.clone(), running.clone());
 
@@ -239,18 +237,6 @@ impl Worker {
         } else {
             Err(anyhow::anyhow!("No running task for agent {}", agent_id))
         }
-    }
-
-    /// Stop a specific task by task ID
-    pub fn stop_task_by_id(&self, task_id: &str) -> Result<()> {
-        // Find the agent running this task
-        for entry in self.running_tasks.iter() {
-            let (agent_id, running) = entry.pair();
-            if running.task_id == task_id {
-                return self.stop_task(agent_id);
-            }
-        }
-        Err(anyhow::anyhow!("Task {} not found in running tasks", task_id))
     }
 
     /// Monitor the OpenClaw agent process and parse its output
@@ -415,10 +401,6 @@ impl Worker {
         Ok(artifact_ids)
     }
 
-    /// Get all currently running tasks
-    pub fn list_running_tasks(&self) -> Vec<RunningTask> {
-        self.running_tasks.iter().map(|e| e.value().clone()).collect()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -445,11 +427,9 @@ mod tests {
         // Simulate adding a running task
         let running = RunningTask {
             task_id: "task-1".to_string(),
-            agent_id: "agent-1".to_string(),
             type_: "test".to_string(),
             plan_id: "plan-1".to_string(),
             started_at: Utc::now().timestamp(),
-            run_id: "run-test-123".to_string(),
         };
         worker.running_tasks.insert("agent-1".to_string(), running);
 

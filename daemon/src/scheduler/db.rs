@@ -275,34 +275,6 @@ impl Db {
         Ok(())
     }
 
-    pub fn set_plan_completed(&self, plan_id: &str) -> anyhow::Result<()> {
-        let conn = self.conn.lock().unwrap();
-        let now = Utc::now().timestamp();
-        conn.execute(
-            "UPDATE plans SET status = 'completed', completed_at = ? WHERE id = ?",
-            params![now, plan_id],
-        )?;
-        Ok(())
-    }
-
-    pub fn set_plan_blocked(&self, plan_id: &str) -> anyhow::Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE plans SET status = 'blocked' WHERE id = ?",
-            params![plan_id],
-        )?;
-        Ok(())
-    }
-
-    pub fn update_plan_status(&self, plan_id: &str, status: PlanStatus) -> anyhow::Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE plans SET status = ? WHERE id = ?",
-            params![Into::<&str>::into(status), plan_id],
-        )?;
-        Ok(())
-    }
-
     pub fn get_plan_detail(&self, plan_id: &str) -> anyhow::Result<PlanDetail> {
         let plan = self.get_plan(plan_id)?;
         let tasks = self.get_tasks_by_plan(plan_id)?;
@@ -485,16 +457,6 @@ impl Db {
         Ok(())
     }
 
-    pub fn mark_task_in_progress(&self, task_id: &str) -> anyhow::Result<()> {
-        let conn = self.conn.lock().unwrap();
-        let now = Utc::now().timestamp();
-        conn.execute(
-            "UPDATE tasks SET status = 'in_progress', in_progress_at = ? WHERE id = ?",
-            params![now, task_id],
-        )?;
-        Ok(())
-    }
-
     pub fn mark_task_completed(&self, task_id: &str, result: &str, output_artifact_ids: Vec<String>) -> anyhow::Result<()> {
         let conn = self.conn.lock().unwrap();
         let now = Utc::now().timestamp();
@@ -519,15 +481,6 @@ impl Db {
             WHERE id = ?
             "#,
             params![error, now, task_id],
-        )?;
-        Ok(())
-    }
-
-    pub fn mark_task_blocked(&self, task_id: &str, error: &str) -> anyhow::Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE tasks SET status = 'blocked', error = ? WHERE id = ?",
-            params![error, task_id],
         )?;
         Ok(())
     }
@@ -873,43 +826,6 @@ impl Db {
         Ok(())
     }
 
-    pub fn get_inbox_messages(&self, agent_id: &str, unread_only: bool, limit: i32) -> anyhow::Result<Vec<InboxMessage>> {
-        let conn = self.conn.lock().unwrap();
-        let sql = if unread_only {
-            "SELECT id, to_agent_id, from_agent_id, type, task_id, payload, read, created_at FROM inbox_messages WHERE to_agent_id = ? AND read = 0 ORDER BY created_at DESC LIMIT ?"
-        } else {
-            "SELECT id, to_agent_id, from_agent_id, type, task_id, payload, read, created_at FROM inbox_messages WHERE to_agent_id = ? ORDER BY created_at DESC LIMIT ?"
-        };
-
-        let mut stmt = conn.prepare(sql)?;
-        let messages = stmt.query_map(params![agent_id, limit], |row| {
-            let type_str: String = row.get(3)?;
-            Ok(InboxMessage {
-                id: row.get(0)?,
-                to_agent_id: row.get(1)?,
-                from_agent_id: row.get(2)?,
-                type_: InboxMessageType::try_from(type_str.as_str()).unwrap_or(InboxMessageType::TaskStarted),
-                task_id: row.get(4)?,
-                payload: row.get(5)?,
-                read: row.get::<_, i32>(6)? != 0,
-                created_at: row.get(7)?,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| anyhow::anyhow!("Failed to get inbox messages: {}", e))?;
-
-        Ok(messages)
-    }
-
-    pub fn mark_inbox_read(&self, msg_id: &str) -> anyhow::Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE inbox_messages SET read = 1 WHERE id = ?",
-            params![msg_id],
-        )?;
-        Ok(())
-    }
-
     // =============================================================================
     // Artifact operations
     // =============================================================================
@@ -935,33 +851,6 @@ impl Db {
             ],
         )?;
         Ok(())
-    }
-
-    pub fn get_artifact(&self, artifact_id: &str) -> anyhow::Result<Artifact> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            r#"
-            SELECT id, owner_agent_id, task_id, plan_id, filename, file_path, mime_type, size_bytes, status, created_at
-            FROM artifacts WHERE id = ?
-            "#,
-        )?;
-
-        stmt.query_row(params![artifact_id], |row| {
-            let status_str: String = row.get(8)?;
-            Ok(Artifact {
-                id: row.get(0)?,
-                owner_agent_id: row.get(1)?,
-                task_id: row.get(2)?,
-                plan_id: row.get(3)?,
-                filename: row.get(4)?,
-                file_path: row.get(5)?,
-                mime_type: row.get(6)?,
-                size_bytes: row.get(7)?,
-                status: ArtifactStatus::try_from(status_str.as_str()).unwrap_or(ArtifactStatus::Valid),
-                created_at: row.get(9)?,
-            })
-        })
-        .map_err(|e| anyhow::anyhow!("Failed to get artifact: {}", e))
     }
 
     pub fn get_artifacts_by_task(&self, task_id: &str) -> anyhow::Result<Vec<Artifact>> {

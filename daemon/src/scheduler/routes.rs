@@ -8,7 +8,7 @@ use axum::{
 };
 
 use crate::error::{AppError, Result};
-use crate::scheduler::{Db, DagScheduler, Worker, models::*};
+use crate::scheduler::models::*;
 use crate::state::AppState;
 
 // =============================================================================
@@ -454,25 +454,10 @@ pub fn scheduler_router() -> axum::Router<AppState> {
         )
 }
 
-/// Merge scheduler routes into an existing router with AppState
-///
-/// This helper is needed because scheduler_router uses its own state type
-/// while the main app uses AppState.
-///
-/// NOTE: This is currently a placeholder. The scheduler routes use AppState directly
-/// through the State extractor in each handler, so no merging is needed.
-pub fn merge_scheduler_routes(
-    app: axum::Router<crate::state::AppState>,
-    _db: Db,
-    _dag: DagScheduler,
-    _worker: Worker,
-) -> axum::Router<crate::state::AppState> {
-    app
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scheduler::Db;
     use tempfile::NamedTempFile;
 
     fn create_test_db() -> Db {

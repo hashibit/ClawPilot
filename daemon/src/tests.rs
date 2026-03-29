@@ -2,7 +2,7 @@
 ///
 /// Covers: scheduler/db.rs (get_ready_tasks, migrations), auth.rs, error.rs,
 /// deploy.rs (verify_checksum, extract_package path-traversal, prune_backups),
-/// scheduler/models.rs (TryFrom error paths, parse_input_artifacts).
+/// scheduler/models.rs (TryFrom error paths).
 
 // ============================================================================
 // scheduler/db.rs tests
@@ -510,9 +510,8 @@ mod deploy_tests {
 #[cfg(test)]
 mod scheduler_models_tests {
     use crate::scheduler::models::{
-        ArtifactStatus, InboxMessageType, PlanStatus, Task, TaskStatus,
+        ArtifactStatus, InboxMessageType, PlanStatus, TaskStatus,
     };
-    use chrono::Utc;
 
     // ── TryFrom error paths ───────────────────────────────────────────────────
 
@@ -544,60 +543,4 @@ mod scheduler_models_tests {
         assert!(result.unwrap_err().contains("Unknown inbox message type"));
     }
 
-    // ── parse_input_artifacts ─────────────────────────────────────────────────
-
-    fn make_task_with_artifacts(ids_json: &str) -> Task {
-        Task {
-            id: "t".to_string(),
-            plan_id: "p".to_string(),
-            plan_version: 1,
-            publisher_agent_id: "a".to_string(),
-            receiver_agent_id: "b".to_string(),
-            type_: "work".to_string(),
-            priority: 0,
-            params: "{}".to_string(),
-            input_artifact_ids: ids_json.to_string(),
-            result_schema: "{}".to_string(),
-            status: TaskStatus::Pending,
-            current_run_id: None,
-            retry_count: 0,
-            max_retries: 3,
-            timeout_seconds: 3600,
-            result: None,
-            output_artifact_ids: "[]".to_string(),
-            error: None,
-            created_at: Utc::now().timestamp(),
-            in_progress_at: None,
-            completed_at: None,
-        }
-    }
-
-    #[test]
-    fn parse_input_artifacts_valid_array() {
-        let task = make_task_with_artifacts(r#"["id1", "id2"]"#);
-        let result = task.parse_input_artifacts().unwrap();
-        assert_eq!(result, vec!["id1".to_string(), "id2".to_string()]);
-    }
-
-    #[test]
-    fn parse_input_artifacts_empty_array() {
-        let task = make_task_with_artifacts("[]");
-        let result = task.parse_input_artifacts().unwrap();
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn parse_input_artifacts_malformed_json_returns_error() {
-        let task = make_task_with_artifacts("not_valid_json{{");
-        let result = task.parse_input_artifacts();
-        assert!(result.is_err(), "malformed JSON should return an error");
-    }
-
-    #[test]
-    fn parse_input_artifacts_wrong_type_returns_error() {
-        // JSON object instead of array
-        let task = make_task_with_artifacts(r#"{"key": "val"}"#);
-        let result = task.parse_input_artifacts();
-        assert!(result.is_err(), "object instead of array should be an error");
-    }
 }
