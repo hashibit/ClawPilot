@@ -14,4 +14,4 @@ daemon/target
 *.bin
 dev.db-shm
 dev.db-wal
-.claude/
+.claude
