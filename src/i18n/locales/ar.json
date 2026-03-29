@@ -426,7 +426,8 @@
     "table_header_input": "الإدخال",
     "table_header_capabilities": "القدرات",
     "tag_vision": "رؤية",
-    "tag_streaming": "بث مباشر"
+    "tag_streaming": "بث مباشر",
+    "no_providers": "لا يوجد موفرون بعد"
   },
   "office": {
     "section_title": "المكاتب",

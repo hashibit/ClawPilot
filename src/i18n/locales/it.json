@@ -426,7 +426,8 @@
     "table_header_input": "Input",
     "table_header_capabilities": "Capacità",
     "tag_vision": "Visione",
-    "tag_streaming": "Streaming"
+    "tag_streaming": "Streaming",
+    "no_providers": "Nessun provider ancora"
   },
   "office": {
     "section_title": "Uffici",
