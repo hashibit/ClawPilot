@@ -15,3 +15,4 @@ daemon/target
 dev.db-shm
 dev.db-wal
 .claude
+.dev-pids
