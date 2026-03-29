@@ -11,7 +11,7 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
 
 # Kill existing processes on ports
 echo "Cleaning up existing processes..."
-lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null || true
+npm run stop --silent 2>/dev/null || true
 
 # Clear old logs
 > logs/vite.log 2>/dev/null || true

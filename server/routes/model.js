@@ -152,8 +152,15 @@ export function createModelRouter(db) {
 
   // POST /test_provider — 测试 API Key 连通性
   router.post('/test_provider', async (req, res) => {
-    const { base_url, api_key, api } = req.body
+    const { base_url, api_key, api, provider_id } = req.body
     if (!base_url || !api) return res.status(400).send('base_url and api required')
+
+    const saveResult = (ok) => {
+      if (!provider_id) return
+      const now = Math.floor(Date.now() / 1000)
+      db.prepare('UPDATE model_providers_v2 SET is_available=?, last_tested=?, updated_at=? WHERE id=?')
+        .run(ok ? 1 : 0, now, now, provider_id)
+    }
     const start = Date.now()
 
     async function doFetch(url, options) {
@@ -187,8 +194,10 @@ export function createModelRouter(db) {
           if ([400, 401, 403, 422].includes(r.status)) {
             const latency_ms = Date.now() - start
             if (r.status === 401 || r.status === 403) {
+              saveResult(false)
               return res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: API Key 无效` })
             }
+            saveResult(true)
             return res.json({ ok: true, latency_ms })
           }
         }
@@ -208,8 +217,10 @@ export function createModelRouter(db) {
           if ([400, 401, 403, 422].includes(r.status)) {
             const latency_ms = Date.now() - start
             if (r.status === 401 || r.status === 403) {
+              saveResult(false)
               return res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: API Key 无效` })
             }
+            saveResult(true)
             return res.json({ ok: true, latency_ms })
           }
         }
@@ -217,12 +228,15 @@ export function createModelRouter(db) {
 
       const latency_ms = Date.now() - start
       if (r.ok) {
+        saveResult(true)
         res.json({ ok: true, latency_ms })
       } else {
+        saveResult(false)
         const body = await r.text().catch(() => '')
         res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: ${body.slice(0, 200)}` })
       }
     } catch (err) {
+      saveResult(false)
       res.json({ ok: false, latency_ms: Date.now() - start, error: err.message })
     }
   })

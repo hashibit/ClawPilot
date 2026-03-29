@@ -27,9 +27,11 @@
     "checkingDesc": "正在连接守护进程...",
     "start": "启动服务",
     "stop": "停止服务",
+    "restart": "重启服务",
     "acting": "操作中…",
     "startedMsg": "OpenClaw 已启动",
-    "stoppedMsg": "OpenClaw 已停止"
+    "stoppedMsg": "OpenClaw 已停止",
+    "restartedMsg": "OpenClaw 已重启"
   },
   "overview": {
     "title": "数据概览",
@@ -188,7 +190,7 @@
     },
     "button_create": "创建",
     "button_creating": "创建中...",
-    "button_create_new": "创建新OPC公司",
+    "button_create_new": "创建子公司",
     "button_undeploy": "下线 →",
     "button_confirm_undeploy": "确认下线",
     "button_create_snapshot": "创建快照",

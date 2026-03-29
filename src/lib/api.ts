@@ -68,8 +68,8 @@ export const setModels = (provider_name: string, models: Partial<ModelInfo>[]) =
   call<ModelInfo[]>('set_models', { provider_name, models })
 export const suggestProvider = (base_url: string) => call<SuggestProviderResult | null>('suggest_provider', { base_url })
 export const getKnownProviders = () => call<KnownProvider[]>('get_known_providers', {})
-export const testProvider = (base_url: string, api_key: string, api: string) =>
-  call<{ ok: boolean; latency_ms?: number; error?: string }>('test_provider', { base_url, api_key, api })
+export const testProvider = (base_url: string, api_key: string, api: string, provider_id?: string) =>
+  call<{ ok: boolean; latency_ms?: number; error?: string }>('test_provider', { base_url, api_key, api, provider_id })
 
 // ── Channel ───────────────────────────────────────────────
 export const getChannels = (opcId: string) => call<ChannelConfig[]>('get_channels', { opc_id: opcId })
@@ -146,6 +146,7 @@ export interface DaemonHealthResult {
   error?: string
   status?: string
   version?: string
+  openclaw_version?: string
   openclaw_status?: string
   openclaw_pid?: number | null
   active_tasks?: number
@@ -238,6 +239,7 @@ export const getProcessStatus = () => call<ProcessStatus>('get_process_status')
 export const startOpenclaw = () => call<{ ok: boolean; message: string; pid?: number }>('start_openclaw')
 export const stopOpenclaw = () => call<{ ok: boolean; message: string }>('stop_openclaw')
 export const reloadOpenclaw = () => call<{ ok: boolean; message: string }>('reload_openclaw')
+export const restartOpenclaw = () => call<{ ok: boolean; message?: string; error?: string }>('restart_openclaw')
 
 // ── Tools / Skills (local) ────────────────────────────────
 export interface LocalTool {

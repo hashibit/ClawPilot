@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getProcessStatus, startOpenclaw, stopOpenclaw } from '../lib/api'
+import { getProcessStatus, restartOpenclaw } from '../lib/api'
 import type { ProcessStatus } from '../lib/api'
 import { toast } from './Toast'
 
@@ -52,16 +52,11 @@ export default function Layout() {
   }
 
   const handleToggleOpenclaw = async () => {
-    if (!process || acting) return
+    if (acting) return
     setActing(true)
     try {
-      if (process.is_running) {
-        await stopOpenclaw()
-        toast(t('process.stoppedMsg'), 'success')
-      } else {
-        await startOpenclaw()
-        toast(t('process.startedMsg'), 'success')
-      }
+      await restartOpenclaw()
+      toast(t('process.restartedMsg'), 'success')
       await loadStatus()
     } catch (e) {
       toast(String(e), 'error')
@@ -219,7 +214,7 @@ export default function Layout() {
                 onClick={handleToggleOpenclaw}
                 disabled={acting || (processLoading && !process)}
               >
-                {acting ? t('process.acting') : (processLoading && !process) ? t('process.checking') : process?.is_running ? t('process.stop') : t('process.start')}
+                {acting ? t('process.acting') : (processLoading && !process) ? t('process.checking') : t('process.restart')}
               </button>
             </>
           )}

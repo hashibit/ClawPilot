@@ -314,14 +314,16 @@ export default function OfficePage() {
                                 fontSize: '14px', flexShrink: 0,
                             }}>🏢</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id && !isNewOffice ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {office.name}
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', overflow: 'hidden' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id && !isNewOffice ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {office.name}
+                                    </span>
+                                    {selected?.id === office.id && editing && !isNewOffice && (
+                                        <span style={{ fontSize: '10px', color: '#f59e0b', flexShrink: 0 }}>[未保存]</span>
+                                    )}
                                 </div>
                                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {selected?.id === office.id && editing && !isNewOffice
-                                        ? <span style={{ color: '#f59e0b' }}>未保存</span>
-                                        : <>{GRADE_LABELS[office.decoration_grade]}{office.address ? ` · ${office.address}` : ''}</>
-                                    }
+                                    {GRADE_LABELS[office.decoration_grade]}{office.address ? ` · ${office.address}` : ''}
                                 </div>
                             </div>
                         </div>
@@ -330,19 +332,21 @@ export default function OfficePage() {
                         <div className="list-row selected">
                             <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏢</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: '13px', fontWeight: 500, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name || '新办公室'}</div>
-                                <div style={{ fontSize: '11px', color: '#f59e0b' }}>未保存</div>
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name || '新办公室'}</span>
+                                    <span style={{ fontSize: '10px', color: '#f59e0b', flexShrink: 0 }}>[未保存]</span>
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
-                <div style={{ padding: '8px 10px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                <div style={{ padding: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
                     <button
+                        className="tbtn tbtn-ghost"
+                        style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
                         onClick={handleAdd}
-                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '12px' }}
                     >
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                        {t('office.add_office')}
+                        + {t('office.add_office')}
                     </button>
                 </div>
             </div>
@@ -538,8 +542,17 @@ export default function OfficePage() {
                                     </div>
                                     <div className="group-row">
                                         <span className="group-label">{t('office.daemon_version')}</span>
-                                        <span className="group-value" style={{ color: daemonHealth?.version ? '#EBEBF5' : '#8E8E93' }}>
-                                            {daemonHealth?.version ? `v${daemonHealth.version}` : '—'}
+                                        <span className="group-value" style={{ color: '#EBEBF5', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {daemonHealth?.version
+                                                ? <span>物业 <span style={{ color: '#8b5cf6', fontFamily: 'monospace' }}>v{daemonHealth.version}</span></span>
+                                                : <span style={{ color: '#8E8E93' }}>—</span>
+                                            }
+                                            {daemonHealth?.openclaw_version
+                                                ? <span>OpenClaw <span style={{ color: '#34c759', fontFamily: 'monospace' }}>v{daemonHealth.openclaw_version}</span></span>
+                                                : daemonHealth?.ok
+                                                    ? <span style={{ color: '#8E8E93' }}>OpenClaw 版本未知</span>
+                                                    : null
+                                            }
                                         </span>
                                     </div>
                                     {daemonHealth && !daemonHealth.ok && daemonHealth.error && (

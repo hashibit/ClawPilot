@@ -305,15 +305,15 @@ export default function OpcPage() {
               {t('opc.empty_state_text')}
             </div>
           )}
-          <div style={{ padding: '10px 12px 4px', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '6px' }}>
-            <button
-              onClick={() => setShowCreate(true)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '12px' }}
-            >
-              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-              {t('opc.button_create_new')}
-            </button>
-          </div>
+        </div>
+        <div style={{ padding: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button
+            className="tbtn tbtn-ghost"
+            style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
+            onClick={() => setShowCreate(true)}
+          >
+            + {t('opc.button_create_new')}
+          </button>
         </div>
       </div>
 

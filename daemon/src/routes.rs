@@ -13,15 +13,41 @@ use crate::{
     state::{AppState, TaskRecord},
 };
 
+// ── POST /restart ────────────────────────────────────────────
+
+pub async fn restart_openclaw() -> Json<Value> {
+    let result = std::process::Command::new("openclaw")
+        .args(["gateway", "restart"])
+        .output();
+
+    match result {
+        Ok(o) if o.status.success() => Json(json!({ "ok": true })),
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            Json(json!({ "ok": false, "error": stderr }))
+        }
+        Err(e) => Json(json!({ "ok": false, "error": e.to_string() })),
+    }
+}
+
 // ── GET /health ──────────────────────────────────────────────
 
 pub async fn health(State(state): State<AppState>) -> Json<Value> {
     let gw = openclaw_gateway_status();
     let task_count = state.tasks.len();
 
+    let openclaw_version = std::process::Command::new("openclaw")
+        .arg("--version")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
     Json(json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
+        "openclaw_version": openclaw_version,
         "openclaw_status": if gw.is_running { "running" } else { "stopped" },
         "openclaw_pid": gw.pid,
         "openclaw_rpc_ok": gw.rpc_ok,

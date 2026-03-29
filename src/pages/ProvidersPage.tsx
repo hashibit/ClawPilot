@@ -32,6 +32,12 @@ const API_BADGE_COLORS: Record<ProviderApi, { bg: string; color: string }> = {
   'gemini': { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
 }
 
+const API_AVATAR_GRADIENTS: Record<ProviderApi, string> = {
+  'openai-completions': 'linear-gradient(135deg,#10b981,#34c759)',
+  'anthropic-messages': 'linear-gradient(135deg,#f97316,#f59e0b)',
+  'gemini': 'linear-gradient(135deg,#3b82f6,#8b5cf6)',
+}
+
 function ApiBadge({ api }: { api: ProviderApi }) {
   const colors = API_BADGE_COLORS[api] ?? { bg: 'rgba(255,255,255,0.08)', color: '#8E8E93' }
   return (
@@ -46,14 +52,19 @@ function ApiBadge({ api }: { api: ProviderApi }) {
 
 // ── Model Table ────────────────────────────────────────────
 
-function ModelTable({ models, providerName, knownProviders, onReset }: {
+function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onReset }: {
   models: ModelInfo[]
   providerName: string
+  providerBaseUrl: string
   knownProviders: KnownProvider[]
   onReset: () => void
 }) {
   const { t } = useTranslation()
-  const known = knownProviders.find(p => p.suggestName === providerName)
+  const knownByName = knownProviders.find(p => p.suggestName === providerName)
+  const knownByUrl = !knownByName && models.length === 0
+    ? knownProviders.find(p => p.matchUrls.some(u => providerBaseUrl.includes(u)))
+    : null
+  const known = knownByName ?? knownByUrl
 
   return (
     <div>
@@ -61,13 +72,22 @@ function ModelTable({ models, providerName, knownProviders, onReset }: {
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#8E8E93' }}>
           {t('providers.available_models')} ({models.length})
         </span>
-        {known && (
+        {known && models.length > 0 && (
           <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onReset}>
             Reset to defaults
           </button>
         )}
       </div>
-      {models.length === 0 ? (
+      {models.length === 0 && known ? (
+        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '12px', color: '#8E8E93' }}>
+            根据 Base URL 推断为 <span style={{ color: '#EBEBF5' }}>{known.suggestName}</span>，可使用 {known.models.length} 个推荐模型
+          </span>
+          <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', flexShrink: 0 }} onClick={onReset}>
+            应用推荐模型
+          </button>
+        </div>
+      ) : models.length === 0 ? (
         <div style={{ fontSize: '12px', color: '#8E8E93', padding: '12px 0', textAlign: 'center' }}>
           No models configured
         </div>
@@ -127,11 +147,12 @@ export default function ProvidersPage() {
   const [nameTouched, setNameTouched] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
 
-  const loadProviders = async () => {
+  const loadProviders = async (selectFirst = false) => {
     try {
       const [provs, known] = await Promise.all([getProviders(), getKnownProviders()])
       setProviders(provs)
       setKnownProviders(known)
+      if (selectFirst && provs.length > 0) setSelectedId(p => p ?? provs[0].id)
     } catch (e) {
       toast(String(e), 'error')
     }
@@ -146,7 +167,7 @@ export default function ProvidersPage() {
     }
   }
 
-  useEffect(() => { loadProviders() }, [])
+  useEffect(() => { loadProviders(true) }, [])
 
   const selectedProvider = providers.find(p => p.id === selectedId) ?? null
 
@@ -186,6 +207,9 @@ export default function ProvidersPage() {
     : !!(selectedProvider?.base_url && selectedProvider?.api)
 
   const handleSelectProvider = (id: string) => {
+    if (editMode !== 'none') {
+      if (!window.confirm('有未保存的修改，确认放弃？')) return
+    }
     setSelectedId(id)
     setEditMode('none')
     setConfirmDelete(null)
@@ -288,13 +312,15 @@ export default function ProvidersPage() {
     const baseUrl = editMode !== 'none' ? formBaseUrl : selectedProvider!.base_url
     const apiKey = editMode !== 'none' ? formApiKey : (selectedProvider!.api_key ?? '')
     const api = editMode !== 'none' ? formApi : selectedProvider!.api
+    const providerId = editMode === 'none' ? selectedProvider!.id : undefined
     try {
-      const result = await testProvider(baseUrl, apiKey, api)
+      const result = await testProvider(baseUrl, apiKey, api, providerId)
       if (result.ok) {
         toast(`连接成功${result.latency_ms != null ? `（${result.latency_ms}ms）` : ''}`, 'success')
       } else {
         toast(`连接失败: ${result.error ?? '未知错误'}`, 'error')
       }
+      if (providerId) await loadProviders()
     } catch (e) {
       toast(String(e), 'error')
     } finally {
@@ -315,34 +341,47 @@ export default function ProvidersPage() {
               {t('providers.no_providers')}
             </div>
           )}
-          {providers.map(p => (
-            <div
-              key={p.id}
-              className={`list-row${selectedId === p.id ? ' selected' : ''}`}
-              onClick={() => handleSelectProvider(p.id)}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600 }}>{p.name}</span>
-                  <span style={{
-                    width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
-                    background: p.is_available ? '#34c759' : (p.is_enabled ? '#f59e0b' : '#555'),
-                  }} />
+          {providers.map(p => {
+            const gradient = API_AVATAR_GRADIENTS[p.api] ?? 'linear-gradient(135deg,#8b5cf6,#06b6d4)'
+            const initials = p.name.slice(0, 2).toUpperCase()
+            return (
+              <div
+                key={p.id}
+                className={`list-row${selectedId === p.id ? ' selected' : ''}`}
+                onClick={() => handleSelectProvider(p.id)}
+              >
+                <div className="avatar avatar-lg" style={{ background: gradient }}>
+                  {initials}
                 </div>
-                <div style={{ marginTop: '3px' }}>
-                  <ApiBadge api={p.api} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600 }}>{p.name}</span>
+                    {editMode === 'edit' && selectedId === p.id && (
+                      <span style={{ fontSize: '10px', color: '#f59e0b' }}>[未保存]</span>
+                    )}
+                  </div>
+                  <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <ApiBadge api={p.api} />
+                    <span style={{
+                      fontSize: '10px', padding: '1px 5px', borderRadius: '4px',
+                      background: p.is_available ? 'rgba(52,199,89,0.12)' : (p.is_enabled ? (p.last_tested ? 'rgba(244,63,94,0.12)' : 'rgba(255,255,255,0.06)') : 'rgba(255,255,255,0.06)'),
+                      color: p.is_available ? '#34c759' : (p.is_enabled ? (p.last_tested ? '#f43f5e' : '#8E8E93') : '#555'),
+                    }}>
+                      {p.is_available ? '已连通' : (p.is_enabled ? (p.last_tested ? '连接失败' : '未测试') : '已禁用')}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div style={{ padding: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <button
             className="tbtn tbtn-ghost"
-            style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
+            style={{ width: '100%', fontSize: '12px', justifyContent: 'center', color: editMode === 'create' ? '#f59e0b' : undefined }}
             onClick={handleAddProvider}
           >
-            + {t('common.button_add')}
+            + {t('common.button_add')}{editMode === 'create' && <span style={{ marginLeft: '4px', fontSize: '10px' }}>未保存</span>}
           </button>
         </div>
       </div>
@@ -492,6 +531,14 @@ export default function ProvidersPage() {
             <>
               <div className="group">
                 <div className="group-row">
+                  <span className="group-label">名称</span>
+                  <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>{selectedProvider.name}</span>
+                </div>
+                <div className="group-row">
+                  <span className="group-label">协议</span>
+                  <span className="group-value"><ApiBadge api={selectedProvider.api} /></span>
+                </div>
+                <div className="group-row">
                   <span className="group-label">Base URL</span>
                   <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
                     {selectedProvider.base_url || t('common.not_set')}
@@ -501,6 +548,35 @@ export default function ProvidersPage() {
                   <span className="group-label">API Key</span>
                   <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
                     {maskKey(selectedProvider.api_key)}
+                  </span>
+                </div>
+                <div className="group-row">
+                  <span className="group-label">状态</span>
+                  <span className="group-value" style={{
+                    color: selectedProvider.is_available ? '#34c759' : selectedProvider.last_tested ? '#f43f5e' : '#8E8E93',
+                    fontSize: '12px',
+                  }}>
+                    {selectedProvider.is_available ? '已连通' : selectedProvider.last_tested ? '连接失败' : '未测试'}
+                  </span>
+                </div>
+                {selectedProvider.last_tested && (
+                  <div className="group-row">
+                    <span className="group-label">上次测试</span>
+                    <span className="group-value" style={{ fontSize: '11px', color: '#8E8E93' }}>
+                      {new Date(selectedProvider.last_tested * 1000).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                <div className="group-row">
+                  <span className="group-label">创建时间</span>
+                  <span className="group-value" style={{ fontSize: '11px', color: '#8E8E93' }}>
+                    {new Date(selectedProvider.created_at * 1000).toLocaleString()}
+                  </span>
+                </div>
+                <div className="group-row">
+                  <span className="group-label">更新时间</span>
+                  <span className="group-value" style={{ fontSize: '11px', color: '#8E8E93' }}>
+                    {new Date(selectedProvider.updated_at * 1000).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -530,6 +606,7 @@ export default function ProvidersPage() {
               <ModelTable
                 models={models}
                 providerName={selectedProvider.name}
+                providerBaseUrl={selectedProvider.base_url}
                 knownProviders={knownProviders}
                 onReset={handleResetModels}
               />

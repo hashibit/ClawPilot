@@ -140,6 +140,7 @@ async fn main() {
 
     // Authenticated routes for deploy (existing)
     let protected_deploy = Router::new()
+        .route("/restart_openclaw", post(routes::restart_openclaw))
         .route("/deploy", post(routes::deploy))
         .route("/deploy/:task_id", get(routes::deploy_status))
         .route("/rollback", post(routes::rollback))
