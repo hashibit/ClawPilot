@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw يعمل",
+    "localMachine": "المحلي",
     "stopped": "OpenClaw متوقف",
     "notRunning": "غير مُشغَّل",
     "start": "تشغيل الخدمة",
@@ -552,5 +553,8 @@
     "step_write_target": "الكتابة إلى الهدف",
     "step_reload_process": "إعادة تحميل العملية",
     "step_health_check": "فحص الصحة"
+  },
+  "app": {
+    "name": "مجموعتي"
   }
 }

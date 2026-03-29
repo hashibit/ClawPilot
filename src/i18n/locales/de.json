@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw läuft",
+    "localMachine": "Lokal",
     "stopped": "OpenClaw gestoppt",
     "notRunning": "Nicht gestartet",
     "start": "Dienst starten",
@@ -554,5 +555,8 @@
     "error_message_format": "Bereitstellung fehlgeschlagen: {{msg}}",
     "cancelled_message": "Bereitstellung abgebrochen",
     "step_write_target": "In Ziel schreiben"
+  },
+  "app": {
+    "name": "Meine Gruppe"
   }
 }

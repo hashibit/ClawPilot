@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw en ejecución",
+    "localMachine": "Local",
     "stopped": "OpenClaw detenido",
     "notRunning": "No ejecutándose",
     "start": "Iniciar servicio",
@@ -554,5 +555,8 @@
     "error_message_format": "Error de despliegue: {{msg}}",
     "cancelled_message": "Despliegue cancelado",
     "step_write_target": "Escribir en destino"
+  },
+  "app": {
+    "name": "Mi Grupo"
   }
 }

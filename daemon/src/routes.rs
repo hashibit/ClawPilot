@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 
 use crate::{
-    deploy::{is_openclaw_running, read_openclaw_pid, run_deploy, run_rollback},
+    deploy::{openclaw_gateway_status, run_deploy, run_rollback},
     error::{AppError, Result},
     state::{AppState, TaskRecord},
 };
@@ -16,15 +16,15 @@ use crate::{
 // ── GET /health ──────────────────────────────────────────────
 
 pub async fn health(State(state): State<AppState>) -> Json<Value> {
-    let pid = read_openclaw_pid();
-    let running = is_openclaw_running();
+    let gw = openclaw_gateway_status();
     let task_count = state.tasks.len();
 
     Json(json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
-        "openclaw_status": if running { "running" } else { "stopped" },
-        "openclaw_pid": pid,
+        "openclaw_status": if gw.is_running { "running" } else { "stopped" },
+        "openclaw_pid": gw.pid,
+        "openclaw_rpc_ok": gw.rpc_ok,
         "active_tasks": task_count,
     }))
 }

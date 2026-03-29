@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw Running",
+    "localMachine": "Local",
     "stopped": "OpenClaw Stopped",
     "notRunning": "Not running",
     "start": "Start Service",
@@ -554,5 +555,8 @@
     "error_message_format": "Deployment failed: {{msg}}",
     "cancelled_message": "Deployment cancelled",
     "step_write_target": "Write to Target"
+  },
+  "app": {
+    "name": "My Group"
   }
 }

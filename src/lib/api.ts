@@ -14,7 +14,7 @@ import type {
 // ── Transport ──────────────────────────────────────────────
 // In Tauri context: use invoke(). In browser dev mode: use HTTP.
 const USE_HTTP = !('__TAURI_INTERNALS__' in window)
-const DEV_BASE = 'http://localhost:3001/api'
+const DEV_BASE = 'http://localhost:16667/api'
 
 async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
   if (USE_HTTP) {

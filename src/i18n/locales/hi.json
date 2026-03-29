@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw चल रहा है",
+    "localMachine": "स्थानीय",
     "stopped": "OpenClaw रुका हुआ है",
     "notRunning": "नहीं चल रहा",
     "start": "सेवा शुरू करें",
@@ -552,5 +553,8 @@
     "step_write_target": "लक्ष्य पर लिखें",
     "step_reload_process": "प्रक्रिया रीलोड करें",
     "step_health_check": "स्वास्थ्य जांच"
+  },
+  "app": {
+    "name": "मेरा समूह"
   }
 }

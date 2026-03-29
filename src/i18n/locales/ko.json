@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw 실행 중",
+    "localMachine": "로컬",
     "stopped": "OpenClaw 중지됨",
     "notRunning": "실행 중 아님",
     "start": "서비스 시작",
@@ -554,5 +555,8 @@
     "time_minutes_ago": "{{count}}분 전",
     "time_just_now": "방금",
     "version_format": "v{{ver}}"
+  },
+  "app": {
+    "name": "내 그룹"
   }
 }

@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw 実行中",
+    "localMachine": "ローカル",
     "stopped": "OpenClaw 停止中",
     "notRunning": "未実行",
     "start": "サービス起動",
@@ -554,5 +555,8 @@
     "error_message_format": "デプロイ失敗: {{msg}}",
     "cancelled_message": "デプロイをキャンセルしました",
     "step_write_target": "ターゲットへ書き込み"
+  },
+  "app": {
+    "name": "マイグループ"
   }
 }

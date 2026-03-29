@@ -28,10 +28,9 @@ pub fn read_openclaw_pid() -> Option<u32> {
     contents.trim().parse::<u32>().ok()
 }
 
-/// Check if OpenClaw process is running
+/// Check if OpenClaw process is running (legacy PID-file check)
 pub fn is_openclaw_running() -> bool {
     if let Some(pid) = read_openclaw_pid() {
-        // On Unix, sending signal 0 checks if process exists
         #[cfg(unix)]
         {
             use nix::sys::signal;
@@ -45,6 +44,83 @@ pub fn is_openclaw_running() -> bool {
     } else {
         false
     }
+}
+
+/// Result of `openclaw gateway status` probe
+pub struct GatewayStatus {
+    pub is_running: bool,
+    pub pid: Option<u32>,
+    pub rpc_ok: bool,
+}
+
+/// Query gateway status via `openclaw gateway status --json`.
+///
+/// Relevant fields from the JSON output:
+///   service.runtime.status  = "running" | "stopped"
+///   service.runtime.pid     = 34575
+///   rpc.ok                  = true
+///
+/// Falls back to is_running=false when the command fails or JSON is absent.
+pub fn openclaw_gateway_status() -> GatewayStatus {
+    use std::process::Command;
+    use std::env;
+
+    // Ensure PATH includes common Homebrew paths since daemon may lack them
+    let path = env::var("PATH").unwrap_or_default();
+    let path = format!(
+        "/opt/homebrew/bin:/usr/local/bin:{}",
+        path
+    );
+
+    let output = Command::new("openclaw")
+        .args(["gateway", "status", "--json"])
+        .env("PATH", path)
+        .output();
+
+    let stdout = match output {
+        Ok(o) => String::from_utf8_lossy(&o.stdout).into_owned(),
+        Err(_) => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
+    };
+
+    // The CLI may print log lines before/after the JSON.
+    // Walk backwards from the last '}' counting brace balance to find the matching '{'.
+    let bytes = stdout.as_bytes();
+    let json_end = match stdout.rfind('}') {
+        Some(i) => i,
+        None => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
+    };
+    let json_start = {
+        let mut balance: i32 = 0;
+        let mut found = None;
+        for i in (0..=json_end).rev() {
+            match bytes[i] {
+                b'}' => balance += 1,
+                b'{' => {
+                    balance -= 1;
+                    if balance == 0 {
+                        found = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        match found {
+            Some(i) => i,
+            None => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
+        }
+    };
+    let v: serde_json::Value = match serde_json::from_str(&stdout[json_start..=json_end]) {
+        Ok(v) => v,
+        Err(_) => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
+    };
+
+    let status = v["service"]["runtime"]["status"].as_str().unwrap_or("");
+    let is_running = status == "running";
+    let pid = v["service"]["runtime"]["pid"].as_u64().map(|p| p as u32);
+    let rpc_ok = v["rpc"]["ok"].as_bool().unwrap_or(false);
+
+    GatewayStatus { is_running, pid, rpc_ok }
 }
 
 /// Send SIGHUP to OpenClaw for graceful reload

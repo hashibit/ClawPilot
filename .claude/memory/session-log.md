@@ -467,3 +467,25 @@
 - （必要に応じて追記）
 
 ---
+
+## セッション: 2026-03-29T18:38:26Z
+
+- session_id: `6053333E-F935-4A7A-B5D2-1C366B9C144E`
+- project: `ClawPilot`
+- branch: `ft_providers`
+- started_at: `2026-03-29T18:20:02Z`
+- ended_at: `2026-03-29T18:38:26Z`
+- duration_minutes: 498
+- changes: 3
+
+### 変更ファイル
+- `daemon/src/deploy.rs`
+- `package.json`
+
+### 重要な変更（important=true）
+- （なし）
+
+### 次回への引き継ぎ（任意）
+- （必要に応じて追記）
+
+---

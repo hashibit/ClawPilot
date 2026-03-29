@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw Berjalan",
+    "localMachine": "Lokal",
     "stopped": "OpenClaw Berhenti",
     "notRunning": "Tidak berjalan",
     "start": "Mulai Layanan",
@@ -552,5 +553,8 @@
     "step_write_target": "Tulis ke Target",
     "step_reload_process": "Muat Ulang Proses",
     "step_health_check": "Pemeriksaan Kesehatan"
+  },
+  "app": {
+    "name": "Grup Saya"
   }
 }

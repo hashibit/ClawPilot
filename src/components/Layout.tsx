@@ -84,7 +84,7 @@ export default function Layout() {
               <div className="logo-box">
                 <svg width="13" height="13" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
               </div>
-              <span className="text-sm text-bold">ClawPilot</span>
+              <span className="text-sm text-bold">{t('app.name')}</span>
             </div>
           )}
           {collapsed && (
@@ -191,7 +191,10 @@ export default function Layout() {
                     background: process?.is_running ? '#34c759' : '#8E8E93',
                   }} />
                   <span style={{ fontSize: '12px', color: process?.is_running ? '#34c759' : '#8E8E93', fontWeight: 500 }}>
-                    {process?.is_running ? t('process.running') : t('process.stopped')}
+                    {process?.is_running
+                      ? t('process.running')
+                      : <><span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{t('process.localMachine')}</span> {t('process.stopped')}</>
+                    }
                   </span>
                 </div>
               </div>

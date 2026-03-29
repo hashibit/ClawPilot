@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw 運行中",
+    "localMachine": "本機",
     "stopped": "OpenClaw 已停止",
     "notRunning": "未運行",
     "start": "啟動服務",
@@ -554,5 +555,8 @@
     "error_message_format": "部署失敗: {{msg}}",
     "cancelled_message": "部署已取消",
     "step_write_target": "寫入目標目錄"
+  },
+  "app": {
+    "name": "我的集團"
   }
 }

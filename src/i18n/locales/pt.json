@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw em execução",
+    "localMachine": "Local",
     "stopped": "OpenClaw parado",
     "notRunning": "Não em execução",
     "start": "Iniciar serviço",
@@ -554,5 +555,8 @@
     "error_message_format": "Falha na implantação: {{msg}}",
     "cancelled_message": "Implantação cancelada",
     "step_write_target": "Escrever no destino"
+  },
+  "app": {
+    "name": "Meu Grupo"
   }
 }

@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw in esecuzione",
+    "localMachine": "Locale",
     "stopped": "OpenClaw fermo",
     "notRunning": "Non in esecuzione",
     "start": "Avvia servizio",
@@ -552,5 +553,8 @@
     "step_write_target": "Scrivere sulla destinazione",
     "step_reload_process": "Ricaricare processo",
     "step_health_check": "Controllo salute"
+  },
+  "app": {
+    "name": "Il Mio Gruppo"
   }
 }

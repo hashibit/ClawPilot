@@ -20,6 +20,7 @@
   },
   "process": {
     "running": "OpenClaw 运行中",
+    "localMachine": "本机",
     "stopped": "OpenClaw 已停止",
     "notRunning": "未运行",
     "start": "启动服务",
@@ -85,7 +86,7 @@
   },
   "common": {
     "pro": "PRO",
-    "collapse": "收起菜单",
+    "collapse": "收起",
     "expand": "展开菜单",
     "button_cancel": "取消",
     "button_save": "保存",
@@ -113,7 +114,6 @@
     "not_set": "未设置",
     "enabled": "启用",
     "disabled": "禁用",
-    "collapse": "收起",
     "unknown_error": "未知错误",
     "status_running": "运行中",
     "status_running_ellipsis": "进行中...",
@@ -555,5 +555,8 @@
     "error_message_format": "部署失败: {{msg}}",
     "cancelled_message": "部署已取消",
     "step_write_target": "写入目标目录"
+  },
+  "app": {
+    "name": "我的集团"
   }
 }
