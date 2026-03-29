@@ -68,6 +68,8 @@ export const setModels = (provider_name: string, models: Partial<ModelInfo>[]) =
   call<ModelInfo[]>('set_models', { provider_name, models })
 export const suggestProvider = (base_url: string) => call<SuggestProviderResult | null>('suggest_provider', { base_url })
 export const getKnownProviders = () => call<KnownProvider[]>('get_known_providers', {})
+export const testProvider = (base_url: string, api_key: string, api: string) =>
+  call<{ ok: boolean; latency_ms?: number; error?: string }>('test_provider', { base_url, api_key, api })
 
 // ── Channel ───────────────────────────────────────────────
 export const getChannels = (opcId: string) => call<ChannelConfig[]>('get_channels', { opc_id: opcId })
