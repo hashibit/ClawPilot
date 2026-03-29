@@ -181,7 +181,9 @@ export default function ProvidersPage() {
   }, [formBaseUrl, editMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const canSave = formName.trim() && formApi && formBaseUrl.trim() && !suggesting
-  const canTest = formBaseUrl.trim() && formApi
+  const canTest = editMode !== 'none'
+    ? !!(formBaseUrl.trim() && formApi)
+    : !!(selectedProvider?.base_url && selectedProvider?.api)
 
   const handleSelectProvider = (id: string) => {
     setSelectedId(id)
@@ -283,8 +285,11 @@ export default function ProvidersPage() {
   const handleTestConnection = async () => {
     if (!canTest) return
     setTesting(true)
+    const baseUrl = editMode !== 'none' ? formBaseUrl : selectedProvider!.base_url
+    const apiKey = editMode !== 'none' ? formApiKey : (selectedProvider!.api_key ?? '')
+    const api = editMode !== 'none' ? formApi : selectedProvider!.api
     try {
-      const result = await testProvider(formBaseUrl, formApiKey, formApi)
+      const result = await testProvider(baseUrl, apiKey, api)
       if (result.ok) {
         toast(`连接成功${result.latency_ms != null ? `（${result.latency_ms}ms）` : ''}`, 'success')
       } else {
@@ -301,20 +306,13 @@ export default function ProvidersPage() {
     <>
       {/* ── Left: Provider List ───────────────────────────── */}
       <div className="list-pane">
-        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+        <div className="toolbar">
           <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
-          <button
-            className="tbtn tbtn-ghost"
-            style={{ fontSize: '11px', padding: '2px 8px' }}
-            onClick={handleAddProvider}
-          >
-            + Add
-          </button>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {providers.length === 0 && (
             <div style={{ padding: '12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>
-              No providers yet
+              {t('providers.no_providers')}
             </div>
           )}
           {providers.map(p => (
@@ -337,6 +335,15 @@ export default function ProvidersPage() {
               </div>
             </div>
           ))}
+        </div>
+        <div style={{ padding: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <button
+            className="tbtn tbtn-ghost"
+            style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
+            onClick={handleAddProvider}
+          >
+            + {t('common.button_add')}
+          </button>
         </div>
       </div>
 
@@ -369,16 +376,18 @@ export default function ProvidersPage() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {(editMode !== 'none' || selectedProvider) && (
+              <button
+                className="tbtn tbtn-ghost"
+                style={{ fontSize: '11px' }}
+                onClick={handleTestConnection}
+                disabled={!canTest || testing}
+              >
+                {testing ? t('common.testing') : t('common.button_test_connection')}
+              </button>
+            )}
             {editMode !== 'none' && (
               <>
-                <button
-                  className="tbtn tbtn-ghost"
-                  style={{ fontSize: '11px' }}
-                  onClick={handleTestConnection}
-                  disabled={!canTest || testing}
-                >
-                  {testing ? '测试中...' : '测试连接'}
-                </button>
                 <button className="tbtn tbtn-ghost" onClick={handleCancel}>{t('common.button_cancel')}</button>
                 <button
                   className="tbtn tbtn-accent"

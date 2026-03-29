@@ -340,7 +340,8 @@
     "table_header_input": "입력",
     "table_header_capabilities": "기능",
     "tag_vision": "비전",
-    "tag_streaming": "스트리밍"
+    "tag_streaming": "스트리밍",
+    "no_providers": "아직 공급자가 없습니다"
   },
   "office": {
     "section_title": "사무실",

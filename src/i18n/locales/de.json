@@ -428,7 +428,8 @@
     "table_header_input": "Eingabe",
     "table_header_capabilities": "Fähigkeiten",
     "tag_vision": "Vision",
-    "tag_streaming": "Streaming"
+    "tag_streaming": "Streaming",
+    "no_providers": "Noch keine Anbieter"
   },
   "office": {
     "section_title": "Büros",

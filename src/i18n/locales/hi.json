@@ -426,7 +426,8 @@
     "table_header_input": "इनपुट",
     "table_header_capabilities": "क्षमताएं",
     "tag_vision": "दृष्टि",
-    "tag_streaming": "स्ट्रीमिंग"
+    "tag_streaming": "स्ट्रीमिंग",
+    "no_providers": "अभी कोई प्रदाता नहीं"
   },
   "office": {
     "section_title": "कार्यालय",

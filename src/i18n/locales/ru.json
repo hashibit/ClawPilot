@@ -426,7 +426,8 @@
     "table_header_input": "Вход",
     "table_header_capabilities": "Возможности",
     "tag_vision": "Зрение",
-    "tag_streaming": "Потоковая передача"
+    "tag_streaming": "Потоковая передача",
+    "no_providers": "Провайдеры отсутствуют"
   },
   "office": {
     "section_title": "Офисы",

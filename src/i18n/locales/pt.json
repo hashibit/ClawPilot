@@ -428,7 +428,8 @@
     "table_header_input": "Entrada",
     "table_header_capabilities": "Capacidades",
     "tag_vision": "Visão",
-    "tag_streaming": "Streaming"
+    "tag_streaming": "Streaming",
+    "no_providers": "Sem provedores ainda"
   },
   "office": {
     "section_title": "Escritórios",

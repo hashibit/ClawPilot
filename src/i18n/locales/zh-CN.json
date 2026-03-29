@@ -428,7 +428,8 @@
     "table_header_input": "输入",
     "table_header_capabilities": "能力",
     "tag_vision": "视觉",
-    "tag_streaming": "流式"
+    "tag_streaming": "流式",
+    "no_providers": "暂无供应商"
   },
   "office": {
     "section_title": "办公室",

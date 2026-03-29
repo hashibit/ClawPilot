@@ -428,7 +428,8 @@
     "table_header_input": "Entrée",
     "table_header_capabilities": "Capacités",
     "tag_vision": "Vision",
-    "tag_streaming": "Streaming"
+    "tag_streaming": "Streaming",
+    "no_providers": "Aucun fournisseur pour l'instant"
   },
   "office": {
     "section_title": "Bureaux",

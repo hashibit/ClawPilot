@@ -428,7 +428,8 @@
     "table_header_input": "輸入",
     "table_header_capabilities": "能力",
     "tag_vision": "視覺",
-    "tag_streaming": "串流"
+    "tag_streaming": "串流",
+    "no_providers": "尚無供應商"
   },
   "office": {
     "section_title": "辦公室",
