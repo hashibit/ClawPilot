@@ -4,6 +4,7 @@ mod error;
 mod routes;
 mod scheduler;
 mod state;
+mod utils;
 #[cfg(test)]
 mod tests;
 

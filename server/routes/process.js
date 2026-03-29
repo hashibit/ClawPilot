@@ -2,7 +2,6 @@ import { Router } from 'express'
 import { execSync, spawn } from 'child_process'
 import { existsSync, unlinkSync } from 'fs'
 import { createLogger } from '../logger.js'
-import http from 'http'
 
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || 'openclaw'
 
@@ -17,37 +16,13 @@ function getLocalDaemon(db) {
 
 /** GET {daemon_url}/health with auth header. Throws on network/HTTP error. */
 async function fetchDaemonHealth(daemonUrl, apiKey) {
-  const url = new URL(daemonUrl)
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: url.hostname,
-      port: parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : 80),
-      path: '/health',
-      method: 'GET',
-      timeout: 3000,
-      headers: { 'Authorization': `Bearer ${apiKey ?? ''}` }
-    }
-    const req = http.request(options, (res) => {
-      let data = ''
-      res.on('data', chunk => data += chunk)
-      res.on('end', () => {
-        try {
-          if (res.statusCode !== 200) {
-            return reject(new Error(`daemon health returned ${res.statusCode}`))
-          }
-          resolve(JSON.parse(data))
-        } catch (e) {
-          reject(new Error(`Failed to parse daemon response: ${e.message}`))
-        }
-      })
-    })
-    req.on('error', err => reject(err))
-    req.on('timeout', () => {
-      req.destroy()
-      reject(new Error('Request timeout'))
-    })
-    req.end()
+  const response = await fetch(`${daemonUrl}/health`, {
+    headers: { 'Authorization': `Bearer ${apiKey ?? ''}` }
   })
+  if (!response.ok) {
+    throw new Error(`daemon health returned ${response.status}`)
+  }
+  return await response.json()
 }
 
 function getUptimeSeconds(pid) {
@@ -97,9 +72,23 @@ export function createProcessRouter(db) {
   probeLocalStatus(db, log)
   setInterval(() => probeLocalStatus(db, log), PROBE_INTERVAL_MS)
 
-  // POST /api/get_process_status — returns cached probe result
-  router.post('/get_process_status', (_req, res) => {
-    res.json(cachedStatus)
+  // POST /api/get_process_status — 实时转发到 daemon 查询
+  router.post('/get_process_status', async (_req, res) => {
+    const daemon = getLocalDaemon(db)
+    if (!daemon) {
+      return res.json({ is_running: false, pid: null, uptime_seconds: null, probed_at: Date.now() })
+    }
+
+    try {
+      const health = await fetchDaemonHealth(daemon.daemon_url, daemon.daemon_api_key)
+      const is_running = health.openclaw_status === 'running'
+      const pid = health.openclaw_pid ?? null
+      const uptime_seconds = (is_running && pid) ? getUptimeSeconds(pid) : null
+      res.json({ is_running, pid, uptime_seconds, probed_at: Date.now() })
+    } catch (err) {
+      log.warn(`get_process_status: daemon unreachable — ${err.message}`)
+      res.json({ is_running: false, pid: null, uptime_seconds: null, probed_at: Date.now() })
+    }
   })
 
   // POST /api/start_openclaw

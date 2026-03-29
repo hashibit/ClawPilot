@@ -73,3 +73,5 @@
 {"event":"notification","notification_type":"idle_prompt","session_id":"98b79a10-08c7-4c46-b067-99ffbd5413a8","agent_type":"","timestamp":"2026-03-28T22:23:05Z"}
 {"event":"notification","notification_type":"idle_prompt","session_id":"98b79a10-08c7-4c46-b067-99ffbd5413a8","agent_type":"","timestamp":"2026-03-28T22:40:21Z"}
 {"event":"notification","notification_type":"idle_prompt","session_id":"98b79a10-08c7-4c46-b067-99ffbd5413a8","agent_type":"","timestamp":"2026-03-29T16:50:23Z"}
+{"event":"notification","notification_type":"idle_prompt","session_id":"78115bc3-4213-4acc-b58c-ba2c6bed53fa","agent_type":"","timestamp":"2026-03-29T20:12:37Z"}
+{"event":"notification","notification_type":"idle_prompt","session_id":"78115bc3-4213-4acc-b58c-ba2c6bed53fa","agent_type":"","timestamp":"2026-03-29T20:26:50Z"}

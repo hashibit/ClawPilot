@@ -4,6 +4,7 @@
 //! agent sync, and periodic DAG sweeping.
 
 use crate::scheduler::{Db, Worker, DagScheduler, models::*};
+use crate::utils::extract_json;
 
 /// Recovery handles startup recovery and timer-based operations
 #[derive(Clone)]
@@ -188,7 +189,14 @@ impl Recovery {
         }
 
         let json_str = String::from_utf8_lossy(&output.stdout);
-        let agents_data: serde_json::Value = match serde_json::from_str(&json_str) {
+        let clean_json = match extract_json(&json_str) {
+            Some(j) => j,
+            None => {
+                tracing::error!("Failed to extract JSON from openclaw agents list output");
+                return;
+            }
+        };
+        let agents_data: serde_json::Value = match serde_json::from_str(&clean_json) {
             Ok(v) => v,
             Err(e) => {
                 tracing::error!("Failed to parse openclaw agents list JSON: {}", e);
@@ -197,7 +205,19 @@ impl Recovery {
         };
 
         // Parse agents from the response
-        let current_agent_ids = if let Some(agents_array) = agents_data.get("agents").and_then(|v| v.as_array()) {
+        // openclaw agents list --json returns a direct array [...]
+        // or an object { "agents": [...] }
+        let agents_array = if let Some(arr) = agents_data.as_array() {
+            // Direct array format
+            Some(arr)
+        } else if let Some(arr) = agents_data.get("agents").and_then(|v| v.as_array()) {
+            // Object with agents field
+            Some(arr)
+        } else {
+            None
+        };
+
+        let current_agent_ids = if let Some(agents_array) = agents_array {
             let mut ids = Vec::new();
             for agent_value in agents_array {
                 if let Some(agent_obj) = agent_value.as_object() {

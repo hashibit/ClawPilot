@@ -34,7 +34,7 @@ export default function Layout() {
 
   useEffect(() => {
     loadStatus()
-    const id = setInterval(loadStatus, 10000)
+    const id = setInterval(loadStatus, 120000)
     return () => clearInterval(id)
   }, [])
 

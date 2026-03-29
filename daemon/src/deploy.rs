@@ -10,6 +10,7 @@ use std::{
 use tar::Archive;
 
 use crate::state::{AppState, TaskRecord, TaskStatus};
+use crate::utils::extract_json;
 
 /// ~/.openclaw base directory
 fn openclaw_home() -> PathBuf {
@@ -83,34 +84,13 @@ pub fn openclaw_gateway_status() -> GatewayStatus {
     };
 
     // The CLI may print log lines before/after the JSON.
-    // Walk backwards from the last '}' counting brace balance to find the matching '{'.
-    let bytes = stdout.as_bytes();
-    let json_end = match stdout.rfind('}') {
-        Some(i) => i,
+    // Use extract_json to find the first valid JSON object/array.
+    let clean_json = match extract_json(&stdout) {
+        Some(j) => j,
         None => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
     };
-    let json_start = {
-        let mut balance: i32 = 0;
-        let mut found = None;
-        for i in (0..=json_end).rev() {
-            match bytes[i] {
-                b'}' => balance += 1,
-                b'{' => {
-                    balance -= 1;
-                    if balance == 0 {
-                        found = Some(i);
-                        break;
-                    }
-                }
-                _ => {}
-            }
-        }
-        match found {
-            Some(i) => i,
-            None => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
-        }
-    };
-    let v: serde_json::Value = match serde_json::from_str(&stdout[json_start..=json_end]) {
+
+    let v: serde_json::Value = match serde_json::from_str(&clean_json) {
         Ok(v) => v,
         Err(_) => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
     };

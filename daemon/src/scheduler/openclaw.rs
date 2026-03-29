@@ -7,6 +7,7 @@ use serde_json::Value;
 use tokio::process::Command;
 
 use crate::scheduler::models::AgentInfo;
+use crate::utils::extract_json;
 
 /// List all available agents from OpenClaw
 pub async fn list_agents() -> Result<Vec<AgentInfo>> {
@@ -25,10 +26,24 @@ pub async fn list_agents() -> Result<Vec<AgentInfo>> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    let data: Value = serde_json::from_str(&json_str)
+    let clean_json = extract_json(&json_str)
+        .context("Failed to extract JSON from openclaw agents list output")?;
+    let data: Value = serde_json::from_str(&clean_json)
         .context("Failed to parse openclaw agents list JSON")?;
 
-    let agents = if let Some(agents_array) = data.get("agents").and_then(|v| v.as_array()) {
+    // openclaw agents list --json returns a direct array [...]
+    // Parse agents from the response
+    let agents_array = if let Some(arr) = data.as_array() {
+        // Direct array format
+        Some(arr)
+    } else if let Some(arr) = data.get("agents").and_then(|v| v.as_array()) {
+        // Object with agents field
+        Some(arr)
+    } else {
+        None
+    };
+
+    let agents = if let Some(agents_array) = agents_array {
         agents_array
             .iter()
             .filter_map(|agent| {
