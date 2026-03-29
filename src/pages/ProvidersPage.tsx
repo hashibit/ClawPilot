@@ -9,6 +9,7 @@ import {
   setModels as apiSetModels,
   suggestProvider,
   getKnownProviders,
+  testProvider,
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { ProviderConfig, ModelInfo, ProviderApi, KnownProvider } from '../lib/types'
@@ -40,136 +41,6 @@ function ApiBadge({ api }: { api: ProviderApi }) {
     }}>
       {API_LABELS[api] ?? api}
     </span>
-  )
-}
-
-// ── Provider Edit Form ─────────────────────────────────────
-
-interface ProviderFormProps {
-  existing?: ProviderConfig
-  onSave: (provider: ProviderConfig, models: Partial<ModelInfo>[]) => Promise<void>
-  onCancel: () => void
-  saving: boolean
-}
-
-function ProviderForm({ existing, onSave, onCancel, saving }: ProviderFormProps) {
-  const [name, setName] = useState(existing?.name ?? '')
-  const [api, setApi] = useState<ProviderApi>(existing?.api ?? 'openai-completions')
-  const [baseUrl, setBaseUrl] = useState(existing?.base_url ?? '')
-  const [apiKey, setApiKey] = useState(existing?.api_key ?? '')
-  const [pendingModels, setPendingModels] = useState<Partial<ModelInfo>[]>([])
-  const [nameTouched, setNameTouched] = useState(!!existing)
-  const [suggesting, setSuggesting] = useState(false)
-
-  // Auto-suggest on baseUrl change (debounced)
-  useEffect(() => {
-    if (!baseUrl.trim()) return
-    const timer = setTimeout(async () => {
-      setSuggesting(true)
-      try {
-        const result = await suggestProvider(baseUrl)
-        if (result) {
-          if (!nameTouched) setName(result.name)
-          setApi(result.api)
-          setPendingModels(result.models)
-        }
-      } catch {
-        // ignore suggest errors
-      } finally {
-        setSuggesting(false)
-      }
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [baseUrl]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleSave = () => {
-    const n = Math.floor(Date.now() / 1000)
-    const provider: ProviderConfig = {
-      ...(existing ?? { id: '', created_at: n }),
-      name,
-      api,
-      base_url: baseUrl,
-      api_key: apiKey,
-      is_enabled: existing?.is_enabled ?? true,
-      is_available: existing?.is_available ?? false,
-      updated_at: n,
-    }
-    onSave(provider, pendingModels)
-  }
-
-  const canSave = name.trim() && api && baseUrl.trim() && !suggesting
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <div className="group-row" style={{ gap: '8px' }}>
-        <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Base URL</span>
-        <input
-          type="text"
-          value={baseUrl}
-          onChange={e => setBaseUrl(e.target.value)}
-          placeholder="https://api.example.com/v1"
-          className="field-input"
-          style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px' }}
-        />
-        {suggesting && <span style={{ fontSize: '11px', color: '#8E8E93' }}>...</span>}
-      </div>
-
-      <div className="group-row" style={{ gap: '8px' }}>
-        <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Name</span>
-        <input
-          type="text"
-          value={name}
-          onChange={e => { setName(e.target.value); setNameTouched(true) }}
-          placeholder="my-provider"
-          className="field-input"
-          style={{ flex: 1, fontSize: '12px' }}
-        />
-      </div>
-
-      <div className="group-row" style={{ gap: '8px' }}>
-        <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Protocol</span>
-        <select
-          value={api}
-          onChange={e => setApi(e.target.value as ProviderApi)}
-          className="field-input"
-          style={{ flex: 1, fontSize: '12px' }}
-        >
-          <option value="openai-completions">openai-completions</option>
-          <option value="anthropic-messages">anthropic-messages</option>
-          <option value="gemini">gemini</option>
-        </select>
-      </div>
-
-      <div className="group-row" style={{ gap: '8px' }}>
-        <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>API Key</span>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={e => setApiKey(e.target.value)}
-          placeholder="sk-..."
-          className="field-input"
-          style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px' }}
-        />
-      </div>
-
-      {pendingModels.length > 0 && (
-        <div style={{ fontSize: '11px', color: '#8E8E93', padding: '4px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: '5px' }}>
-          Auto-detected {pendingModels.length} models from known provider registry
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: '6px' }}>
-        <button
-          className="tbtn tbtn-accent"
-          style={{ flex: 1 }}
-          onClick={handleSave}
-          disabled={saving || !canSave}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-        <button className="tbtn tbtn-ghost" style={{ flex: 1 }} onClick={onCancel}>Cancel</button>
-      </div>
-    </div>
   )
 }
 
@@ -245,6 +116,16 @@ export default function ProvidersPage() {
   const [editMode, setEditMode] = useState<'none' | 'create' | 'edit'>('none')
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
+
+  // Form state (shared between create and edit)
+  const [formName, setFormName] = useState('')
+  const [formApi, setFormApi] = useState<ProviderApi>('openai-completions')
+  const [formBaseUrl, setFormBaseUrl] = useState('')
+  const [formApiKey, setFormApiKey] = useState('')
+  const [pendingModels, setPendingModels] = useState<Partial<ModelInfo>[]>([])
+  const [nameTouched, setNameTouched] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
 
   const loadProviders = async () => {
     try {
@@ -277,43 +158,86 @@ export default function ProvidersPage() {
     }
   }, [selectedId, selectedProvider?.name])
 
+  // Auto-suggest on baseUrl change (debounced) — only in create mode
+  useEffect(() => {
+    if (editMode !== 'create') return
+    if (!formBaseUrl.trim()) return
+    const timer = setTimeout(async () => {
+      setSuggesting(true)
+      try {
+        const result = await suggestProvider(formBaseUrl)
+        if (result) {
+          if (!nameTouched) setFormName(result.name)
+          setFormApi(result.api)
+          setPendingModels(result.models)
+        }
+      } catch {
+        // ignore
+      } finally {
+        setSuggesting(false)
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [formBaseUrl, editMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canSave = formName.trim() && formApi && formBaseUrl.trim() && !suggesting
+  const canTest = formBaseUrl.trim() && formApi
+
   const handleSelectProvider = (id: string) => {
     setSelectedId(id)
     setEditMode('none')
+    setConfirmDelete(null)
   }
 
   const handleAddProvider = () => {
     setSelectedId(null)
+    setFormName('')
+    setFormApi('openai-completions')
+    setFormBaseUrl('')
+    setFormApiKey('')
+    setPendingModels([])
+    setNameTouched(false)
     setEditMode('create')
   }
 
   const handleEditProvider = () => {
+    if (!selectedProvider) return
+    setFormName(selectedProvider.name)
+    setFormApi(selectedProvider.api)
+    setFormBaseUrl(selectedProvider.base_url)
+    setFormApiKey(selectedProvider.api_key ?? '')
+    setPendingModels([])
+    setNameTouched(true)
     setEditMode('edit')
   }
 
-  const handleSaveProvider = async (provider: ProviderConfig, pendingModels: Partial<ModelInfo>[]) => {
+  const handleCancel = () => {
+    setEditMode('none')
+  }
+
+  const handleSave = async () => {
     setSaving(true)
     try {
       let saved: ProviderConfig
+      const n = Math.floor(Date.now() / 1000)
       if (editMode === 'create') {
         saved = await createProvider({
-          name: provider.name,
-          api: provider.api,
-          base_url: provider.base_url,
-          api_key: provider.api_key,
-          is_enabled: provider.is_enabled,
+          name: formName,
+          api: formApi,
+          base_url: formBaseUrl,
+          api_key: formApiKey,
+          is_enabled: true,
         })
       } else {
         saved = await updateProvider({
-          id: provider.id,
-          name: provider.name,
-          api: provider.api,
-          base_url: provider.base_url,
-          api_key: provider.api_key,
-          is_enabled: provider.is_enabled,
+          id: selectedProvider!.id,
+          name: formName,
+          api: formApi,
+          base_url: formBaseUrl,
+          api_key: formApiKey,
+          is_enabled: selectedProvider!.is_enabled,
         })
       }
-      // Write model list if we have pending models
       if (pendingModels.length > 0) {
         await apiSetModels(saved.name, pendingModels)
       }
@@ -356,90 +280,134 @@ export default function ProvidersPage() {
     }
   }
 
-  return (
-    <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div className="toolbar">
-        <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
-      </div>
+  const handleTestConnection = async () => {
+    if (!canTest) return
+    setTesting(true)
+    try {
+      const result = await testProvider(formBaseUrl, formApiKey, formApi)
+      if (result.ok) {
+        toast(`连接成功${result.latency_ms != null ? `（${result.latency_ms}ms）` : ''}`, 'success')
+      } else {
+        toast(`连接失败: ${result.error ?? '未知错误'}`, 'error')
+      }
+    } catch (e) {
+      toast(String(e), 'error')
+    } finally {
+      setTesting(false)
+    }
+  }
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        {/* ── Left: Provider List ─────────────────── */}
-        <div style={{
-          width: '220px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        }}>
-          <div style={{ padding: '10px 10px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px', color: '#8E8E93', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Providers ({providers.length})
-            </span>
-            <button
-              className="tbtn tbtn-ghost"
-              style={{ fontSize: '11px', padding: '2px 8px' }}
-              onClick={handleAddProvider}
+  return (
+    <>
+      {/* ── Left: Provider List ───────────────────────────── */}
+      <div className="list-pane">
+        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
+          <button
+            className="tbtn tbtn-ghost"
+            style={{ fontSize: '11px', padding: '2px 8px' }}
+            onClick={handleAddProvider}
+          >
+            + Add
+          </button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {providers.length === 0 && (
+            <div style={{ padding: '12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>
+              No providers yet
+            </div>
+          )}
+          {providers.map(p => (
+            <div
+              key={p.id}
+              className={`list-row${selectedId === p.id ? ' selected' : ''}`}
+              onClick={() => handleSelectProvider(p.id)}
             >
-              + Add
-            </button>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {providers.length === 0 && (
-              <div style={{ padding: '12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>
-                No providers yet
-              </div>
-            )}
-            {providers.map(p => (
-              <div
-                key={p.id}
-                onClick={() => handleSelectProvider(p.id)}
-                style={{
-                  padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)',
-                  background: selectedId === p.id ? 'rgba(255,255,255,0.06)' : 'transparent',
-                  display: 'flex', flexDirection: 'column', gap: '3px',
-                }}
-              >
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#EBEBF5' }}>{p.name}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 600 }}>{p.name}</span>
                   <span style={{
                     width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
                     background: p.is_available ? '#34c759' : (p.is_enabled ? '#f59e0b' : '#555'),
                   }} />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ marginTop: '3px' }}>
                   <ApiBadge api={p.api} />
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right: Detail / Form ─────────────────────────── */}
+      <main className="detail-pane">
+        {/* Toolbar */}
+        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {editMode === 'none' && selectedProvider && (
+              <>
+                <span style={{ fontSize: '15px', fontWeight: 600 }}>{selectedProvider.name}</span>
+                <ApiBadge api={selectedProvider.api} />
+                <span style={{
+                  fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
+                  background: selectedProvider.is_available ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)',
+                  color: selectedProvider.is_available ? '#34c759' : '#8E8E93',
+                }}>
+                  {selectedProvider.is_available ? t('common.status_connected') : t('common.status_configured')}
+                </span>
+              </>
+            )}
+            {editMode === 'create' && (
+              <span style={{ fontSize: '15px', fontWeight: 600 }}>Add Provider</span>
+            )}
+            {editMode === 'edit' && (
+              <span style={{ fontSize: '15px', fontWeight: 600 }}>Edit Provider</span>
+            )}
+            {editMode === 'none' && !selectedProvider && (
+              <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {editMode !== 'none' && (
+              <>
+                <button
+                  className="tbtn tbtn-ghost"
+                  style={{ fontSize: '11px' }}
+                  onClick={handleTestConnection}
+                  disabled={!canTest || testing}
+                >
+                  {testing ? '测试中...' : '测试连接'}
+                </button>
+                <button className="tbtn tbtn-ghost" onClick={handleCancel}>{t('common.button_cancel')}</button>
+                <button
+                  className="tbtn tbtn-accent"
+                  onClick={handleSave}
+                  disabled={saving || !canSave}
+                >
+                  {saving ? t('common.saving') : t('common.button_save')}
+                </button>
+              </>
+            )}
+            {editMode === 'none' && selectedProvider && (
+              <>
+                <button className="tbtn tbtn-ghost" style={{ fontSize: '11px' }} onClick={handleEditProvider}>
+                  {t('common.button_edit')}
+                </button>
+                <button
+                  className="tbtn tbtn-ghost"
+                  style={{ fontSize: '11px', color: '#f43f5e' }}
+                  onClick={() => setConfirmDelete(selectedProvider.id)}
+                >
+                  {t('common.button_delete')}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* ── Right: Detail / Form ────────────────── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-          {editMode === 'create' && (
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '14px', color: '#EBEBF5' }}>
-                Add Provider
-              </div>
-              <ProviderForm
-                onSave={handleSaveProvider}
-                onCancel={() => setEditMode('none')}
-                saving={saving}
-              />
-            </div>
-          )}
-
-          {editMode === 'edit' && selectedProvider && (
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '14px', color: '#EBEBF5' }}>
-                Edit Provider
-              </div>
-              <ProviderForm
-                existing={selectedProvider}
-                onSave={handleSaveProvider}
-                onCancel={() => setEditMode('none')}
-                saving={saving}
-              />
-            </div>
-          )}
-
+        {/* Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {editMode === 'none' && !selectedProvider && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
               <div style={{ fontSize: '13px', color: '#8E8E93', textAlign: 'center' }}>
@@ -448,49 +416,83 @@ export default function ProvidersPage() {
             </div>
           )}
 
-          {editMode === 'none' && selectedProvider && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Provider detail */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5' }}>{selectedProvider.name}</span>
-                    <ApiBadge api={selectedProvider.api} />
-                    <span style={{
-                      fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
-                      background: selectedProvider.is_available ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)',
-                      color: selectedProvider.is_available ? '#34c759' : '#8E8E93',
-                    }}>
-                      {selectedProvider.is_available ? t('common.status_connected') : t('common.status_configured')}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button className="tbtn tbtn-ghost" style={{ fontSize: '11px' }} onClick={handleEditProvider}>
-                      Edit
-                    </button>
-                    <button
-                      className="tbtn tbtn-ghost"
-                      style={{ fontSize: '11px', color: '#f43f5e' }}
-                      onClick={() => setConfirmDelete(selectedProvider.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
+          {/* Create / Edit form */}
+          {editMode !== 'none' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div className="group-row" style={{ gap: '8px' }}>
+                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Base URL</span>
+                <input
+                  type="text"
+                  value={formBaseUrl}
+                  onChange={e => setFormBaseUrl(e.target.value)}
+                  placeholder="https://api.example.com/v1"
+                  className="field-input"
+                  style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px' }}
+                />
+                {suggesting && <span style={{ fontSize: '11px', color: '#8E8E93' }}>...</span>}
+              </div>
 
-                <div className="group" style={{ marginBottom: '4px' }}>
-                  <div className="group-row">
-                    <span className="group-label">Base URL</span>
-                    <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                      {selectedProvider.base_url || t('common.not_set')}
-                    </span>
-                  </div>
-                  <div className="group-row">
-                    <span className="group-label">API Key</span>
-                    <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                      {maskKey(selectedProvider.api_key)}
-                    </span>
-                  </div>
+              <div className="group-row" style={{ gap: '8px' }}>
+                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Name</span>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={e => { setFormName(e.target.value); setNameTouched(true) }}
+                  placeholder="my-provider"
+                  className="field-input"
+                  style={{ flex: 1, fontSize: '12px' }}
+                />
+              </div>
+
+              <div className="group-row" style={{ gap: '8px' }}>
+                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Protocol</span>
+                <select
+                  value={formApi}
+                  onChange={e => setFormApi(e.target.value as ProviderApi)}
+                  className="field-input"
+                  style={{ flex: 1, fontSize: '12px' }}
+                >
+                  <option value="openai-completions">openai-completions</option>
+                  <option value="anthropic-messages">anthropic-messages</option>
+                  <option value="gemini">gemini</option>
+                </select>
+              </div>
+
+              <div className="group-row" style={{ gap: '8px' }}>
+                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>API Key</span>
+                <input
+                  type="password"
+                  value={formApiKey}
+                  onChange={e => setFormApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="field-input"
+                  style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px' }}
+                />
+              </div>
+
+              {pendingModels.length > 0 && (
+                <div style={{ fontSize: '11px', color: '#8E8E93', padding: '4px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: '5px' }}>
+                  Auto-detected {pendingModels.length} models from known provider registry
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* View mode: provider details */}
+          {editMode === 'none' && selectedProvider && (
+            <>
+              <div className="group">
+                <div className="group-row">
+                  <span className="group-label">Base URL</span>
+                  <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                    {selectedProvider.base_url || t('common.not_set')}
+                  </span>
+                </div>
+                <div className="group-row">
+                  <span className="group-label">API Key</span>
+                  <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                    {maskKey(selectedProvider.api_key)}
+                  </span>
                 </div>
               </div>
 
@@ -522,10 +524,10 @@ export default function ProvidersPage() {
                 knownProviders={knownProviders}
                 onReset={handleResetModels}
               />
-            </div>
+            </>
           )}
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   )
 }

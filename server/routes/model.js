@@ -150,6 +150,41 @@ export function createModelRouter(db) {
     } catch (err) { res.status(500).send(err.message) }
   })
 
+  // POST /test_provider — 测试 API Key 连通性
+  router.post('/test_provider', async (req, res) => {
+    const { base_url, api_key, api } = req.body
+    if (!base_url || !api) return res.status(400).send('base_url and api required')
+    const start = Date.now()
+    try {
+      let url, headers = {}
+      if (api === 'anthropic-messages') {
+        url = base_url.replace(/\/$/, '') + '/models'
+        headers = { 'x-api-key': api_key ?? '', 'anthropic-version': '2023-06-01' }
+      } else if (api === 'gemini') {
+        // Gemini uses query param key; base_url is typically the base API root
+        const base = base_url.replace(/\/$/, '')
+        url = `${base}/models?key=${encodeURIComponent(api_key ?? '')}`
+      } else {
+        // openai-completions compatible
+        url = base_url.replace(/\/$/, '') + '/models'
+        headers = { 'Authorization': `Bearer ${api_key ?? ''}` }
+      }
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 10000)
+      const r = await fetch(url, { headers, signal: controller.signal })
+      clearTimeout(timer)
+      const latency_ms = Date.now() - start
+      if (r.ok) {
+        res.json({ ok: true, latency_ms })
+      } else {
+        const body = await r.text().catch(() => '')
+        res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: ${body.slice(0, 200)}` })
+      }
+    } catch (err) {
+      res.json({ ok: false, latency_ms: Date.now() - start, error: err.message })
+    }
+  })
+
   // POST /get_known_providers — 返回注册表（不含 api_key）
   router.post('/get_known_providers', (req, res) => {
     res.json(KNOWN_PROVIDERS.map(p => ({ suggestName: p.suggestName, api: p.api, matchUrls: p.matchUrls, models: p.models })))
