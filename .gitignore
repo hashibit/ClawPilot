@@ -12,3 +12,6 @@ daemon/target
 *.mp3
 *.jpeg
 *.bin
+dev.db-shm
+dev.db-wal
+.claude/
