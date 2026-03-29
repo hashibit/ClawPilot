@@ -1,7 +1,0 @@
-{
-  "timestamp": "2026-03-29T22:04:17Z",
-  "changed_file": "/Users/jiechen/work/code/rust/ClawPilot/src/components/Layout.tsx",
-  "test_command": "npm test",
-  "related_test": "",
-  "recommendation": "テストの実行を推奨します"
-}

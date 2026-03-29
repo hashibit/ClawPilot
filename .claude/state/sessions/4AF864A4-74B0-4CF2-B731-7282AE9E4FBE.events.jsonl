@@ -1,4 +1,0 @@
-{"type":"session.start","ts":"2026-03-28T01:34:28Z","state":"initialized","data":{"cc_session_id":"8790a018-1ccf-4116-8d88-81e31d463870"}}
-{"id":"event-000001","type":"session.start","ts":"2026-03-28T01:34:27Z","state":"initialized"}
-{"id":"event-000002","type":"tool.write","ts":"2026-03-28T01:35:39Z","state":"initialized","data":{"file_path":"/Users/jiechen/work/code/rust/ClawPilot/proto/multi-agent.proto"}}
-{"id":"event-000003","type":"session.stop","ts":"2026-03-28T01:35:48Z","state":"stopped"}
