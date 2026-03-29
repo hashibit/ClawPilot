@@ -28,6 +28,7 @@ thiserror         = "1"
 tracing           = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-appender  = "0.2"
+rusqlite          = { version = "0.32", features = ["bundled"] }
 
 [target.'cfg(unix)'.dependencies]
 nix               = { version = "0.29", features = ["signal", "process"] }
@@ -36,3 +37,4 @@ nix               = { version = "0.29", features = ["signal", "process"] }
 axum-test         = "15"
 tokio             = { version = "1", features = ["full", "test-util"] }
 tempfile          = "3"
+http-body-util    = "0.1"

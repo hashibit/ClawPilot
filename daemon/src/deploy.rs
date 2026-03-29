@@ -143,6 +143,27 @@ fn prune_backups(opc_id: &str, keep: usize) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Resolve a path lexically (without filesystem access) and return None if it
+/// would escape `base` via `..` components or absolute components.
+pub(crate) fn safe_join(base: &Path, entry_path: &Path) -> Option<PathBuf> {
+    use std::path::Component;
+    let mut result = base.to_path_buf();
+    for component in entry_path.components() {
+        match component {
+            // Absolute paths or `..` are not allowed
+            Component::RootDir | Component::Prefix(_) | Component::ParentDir => return None,
+            Component::CurDir => {}
+            Component::Normal(part) => result.push(part),
+        }
+    }
+    // Confirm the resolved path is still inside base
+    if result.starts_with(base) {
+        Some(result)
+    } else {
+        None
+    }
+}
+
 /// Extract tar.gz package to OPC directory
 pub fn extract_package(opc_id: &str, data: &[u8]) -> anyhow::Result<()> {
     let opc_dir = openclaw_home().join("OPC").join(opc_id);
@@ -154,7 +175,9 @@ pub fn extract_package(opc_id: &str, data: &[u8]) -> anyhow::Result<()> {
     for entry in archive.entries()? {
         let mut entry = entry?;
         let path = entry.path()?;
-        let dest = opc_dir.join(&*path);
+
+        let dest = safe_join(&opc_dir, &path)
+            .ok_or_else(|| anyhow!("Path traversal detected in archive: {}", path.display()))?;
 
         if entry.header().entry_type().is_dir() {
             fs::create_dir_all(&dest)?;

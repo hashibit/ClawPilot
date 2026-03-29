@@ -28,18 +28,20 @@ enum PlanStatus {
   PLAN_STATUS_APPROVED = 2;          // 已批准，等待执行开始
   PLAN_STATUS_EXECUTING = 3;         // DAG 执行中
   PLAN_STATUS_COMPLETED = 4;         // 全部任务完成
-  PLAN_STATUS_CANCELLED = 5;         // 用户取消
-  PLAN_STATUS_SUPERSEDED = 6;        // 被新版本替代
+  PLAN_STATUS_BLOCKED = 5;           // agent 消失，无法继续，等待用户处理
+  PLAN_STATUS_CANCELLED = 6;         // 用户取消
+  PLAN_STATUS_SUPERSEDED = 7;        // 被新版本替代
 }
 
 // 任务状态
 enum TaskStatus {
   TASK_STATUS_UNSPECIFIED = 0;
   TASK_STATUS_PENDING = 1;       // 等待依赖完成
-  TASK_STATUS_IN_PROGRESS = 2;   // 执行中（openclaw agent 进程运行中）
+  TASK_STATUS_IN_PROGRESS = 2;   // 执行中（openclaw runId 运行中）
   TASK_STATUS_COMPLETED = 3;     // 已完成
   TASK_STATUS_FAILED = 4;        // 失败（重试耗尽）
-  TASK_STATUS_CANCELLED = 5;     // 已取消（计划取消时级联）
+  TASK_STATUS_BLOCKED = 5;       // agent 消失，无法派发
+  TASK_STATUS_CANCELLED = 6;     // 已取消（计划取消时级联）
 }
 
 // 产物状态
@@ -72,29 +74,25 @@ enum AgentStatus {
 // =============================================================================
 
 // 计划（由主 agent 创建，包含完整 DAG）
+// slug 格式：{project-prefix}-{timestamp}，如 develop-xx-website-20260328T1000
+// 同前缀的 plans 属于同一件事（同一"项目"的不同版本）
 message Plan {
-  // 由主 agent 生成的 slug，如 plan-develop-xx-website-20260328-a3f2
+  // 由主 agent 生成的 slug
   string id = 1;
 
-  // 版本号（用户要求修改时递增，旧版本标记 superseded）
-  int32 version = 2;
-
-  // 关联同一需求的不同版本（修改时指向前一个版本 id）
-  string parent_plan_id = 3;
-
   // 发布此计划的 agent id（通常是 orchestrator）
-  string publisher_agent_id = 4;
+  string publisher_agent_id = 2;
 
   // 用户所在回复渠道，如 "feishu"
-  string reply_channel = 5;
+  string reply_channel = 3;
 
   // 用户标识，用于主动回复（飞书 open_id，如 ou_xxx）
-  string reply_to = 6;
+  string reply_to = 4;
 
-  PlanStatus status = 7;
+  PlanStatus status = 5;
 
   // 计划原始内容（markdown 或 JSON）
-  string content = 8;
+  string content = 6;
 
   int64 created_at = 10;
   int64 approved_at = 11;  // 批准时间，0 表示未批准
@@ -132,9 +130,13 @@ message Task {
 
   TaskStatus status = 11;
 
-  int32 retry_count = 12;
-  int32 max_retries = 13;     // 默认 3
-  int32 timeout_seconds = 14; // 默认 3600
+  // 本次执行的 openclaw runId，start_task 后写入，重试时更新
+  // 产物路径：./artifacts/plans/{plan_id}/{receiver_agent_id}/{current_run_id}/
+  string current_run_id = 12;
+
+  int32 retry_count = 13;
+  int32 max_retries = 14;     // 默认 3
+  int32 timeout_seconds = 15; // 默认 3600
 
   // 任务结果（JSON），格式由 result_schema 约定
   string result = 20;
@@ -250,7 +252,7 @@ message RunningTask {
   string type = 3;
   string plan_id = 4;
   int64 started_at = 5;
-  int64 pid = 6; // openclaw 子进程 PID
+  string run_id = 6; // openclaw gateway runId
 }
 
 // =============================================================================
@@ -279,16 +281,13 @@ service PlanService {
 
 // CreatePlan 请求（主 agent 提交完整 DAG）
 message CreatePlanRequest {
-  // 由主 agent 生成的 slug
+  // 由主 agent 生成的 slug，格式：{project-prefix}-{timestamp}
   string id = 1;
 
   string publisher_agent_id = 2;
   string reply_channel = 3;  // 如 "feishu"
   string reply_to = 4;       // 如 "ou_xxx"
   string content = 5;        // 计划内容
-
-  // 可选：关联旧版本（修改计划时传入）
-  string parent_plan_id = 6;
 
   // 完整 DAG：任务列表
   repeated TaskSpec tasks = 10;
@@ -352,6 +351,10 @@ message TaskSummary {
 // ---- Agent Service ----
 
 service AgentService {
+  // 查询所有 agent 当前活动状态（忙碌做什么、做了多久；空闲多久、上次忙碌是何时）
+  // 对应 GET /api/agents/activity
+  rpc GetAgentsActivity(GetAgentsActivityRequest) returns (GetAgentsActivityResponse);
+
   // 查询所有 agent 状态概览，供 UI 监控使用
   // 对应 GET /api/agents
   rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
@@ -363,6 +366,46 @@ service AgentService {
   // 查询 agent 的任务历史（支持分页）
   // 对应 GET /api/agents/:agent_id/tasks
   rpc GetAgentTasks(GetAgentTasksRequest) returns (GetAgentTasksResponse);
+}
+
+// GetAgentsActivity 请求
+message GetAgentsActivityRequest {}
+
+// GetAgentsActivity 响应
+message GetAgentsActivityResponse {
+  repeated AgentActivity agents = 1;
+}
+
+// 单个 agent 的活动状态
+message AgentActivity {
+  string agent_id = 1;
+  AgentStatus status = 2;
+
+  // 忙碌时填充
+  int64 busy_since = 10;             // 当前任务开始时间
+  int64 busy_duration_seconds = 11;  // 已忙碌秒数（daemon 实时计算）
+  ActiveTaskInfo current_task = 12;  // 当前任务详情
+
+  // 空闲时填充
+  int64 idle_since = 20;             // 上次任务完成时间，无历史任务时为 0
+  int64 idle_duration_seconds = 21;  // 已空闲秒数（daemon 实时计算），无历史时为 0
+  LastTaskInfo last_task = 22;       // 上次执行的任务，无历史时为空
+}
+
+// 当前正在执行的任务信息
+message ActiveTaskInfo {
+  string task_id = 1;
+  string task_type = 2;
+  string plan_id = 3;
+  string run_id = 4;
+}
+
+// 上次执行的任务信息
+message LastTaskInfo {
+  string task_id = 1;
+  string task_type = 2;
+  string plan_id = 3;
+  int64 completed_at = 4;  // 任务完成时间
 }
 
 // ListAgents 请求

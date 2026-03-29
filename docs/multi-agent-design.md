@@ -82,37 +82,88 @@ OpenClaw agent 在本系统中只做一件事：**接收任务 context，调用 
 ### 共享文件系统（产物存储）
 
 ```
-/artifacts/                         ← 所有 agent 和 daemon 均可直接访问
-  ├── tasks/
-  │     └── {task_id}/              ← 各任务原始产物，永久保留
-  │           └── {filename}
+/artifacts/
   └── plans/
-        └── {plan_id}/              ← 计划级汇总交付物（aggregate 任务产出）
-              └── {filename}
+        └── {plan-slug}/            ← 计划根目录
+              └── {agent_id}/
+                    └── {run_id}/   ← 每次执行独立目录，重启重试不覆盖
+                          └── {filename}
 ```
 
-- Daemon 在派发任务前预创建 `tasks/{task_id}/` 目录
+- `start_task` 拿到 `runId` 后预创建对应目录
 - Agent 直接读写共享文件系统，无需通过任何接口
-- 输入产物路径由 daemon 在 context 中告知 agent
+- 输入产物路径（上游任务的 `./artifacts/plans/{plan-slug}/{agent_id}/{run_id}/`）由 daemon 在 context 中告知 agent
+- 重启重新派发时产生新 runId，新旧产物目录互不干扰
 
-### OpenClaw CLI
+### OpenClaw CLI 与事件系统
 
-Daemon 通过 `openclaw` CLI 与 OpenClaw 交互：
+Daemon 通过两种方式与 OpenClaw 交互：
+
+**Token 获取**
+
+Daemon 定时读取 `~/.openclaw/openclaw.json`，提取 `token` 字段用于所有 Gateway 交互（token 可能随 OpenClaw 重启而变化）：
+
+```json
+// ~/.openclaw/openclaw.json
+{
+  "token": "xxxxx",
+  ...
+}
+```
+
+**CLI（指令下发）**
 
 ```bash
 # 拉取 agent 列表
 openclaw agents list --json
 
-# 派发任务给 agent
-openclaw agent --agent worker-frontend --message "<context>" --timeout <seconds>
+# 派发任务给 agent（立即返回 runId）
+openclaw gateway call agent \
+  --params '{"message": "<context>", "agentId": "worker-frontend"}' \
+  --token "<token>"
+# 返回：{"runId": "abc123", "acceptedAt": 1234567890}
 
-# 通知用户（主动发飞书）
-openclaw agent --agent orchestrator --message "<结果>" \
-  --deliver --reply-channel feishu --reply-to <open_id>
+# 探查 runId 状态（仅用于 daemon 重启恢复）
+openclaw gateway call agent.wait \
+  --params '{"runId": "abc123", "timeoutMs": 0}' \
+  --token "<token>"
 
-# 停止 agent（daemon 重启恢复时）
-openclaw agent --agent worker-frontend --message "stop"
+# 取消任务
+openclaw gateway call chat.abort \
+  --params '{"sessionKey": "agent:worker-frontend:main", "runId": "abc123"}' \
+  --token "<token>"
 ```
+
+**WebSocket 事件流（结果接收）**
+
+Daemon 启动时建立一条到 OpenClaw Gateway 的 WebSocket 长连接，接收所有 agent 的实时事件：
+
+```
+ws://localhost:18789?token=<token>
+```
+
+事件结构：
+
+```typescript
+type AgentEventPayload = {
+  runId: string;       // 对应 start_task 时拿到的 runId
+  seq: number;         // 序列号
+  stream: "lifecycle" | "tool" | "assistant" | "error" | "compaction";
+  ts: number;
+  data: Record<string, unknown>;
+  sessionKey?: string;
+};
+```
+
+Daemon 内部维护 `runId → agent_id` 路由表，按 runId 将事件分发到对应任务处理逻辑：
+
+```
+WebSocket 事件
+  stream = lifecycle(end/error) → handle_task_result / handle_task_failure → dag_sweep
+  stream = assistant / tool     → 推送到 /api/agents/:agent_id/stream SSE
+```
+
+WebSocket 断线时自动重连；重连后 `agent.wait` 探查仍在运行的 runId，重新注册路由表。
 
 ### Feishu chat_id 获取（已验证）
 
@@ -137,7 +188,7 @@ Conversation info: "sender_id": "ou_0369653f12b828363a6086f4c7c4e263"
 ```
 1. 用户在飞书发送指令："开发 xx 网站"
 2. OpenClaw 路由到主 agent，LLM 分析需求
-3. 主 agent 生成 plan slug（如 plan-develop-xx-website-20260328-a3f2）
+3. 主 agent 生成 plan slug（如 develop-xx-website-20260328T1000）
 4. 主 agent 调用 POST /api/plans，提交完整 DAG + reply_channel + reply_to
    （plan 状态：pending_approval）
 5. 主 agent 在飞书展示计划，请用户确认
@@ -159,7 +210,7 @@ Conversation info: "sender_id": "ou_0369653f12b828363a6086f4c7c4e263"
 
 ```json
 {
-  "id": "plan-develop-xx-website-20260328-a3f2",
+  "id": "develop-xx-website-20260328T1000",
   "reply_channel": "feishu",
   "reply_to": "ou_b0facc602e28e4d3d6947001d6346126",
   "tasks": [
@@ -183,20 +234,40 @@ write_docs     ─┘
 
 ## 计划（Plan）设计
 
-### 计划版本
+### Plan Slug 命名规则
 
-- 用户说"改一下" → 主 agent 生成新版本 DAG，旧版本标记 superseded
+格式：`{project-prefix}-{timestamp}`
+
+```
+develop-xx-website-20260328T1000   ← 初版
+develop-xx-website-20260329T0930   ← 用户要求修改后重新制定
+develop-xx-website-20260330T1400   ← blocked 后取消重来
+```
+
+同前缀的 plans 属于同一件事，可按前缀查询历史：
+
+```sql
+SELECT * FROM plans WHERE id LIKE 'develop-xx-website-%' ORDER BY created_at
+```
+
+orchestrator 修改计划时，从会话上下文取旧 slug 提取前缀，拼新时间戳。
+
+### 计划变更策略
+
+- 用户说"改一下" → 旧 plan 标记 superseded，orchestrator 创建新 plan（同前缀，新时间戳）
 - 用户说"算了不做了" → 调用 PATCH /api/plans/:id/cancel
-
-计划变更策略（简单版）：全部取消重来，已派发任务全部 cancelled，产物标记 invalidated。
+- 全部取消重来：已派发任务全部 cancelled，产物标记 invalidated
 
 ### 计划状态流转
 
 ```
 pending_approval → approved → executing → completed
+                                        ↘ blocked（agent 消失，无法继续）
                 ↘ cancelled
                 ↘ superseded（被新版本取代）
 ```
+
+`blocked`：`sync_agents_from_openclaw` 检测到 agent 消失，立即将该 agent 所有 `pending`/`in_progress` 任务标记 `blocked`，plan 同步标记 `blocked`，通过 `reply_channel` 通知用户。用户取消或重新制定 plan，无自动恢复。
 
 ---
 
@@ -206,14 +277,12 @@ pending_approval → approved → executing → completed
 
 ```sql
 CREATE TABLE plans (
-  id TEXT PRIMARY KEY,                    -- 由主 agent 生成的 slug
-  version INTEGER NOT NULL DEFAULT 1,
-  parent_plan_id TEXT,                    -- 同一需求的不同版本关联
+  id TEXT PRIMARY KEY,                    -- {project-prefix}-{timestamp}，由主 agent 生成
   publisher_agent_id TEXT NOT NULL,
   reply_channel TEXT,                     -- 用户所在渠道，如 feishu
   reply_to TEXT,                          -- 用户 open_id，用于主动回复
   status TEXT NOT NULL DEFAULT 'pending_approval',
-  -- pending_approval / approved / cancelled / superseded / executing / completed
+  -- pending_approval / approved / executing / completed / blocked / cancelled / superseded
   content TEXT NOT NULL,                  -- 计划内容 JSON
   created_at TEXT NOT NULL,
   approved_at TEXT
@@ -235,7 +304,8 @@ CREATE TABLE tasks (
   input_artifact_ids TEXT NOT NULL DEFAULT '[]',
   result_schema TEXT NOT NULL DEFAULT '{}',       -- publisher 定义期望结果格式
   status TEXT NOT NULL DEFAULT 'pending',
-  -- pending / in_progress / completed / failed / cancelled
+  -- pending / in_progress / completed / failed / blocked / cancelled
+  current_run_id TEXT,                    -- 本次执行的 openclaw runId，重试时更新
   retry_count INTEGER NOT NULL DEFAULT 0,
   max_retries INTEGER NOT NULL DEFAULT 3,
   timeout_seconds INTEGER NOT NULL DEFAULT 3600,
@@ -322,15 +392,16 @@ CREATE TABLE agents (
 
 ```
 # 执行控制
-POST   /api/plans                    -- 创建计划 + 完整 DAG（主 agent 调用）
-PATCH  /api/plans/:id/approve        -- 用户确认，立即触发 DAG 执行
-PATCH  /api/plans/:id/cancel         -- 取消整个计划
+POST   /api/plans                      -- 创建计划 + 完整 DAG（主 agent 调用）
+PATCH  /api/plans/:id/approve          -- 用户确认，立即触发 DAG 执行
+PATCH  /api/plans/:id/cancel           -- 取消整个计划
 
 # 监控（UI 用）
-GET    /api/agents                   -- 所有 agent 状态概览
-GET    /api/agents/:agent_id         -- 单个 agent 详情
-GET    /api/agents/:agent_id/tasks   -- 任务历史（支持分页）
-GET    /api/plans/:id                -- 计划详情 + DAG 执行状态
+GET    /api/agents/activity            -- 所有 agent 当前活动状态（忙碌/空闲详情）
+GET    /api/agents/:agent_id           -- 单个 agent 详情
+GET    /api/agents/:agent_id/tasks     -- 任务历史（支持分页）
+GET    /api/agents/:agent_id/stream    -- SSE：agent 实时事件流（喃喃自语）
+GET    /api/plans/:id                  -- 计划详情 + DAG 执行状态
 ```
 
 ---
@@ -435,37 +506,41 @@ PATCH /api/plans/:id/approve
 ### startTask
 
 ```rust
-fn start_task(task: &Task) {
-    fs::create_dir_all(format!("./artifacts/tasks/{}", task.id));
+async fn start_task(task: &Task) {
+    // 1. 调用 gateway call agent（立即返回 runId）
+    let output = Command::new("openclaw")
+        .args(["gateway", "call", "agent",
+               "--params", &json!({"message": build_context(task), "agentId": &task.receiver_agent_id}).to_string()])
+        .output().await;
 
-    let child = Command::new("openclaw")
-        .args([
-            "agent",
-            "--agent", &task.receiver_agent_id,
-            "--message", &build_context(task),
-            "--timeout", &task.timeout_seconds.to_string(),
-        ])
-        .spawn();
+    let run_id = parse_run_id(output); // 解析 {"runId": "abc123", ...}
 
-    running_tasks.insert(task.receiver_agent_id.clone(), RunningTask { child, task_id: task.id });
+    // 2. 预创建产物目录
+    fs::create_dir_all(format!("./artifacts/plans/{}/{}/{}", task.plan_id, task.receiver_agent_id, run_id));
+
+    // 3. 持久化 runId，标记 in_progress
+    db.update_task_run_id(task.id, &run_id);
     mark_in_progress(task.id);
 
-    // 投递 task_started 到 publisher inbox
+    running_tasks.insert(task.receiver_agent_id.clone(), RunningTask { run_id: run_id.clone(), task_id: task.id.clone() });
+
+    // 4. 投递 task_started 到 publisher inbox
     inbox_deliver(task.publisher_agent_id, "daemon", "task_started", task.id, ...);
 
-    // 监听进程退出 → handle_task_result
+    // 5. 注册到 runId 路由表，结果由 WebSocket 事件驱动
+    run_id_router.insert(run_id.clone(), task.id.clone());
+    // lifecycle(end/error) 事件到来时 → handle_task_result / handle_task_failure
 }
 ```
 
-### stopTask（先 kill，再发 stop）
+### stopTask
 
 ```rust
-fn stop_task(agent_id: &str) {
+async fn stop_task(agent_id: &str) {
     if let Some(running) = running_tasks.remove(agent_id) {
-        running.child.kill();
-        // 发 stop 确保 agent session 状态干净
         Command::new("openclaw")
-            .args(["agent", "--agent", agent_id, "--message", "stop"])
+            .args(["gateway", "call", "chat.abort",
+                   "--params", &json!({"sessionKey": format!("agent:{}:main", agent_id), "runId": running.run_id}).to_string()])
             .spawn();
     }
 }
@@ -494,7 +569,7 @@ Daemon 派发任务时，将所有必要信息一次性推送给 agent：
 - {artifact.filename}：{artifact.file_path}
 
 ## 输出要求
-- 产出文件写到：./artifacts/tasks/{task.id}/
+- 产出文件写到：./artifacts/plans/{plan.id}/{agent_id}/{run_id}/
 - 完成后以如下格式返回结果（格式为）：
   {"status": "done|failed", "error": "...", "data": {result_schema}}
 ```
@@ -540,22 +615,31 @@ task 失败
 ### 启动时恢复
 
 ```rust
-fn recover_on_startup() {
-    // 1. 检查 gateway 是否在线
-    let gateway_online = check_gateway_health();
-
+async fn recover_on_startup() {
     for task in get_in_progress_tasks() {
-        if gateway_online {
-            // gateway 在线，发 stop 确保 agent session 状态干净
-            stop_task(&task.receiver_agent_id);
+        let run_id = &task.current_run_id;
+
+        let result = Command::new("openclaw")
+            .args(["gateway", "call", "agent.wait",
+                   "--params", &json!({"runId": run_id, "timeoutMs": 0}).to_string()])
+            .output().await;
+
+        match parse_wait_result(result) {
+            WaitResult::Done(output)  => { handle_task_result(&task, output).await; }
+            WaitResult::Failed(error) => { handle_task_failure(&task, error).await; }
+            WaitResult::TimedOut      => {
+                // 任务仍在运行，重新注册路由表，后续由 WebSocket 事件驱动
+                running_tasks.insert(task.receiver_agent_id.clone(), RunningTask { run_id: run_id.clone(), task_id: task.id.clone() });
+                run_id_router.insert(run_id.clone(), task.id.clone());
+            }
+            WaitResult::NotFound      => {
+                // runId 已消失，重置为 pending 重新派发
+                reset_task_to_pending(&task.id);
+            }
         }
-        // gateway 不在线则直接跳过 stop，任务重置即可
     }
 
-    // 2. 重置为 pending，重新进入 DAG 调度
-    reset_in_progress_to_pending();
-
-    // 3. 对所有 executing 状态的 plan 触发 sweep
+    // 对所有 executing 状态的 plan 触发 sweep（捡起 pending 任务）
     for plan in get_executing_plans() {
         dag_sweep(&plan.id);
     }
@@ -567,9 +651,10 @@ fn recover_on_startup() {
 ```rust
 tokio::spawn(async {
     loop {
+        sync_token_from_openclaw().await;    // 读取 ~/.openclaw/openclaw.json 更新 token
+        sync_agents_from_openclaw().await;   // 拉取最新 agent 列表
         handle_timeouts().await;             // 超时任务重试或失败
         auto_approve_expired_plans().await;  // 超时未确认的计划自动审批
-        sync_agents_from_openclaw().await;   // 拉取最新 agent 列表
         sweep_all_executing_plans().await;   // 兜底 sweep，捡起 busy agent 跳过的任务
         sleep(Duration::from_secs(60)).await;
     }
@@ -599,33 +684,73 @@ tokio::spawn(async {
 
 ## 监控接口返回示例
 
-### GET /api/agents
+### GET /api/agents/activity
 
 ```json
 [
   {
     "agent_id": "worker-frontend",
     "status": "busy",
-    "running_task": {
-      "task_id": "task-abc",
-      "type": "write_frontend",
-      "plan_title": "开发 xx 网站",
-      "started_at": "2026-03-28T10:00:00Z"
+    "busy_since": "2026-03-29T10:00:00Z",
+    "busy_duration_seconds": 120,
+    "current_task": {
+      "task_id": "t1",
+      "task_type": "write_frontend",
+      "plan_id": "develop-xx-website-20260329T1000",
+      "run_id": "abc123"
     }
   },
   {
     "agent_id": "worker-backend",
     "status": "idle",
-    "running_task": null
+    "idle_since": "2026-03-29T09:45:00Z",
+    "idle_duration_seconds": 900,
+    "last_task": {
+      "task_id": "t2",
+      "task_type": "write_backend",
+      "plan_id": "develop-xx-website-20260329T1000",
+      "completed_at": "2026-03-29T09:45:00Z"
+    }
+  },
+  {
+    "agent_id": "worker-docs",
+    "status": "idle",
+    "idle_since": null,
+    "idle_duration_seconds": null,
+    "last_task": null
   }
 ]
 ```
+
+`busy_duration_seconds` 和 `idle_duration_seconds` 由 daemon 在返回时实时计算（`now - busy_since` / `now - idle_since`）。`idle_since` 从 tasks 表查该 agent 最近一次 `completed_at`，无历史任务时为 null。
+
+### GET /api/agents/:agent_id/stream（SSE）
+
+客户端订阅后实时收到 agent 的事件，daemon 从 OpenClaw WebSocket 转发：
+
+```
+data: {"stream":"lifecycle","data":{"status":"start"},"runId":"abc123","ts":1743200000}
+
+data: {"stream":"assistant","data":{"delta":"我先分析一下需求，"},"runId":"abc123","ts":1743200001}
+
+data: {"stream":"assistant","data":{"delta":"前端需要三个页面：首页、关于、联系。"},"runId":"abc123","ts":1743200002}
+
+data: {"stream":"tool","data":{"name":"write_file","status":"start","params":{"path":"index.html"}},"runId":"abc123","ts":1743200005}
+
+data: {"stream":"tool","data":{"name":"write_file","status":"result"},"runId":"abc123","ts":1743200006}
+
+data: {"stream":"lifecycle","data":{"status":"end"},"runId":"abc123","ts":1743200030}
+```
+
+- agent 空闲时连接保持，无事件推送
+- daemon 在内存中为每个 agent 缓存最近 N 条事件，客户端连接时先收到历史再接实时
+- 事件不持久化到 DB
 
 ### GET /api/plans/:id
 
 ```json
 {
-  "id": "plan-develop-xx-website-20260328-a3f2",
+  "id": "develop-xx-website-20260328T1000",
   "title": "开发 xx 网站",
   "status": "executing",
   "tasks": [
@@ -642,202 +767,4 @@ tokio::spawn(async {
 
 ## Agent 测试方案
 
-> 本节为系统集成测试场景，在代码实现后逐条验证。每个场景描述**前置条件、操作步骤、预期结果**，以 curl 或飞书操作为测试入口。
-
----
-
-### 测试环境准备
-
-| 项目 | 说明 |
-|------|------|
-| OpenClaw 实例 | 本地运行，含以下 agent：`orchestrator`、`worker-frontend`、`worker-backend`、`worker-docs` |
-| Daemon | 本地启动，监听 `http://localhost:3001/api` |
-| 飞书 | 已绑定 orchestrator，测试账号可发消息 |
-| 共享文件系统 | `./artifacts/` 目录存在且可读写 |
-| `openclaw agents list --json` | 返回上述 4 个 agent |
-
----
-
-### T01 — 完整正向流程（Happy Path）
-
-**目标**：验证从飞书下发指令到用户收到完成通知的完整链路。
-
-**前置**：所有 agent 空闲，Daemon 已启动。
-
-**步骤**：
-1. 用户在飞书私聊 orchestrator，发送：`帮我写一个介绍页，包含前端和后端`
-2. 等待 orchestrator 回复计划摘要（含 plan slug）并请求确认
-3. 用户回复：`确认`
-4. 等待约 N 分钟
-
-**预期结果**：
-- [ ] `GET /api/plans/{slug}` 返回 `status: executing`，t1/t2/t3 并行启动
-- [ ] t1、t2、t3 各自完成后，`./artifacts/tasks/{task_id}/` 下有产出文件
-- [ ] t4（aggregate）在 t1、t2、t3 全部 completed 后自动启动
-- [ ] t5（report）在 t4 完成后自动启动
-- [ ] plan status 最终变为 `completed`
-- [ ] orchestrator 主动在飞书发消息告知用户完成，`reply_to` 正确对应最初发指令的用户
-
----
-
-### T02 — 用户超时未确认，Daemon 自动批准
-
-**目标**：验证 `auto_approve_expired_plans` 定时逻辑正常工作。
-
-**前置**：Daemon `auto_approve_timeout` 配置为 2 分钟（测试用）。
-
-**步骤**：
-1. 用户发送指令，orchestrator 回复计划并等待确认
-2. **不回复**，等待超过 2 分钟
-
-**预期结果**：
-- [ ] Daemon 定时器触发后，plan status 由 `pending_approval` → `approved` → `executing`
-- [ ] DAG 正常执行，最终完成
-
----
-
-### T03 — Agent Busy，Sweep 重试派发
-
-**目标**：验证同一 agent 串行执行、sweep 机制在 agent 空闲后捡起等待任务。
-
-**前置**：DAG 中 `worker-frontend` 被分配了两个任务 t1、t2（t2 依赖 t1）。调整测试 DAG：
-
-```json
-"tasks": [
-  { "id": "t1", "depends_on": [],     "receiver": "worker-frontend" },
-  { "id": "t2", "depends_on": ["t1"], "receiver": "worker-frontend" },
-  { "id": "t3", "depends_on": ["t2"], "receiver": "worker-frontend" }
-]
-```
-
-**步骤**：
-1. approve 计划，DAG 启动
-2. 在 t1 执行期间，查询 agent 状态
-
-**预期结果**：
-- [ ] t1 执行时，`GET /api/agents/worker-frontend` 返回 `status: busy`
-- [ ] t2 处于 `pending`（依赖未满足），不会提前派发
-- [ ] t1 完成后，t2 自动进入 `in_progress`（sweep 触发）
-- [ ] t2 完成后，t3 自动进入 `in_progress`
-- [ ] 整个过程 worker-frontend 始终只有一个任务在跑
-
----
-
-### T04 — 任务失败重试，耗尽后标记 failed
-
-**目标**：验证 `retry_count` / `max_retries` 逻辑与 `task_failed` 信箱消息。
-
-**前置**：将某 worker agent 的 SOUL 临时改为"总是返回失败"，`max_retries = 2`。
-
-**步骤**：
-1. 下发包含该 worker 任务的计划并 approve
-2. 观察任务状态变化
-
-**预期结果**：
-- [ ] 任务首次失败后 `retry_count = 1`，状态重置为 `pending`，进入下次 sweep
-- [ ] 第二次失败后 `retry_count = 2`，再次重置
-- [ ] 第三次失败后 `retry_count = 3 >= max_retries`，任务状态变为 `failed`
-- [ ] orchestrator inbox 收到 `task_failed` 消息，payload 含 `error` 和 `retry_count: 3`
-- [ ] 依赖该任务的下游任务保持 `pending`，DAG 不再推进
-
----
-
-### T05 — 用户取消计划
-
-**目标**：验证 cancel 级联取消所有未完成任务，并标记产物 invalidated。
-
-**步骤**：
-1. approve 计划，等待 t1 进入 `in_progress`
-2. 调用 `PATCH /api/plans/{slug}/cancel`
-
-**预期结果**：
-- [ ] plan status → `cancelled`
-- [ ] in_progress 的任务：子进程被 kill，随后发送 `stop` 消息，任务状态 → `cancelled`
-- [ ] pending 的任务直接标记 `cancelled`
-- [ ] 已完成任务对应的产物 status → `invalidated`
-- [ ] `GET /api/plans/{slug}` 各任务状态符合上述预期
-
----
-
-### T06 — 用户要求修改计划（版本迭代）
-
-**目标**：验证计划版本切换：旧版本标记 superseded，新版本从头执行。
-
-**步骤**：
-1. orchestrator 提交 v1 计划，处于 `pending_approval`
-2. 用户回复：`再加一个测试模块`
-3. orchestrator 提交 v2 计划（`parent_plan_id = v1.id`），再次等待确认
-4. 用户回复：`确认`
-
-**预期结果**：
-- [ ] v1 plan status → `superseded`
-- [ ] v2 plan status → `approved` → `executing`
-- [ ] v2 包含新增的测试任务节点
-- [ ] `GET /api/plans/{v1_slug}` 返回 `status: superseded`
-
----
-
-### T07 — Daemon 重启恢复
-
-**目标**：验证 `recover_on_startup` 逻辑：in_progress 任务重置，DAG 重新推进。
-
-**步骤**：
-1. approve 计划，等待至少一个任务进入 `in_progress`
-2. **强制重启 Daemon 进程**
-3. 等待 Daemon 启动完成
-
-**预期结果**：
-- [ ] Daemon 启动时，in_progress 的任务状态重置为 `pending`
-- [ ] OpenClaw 发送 stop 消息（如果 gateway 在线）
-- [ ] 定时器首次触发后，sweep 重新派发这些任务
-- [ ] DAG 继续正常推进，最终 completed
-
----
-
-### T08 — 并发计划执行
-
-**目标**：验证多个计划同时执行时，agent 资源不冲突，每个计划独立推进。
-
-**步骤**：
-1. 用户 A 下发计划 P1（使用 worker-frontend、worker-backend）
-2. 用户 B 下发计划 P2（使用 worker-backend、worker-docs）
-3. 两个计划均 approve
-
-**预期结果**：
-- [ ] P1 和 P2 独立调度，互不影响
-- [ ] worker-backend 同一时刻只执行一个任务（busy 时，另一计划的任务等待 sweep）
-- [ ] P1、P2 最终均 completed，各自用 reply_to 回复正确的用户
-
----
-
-### T09 — Agent 离线（openclaw agents list 中消失）
-
-**目标**：验证 daemon sync 检测到 agent 离线后的行为。
-
-**步骤**：
-1. 在任务执行过程中，停止 OpenClaw 中某个 worker agent
-2. 等待 daemon 定时器执行 `sync_agents_from_openclaw`
-
-**预期结果**：
-- [ ] agents 表中该 agent `status` 更新为 `offline`
-- [ ] `GET /api/agents/{agent_id}` 返回 `status: offline`
-- [ ] 正在执行的任务超时后按重试逻辑处理（不会立即失败）
-- [ ] agent 重新上线后，`status` 恢复 `idle`，任务在下次 sweep 正常派发
-
----
-
-### T10 — Context 完整性验证
-
-**目标**：验证 daemon 派发任务时组装的 context 包含所有必要信息，agent 能正确执行并返回符合 result_schema 的结果。
-
-**步骤**：
-1. 下发一个有输入产物依赖的任务（t2 依赖 t1 的产出）
-2. 等待 t1 完成后 t2 启动
-3. 查看 t2 的 openclaw 执行日志（或 agent 回复内容）
-
-**预期结果**：
-- [ ] t2 收到的 message 包含：任务ID、类型、参数、所属计划、输入产物路径
-- [ ] 输入产物路径指向 `./artifacts/tasks/{t1_id}/`，且文件实际存在
-- [ ] t2 输出文件写入 `./artifacts/tasks/{t2_id}/`
-- [ ] t2 返回的 JSON 符合 publisher 定义的 `result_schema`
-- [ ] daemon 成功解析结果，task status → `completed`
+详见 [how-to-run-daemon-tests.md](./how-to-run-daemon-tests.md)。

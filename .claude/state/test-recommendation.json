@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-26T15:14:36Z",
-  "changed_file": "server/routes/agent.js",
+  "timestamp": "2026-03-28T17:25:15Z",
+  "changed_file": "daemon/src/scheduler/routes.rs",
   "test_command": "npm test",
   "related_test": "",
   "recommendation": "テストの実行を推奨します"

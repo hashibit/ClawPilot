@@ -3,6 +3,8 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::scheduler::{Db, DagScheduler, Worker};
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum TaskStatus {
@@ -66,6 +68,9 @@ impl TaskRecord {
 pub struct AppState {
     pub api_key: String,
     pub tasks: Arc<DashMap<String, TaskRecord>>,
+    pub scheduler_db: Option<Db>,
+    pub scheduler_worker: Option<Worker>,
+    pub scheduler_dag: Option<DagScheduler>,
 }
 
 impl AppState {
@@ -73,6 +78,21 @@ impl AppState {
         Self {
             api_key,
             tasks: Arc::new(DashMap::new()),
+            scheduler_db: None,
+            scheduler_worker: None,
+            scheduler_dag: None,
         }
+    }
+
+    pub fn with_scheduler(
+        mut self,
+        db: Db,
+        worker: Worker,
+        dag: DagScheduler,
+    ) -> Self {
+        self.scheduler_db = Some(db);
+        self.scheduler_worker = Some(worker);
+        self.scheduler_dag = Some(dag);
+        self
     }
 }

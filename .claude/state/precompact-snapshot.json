@@ -1,14 +1,14 @@
 {
   "version": "1.0.0",
-  "timestamp": "2026-03-28T01:32:34.493Z",
+  "timestamp": "2026-03-29T17:51:55.831Z",
   "sessionId": "",
   "wipTasks": [],
   "recentEdits": [
-    ".DS_Store",
     ".claude/logs/subagent-history.jsonl",
     ".claude/memory/session-log.md",
     ".claude/sessions/.last_inbox_check",
     ".claude/sessions/active.json",
+    ".claude/state/breezing-timeline.jsonl",
     ".claude/state/compaction-events.jsonl",
     ".claude/state/harness-usage.json",
     ".claude/state/instructions-loaded.jsonl",
@@ -18,12 +18,12 @@
     ".claude/state/session-skills-used.json",
     ".claude/state/session.events.jsonl",
     ".claude/state/session.json",
-    ".claude/state/sessions/27F96669-6006-4496-8E61-C0D150830C50.events.jsonl",
-    ".claude/state/sessions/27F96669-6006-4496-8E61-C0D150830C50.json",
+    ".claude/state/sessions/4AF864A4-74B0-4CF2-B731-7282AE9E4FBE.events.jsonl",
+    ".claude/state/sessions/4AF864A4-74B0-4CF2-B731-7282AE9E4FBE.json",
+    ".claude/state/task-quality-gate.json",
+    ".claude/state/task-quality-gate.json.tmp",
     ".claude/state/test-recommendation.json",
-    ".claude/state/tool-failure-counter.txt",
-    "agent-tests/office.md",
-    "docs/how-to-run-tests.md"
+    ".claude/state/tool-failure-counter.txt"
   ],
   "metrics": null
 }
