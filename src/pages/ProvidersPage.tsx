@@ -133,8 +133,8 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
               </tr>
             </thead>
             <tbody>
-              {editingModels.map((m, index) => {
-                const isNew = m.id.startsWith('new_')
+              {models.map((m, index) => {
+                const isNew = m.id?.startsWith('new_')
                 return (
                   <tr key={m.id}>
                     {editMode ? (

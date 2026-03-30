@@ -22,6 +22,7 @@
     "running": "本机 OpenClaw 运行中",
     "localMachine": "本机",
     "stopped": "OpenClaw 已停止",
+    "unknown": "OpenClaw 未知",
     "notRunning": "未运行",
     "checking": "本机 OpenClaw 查询中...",
     "checkingDesc": "正在连接守护进程...",
