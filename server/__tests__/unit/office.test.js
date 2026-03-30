@@ -9,6 +9,8 @@ describe('Office Routes', () => {
   beforeEach(() => {
     db = createTestDb()
     app = createTestApp(db)
+    // 清空预置的"本机办公室"数据，确保测试隔离
+    db.prepare('DELETE FROM offices').run()
   })
 
   describe('get_offices', () => {

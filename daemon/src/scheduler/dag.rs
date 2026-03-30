@@ -70,6 +70,7 @@ impl DagScheduler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scheduler::models::{Plan, Task, TaskDependency};
     use tempfile::NamedTempFile;
 
     fn create_test_db() -> Db {
