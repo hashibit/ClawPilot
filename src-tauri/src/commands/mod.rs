@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod ai;
 pub mod binding;
 pub mod channel;
 pub mod deployment;

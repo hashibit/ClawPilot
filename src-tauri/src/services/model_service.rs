@@ -256,6 +256,85 @@ pub fn upsert_models(pool: &DbPool, models: Vec<ModelInfo>) -> Result<()> {
     Ok(())
 }
 
+/// 删除指定 provider_type 的提供商配置
+pub fn delete_provider(pool: &DbPool, provider_type: &str) -> Result<()> {
+    let conn = pool.get()?;
+    let rows = conn.execute(
+        "DELETE FROM model_providers WHERE provider_type = ?1",
+        rusqlite::params![provider_type],
+    )?;
+    if rows == 0 {
+        return Err(AppError::NotFound(format!("Provider '{provider_type}' not found")));
+    }
+    Ok(())
+}
+
+/// 批量设置某 provider 的模型列表（覆盖写）
+pub fn set_models(pool: &DbPool, provider_type: &str, models: Vec<ModelInfo>) -> Result<()> {
+    let conn = pool.get()?;
+    let now_ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    // 删除不在新列表里的模型（仅限当前 provider）
+    let model_names: Vec<&str> = models.iter().map(|m| m.name.as_str()).collect();
+    if !model_names.is_empty() {
+        let placeholders = model_names.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let delete_sql = format!(
+            "DELETE FROM model_info WHERE provider_type = ?1 AND name NOT IN ({})",
+            placeholders
+        );
+        let mut delete_stmt = conn.prepare(&delete_sql)?;
+        // Build params using a different approach to avoid lifetime issues
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(provider_type.to_string())];
+        for name in &model_names {
+            params.push(Box::new(name.to_string()));
+        }
+        delete_stmt.execute(rusqlite::params_from_iter(params.iter().map(|b| b.as_ref() as &dyn rusqlite::ToSql)))?;
+    } else {
+        conn.execute(
+            "DELETE FROM model_info WHERE provider_type = ?1",
+            rusqlite::params![provider_type],
+        )?;
+    }
+
+    // 插入或更新模型
+    for model in models.iter() {
+        conn.execute(
+            "INSERT INTO model_info \
+                 (name, display_name, provider_type, context_window, input_price, \
+                  output_price, supports_vision, supports_function_calling, \
+                  supports_streaming, updated_at) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10) \
+             ON CONFLICT(name) DO UPDATE SET \
+                 display_name               = excluded.display_name, \
+                 provider_type              = excluded.provider_type, \
+                 context_window             = excluded.context_window, \
+                 input_price                = excluded.input_price, \
+                 output_price               = excluded.output_price, \
+                 supports_vision            = excluded.supports_vision, \
+                 supports_function_calling  = excluded.supports_function_calling, \
+                 supports_streaming         = excluded.supports_streaming, \
+                 updated_at                 = excluded.updated_at",
+            rusqlite::params![
+                model.name,
+                model.display_name,
+                provider_type,
+                model.context_window,
+                model.input_price,
+                model.output_price,
+                ModelInfo::bool_to_i64(model.supports_vision),
+                ModelInfo::bool_to_i64(model.supports_function_calling),
+                ModelInfo::bool_to_i64(model.supports_streaming),
+                now_ts,
+            ],
+        )?;
+    }
+
+    Ok(())
+}
+
 /// プロバイダーの接続テストを行う（現時点では HTTP 呼び出しなし）。
 ///
 /// - `is_enabled` が true かつ `api_key` が非空であれば `true` を返す。

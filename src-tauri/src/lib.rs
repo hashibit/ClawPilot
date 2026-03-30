@@ -47,8 +47,13 @@ pub fn run() {
             commands::model::get_providers,
             commands::model::get_provider,
             commands::model::update_provider,
+            commands::model::create_provider,
+            commands::model::delete_provider,
             commands::model::get_models,
+            commands::model::set_models,
             commands::model::test_provider,
+            commands::model::get_known_providers,
+            commands::model::suggest_provider,
             // Channel
             commands::channel::get_channels,
             commands::channel::get_channel,
@@ -93,6 +98,9 @@ pub fn run() {
             // Log
             commands::log::get_logs,
             commands::log::write_log,
+            // AI
+            commands::ai::ai_generate_agent,
+            commands::ai::chat_with_agent,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
