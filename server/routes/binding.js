@@ -46,6 +46,10 @@ export function createBindingRouter(db) {
         const agentRow = db.prepare('SELECT id FROM agents WHERE id = ?').get(binding.agent_id)
         if (!agentRow) throw new Error(`Invalid agent_id: ${binding.agent_id}`)
       }
+      if (binding.channel_id) {
+        const channelRow = db.prepare('SELECT id FROM channels WHERE id = ?').get(parseInt(binding.channel_id, 10))
+        if (!channelRow) throw new Error(`Invalid channel_id: ${binding.channel_id}`)
+      }
       db.prepare(`
         INSERT INTO bindings
           (id, opc_id, channel_id, channel_name, channel_type, agent_id, agent_name,
