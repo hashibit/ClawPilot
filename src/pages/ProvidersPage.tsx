@@ -52,12 +52,19 @@ function ApiBadge({ api }: { api: ProviderApi }) {
 
 // ── Model Table ────────────────────────────────────────────
 
-function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onReset }: {
+function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onReset,
+  editMode, onToggleEdit, onSaveModels, onAddModel, onDeleteModel, onUpdateModel }: {
   models: ModelInfo[]
   providerName: string
   providerBaseUrl: string
   knownProviders: KnownProvider[]
   onReset: () => void
+  editMode?: boolean
+  onToggleEdit?: () => void
+  onSaveModels?: () => void
+  onAddModel?: () => void
+  onDeleteModel?: (id: string) => void
+  onUpdateModel?: (id: string, field: keyof ModelInfo, value: string | number | boolean) => void
 }) {
   const { t } = useTranslation()
   const knownByName = knownProviders.find(p => p.suggestName === providerName)
@@ -72,11 +79,32 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
         <span style={{ fontSize: '12px', fontWeight: 600, color: '#8E8E93' }}>
           {t('providers.available_models')} ({models.length})
         </span>
-        {known && models.length > 0 && (
-          <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onReset}>
-            Reset to defaults
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {editMode ? (
+            <>
+              <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onAddModel}>
+                + 添加模型
+              </button>
+              <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
+                取消
+              </button>
+              <button className="tbtn tbtn-accent" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onSaveModels}>
+                保存
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
+                编辑
+              </button>
+              {known && models.length > 0 && (
+                <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onReset}>
+                  恢复默认模型
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
       {models.length === 0 && known ? (
         <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -89,7 +117,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
         </div>
       ) : models.length === 0 ? (
         <div style={{ fontSize: '12px', color: '#8E8E93', padding: '12px 0', textAlign: 'center' }}>
-          No models configured
+          暂无模型配置
         </div>
       ) : (
         <div className="group">
@@ -101,20 +129,77 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                 <th>{t('providers.col_context')}</th>
                 <th>input_types</th>
                 <th>vision</th>
+                {editMode && <th style={{ width: '60px' }}>操作</th>}
               </tr>
             </thead>
             <tbody>
               {models.map(m => (
                 <tr key={m.id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{m.model_id}</td>
-                  <td style={{ fontSize: '12px' }}>{m.display_name}</td>
-                  <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
-                  <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>{m.input_types}</td>
-                  <td>
-                    {m.supports_vision
-                      ? <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>{t('providers.cap_vision')}</span>
-                      : <span style={{ color: '#555' }}>-</span>}
-                  </td>
+                  {editMode ? (
+                    <>
+                      <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                        <input
+                          type="text"
+                          value={m.model_id}
+                          onChange={(e) => onUpdateModel?.(m.id, 'model_id', e.target.value)}
+                          style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '11px', fontFamily: 'monospace' }}
+                        />
+                      </td>
+                      <td style={{ fontSize: '12px' }}>
+                        <input
+                          type="text"
+                          value={m.display_name}
+                          onChange={(e) => onUpdateModel?.(m.id, 'display_name', e.target.value)}
+                          style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '12px' }}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value={m.context_window}
+                          onChange={(e) => onUpdateModel?.(m.id, 'context_window', parseInt(e.target.value) || 0)}
+                          style={{ width: '80px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '11px' }}
+                        />
+                      </td>
+                      <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>
+                        <select
+                          value={m.input_types}
+                          onChange={(e) => onUpdateModel?.(m.id, 'input_types', e.target.value)}
+                          style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '11px', fontFamily: 'monospace' }}
+                        >
+                          <option value='["text"]'>text</option>
+                          <option value='["text","image"]'>text+image</option>
+                        </select>
+                      </td>
+                      <td>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={m.supports_vision}
+                            onChange={(e) => onUpdateModel?.(m.id, 'supports_vision', e.target.checked)}
+                            style={{ accentColor: '#8b5cf6' }}
+                          />
+                        </label>
+                      </td>
+                      <td>
+                        <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', color: '#f43f5e', padding: '2px 6px', background: 'rgba(244,63,94,0.1)' }} onClick={() => onDeleteModel?.(m.id)}>
+                          删除
+                        </button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{m.model_id}</td>
+                      <td style={{ fontSize: '12px' }}>{m.display_name}</td>
+                      <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
+                      <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>{m.input_types}</td>
+                      <td>
+                        {m.supports_vision
+                          ? <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>{t('providers.cap_vision')}</span>
+                          : <span style={{ color: '#555' }}>-</span>}
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -137,6 +222,10 @@ export default function ProvidersPage() {
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
+
+  // Model edit state
+  const [modelEditMode, setModelEditMode] = useState(false)
+  const [editingModels, setEditingModels] = useState<ModelInfo[]>([])
 
   // Form state (shared between create and edit)
   const [formName, setFormName] = useState('')
@@ -295,12 +384,71 @@ export default function ProvidersPage() {
 
   const handleResetModels = async () => {
     if (!selectedProvider) return
-    const known = knownProviders.find(p => p.suggestName === selectedProvider.name)
+    // 先尝试按名称匹配，再尝试按 URL 匹配
+    let known = knownProviders.find(p => p.suggestName === selectedProvider.name)
+    if (!known) {
+      known = knownProviders.find(p => p.matchUrls.some(u => selectedProvider.base_url.includes(u)))
+    }
     if (!known) return
     try {
       await apiSetModels(selectedProvider.name, known.models)
       await loadModels(selectedProvider.name)
       toast('Models reset to defaults', 'success')
+    } catch (e) {
+      toast(String(e), 'error')
+    }
+  }
+
+  // Model edit handlers
+  const handleToggleModelEdit = () => {
+    if (modelEditMode) {
+      // Cancel - restore from original models
+      setEditingModels([])
+      setModelEditMode(false)
+    } else {
+      // Start editing - copy current models
+      setEditingModels([...models])
+      setModelEditMode(true)
+    }
+  }
+
+  const handleAddModel = () => {
+    const newModel: ModelInfo = {
+      id: `new_${Date.now()}`,
+      provider_name: selectedProvider?.name || '',
+      model_id: '',
+      display_name: '',
+      context_window: 0,
+      max_tokens: 0,
+      input_types: '["text"]',
+      cost_input: 0,
+      cost_output: 0,
+      supports_vision: false,
+      supports_function_calling: false,
+      supports_streaming: true,
+      is_custom: true,
+      sort_order: editingModels.length,
+      updated_at: Math.floor(Date.now() / 1000),
+    }
+    setEditingModels([...editingModels, newModel])
+  }
+
+  const handleDeleteModel = (id: string) => {
+    setEditingModels(editingModels.filter(m => m.id !== id))
+  }
+
+  const handleUpdateModel = (id: string, field: keyof ModelInfo, value: string | number | boolean) => {
+    setEditingModels(editingModels.map(m => m.id === id ? { ...m, [field]: value } : m))
+  }
+
+  const handleSaveModels = async () => {
+    if (!selectedProvider) return
+    try {
+      await apiSetModels(selectedProvider.name, editingModels)
+      await loadModels(selectedProvider.name)
+      setEditingModels([])
+      setModelEditMode(false)
+      toast('Models saved', 'success')
     } catch (e) {
       toast(String(e), 'error')
     }
@@ -567,18 +715,6 @@ export default function ProvidersPage() {
                     </span>
                   </div>
                 )}
-                <div className="group-row">
-                  <span className="group-label">创建时间</span>
-                  <span className="group-value" style={{ fontSize: '11px', color: '#8E8E93' }}>
-                    {new Date(selectedProvider.created_at * 1000).toLocaleString()}
-                  </span>
-                </div>
-                <div className="group-row">
-                  <span className="group-label">更新时间</span>
-                  <span className="group-value" style={{ fontSize: '11px', color: '#8E8E93' }}>
-                    {new Date(selectedProvider.updated_at * 1000).toLocaleString()}
-                  </span>
-                </div>
               </div>
 
               {/* Delete confirmation */}
@@ -604,11 +740,17 @@ export default function ProvidersPage() {
 
               {/* Model list */}
               <ModelTable
-                models={models}
+                models={modelEditMode ? editingModels : models}
                 providerName={selectedProvider.name}
                 providerBaseUrl={selectedProvider.base_url}
                 knownProviders={knownProviders}
                 onReset={handleResetModels}
+                editMode={modelEditMode}
+                onToggleEdit={handleToggleModelEdit}
+                onSaveModels={handleSaveModels}
+                onAddModel={handleAddModel}
+                onDeleteModel={handleDeleteModel}
+                onUpdateModel={handleUpdateModel}
               />
             </>
           )}
