@@ -110,6 +110,23 @@ npm run stop
 | **Server (Node.js)** | ✓ | `node --watch index.js` (Node.js 原生 watch) |
 | **Daemon (Rust)** | ✓ | `cargo watch` 监听 Rust 文件变化自动重编译 |
 
+### 初始化开发数据
+
+首次启动或数据库为空时，运行种子脚本初始化开发数据：
+
+```bash
+./seed-dev-env.sh
+```
+
+**种子数据包括：**
+- 5 个模型提供商（OpenAI, Anthropic, 阿里百炼，火山方舟，MiniMax）
+- 16 个热门模型（GPT-4o, Claude 系列，通义千问，豆包等）
+- 4 个内置工具（search, file-editor, terminal, web-fetch）
+- 3 个内置技能（commit, review-pr, pdf）
+- 1 个示例 OPC（develop - 开发团队）
+- 3 个示例 Agent（产品助理、开发工程师、测试工程师）及完整文档
+- 1 个飞书渠道绑定
+
 ## 开发规范
 
 - API Key 等敏感信息必须通过 `utils/crypto.rs` 加密存储

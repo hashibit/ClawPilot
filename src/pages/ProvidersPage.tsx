@@ -133,79 +133,83 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
               </tr>
             </thead>
             <tbody>
-              {models.map(m => (
-                <tr key={m.id}>
-                  {editMode ? (
-                    <>
-                      <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                        <input
-                          type="text"
-                          value={m.model_id}
-                          onChange={(e) => onUpdateModel?.(m.id, 'model_id', e.target.value)}
-                          className="field-input"
-                          style={{ width: '100%', padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
-                        />
-                      </td>
-                      <td style={{ fontSize: '12px' }}>
-                        <input
-                          type="text"
-                          value={m.display_name}
-                          onChange={(e) => onUpdateModel?.(m.id, 'display_name', e.target.value)}
-                          className="field-input"
-                          style={{ width: '100%', padding: '4px 6px', fontSize: '12px' }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={m.context_window}
-                          onChange={(e) => onUpdateModel?.(m.id, 'context_window', parseInt(e.target.value) || 0)}
-                          className="field-input"
-                          style={{ width: '80px', padding: '4px 6px', fontSize: '11px' }}
-                        />
-                      </td>
-                      <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>
-                        <select
-                          value={m.input_types}
-                          onChange={(e) => onUpdateModel?.(m.id, 'input_types', e.target.value)}
-                          className="field-input"
-                          style={{ padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
-                        >
-                          <option value='["text"]'>text</option>
-                          <option value='["text","image"]'>text+image</option>
-                        </select>
-                      </td>
-                      <td>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+              {editingModels.map((m, index) => {
+                const isNew = m.id.startsWith('new_')
+                return (
+                  <tr key={m.id}>
+                    {editMode ? (
+                      <>
+                        <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>
                           <input
-                            type="checkbox"
-                            checked={m.supports_vision}
-                            onChange={(e) => onUpdateModel?.(m.id, 'supports_vision', e.target.checked)}
-                            style={{ accentColor: '#8b5cf6' }}
+                            type="text"
+                            value={m.model_id}
+                            onChange={(e) => onUpdateModel?.(m.id, 'model_id', e.target.value)}
+                            className="field-input"
+                            style={{ width: '100%', padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
                           />
-                        </label>
-                      </td>
-                      <td>
-                        <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', color: '#f43f5e', padding: '2px 6px', background: 'rgba(244,63,94,0.1)' }} onClick={() => onDeleteModel?.(m.id)}>
-                          删除
-                        </button>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{m.model_id}</td>
-                      <td style={{ fontSize: '12px' }}>{m.display_name}</td>
-                      <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
-                      <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>{m.input_types}</td>
-                      <td>
-                        {m.supports_vision
-                          ? <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>{t('providers.cap_vision')}</span>
-                          : <span style={{ color: '#555' }}>-</span>}
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
+                        </td>
+                        <td style={{ fontSize: '12px' }}>
+                          <input
+                            type="text"
+                            value={m.display_name}
+                            onChange={(e) => onUpdateModel?.(m.id, 'display_name', e.target.value)}
+                            className="field-input"
+                            style={{ width: '100%', padding: '4px 6px', fontSize: '12px' }}
+                          />
+                          {isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[未保存]</span>}
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            value={m.context_window}
+                            onChange={(e) => onUpdateModel?.(m.id, 'context_window', parseInt(e.target.value) || 0)}
+                            className="field-input"
+                            style={{ width: '80px', padding: '4px 6px', fontSize: '11px' }}
+                          />
+                        </td>
+                        <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>
+                          <select
+                            value={m.input_types}
+                            onChange={(e) => onUpdateModel?.(m.id, 'input_types', e.target.value)}
+                            className="field-input"
+                            style={{ padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
+                          >
+                            <option value='["text"]'>text</option>
+                            <option value='["text","image"]'>text+image</option>
+                          </select>
+                        </td>
+                        <td>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={m.supports_vision}
+                              onChange={(e) => onUpdateModel?.(m.id, 'supports_vision', e.target.checked)}
+                              style={{ accentColor: '#8b5cf6' }}
+                            />
+                          </label>
+                        </td>
+                        <td>
+                          <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', color: '#f43f5e', padding: '2px 6px', background: 'rgba(244,63,94,0.1)' }} onClick={() => onDeleteModel?.(m.id)}>
+                            删除
+                          </button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{m.model_id}</td>
+                        <td style={{ fontSize: '12px' }}>{m.display_name}{isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[未保存]</span>}</td>
+                        <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
+                        <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>{m.input_types}</td>
+                        <td>
+                          {m.supports_vision
+                            ? <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>{t('providers.cap_vision')}</span>
+                            : <span style={{ color: '#555' }}>-</span>}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -671,8 +675,18 @@ export default function ProvidersPage() {
               </div>
 
               {pendingModels.length > 0 && (
-                <div style={{ fontSize: '11px', color: '#8E8E93', padding: '4px 8px', background: 'rgba(255,255,255,0.04)', borderRadius: '5px' }}>
-                  Auto-detected {pendingModels.length} models from known provider registry
+                <div style={{ fontSize: '11px', color: '#8E8E93', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                  <div style={{ marginBottom: '6px', color: '#a78bfa' }}>Auto-detected {pendingModels.length} models:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {pendingModels.slice(0, 8).map((m, i) => (
+                      <span key={i} style={{ padding: '2px 6px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', borderRadius: '4px', fontSize: '10px' }}>
+                        {m.model_id}
+                      </span>
+                    ))}
+                    {pendingModels.length > 8 && (
+                      <span style={{ padding: '2px 6px', color: '#8E8E93', fontSize: '10px' }}>+{pendingModels.length - 8} more</span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
