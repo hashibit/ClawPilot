@@ -142,7 +142,8 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                           type="text"
                           value={m.model_id}
                           onChange={(e) => onUpdateModel?.(m.id, 'model_id', e.target.value)}
-                          style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '11px', fontFamily: 'monospace' }}
+                          className="field-input"
+                          style={{ width: '100%', padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
                         />
                       </td>
                       <td style={{ fontSize: '12px' }}>
@@ -150,7 +151,8 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                           type="text"
                           value={m.display_name}
                           onChange={(e) => onUpdateModel?.(m.id, 'display_name', e.target.value)}
-                          style={{ width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '12px' }}
+                          className="field-input"
+                          style={{ width: '100%', padding: '4px 6px', fontSize: '12px' }}
                         />
                       </td>
                       <td>
@@ -158,14 +160,16 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                           type="number"
                           value={m.context_window}
                           onChange={(e) => onUpdateModel?.(m.id, 'context_window', parseInt(e.target.value) || 0)}
-                          style={{ width: '80px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '11px' }}
+                          className="field-input"
+                          style={{ width: '80px', padding: '4px 6px', fontSize: '11px' }}
                         />
                       </td>
                       <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>
                         <select
                           value={m.input_types}
                           onChange={(e) => onUpdateModel?.(m.id, 'input_types', e.target.value)}
-                          style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', padding: '4px 6px', color: '#fff', fontSize: '11px', fontFamily: 'monospace' }}
+                          className="field-input"
+                          style={{ padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
                         >
                           <option value='["text"]'>text</option>
                           <option value='["text","image"]'>text+image</option>
