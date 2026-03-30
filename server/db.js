@@ -312,36 +312,16 @@ export function seedBaseData(db) {
     VALUES (1, '', '1.0.0', ?)
   `).run(now)
 
-  // Seed model providers
-  for (const pt of ['BAILIAN', 'VOLCENGINE', 'MINIMAX']) {
-    db.prepare(`
-      INSERT OR IGNORE INTO model_providers (provider_type, api_key, base_url, is_coding_plan, is_enabled, is_available, created_at, updated_at)
-      VALUES (?, '', '', 0, 1, 0, ?, ?)
-    `).run(pt, now, now)
-  }
+  // Seed model_providers_v2 - 初始化为空，让用户自己配置
+  // Seed model_info_v2 - 初始化为空，让用户自己配置
 
-  // Seed BAILIAN Coding Plan models
-  const newModelExists = db.prepare("SELECT id FROM model_info WHERE name = 'qwen3.5-plus'").get()
-  if (!newModelExists) {
-    db.prepare("DELETE FROM model_info WHERE provider_type = 'BAILIAN'").run()
-    const bailianModels = [
-      { name: 'qwen3.5-plus',          display_name: 'Qwen3.5 Plus',          context_window: 1000000, supports_vision: 1 },
-      { name: 'qwen3-max-2026-01-23',  display_name: 'Qwen3 Max (0123)',       context_window: 262144,  supports_vision: 0 },
-      { name: 'qwen3-coder-next',       display_name: 'Qwen3 Coder Next',       context_window: 262144,  supports_vision: 0 },
-      { name: 'qwen3-coder-plus',       display_name: 'Qwen3 Coder Plus',       context_window: 1000000, supports_vision: 0 },
-      { name: 'MiniMax-M2.5',           display_name: 'MiniMax M2.5',           context_window: 196608,  supports_vision: 0 },
-      { name: 'glm-5',                  display_name: 'GLM-5',                  context_window: 202752,  supports_vision: 0 },
-      { name: 'glm-4.7',               display_name: 'GLM-4.7',                context_window: 202752,  supports_vision: 0 },
-      { name: 'kimi-k2.5',             display_name: 'Kimi K2.5',              context_window: 262144,  supports_vision: 1 },
-    ]
-    for (const m of bailianModels) {
-      db.prepare(`
-        INSERT OR IGNORE INTO model_info
-          (name, display_name, provider_type, context_window, input_price, output_price,
-           supports_vision, supports_function_calling, supports_streaming, updated_at)
-        VALUES (?, ?, 'BAILIAN', ?, 0, 0, ?, 0, 1, ?)
-      `).run(m.name, m.display_name, m.context_window, m.supports_vision, now)
-    }
+  // Seed offices - 添加本地 office 占位符，方便用户配置 daemon
+  const localOfficeExists = db.prepare("SELECT id FROM offices WHERE address = 'localhost'").get()
+  if (!localOfficeExists) {
+    db.prepare(`
+      INSERT OR IGNORE INTO offices (id, name, address, ownership, decoration_grade, created_at, updated_at)
+      VALUES ('local-dev', '本机办公室', 'localhost', 'OWNED', 'MEDIUM', ?, ?)
+    `).run(now, now)
   }
 }
 

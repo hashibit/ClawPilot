@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
-import { getOpcStats, getProcessStatus, startOpenclaw, stopOpenclaw, reloadOpenclaw } from '../lib/api'
+import { getOpcStats } from '../lib/api'
 import type { OpcStats } from '../lib/types'
-import type { ProcessStatus } from '../lib/api'
 
 function formatUptime(sec: number | null, lang: string): string {
   if (sec === null) return '—'
@@ -39,8 +38,6 @@ export default function OverviewPage() {
   const { t, i18n } = useTranslation()
   const { opcs } = useOpc()
   const [statsMap, setStatsMap] = useState<Map<string, OpcStats>>(new Map())
-  const [procStatus, setProcStatus] = useState<ProcessStatus>({ is_running: false, pid: null, uptime_seconds: null })
-  const [procLoading, setProcLoading] = useState(false)
 
   useEffect(() => {
     if (!opcs.length) return
@@ -49,84 +46,11 @@ export default function OverviewPage() {
       .catch(console.error)
   }, [opcs])
 
-  const fetchProcStatus = useCallback(() => {
-    getProcessStatus()
-      .then(s => setProcStatus(s))
-      .catch(() => setProcStatus({ is_running: false, pid: null, uptime_seconds: null }))
-  }, [])
-
-  useEffect(() => {
-    fetchProcStatus()
-    const id = setInterval(fetchProcStatus, 5000)
-    return () => clearInterval(id)
-  }, [fetchProcStatus])
-
-  async function handleProcAction(action: 'start' | 'stop' | 'reload') {
-    setProcLoading(true)
-    try {
-      if (action === 'start') await startOpenclaw()
-      else if (action === 'stop') await stopOpenclaw()
-      else await reloadOpenclaw()
-      setTimeout(fetchProcStatus, 1000)
-    } catch (e: any) {
-      alert(e?.message ?? t('overview.failed'))
-    } finally {
-      setProcLoading(false)
-    }
-  }
-
   const totals = sumStats(statsMap)
   const growthSign = totals.growth >= 0 ? '+' : ''
 
   return (
     <div className="overview-content">
-
-      {/* OpenClaw 进程状态 */}
-      <section>
-        <div className="section-label" style={{ padding: '0 0 7px' }}>{t('overview.processTitle')}</div>
-        <div className="stat-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '160px' }}>
-            <div style={{
-              width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0,
-              background: procStatus.is_running ? '#34c759' : '#636366',
-              boxShadow: procStatus.is_running ? '0 0 6px #34c75980' : 'none',
-            }} />
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>
-                {procStatus.is_running ? t('overview.statusRunning') : t('overview.statusStopped')}
-              </div>
-              <div style={{ fontSize: '11px', color: '#8E8E93', marginTop: '1px' }}>
-                {procStatus.is_running
-                  ? `PID ${procStatus.pid}  ·  ${formatUptime(procStatus.uptime_seconds, i18n.language)}`
-                  : t('overview.statusNotRunning')}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-            {!procStatus.is_running ? (
-              <button
-                disabled={procLoading}
-                onClick={() => handleProcAction('start')}
-                style={{ padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#34c759', color: '#fff', opacity: procLoading ? 0.6 : 1 }}
-              >{t('overview.startBtn')}</button>
-            ) : (
-              <>
-                <button
-                  disabled={procLoading}
-                  onClick={() => handleProcAction('reload')}
-                  style={{ padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', opacity: procLoading ? 0.6 : 1 }}
-                >{t('overview.reloadBtn')}</button>
-                <button
-                  disabled={procLoading}
-                  onClick={() => handleProcAction('stop')}
-                  style={{ padding: '5px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 500, cursor: 'pointer', border: 'none', background: '#f43f5e', color: '#fff', opacity: procLoading ? 0.6 : 1 }}
-                >{t('overview.stopBtn')}</button>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
 
       {/* 统计卡片 */}
       <section>

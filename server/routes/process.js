@@ -1,23 +1,36 @@
 import { Router } from 'express'
 import { execSync, spawn } from 'child_process'
-import { existsSync, unlinkSync } from 'fs'
+import { existsSync, unlinkSync, readFileSync } from 'fs'
 import { createLogger } from '../logger.js'
+import { join } from 'path'
+import { homedir } from 'os'
 
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || 'openclaw'
 
-// ── Helpers ───────────────────────────────────────────────────
+// ── Local daemon config (hardcoded for localhost mode) ───────────────────────────
 
-/** Find the local office row (address = 'localhost') that has a daemon_url. */
-function getLocalDaemon(db) {
-  return db.prepare(
-    "SELECT daemon_url, daemon_api_key FROM offices WHERE address = 'localhost' AND daemon_url IS NOT NULL LIMIT 1"
-  ).get()
+const LOCAL_DAEMON = {
+  daemon_url: 'http://localhost:16668',
+  daemon_api_key: (() => {
+    // Try to read from ~/.clawpilot/daemon.key
+    const keyPath = join(homedir(), '.clawpilot', 'daemon.key')
+    if (existsSync(keyPath)) {
+      const key = readFileSync(keyPath, 'utf-8').trim()
+      if (key) return key
+    }
+    return ''
+  })()
 }
 
-/** GET {daemon_url}/health with auth header. Throws on network/HTTP error. */
-async function fetchDaemonHealth(daemonUrl, apiKey) {
-  const response = await fetch(`${daemonUrl}/health`, {
-    headers: { 'Authorization': `Bearer ${apiKey ?? ''}` }
+// ── Helpers ───────────────────────────────────────────────────
+
+/** GET local daemon health. Throws on network/HTTP error. */
+async function fetchDaemonHealth() {
+  if (!LOCAL_DAEMON.daemon_api_key) {
+    throw new Error('daemon API key not found')
+  }
+  const response = await fetch(`${LOCAL_DAEMON.daemon_url}/health`, {
+    headers: { 'Authorization': `Bearer ${LOCAL_DAEMON.daemon_api_key}` }
   })
   if (!response.ok) {
     throw new Error(`daemon health returned ${response.status}`)
@@ -46,11 +59,8 @@ const PROBE_INTERVAL_MS = 120_000
 let cachedStatus = { is_running: false, pid: null, uptime_seconds: null, probed_at: null }
 
 async function probeLocalStatus(db, log) {
-  const daemon = getLocalDaemon(db)
-  if (!daemon) return
-
   try {
-    const health = await fetchDaemonHealth(daemon.daemon_url, daemon.daemon_api_key)
+    const health = await fetchDaemonHealth()
     const is_running = health.openclaw_status === 'running'
     const pid = health.openclaw_pid ?? null
     const uptime_seconds = (is_running && pid) ? getUptimeSeconds(pid) : null

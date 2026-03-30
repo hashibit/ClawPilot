@@ -79,6 +79,37 @@ pub enum AppError {
 - 所有数据结构（TypeScript 类型、Rust 结构体、SQLite 表结构）必须与 `proto/` 保持一致
 - 新增或修改字段时，先改 `.proto`，再同步到其他层
 
+## 开发环境启动方式
+
+### 统一启动（推荐）
+```bash
+npm run dev
+# 或
+bash dev.sh
+```
+同时启动所有 3 个服务，日志输出到 `logs/` 目录
+
+### 单独启动
+
+| 服务 | 命令 | 端口 |
+|------|------|------|
+| **Vite (前端)** | `npm run dev:web` 或 `npx vite` | 16666 |
+| **Server (Node.js)** | `npm run server:dev` | 16667 |
+| **Daemon (Rust)** | `cd daemon && cargo watch -x 'run -- --listen 127.0.0.1:16668'` | 16668 |
+
+### 停止服务
+```bash
+npm run stop
+```
+
+### Hot Reload 支持
+
+| 服务 | Hot Reload | 实现方式 |
+|------|------------|----------|
+| **Vite 前端** | ✓ | Vite 原生 HMR，React 组件热更新 |
+| **Server (Node.js)** | ✓ | `node --watch index.js` (Node.js 原生 watch) |
+| **Daemon (Rust)** | ✓ | `cargo watch` 监听 Rust 文件变化自动重编译 |
+
 ## 开发规范
 
 - API Key 等敏感信息必须通过 `utils/crypto.rs` 加密存储
