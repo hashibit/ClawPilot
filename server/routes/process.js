@@ -84,20 +84,15 @@ export function createProcessRouter(db) {
 
   // POST /api/get_process_status — 实时转发到 daemon 查询
   router.post('/get_process_status', async (_req, res) => {
-    const daemon = getLocalDaemon(db)
-    if (!daemon) {
-      return res.json({ is_running: false, pid: null, uptime_seconds: null, probed_at: Date.now() })
-    }
-
     try {
-      const health = await fetchDaemonHealth(daemon.daemon_url, daemon.daemon_api_key)
+      const health = await fetchDaemonHealth()
       const is_running = health.openclaw_status === 'running'
       const pid = health.openclaw_pid ?? null
       const uptime_seconds = (is_running && pid) ? getUptimeSeconds(pid) : null
-      res.json({ is_running, pid, uptime_seconds, probed_at: Date.now() })
+      res.json({ is_running, pid, uptime_seconds, probed_at: Date.now(), daemon_available: true })
     } catch (err) {
       log.warn(`get_process_status: daemon unreachable — ${err.message}`)
-      res.json({ is_running: false, pid: null, uptime_seconds: null, probed_at: Date.now() })
+      res.json({ is_running: false, pid: null, uptime_seconds: null, probed_at: Date.now(), daemon_available: false, daemon_error: err.message })
     }
   })
 

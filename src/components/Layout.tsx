@@ -191,14 +191,21 @@ export default function Layout() {
                     width: '7px', height: '7px', borderRadius: '50%', display: 'inline-block', flexShrink: 0,
                     background: processLoading && !process ? '#f59e0b' : process?.is_running ? '#34c759' : '#8E8E93',
                   }} />
-                  <span style={{ fontSize: '12px', color: processLoading && !process ? '#f59e0b' : process?.is_running ? '#34c759' : '#8E8E93', fontWeight: 500 }}>
-                    {processLoading && !process
-                      ? t('process.checking')
-                      : process?.is_running
-                        ? t('process.running')
-                        : <><span style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{t('process.localMachine')}</span> {t('process.stopped')}</>
-                    }
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '12px', color: processLoading && !process ? '#f59e0b' : process?.is_running ? '#34c759' : '#8E8E93', fontWeight: 500 }}>
+                      {processLoading && !process
+                        ? t('process.checking')
+                        : process?.is_running
+                          ? t('process.running')
+                          : process?.daemon_available === false
+                            ? `${t('process.localMachine')} ${t('process.stopped')}`
+                            : `${t('process.localMachine')} ${t('process.unknown')}`
+                      }
+                    </span>
+                    {process?.daemon_available === false && (
+                      <span style={{ fontSize: '10px', color: '#f59e0b', marginTop: '2px' }}>daemon 未运行</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '7px' }}>
@@ -206,7 +213,9 @@ export default function Layout() {
                   ? t('process.checkingDesc')
                   : process?.is_running && process.pid != null
                     ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${fmtUptime(process.uptime_seconds, i18n.language)}` : ''}`
-                    : t('process.notRunning')}
+                    : process?.daemon_available === false
+                      ? 'daemon 未运行，无法获取进程状态'
+                      : t('process.notRunning')}
               </div>
               <button
                 className="tbtn tbtn-ghost"
