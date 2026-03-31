@@ -1,32 +1,57 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto'
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { readFileSync, writeFileSync, mkdirSync, chmodSync } from 'fs'
+import { join } from 'path'
+import { homedir } from 'os'
 
 const ALGORITHM = 'aes-256-gcm'
-const KEY_ENV = process.env.CLAWPILOT_CRYPTO_KEY
-const KEY = createHash('sha256').update(KEY_ENV ?? 'clawpilot-dev-secret').digest()
+const KEY_FILE = join(homedir(), '.clawpilot', 'server.key')
+const ENC_PREFIX = 'enc:'
+
+function loadOrCreateKey() {
+  try {
+    const hex = readFileSync(KEY_FILE, 'utf8').trim()
+    if (hex.length === 64) return Buffer.from(hex, 'hex')
+  } catch {}
+
+  // Generate a new random 256-bit key and persist it
+  const key = randomBytes(32)
+  try {
+    mkdirSync(join(homedir(), '.clawpilot'), { recursive: true })
+    writeFileSync(KEY_FILE, key.toString('hex'), { mode: 0o600 })
+    chmodSync(KEY_FILE, 0o600) // belt-and-suspenders for umask edge cases
+  } catch (err) {
+    console.error('[crypto] Failed to persist server key:', err.message)
+  }
+  return key
+}
+
+const KEY = loadOrCreateKey()
 
 /**
- * 使用 AES-256-GCM 加密字符串，每次生成随机 nonce，确保密文不同。
- * 返回格式：`<nonce_hex>:<tag_hex>:<ciphertext_hex>`
+ * Encrypts a plaintext string with AES-256-GCM.
+ * Returns a string prefixed with 'enc:' so encrypted and plaintext values
+ * are distinguishable, enabling safe migration of existing data.
+ * Returns empty string as-is (no point encrypting nothing).
  */
 export function encrypt(plaintext) {
+  if (!plaintext) return plaintext
   const nonce = randomBytes(12)
   const cipher = createCipheriv(ALGORITHM, KEY, nonce)
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
   const tag = cipher.getAuthTag()
-  return `${nonce.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`
+  return `${ENC_PREFIX}${nonce.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`
 }
 
 /**
- * 解密 encrypt() 产生的密文。失败时抛出错误。
+ * Decrypts a value produced by encrypt().
  */
-export function decrypt(ciphertext) {
-  const parts = ciphertext.split(':')
-  if (parts.length !== 3) throw new Error('Invalid ciphertext format')
+export function decrypt(value) {
+  if (!value) return value
+  const inner = value.startsWith(ENC_PREFIX) ? value.slice(ENC_PREFIX.length) : value
+  const parts = inner.split(':')
+  if (parts.length !== 3) throw new Error(`[crypto] Invalid ciphertext format: ${value.slice(0, 20)}`)
   const [nonceHex, tagHex, dataHex] = parts
-  const nonce = Buffer.from(nonceHex, 'hex')
-  const tag = Buffer.from(tagHex, 'hex')
-  const data = Buffer.from(dataHex, 'hex')
-  const decipher = createDecipheriv(ALGORITHM, KEY, nonce)
-  decipher.setAuthTag(tag)
-  return decipher.update(data) + decipher.final('utf8')
+  const decipher = createDecipheriv(ALGORITHM, KEY, Buffer.from(nonceHex, 'hex'))
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'))
+  return decipher.update(Buffer.from(dataHex, 'hex')) + decipher.final('utf8')
 }

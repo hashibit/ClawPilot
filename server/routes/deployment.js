@@ -7,6 +7,7 @@ import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
+import { decrypt } from '../utils/crypto.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE_ROOT = path.resolve(__dirname, '../..')
@@ -368,8 +369,9 @@ router.post('/start_deployment', async (req, res) => {
     const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opc_id)
     if (!opc) return res.status(400).send('OPC not found')
 
-    const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
-    if (!office) return res.status(400).send('Office not found')
+    const officeRow = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    if (!officeRow) return res.status(400).send('Office not found')
+    const office = { ...officeRow, daemon_api_key: decrypt(officeRow.daemon_api_key) }
 
     const taskId = randomUUID()
     const createdAt = now()
@@ -603,9 +605,10 @@ router.post('/undeploy', async (req, res) => {
 
     // Find which office this OPC is deployed to
     const opc = db.prepare('SELECT office_id FROM opc_config WHERE id = ?').get(opc_id)
-    const office = opc?.office_id
+    const officeRow = opc?.office_id
       ? db.prepare('SELECT daemon_url, daemon_api_key, initial_openclaw_config FROM offices WHERE id = ?').get(opc.office_id)
       : null
+    const office = officeRow ? { ...officeRow, daemon_api_key: decrypt(officeRow.daemon_api_key) } : null
 
     // Update DB records
     db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`)
@@ -687,8 +690,9 @@ router.post('/deploy_to_office', async (req, res) => {
     const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opc_id)
     if (!opc) return res.status(400).send('OPC not found')
 
-    const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
-    if (!office) return res.status(400).send('Office not found')
+    const officeRow2 = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    if (!officeRow2) return res.status(400).send('Office not found')
+    const office = { ...officeRow2, daemon_api_key: decrypt(officeRow2.daemon_api_key) }
 
     if (!office.daemon_url) {
       return res.json({ ok: false, error: '该办公室未配置 Daemon，请先安装物业' })

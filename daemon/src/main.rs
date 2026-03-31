@@ -57,6 +57,12 @@ fn load_api_key(key_file: Option<PathBuf>) -> String {
         let _ = fs::create_dir_all(parent);
     }
     let _ = fs::write(&path, &key);
+    // Restrict key file to owner-read/write only
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+    }
     tracing::warn!(
         "Generated new API Key → {} (copy this key into ClawPilot Office config)",
         path.display()

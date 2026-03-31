@@ -7,6 +7,7 @@ import { join, resolve } from 'path'
 import { homedir } from 'os'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
+import { encrypt, decrypt } from '../utils/crypto.js'
 
 const log = createLogger('office')
 
@@ -56,7 +57,11 @@ function readLocalKey() {
 
 function rowToOffice(row) {
   if (!row) return null
-  return { ...row }
+  return {
+    ...row,
+    access_password: decrypt(row.access_password),
+    daemon_api_key: decrypt(row.daemon_api_key),
+  }
 }
 
 export function createOfficeRouter(db) {
@@ -111,12 +116,12 @@ export function createOfficeRouter(db) {
         office.id, office.name,
         office.address ?? null,
         office.access_auth_type ?? 'password', office.access_user ?? null,
-        office.access_password ?? null, office.ssh_key_path ?? null,
+        encrypt(office.access_password ?? null), office.ssh_key_path ?? null,
         office.phone ?? null, office.receptionist_image ?? null,
         office.ownership ?? 'RENTED', office.monthly_rent ?? null,
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
         office.description ?? null,
-        office.daemon_url ?? null, office.daemon_api_key ?? null,
+        office.daemon_url ?? null, encrypt(office.daemon_api_key ?? null),
         office.created_at ?? now(), office.updated_at ?? now()
       )
       res.json(office.id)
@@ -141,12 +146,12 @@ export function createOfficeRouter(db) {
         office.name,
         office.address ?? null,
         office.access_auth_type ?? 'password', office.access_user ?? null,
-        office.access_password ?? null, office.ssh_key_path ?? null,
+        encrypt(office.access_password ?? null), office.ssh_key_path ?? null,
         office.phone ?? null, office.receptionist_image ?? null,
         office.ownership ?? 'RENTED', office.monthly_rent ?? null,
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
         office.description ?? null,
-        office.daemon_url ?? null, office.daemon_api_key ?? null,
+        office.daemon_url ?? null, encrypt(office.daemon_api_key ?? null),
         now(), id
       )
       res.json(null)
@@ -232,6 +237,10 @@ export function createOfficeRouter(db) {
     const host = m[1]
     const port = m[2] ? Number(m[2]) : 22
     const sshUser = user || 'root'
+    // Validate SSH username to prevent command injection
+    if (!/^[a-zA-Z0-9._-]+$/.test(sshUser)) {
+      return res.json({ ok: false, error: 'SSH 用户名格式无效' })
+    }
 
     const start = Date.now()
     try {
@@ -304,7 +313,7 @@ export function createOfficeRouter(db) {
             const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
           const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
           db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
-              .run(daemonUrl, apiKey, initialConfig, now(), office_id)
+              .run(daemonUrl, encrypt(apiKey), initialConfig, now(), office_id)
           }
           return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs, already_running: true })
         }
@@ -334,7 +343,7 @@ export function createOfficeRouter(db) {
 
         if (office_id && apiKey) {
           db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
-            .run(daemonUrl, apiKey, now(), office_id)
+            .run(daemonUrl, encrypt(apiKey), now(), office_id)
           step('💾 配置已自动保存')
         }
         return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs })
@@ -383,7 +392,7 @@ export function createOfficeRouter(db) {
 
         if (office_id && apiKey) {
           db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
-            .run(daemonUrl, apiKey, now(), office_id)
+            .run(daemonUrl, encrypt(apiKey), now(), office_id)
           step('💾 配置已自动保存')
         }
         return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs })

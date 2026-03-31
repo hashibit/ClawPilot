@@ -1,12 +1,13 @@
 import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import { detectProvider, KNOWN_PROVIDERS } from '../known-providers.js'
+import { encrypt, decrypt } from '../utils/crypto.js'
 
 const now = () => Math.floor(Date.now() / 1000)
 
 function rowToProvider(row) {
   if (!row) return null
-  return { ...row, is_enabled: row.is_enabled === 1, is_available: row.is_available === 1 }
+  return { ...row, is_enabled: row.is_enabled === 1, is_available: row.is_available === 1, api_key: decrypt(row.api_key) }
 }
 
 function rowToModel(row) {
@@ -55,7 +56,7 @@ export function createModelRouter(db) {
       db.prepare(`
         INSERT INTO model_providers_v2 (id, name, api, base_url, api_key, is_enabled, is_available, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)
-      `).run(id, name, api, base_url, api_key ?? '', n, n)
+      `).run(id, name, api, base_url, encrypt(api_key ?? ''), n, n)
       const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
       res.json(rowToProvider(row))
     } catch (err) {
@@ -73,7 +74,7 @@ export function createModelRouter(db) {
         UPDATE model_providers_v2
         SET name=?, api=?, base_url=?, api_key=?, is_enabled=?, updated_at=?
         WHERE id=?
-      `).run(name, api, base_url, api_key ?? '', is_enabled ? 1 : 0, now(), id)
+      `).run(name, api, base_url, encrypt(api_key ?? ''), is_enabled ? 1 : 0, now(), id)
       const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
       if (!row) return res.status(404).send('Not found')
       res.json(rowToProvider(row))

@@ -54,8 +54,8 @@ async function main() {
   app.use(accessLogger)
 
   const PORT = process.env.PORT || 16667
-  app.listen(PORT, '0.0.0.0', () => {
-    log.info(`listening on http://0.0.0.0:${PORT}`)
+  app.listen(PORT, '127.0.0.1', () => {
+    log.info(`listening on http://127.0.0.1:${PORT}`)
     log.info(`DB: ${DB_PATH}`)
   })
 }
