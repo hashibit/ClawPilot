@@ -43,12 +43,19 @@ pub fn run() {
             commands::agent::reorder_agents,
             commands::agent::get_agent_document,
             commands::agent::update_agent_document,
+            commands::agent::set_default_agent,
+            commands::agent::get_agent_documents,
             // Model
             commands::model::get_providers,
             commands::model::get_provider,
             commands::model::update_provider,
+            commands::model::create_provider,
+            commands::model::delete_provider,
             commands::model::get_models,
+            commands::model::set_models,
             commands::model::test_provider,
+            commands::model::get_known_providers,
+            commands::model::suggest_provider,
             // Channel
             commands::channel::get_channels,
             commands::channel::get_channel,
@@ -66,8 +73,15 @@ pub fn run() {
             // Tool & Skill
             commands::tool::get_tools,
             commands::tool::sync_tools_from_clawhub,
+            commands::tool::create_tool,
+            commands::tool::delete_tool,
             commands::skill::get_skills,
             commands::skill::sync_skills_from_clawhub,
+            commands::skill::create_skill,
+            commands::skill::delete_skill,
+            commands::skill::install_skill,
+            commands::skill::uninstall_skill,
+            commands::skill::search_skills,
             // Snapshot
             commands::snapshot::create_snapshot,
             commands::snapshot::get_snapshots,
@@ -84,15 +98,32 @@ pub fn run() {
             commands::office::get_opc_office,
             commands::office::get_office_deployments,
             commands::office::check_daemon_health,
+            commands::office::check_ssh_connection,
+            commands::office::check_ssh_auth,
+            commands::office::install_daemon,
+            commands::office::install_openclaw,
             // Deployment
             commands::deployment::start_deployment,
             commands::deployment::get_deployment_status,
             commands::deployment::cancel_deployment,
             commands::deployment::get_recent_deployments,
             commands::deployment::undeploy,
+            commands::deployment::build_deploy_package,
+            commands::deployment::deploy_to_office,
+            commands::deployment::build_deploy_package,
+            commands::deployment::deploy_to_office,
             // Log
             commands::log::get_logs,
             commands::log::write_log,
+            // Process
+            commands::process::get_process_status,
+            commands::process::start_openclaw,
+            commands::process::stop_openclaw,
+            commands::process::reload_openclaw,
+            commands::process::restart_openclaw,
+            // AI
+            commands::ai::ai_generate_agent,
+            commands::ai::chat_with_agent,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

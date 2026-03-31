@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod ai;
 pub mod binding;
 pub mod channel;
 pub mod deployment;
@@ -6,6 +7,7 @@ pub mod log;
 pub mod model;
 pub mod office;
 pub mod opc;
+pub mod process;
 pub mod skill;
 pub mod snapshot;
 pub mod tool;

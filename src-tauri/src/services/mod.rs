@@ -9,3 +9,4 @@ pub mod opc_service;
 pub mod skill_service;
 pub mod snapshot_service;
 pub mod tool_service;
+pub mod ssh_service;

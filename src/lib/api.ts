@@ -55,6 +55,8 @@ export const getAgentDocument = (agentId: string, docType: string) =>
   call<string>('get_agent_document', { agent_id: agentId, doc_type: docType })
 export const updateAgentDocument = (agentId: string, docType: string, content: string) =>
   call<void>('update_agent_document', { agent_id: agentId, doc_type: docType, content })
+export const getAgentDocuments = (agentId: string) =>
+  call<{ document_type: string; content: string }[]>('get_agent_documents', { agent_id: agentId })
 
 // ── Model / Provider ──────────────────────────────────────
 export const getProviders = () => call<ProviderConfig[]>('get_providers', {})

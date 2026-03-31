@@ -1,5 +1,9 @@
 use chrono::Utc;
 use uuid::Uuid;
+use std::io::Write;
+use zip::{ZipWriter, write::FileOptions};
+use std::fs;
+use std::path::Path;
 
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
@@ -254,4 +258,127 @@ pub fn get_office_deployments(
     limit: i64,
 ) -> Result<Vec<OfficeDeployment>> {
     crate::services::office_service::get_office_deployments(pool, office_id, limit)
+}
+
+/// Build a deployment package for an OPC
+/// Returns: { ok: true, checksum: String, size: u64, path: String }
+pub fn build_deploy_package(pool: &DbPool, opc_id: &str) -> Result<serde_json::Value> {
+    let conn = pool.get()?;
+
+    // Get OPC config
+    let opc: (String, String) = conn
+        .query_row(
+            "SELECT name, config_path FROM opc_config WHERE id = ?1",
+            rusqlite::params![opc_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                AppError::NotFound(format!("OPC not found: {}", opc_id))
+            }
+            other => AppError::Database(other),
+        })?;
+
+    let (opc_name, config_path) = opc;
+
+    // Create temp directory for packaging
+    let temp_dir = std::env::temp_dir().join(format!("clawpilot_deploy_{}", opc_id));
+    fs::create_dir_all(&temp_dir)
+        .map_err(|e| AppError::Validation(format!("创建临时目录失败：{}", e)))?;
+
+    // Copy config file to temp dir
+    let config_src = Path::new(&config_path);
+    let config_dst = temp_dir.join("openclaw.json");
+
+    if config_src.exists() {
+        fs::copy(config_src, &config_dst)
+            .map_err(|e| AppError::Validation(format!("复制配置文件失败：{}", e)))?;
+    } else {
+        // Generate config from database
+        let config_content = generate_opc_config(pool, opc_id)?;
+        fs::write(&config_dst, config_content)
+            .map_err(|e| AppError::Validation(format!("写入配置文件失败：{}", e)))?;
+    }
+
+    // Create ZIP file
+    let zip_path = temp_dir.join(format!("{}.zip", opc_name.replace(' ', "_")));
+    let zip_file = fs::File::create(&zip_path)
+        .map_err(|e| AppError::Validation(format!("创建 ZIP 文件失败：{}", e)))?;
+
+    let mut zip = ZipWriter::new(zip_file);
+    let options = FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    // Add openclaw.json
+    zip.start_file("openclaw.json", options)
+        .map_err(|e| AppError::Validation(format!("ZIP 写入失败：{}", e)))?;
+
+    let config_content = fs::read(&config_dst)
+        .map_err(|e| AppError::Validation(format!("读取配置文件失败：{}", e)))?;
+
+    zip.write_all(&config_content)
+        .map_err(|e| AppError::Validation(format!("ZIP 写入失败：{}", e)))?;
+
+    // TODO: Add agents, tools, skills directories if they exist
+
+    zip.finish()
+        .map_err(|e| AppError::Validation(format!("ZIP 完成失败：{}", e)))?;
+
+    // Calculate checksum and size
+    let zip_size = fs::metadata(&zip_path)
+        .map_err(|e| AppError::Validation(format!("获取文件大小失败：{}", e)))?
+        .len();
+
+    let zip_content = fs::read(&zip_path)
+        .map_err(|e| AppError::Validation(format!("读取 ZIP 文件失败：{}", e)))?;
+
+    let checksum = format!("{:x}", md5::compute(&zip_content));
+
+    // Cleanup temp config file, keep zip for deployment
+    fs::remove_file(&config_dst).ok();
+
+    Ok(serde_json::json!({
+        "ok": true,
+        "checksum": checksum,
+        "size": zip_size,
+        "path": zip_path.to_string_lossy().to_string()
+    }))
+}
+
+/// Generate OPC config JSON from database
+fn generate_opc_config(pool: &DbPool, opc_id: &str) -> Result<String> {
+    // This is a simplified version - in production you'd want to include
+    // full config with agents, tools, skills, bindings, etc.
+    let conn = pool.get()?;
+
+    let name: String = conn
+        .query_row("SELECT name FROM opc_config WHERE id = ?1", rusqlite::params![opc_id], |r| r.get(0))
+        .map_err(|_| AppError::NotFound(format!("OPC not found: {}", opc_id)))?;
+
+    let config = serde_json::json!({
+        "name": name,
+        "version": "1.0.0",
+        "agents": [],
+        "tools": [],
+        "skills": [],
+        "bindings": []
+    });
+
+    serde_json::to_string_pretty(&config)
+        .map_err(|e| AppError::Serialization(e).into())
+}
+
+/// Deploy package to office
+pub async fn deploy_to_office(
+    pool: &DbPool,
+    opc_id: &str,
+    office_id: &str,
+) -> Result<serde_json::Value> {
+    // Start a deployment task (reuse existing start_deployment logic)
+    let task_id = start_deployment(pool, opc_id, office_id)?;
+
+    Ok(serde_json::json!({
+        "ok": true,
+        "task_id": task_id
+    }))
 }
