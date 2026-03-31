@@ -233,6 +233,60 @@ pub fn reorder_agents(pool: &DbPool, opc_id: &str, agent_ids: Vec<String>) -> Re
     Ok(())
 }
 
+/// Set a default agent for an OPC. Clears the default flag from all other agents
+/// in the same OPC and sets it on the specified agent.
+pub fn set_default_agent(pool: &DbPool, opc_id: &str, agent_id: &str) -> Result<()> {
+    let conn = pool.get()?;
+    let tx = conn.unchecked_transaction()?;
+
+    // Clear default from all agents in this OPC
+    tx.execute(
+        "UPDATE agents SET is_default = 0 WHERE opc_id = ?1",
+        rusqlite::params![opc_id],
+    )?;
+
+    // Set default on the specified agent
+    let rows = tx.execute(
+        "UPDATE agents SET is_default = 1 WHERE id = ?1 AND opc_id = ?2",
+        rusqlite::params![agent_id, opc_id],
+    )?;
+
+    tx.commit()?;
+
+    if rows == 0 {
+        return Err(AppError::NotFound(format!(
+            "agent '{}' not found in opc '{}'",
+            agent_id, opc_id
+        )));
+    }
+
+    Ok(())
+}
+
+/// Agent document with type and content
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AgentDocument {
+    pub document_type: String,
+    pub content: String,
+}
+
+/// Get all documents for an agent
+pub fn get_agent_documents(pool: &DbPool, agent_id: &str) -> Result<Vec<AgentDocument>> {
+    let conn = pool.get()?;
+    let mut stmt = conn.prepare(
+        "SELECT document_type, content FROM agent_documents WHERE agent_id = ?1"
+    )?;
+    let documents = stmt
+        .query_map(rusqlite::params![agent_id], |row| {
+            Ok(AgentDocument {
+                document_type: row.get(0)?,
+                content: row.get(1)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(documents)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent documents
 // ─────────────────────────────────────────────────────────────────────────────

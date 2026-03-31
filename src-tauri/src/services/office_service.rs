@@ -259,3 +259,21 @@ pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealt
         },
     }
 }
+
+/// Get the name of the current running OPC
+pub fn get_current_opc_name(pool: &DbPool) -> Result<String> {
+    let conn = pool.get()?;
+    let name: String = conn
+        .query_row(
+            "SELECT display_name FROM opc_config WHERE is_running = 1 LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                AppError::NotFound("No running OPC found".to_string())
+            }
+            other => AppError::Database(other),
+        })?;
+    Ok(name)
+}

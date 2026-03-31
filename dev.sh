@@ -33,10 +33,8 @@ echo "  Vite started (PID: $VITE_PID) -> logs/vite.log"
 
 # Start server
 echo "Starting Server..."
-cd "$SCRIPT_DIR/server"
-node --watch index.js > ../logs/server.log 2>&1 &
+(cd "$SCRIPT_DIR/server" && node --watch index.js) > "$SCRIPT_DIR/logs/server.log" 2>&1 &
 SERVER_PID=$!
-cd "$SCRIPT_DIR"
 echo "  Server started (PID: $SERVER_PID) -> logs/server.log"
 
 # Start daemon

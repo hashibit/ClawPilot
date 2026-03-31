@@ -4,6 +4,7 @@ use crate::database::pool::DbPool;
 use crate::error::Result;
 use crate::models::agent::AgentConfig;
 use crate::services::agent_service;
+pub use agent_service::AgentDocument;
 
 #[tauri::command]
 pub fn get_agents(pool: State<'_, DbPool>, opc_id: String) -> Result<Vec<AgentConfig>> {
@@ -56,4 +57,19 @@ pub fn update_agent_document(
     content: String,
 ) -> Result<()> {
     agent_service::upsert_agent_document(&pool, &agent_id, &doc_type, &content)
+}
+
+#[tauri::command]
+pub fn set_default_agent(
+    pool: State<'_, DbPool>,
+    opc_id: String,
+    agent_id: String,
+) -> Result<()> {
+    agent_service::set_default_agent(&pool, &opc_id, &agent_id)
+}
+
+/// Get all documents for an agent
+#[tauri::command]
+pub fn get_agent_documents(pool: State<'_, DbPool>, agent_id: String) -> Result<Vec<AgentDocument>> {
+    agent_service::get_agent_documents(&pool, &agent_id)
 }

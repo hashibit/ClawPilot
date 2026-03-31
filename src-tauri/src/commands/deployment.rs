@@ -37,3 +37,17 @@ pub fn undeploy(pool: State<'_, DbPool>, opc_id: String) -> Result<()> {
     deployment_service::undeploy(&pool, &opc_id)
 }
 
+#[tauri::command]
+pub fn build_deploy_package(pool: State<'_, DbPool>, opc_id: String) -> Result<serde_json::Value> {
+    deployment_service::build_deploy_package(&pool, &opc_id)
+}
+
+#[tauri::command]
+pub async fn deploy_to_office(
+    pool: State<'_, DbPool>,
+    opc_id: String,
+    office_id: String,
+) -> Result<serde_json::Value> {
+    deployment_service::deploy_to_office(&pool, &opc_id, &office_id).await
+}
+
