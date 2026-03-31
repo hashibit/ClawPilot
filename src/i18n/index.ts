@@ -51,7 +51,8 @@ export function isRtl(lang: string): boolean {
 }
 
 const STORAGE_KEY = 'clawpilot_lang'
-const savedLang = localStorage.getItem(STORAGE_KEY) ?? 'zh-CN'
+let savedLang = 'zh-CN'
+try { savedLang = localStorage.getItem(STORAGE_KEY) ?? 'zh-CN' } catch { /* test env or SSR */ }
 
 i18n
   .use(initReactI18next)
