@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDaemon, installOpenclaw, probeLocalDaemon, getLocalDaemonVersion } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDaemon, installOpenclaw, probeLocalDaemon, probeRemoteDaemon, getLocalDaemonVersion } from '../lib/api'
 import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment, AccessAuthType } from '../lib/types'
@@ -77,11 +77,17 @@ export default function OfficePage() {
         }
     }, [])
 
-    const silentProbeLocalDaemon = useCallback(async (office: Office) => {
+    const silentProbeDaemon = useCallback(async (office: Office) => {
         if (office.daemon_url) return
-        if (office.address && office.address !== 'localhost') return
         try {
-            const r = await probeLocalDaemon(office.id)
+            let r: { ok: boolean; daemon_url?: string; api_key?: string }
+            if (!office.address || office.address === 'localhost') {
+                r = await probeLocalDaemon(office.id)
+            } else if (office.access_user && (office.access_password || office.ssh_key_path)) {
+                r = await probeRemoteDaemon(office.id)
+            } else {
+                return
+            }
             if (r.ok && r.daemon_url && r.api_key) {
                 const updates = { daemon_url: r.daemon_url, daemon_api_key: r.api_key }
                 setOffices(prev => prev.map(o => o.id === office.id ? { ...o, ...updates } : o))
@@ -102,9 +108,9 @@ export default function OfficePage() {
         if (office.daemon_url) {
             checkDaemon(office.daemon_url, office.daemon_api_key ?? '')
         } else {
-            silentProbeLocalDaemon(office)
+            silentProbeDaemon(office)
         }
-    }, [checkDaemon, silentProbeLocalDaemon, isNewOffice])
+    }, [checkDaemon, silentProbeDaemon, isNewOffice])
 
     const handleFormChange = (field: keyof Office, value: unknown) => {
         setForm(prev => ({ ...prev, [field]: value }))

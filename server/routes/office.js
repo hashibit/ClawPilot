@@ -554,6 +554,80 @@ export function createOfficeRouter(db) {
     return res.json({ ok: false })
   })
 
+  // probe_remote_daemon: SSH into remote office and discover running daemon
+  router.post('/probe_remote_daemon', async (req, res) => {
+    const { office_id } = req.body
+    if (!office_id) return res.json({ ok: false })
+
+    const row = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    if (!row) return res.json({ ok: false })
+    const office = rowToOffice(row)
+
+    if (!office.address || office.address === 'localhost') return res.json({ ok: false })
+
+    // Parse IP or IP:port
+    const m = office.address.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?$/)
+    if (!m) return res.json({ ok: false })
+    const host = m[1]
+    const sshPort = m[2] ? Number(m[2]) : 22
+    const sshUser = office.access_user || 'root'
+    if (!/^[a-zA-Z0-9._-]+$/.test(sshUser)) return res.json({ ok: false })
+
+    // Build SSH prefix
+    let sshPrefix
+    if (office.access_auth_type === 'ssh_key' && office.ssh_key_path) {
+      const keyPath = resolve(office.ssh_key_path.replace(/^~/, homedir()))
+      if (!existsSync(keyPath)) return res.json({ ok: false })
+      sshPrefix = `ssh -i "${keyPath}" -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -p ${sshPort}`
+    } else if (office.access_password) {
+      const escaped = office.access_password.replace(/'/g, `'\\''`)
+      sshPrefix = `sshpass -p '${escaped}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p ${sshPort}`
+    } else {
+      return res.json({ ok: false })  // no credentials, skip silently
+    }
+
+    const target = `${sshUser}@${host}`
+
+    try {
+      // Probe common daemon ports on the remote host
+      let foundPort = null
+      for (const port of [16668, 8443]) {
+        try {
+          const { stdout } = await execAsync(
+            `${sshPrefix} "${target}" "curl -sf http://127.0.0.1:${port}/health > /dev/null 2>&1 && echo ok"`,
+            { timeout: 8000 }
+          )
+          if (stdout.trim() === 'ok') { foundPort = port; break }
+        } catch { /* port not running */ }
+      }
+      if (!foundPort) return res.json({ ok: false })
+
+      // Read daemon API key from remote
+      let apiKey = null
+      try {
+        const { stdout: keyOut } = await execAsync(
+          `${sshPrefix} "${target}" "cat ~/.clawpilot/daemon.key 2>/dev/null"`,
+          { timeout: 5000 }
+        )
+        apiKey = keyOut.trim() || null
+      } catch { /* no key file */ }
+
+      const daemonUrl = `http://${host}:${foundPort}`
+      if (apiKey) {
+        const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
+        const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
+        db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
+          .run(daemonUrl, encrypt(apiKey), initialConfig, now(), office_id)
+      }
+
+      log.info(`probe_remote_daemon: found daemon at ${daemonUrl} for office ${office_id}`)
+      return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey })
+    } catch (err) {
+      log.warn(`probe_remote_daemon: ${err.message}`)
+      return res.json({ ok: false })
+    }
+  })
+
   // get_local_daemon_version: read version from local clawpilot-daemon binary
   router.post('/get_local_daemon_version', async (req, res) => {
     const binPath = await findDaemonBinary()

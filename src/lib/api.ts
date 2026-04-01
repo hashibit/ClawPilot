@@ -171,6 +171,9 @@ export const checkDaemonHealth = (daemon_url: string, daemon_api_key: string) =>
 export const probeLocalDaemon = (office_id: string) =>
   call<{ ok: boolean; daemon_url?: string; api_key?: string }>('probe_local_daemon', { office_id })
 
+export const probeRemoteDaemon = (office_id: string) =>
+  call<{ ok: boolean; daemon_url?: string; api_key?: string }>('probe_remote_daemon', { office_id })
+
 export const getLocalDaemonVersion = () =>
   call<{ ok: boolean; version?: string; error?: string }>('get_local_daemon_version', {})
 
