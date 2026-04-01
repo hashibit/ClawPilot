@@ -497,10 +497,11 @@ export default function AgentsPage() {
 
     const handleAiGenerate = async () => {
         if (!aiPrompt.trim() || !selectedAgent) return
-        setAiModalOpen(false)
         setAiGenerating(true)
         try {
             const result = await aiGenerateAgent(aiPrompt.trim())
+            setAiModalOpen(false)
+            setAiPrompt('')
             setForm(prev => ({
                 ...prev,
                 display_name: result.display_name || prev.display_name,
@@ -508,6 +509,11 @@ export default function AgentsPage() {
                 job_title: result.job_title || prev.job_title,
                 description: result.description || prev.description,
                 personality: result.personality || prev.personality,
+                guardrail_allow: result.guardrail_allow?.length ? result.guardrail_allow : prev.guardrail_allow,
+                guardrail_rules: result.guardrail_allow?.length ? result.guardrail_allow : prev.guardrail_rules,
+                guardrail_deny: result.guardrail_deny?.length ? result.guardrail_deny : prev.guardrail_deny,
+                enabled_tools: result.enabled_tools?.length ? result.enabled_tools : prev.enabled_tools,
+                enabled_skills: result.enabled_skills?.length ? result.enabled_skills : prev.enabled_skills,
             }))
             const docMap: Record<string, string> = {
                 SOUL: result.soul,
@@ -523,7 +529,6 @@ export default function AgentsPage() {
             }
             setActiveDocTab('SOUL')
             setDocContent(result.soul || '')
-            setAiPrompt('')
             toast(t('agents.ai_generate_success'), 'success')
         } catch (e) { toast(String(e), 'error') }
         finally { setAiGenerating(false) }
@@ -672,25 +677,32 @@ export default function AgentsPage() {
         <>
             {/* ── AI 一键生成 Modal ── */}
             {aiModalOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setAiModalOpen(false)}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { if (!aiGenerating) setAiModalOpen(false) }}>
                     <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '420px', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
                         <div>
                             <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>{t('agents.ai_quick_gen')}</div>
-                            <div style={{ fontSize: '12px', color: '#8E8E93' }}>{t('agents.ai_generate_placeholder')}</div>
+                            <div style={{ fontSize: '12px', color: '#8E8E93' }}>{aiGenerating ? t('agents.generating') : t('agents.ai_generate_placeholder')}</div>
                         </div>
-                        <textarea
-                            autoFocus
-                            className="field-input"
-                            rows={3}
-                            style={{ resize: 'none', padding: '8px 10px', height: 'auto', lineHeight: 1.6 }}
-                            placeholder={t('agents.ai_generate_placeholder')}
-                            value={aiPrompt}
-                            onChange={e => setAiPrompt(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAiGenerate() }}
-                        />
+                        {aiGenerating ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '20px 0', color: '#a78bfa', fontSize: '13px' }}>
+                                <svg style={{ animation: 'spin 1s linear infinite' }} width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                {t('agents.generating')}
+                            </div>
+                        ) : (
+                            <textarea
+                                autoFocus
+                                className="field-input"
+                                rows={3}
+                                style={{ resize: 'none', padding: '8px 10px', height: 'auto', lineHeight: 1.6 }}
+                                placeholder={t('agents.ai_generate_placeholder')}
+                                value={aiPrompt}
+                                onChange={e => setAiPrompt(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAiGenerate() }}
+                            />
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                            <button className="tbtn tbtn-ghost" onClick={() => setAiModalOpen(false)}>{t('common.button_cancel')}</button>
-                            <button className="tbtn tbtn-accent" disabled={!aiPrompt.trim()} onClick={handleAiGenerate}>{t('agents.ai_generate_btn')}</button>
+                            <button className="tbtn tbtn-ghost" disabled={aiGenerating} onClick={() => setAiModalOpen(false)}>{t('common.button_cancel')}</button>
+                            <button className="tbtn tbtn-accent" disabled={aiGenerating || !aiPrompt.trim()} onClick={handleAiGenerate}>{t('agents.ai_generate_btn')}</button>
                         </div>
                     </div>
                 </div>

@@ -143,6 +143,10 @@ export interface AgentGenerateResult {
   job_title: string
   description: string
   personality: string
+  guardrail_allow: string[]
+  guardrail_deny: string[]
+  enabled_tools: string[]
+  enabled_skills: string[]
   soul: string
   identity: string
   agents: string

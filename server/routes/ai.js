@@ -2,7 +2,13 @@ import { Router } from 'express'
 import { createLogger } from '../logger.js'
 import { decrypt } from '../utils/crypto.js'
 
-const SYSTEM_PROMPT = `/no_think 你是一个 OpenClaw Agent 人格配置生成器。根据用户的描述，生成完整的 Agent 配置，包含 7 个人格文档。
+const SYSTEM_PROMPT = `/no_think 你是一个 OpenClaw Agent 人格配置生成器。根据用户的描述，生成完整的 Agent 配置。
+
+可选工具 ID（enabled_tools 从中选择合适的，数组）：
+web_search（网页搜索）、web_reader（网页阅读）、feishu_message（发飞书消息）、code_interpreter（代码解释器）、file_reader（文件读取）、image_gen（图像生成）、image_analysis（视觉理解）、http_request（HTTP请求）、asr（语音识别）、tts（语音合成）
+
+可选技能 slug（enabled_skills 从中选择合适的，数组）：
+multi-round-memory（多轮记忆）、proactive-speak（主动发言）、scheduled-heartbeat（定时心跳）、mention-response（被@响应）、direct-response（私信响应）、message-routing（消息路由）、context-compression（上下文压缩）、tool-calling（工具调用）、memory-persistence（记忆持久化）、emotional-aware（情绪感知）
 
 严格以 JSON 格式返回，包含以下字段：
 {
@@ -11,6 +17,10 @@ const SYSTEM_PROMPT = `/no_think 你是一个 OpenClaw Agent 人格配置生成�
   "job_title": "职位名称",
   "description": "一句话描述",
   "personality": "性格关键词，逗号分隔，如：细腻、严谨、主动",
+  "guardrail_allow": ["允许自主执行的操作，每条简短短语"],
+  "guardrail_deny": ["禁止或须请示的操作，每条简短短语"],
+  "enabled_tools": ["根据角色职能选择合适的工具 ID，数组"],
+  "enabled_skills": ["根据角色行为选择合适的技能 slug，数组"],
   "soul": "SOUL.md 完整内容（Markdown，包含：身份定位 + 核心职责列表 + Boss/定位/emoji + 记忆管理规则 + 权限护栏，按角色特点详细撰写）",
   "identity": "IDENTITY.md 内容（列出 Name/Title/Persona/Role/Emoji/Boss 字段）",
   "agents": "AGENTS.md 内容（Markdown，包含成员编制表占位 + Every Session 阅读清单 + Memory 规则 + Safety 原则）",
@@ -20,11 +30,7 @@ const SYSTEM_PROMPT = `/no_think 你是一个 OpenClaw Agent 人格配置生成�
   "tools": "TOOLS.md 内容（说明用途：记录常用工具和使用心得）"
 }
 
-SOUL.md 重要规范：
-- 权限护栏内允许：查询搜索读取、写日记/记忆、生成报告草稿、发飞书消息、加角色专属自主范围
-- 权限护栏外须请示：删除数据文件、不可逆操作、对外正式文件、加角色专属限制
-- 按角色类型适配护栏内容（财务类：生成报告允许，转账禁止；合规类：查阅法规允许，发正式意见禁止等）
-
+guardrail 规范：每条 3-10 字的短语，允许 3-6 条，禁止 3-5 条，按角色职能定制。
 只输出 JSON，不要有任何其他内容。`
 
 export function createAiRouter(db) {
@@ -126,12 +132,19 @@ router.post('/ai_generate_agent', async (req, res) => {
     return res.status(502).json({ error: `AI 返回格式错误，无法解析 JSON:\n${rawText.slice(0, 300)}` })
   }
 
+  const validToolIds = new Set(['web_search','web_reader','feishu_message','code_interpreter','file_reader','image_gen','image_analysis','http_request','asr','tts'])
+  const validSkillSlugs = new Set(['multi-round-memory','proactive-speak','scheduled-heartbeat','mention-response','direct-response','message-routing','context-compression','tool-calling','memory-persistence','emotional-aware'])
+
   const result = {
     display_name: parsed.display_name ?? '',
     name: (parsed.name ?? '').replace(/[^\w]/g, '_').toLowerCase(),
     job_title: parsed.job_title ?? '',
     description: parsed.description ?? '',
     personality: parsed.personality ?? '',
+    guardrail_allow: Array.isArray(parsed.guardrail_allow) ? parsed.guardrail_allow.filter(s => typeof s === 'string') : [],
+    guardrail_deny: Array.isArray(parsed.guardrail_deny) ? parsed.guardrail_deny.filter(s => typeof s === 'string') : [],
+    enabled_tools: Array.isArray(parsed.enabled_tools) ? parsed.enabled_tools.filter(id => validToolIds.has(id)) : [],
+    enabled_skills: Array.isArray(parsed.enabled_skills) ? parsed.enabled_skills.filter(s => validSkillSlugs.has(s)) : [],
     soul: parsed.soul ?? '',
     identity: parsed.identity ?? '',
     agents: parsed.agents ?? '',
