@@ -263,6 +263,7 @@
     "request_failed": "Request failed",
     "ai_generate_placeholder": "Describe the agent in one sentence, AI will generate the full config…",
     "ai_generate_btn": "AI Generate",
+    "ai_quick_gen": "Quick Generate",
     "generating": "Generating...",
     "skill_modal_title": "Skill Manager",
     "skill_modal_subtitle": "Install skills to add to agents; they will be bundled automatically on deploy",

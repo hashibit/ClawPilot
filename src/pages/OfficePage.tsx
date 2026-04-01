@@ -31,6 +31,7 @@ export default function OfficePage() {
     const [installLogs, setInstallLogs] = useState<string[]>([])
     const [installStep, setInstallStep] = useState<'idle' | 'openclaw' | 'daemon' | 'done' | 'error'>('idle')
     const installAbortRef = useRef<boolean>(false)
+    const healthCacheRef = useRef<Map<string, DaemonHealthResult>>(new Map())
     const [sshChecking, setSshChecking] = useState(false)
     const [sshResult, setSshResult] = useState<{ ok: boolean; latency_ms?: number; error?: string } | null>(null)
     const [latestDaemonVersion, setLatestDaemonVersion] = useState<string | null>(null)
@@ -52,9 +53,9 @@ export default function OfficePage() {
                 setSelected(first); setForm(first)
                 getOfficeDeployments(first.id).then(setDeployHistory).catch(() => setDeployHistory([]))
                 if (first.daemon_url) {
-                    checkDaemon(first.daemon_url, first.daemon_api_key ?? '')
+                    checkDaemon(first.daemon_url, first.daemon_api_key ?? '', { officeId: first.id, useCache: true })
                 } else {
-                    silentProbeLocalDaemon(first)
+                    silentProbeDaemon(first)
                 }
             } else if (selected) {
                 // refresh selected with latest data (e.g. current_opc_name updated)
@@ -64,12 +65,27 @@ export default function OfficePage() {
         } catch (e) { toast(String(e), 'error') }
     }
 
-    const checkDaemon = useCallback(async (daemonUrl: string, apiKey: string) => {
+    const checkDaemon = useCallback(async (daemonUrl: string, apiKey: string, opts?: { officeId?: string; useCache?: boolean }) => {
+        const { officeId, useCache = false } = opts ?? {}
+        const cacheKey = officeId ? `${officeId}:${daemonUrl}` : null
+
+        if (useCache && cacheKey) {
+            const cached = healthCacheRef.current.get(cacheKey)
+            if (cached) {
+                setDaemonHealth(cached)
+                return
+            }
+        }
+        if (!useCache && cacheKey) {
+            healthCacheRef.current.delete(cacheKey)
+        }
+
         setHealthChecking(true)
         setDaemonHealth(null)
         try {
             const result = await checkDaemonHealth(daemonUrl, apiKey)
             setDaemonHealth(result)
+            if (cacheKey) healthCacheRef.current.set(cacheKey, result)
         } catch (e) {
             setDaemonHealth({ ok: false, error: String(e) })
         } finally {
@@ -93,7 +109,7 @@ export default function OfficePage() {
                 setOffices(prev => prev.map(o => o.id === office.id ? { ...o, ...updates } : o))
                 setSelected(prev => prev?.id === office.id ? { ...prev, ...updates } : prev)
                 setForm(prev => ({ ...prev, ...updates }))
-                checkDaemon(r.daemon_url, r.api_key)
+                checkDaemon(r.daemon_url, r.api_key, { officeId: office.id })
             }
         } catch { /* silent */ }
     }, [checkDaemon])
@@ -106,7 +122,7 @@ export default function OfficePage() {
         setSshResult(null)
         getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
         if (office.daemon_url) {
-            checkDaemon(office.daemon_url, office.daemon_api_key ?? '')
+            checkDaemon(office.daemon_url, office.daemon_api_key ?? '', { officeId: office.id, useCache: true })
         } else {
             silentProbeDaemon(office)
         }
@@ -148,7 +164,7 @@ export default function OfficePage() {
                 setDaemonHealth(null)
                 toast('办公室信息已保存', 'success')
                 if (!addressChanged && updated.daemon_url) {
-                    checkDaemon(updated.daemon_url, updated.daemon_api_key ?? '')
+                    checkDaemon(updated.daemon_url, updated.daemon_api_key ?? '', { officeId: updated.id })
                 }
             }
         } catch (e) { toast(String(e), 'error') }
@@ -314,7 +330,7 @@ export default function OfficePage() {
                 handleFormChange('daemon_url', r2.daemon_url)
                 handleFormChange('daemon_api_key', r2.api_key)
                 loadOffices()
-                checkDaemon(r2.daemon_url, r2.api_key)
+                checkDaemon(r2.daemon_url, r2.api_key, { officeId: selected.id })
             }
             setInstallStep('done')
         } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); }
@@ -539,7 +555,7 @@ export default function OfficePage() {
                                     <div style={{ display: 'flex', gap: '6px' }}>
                                         {selected.daemon_url && (
                                             <button
-                                                onClick={() => checkDaemon(selected.daemon_url!, selected.daemon_api_key ?? '')}
+                                                onClick={() => checkDaemon(selected.daemon_url!, selected.daemon_api_key ?? '', { officeId: selected.id })}
                                                 disabled={healthChecking || installStep === 'openclaw' || installStep === 'daemon'}
                                                 style={{ padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(235,235,245,0.6)', opacity: healthChecking ? 0.5 : 1 }}
                                             >

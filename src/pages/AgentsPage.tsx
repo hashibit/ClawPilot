@@ -26,7 +26,8 @@ const DOC_TYPES: DocumentType[] = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'MEMORY
 import type { RemoteSkillResult as RemoteSkill } from '../lib/api'
 
 function slugify(name: string): string {
-    return name.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '') || 'agent'
+    const slug = name.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '') || 'agent'
+    return /^[a-z]/.test(slug) ? slug : `agent_${slug.replace(/^_+/, '')}`
 }
 
 // ── Tag input ──────────────────────────────────────────────
@@ -411,6 +412,7 @@ export default function AgentsPage() {
     const [saving, setSaving] = useState(false)
     const [aiPrompt, setAiPrompt] = useState('')
     const [aiGenerating, setAiGenerating] = useState(false)
+    const [aiModalOpen, setAiModalOpen] = useState(false)
     const [models, setModels] = useState<ModelInfo[]>([])
     const [skillModalOpen, setSkillModalOpen] = useState(false)
     const [chatAgent, setChatAgent] = useState<AgentConfig | null>(null)
@@ -495,6 +497,7 @@ export default function AgentsPage() {
 
     const handleAiGenerate = async () => {
         if (!aiPrompt.trim() || !selectedAgent) return
+        setAiModalOpen(false)
         setAiGenerating(true)
         try {
             const result = await aiGenerateAgent(aiPrompt.trim())
@@ -667,6 +670,32 @@ export default function AgentsPage() {
 
     return (
         <>
+            {/* ── AI 一键生成 Modal ── */}
+            {aiModalOpen && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setAiModalOpen(false)}>
+                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '420px', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
+                        <div>
+                            <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>{t('agents.ai_quick_gen')}</div>
+                            <div style={{ fontSize: '12px', color: '#8E8E93' }}>{t('agents.ai_generate_placeholder')}</div>
+                        </div>
+                        <textarea
+                            autoFocus
+                            className="field-input"
+                            rows={3}
+                            style={{ resize: 'none', padding: '8px 10px', height: 'auto', lineHeight: 1.6 }}
+                            placeholder={t('agents.ai_generate_placeholder')}
+                            value={aiPrompt}
+                            onChange={e => setAiPrompt(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAiGenerate() }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button className="tbtn tbtn-ghost" onClick={() => setAiModalOpen(false)}>{t('common.button_cancel')}</button>
+                            <button className="tbtn tbtn-accent" disabled={!aiPrompt.trim()} onClick={handleAiGenerate}>{t('agents.ai_generate_btn')}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ── COL 2: Company list ─────────────────────────── */}
             <div className="list-pane">
                 <div className="toolbar">
@@ -788,6 +817,10 @@ export default function AgentsPage() {
                                         )}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        {editing && <button className="tbtn tbtn-ghost" style={{ color: '#a78bfa' }} disabled={aiGenerating} onClick={() => { setAiPrompt(''); setAiModalOpen(true) }}>
+                                            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" style={{ display: 'inline', marginRight: '4px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                            {aiGenerating ? t('agents.generating') : t('agents.ai_quick_gen')}
+                                        </button>}
                                         <button className="tbtn tbtn-ghost" style={{ color: '#06b6d4' }} onClick={async () => {
                                             if (activeDocTab === 'SOUL' && docContent.trim()) {
                                                 // Use current editor content (may be unsaved)
@@ -824,53 +857,25 @@ export default function AgentsPage() {
 
                                 <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-                                    {/* ── AI 快速生成 ── */}
-                                    <section>
-                                        <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_ai_generate')}</div>
-                                        <div style={{ display: 'flex', gap: '7px', alignItems: 'center' }}>
-                                            <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                <svg width="14" height="14" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                            </div>
-                                            <input
-                                                type="text"
-                                                placeholder={t('agents.ai_generate_placeholder')}
-                                                className="field-input"
-                                                style={{ flex: 1 }}
-                                                value={aiPrompt}
-                                                onChange={e => setAiPrompt(e.target.value)}
-                                                onKeyDown={e => e.key === 'Enter' && !aiGenerating && editing && handleAiGenerate()}
-                                                disabled={aiGenerating || !editing}
-                                            />
-                                            <button
-                                                className="tbtn tbtn-accent"
-                                                style={{ whiteSpace: 'nowrap' }}
-                                                onClick={handleAiGenerate}
-                                                disabled={aiGenerating || !aiPrompt.trim() || !editing}
-                                            >
-                                                {aiGenerating ? t('agents.generating') : t('agents.ai_generate_btn')}
-                                            </button>
-                                        </div>
-                                    </section>
-
                                     {/* ── 基本信息 ── */}
                                     <section>
                                         <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_basic')}</div>
                                         <div className="group">
                                             <div className="group-row" style={{ gap: '10px' }}>
                                                 <span className="group-label">{t('agents.display_name')}</span>
-                                                <input type="text" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
+                                                {editing ? <input type="text" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.display_name || '—'}</span>}
                                             </div>
                                             <div className="group-row" style={{ gap: '10px' }}>
                                                 <span className="group-label">{t('agents.identifier')}</span>
-                                                <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace" }} disabled={!editing} />
+                                                {editing ? <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace" }} /> : <span className="group-value" style={{ fontFamily: "'SF Mono','Menlo',monospace" }}>{form.name || '—'}</span>}
                                             </div>
-                                            <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
-                                                <span className="group-label" style={{ paddingTop: '2px' }}>{t('agents.description')}</span>
-                                                <textarea className="field-input" rows={2} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} disabled={!editing} />
+                                            <div className="group-row" style={{ gap: '10px' }}>
+                                                <span className="group-label">{t('agents.description')}</span>
+                                                {editing ? <textarea className="field-input" rows={1} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none', height: '36px', overflowY: 'auto' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} /> : <span className="group-value">{form.description || '—'}</span>}
                                             </div>
                                             <div className="group-row" style={{ gap: '10px' }}>
                                                 <span className="group-label">{t('agents.job_title')}</span>
-                                                <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
+                                                {editing ? <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.job_title || '—'}</span>}
                                             </div>
                                         </div>
                                     </section>
@@ -881,30 +886,33 @@ export default function AgentsPage() {
                                         <div className="group">
                                             <div className="group-row" style={{ gap: '10px' }}>
                                                 <span className="group-label">{t('agents.model_label')}</span>
-                                                <div style={{ position: 'relative', flex: 1 }}>
-                                                    <select
-                                                        className="field-input"
-                                                        style={{ width: '100%', paddingRight: '24px' }}
-                                                        value={selectedModel}
-                                                        onChange={e => handleModelSelect(e.target.value)}
-                                                        disabled={!editing}
-                                                    >
-                                                        <option value="">{t('agents.model_none')}</option>
-                                                        {hasCustomModel && (
-                                                            <optgroup label={t('agents.model_stored')}>
-                                                                <option value={selectedModel}>{selectedModel} ({t('agents.model_stored')})</option>
-                                                            </optgroup>
-                                                        )}
-                                                        {Object.entries(modelsByProvider).map(([providerName, mlist]) => (
-                                                            <optgroup key={providerName} label={providerName}>
-                                                                {mlist.map(m => (
-                                                                    <option key={m.id} value={`${m.provider_name}/${m.model_id}`}>{m.display_name || m.model_id}</option>
-                                                                ))}
-                                                            </optgroup>
-                                                        ))}
-                                                    </select>
-                                                    <svg style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93' }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                                                </div>
+                                                {editing ? (
+                                                    <div style={{ position: 'relative', flex: 1 }}>
+                                                        <select
+                                                            className="field-input"
+                                                            style={{ width: '100%', paddingRight: '24px' }}
+                                                            value={selectedModel}
+                                                            onChange={e => handleModelSelect(e.target.value)}
+                                                        >
+                                                            <option value="">{t('agents.model_none')}</option>
+                                                            {hasCustomModel && (
+                                                                <optgroup label={t('agents.model_stored')}>
+                                                                    <option value={selectedModel}>{selectedModel} ({t('agents.model_stored')})</option>
+                                                                </optgroup>
+                                                            )}
+                                                            {Object.entries(modelsByProvider).map(([providerName, mlist]) => (
+                                                                <optgroup key={providerName} label={providerName}>
+                                                                    {mlist.map(m => (
+                                                                        <option key={m.id} value={`${m.provider_name}/${m.model_id}`}>{m.display_name || m.model_id}</option>
+                                                                    ))}
+                                                                </optgroup>
+                                                            ))}
+                                                        </select>
+                                                        <svg style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93' }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                                    </div>
+                                                ) : (
+                                                    <span className="group-value">{selectedModel || t('agents.model_none')}</span>
+                                                )}
                                             </div>
 
                                             <div style={{ padding: '5px 12px 2px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -972,9 +980,9 @@ export default function AgentsPage() {
                                                 {t('common.button_add')}
                                             </button>}
                                         </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                        <div className="group" style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                             {enabledSkills.length === 0 && (
-                                                <div style={{ fontSize: '12px', color: '#8E8E93', padding: '8px 0' }}>{t('agents.no_skills')}</div>
+                                                <div style={{ fontSize: '12px', color: '#8E8E93' }}>{t('agents.no_skills')}</div>
                                             )}
                                             {enabledSkills.map(slug => {
                                                 const skill = SKILL_REGISTRY.find(s => s.slug === slug)
@@ -998,11 +1006,11 @@ export default function AgentsPage() {
                                         </div>
                                     </section>
 
-                                    {/* ── 护栏规则 — Bug 3: split allow/deny ── */}
+                                    {/* ── 护栏规则 ── */}
                                     <section>
                                         <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_guardrails')}</div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <div>
+                                        <div className="group" style={{ padding: '12px', display: 'flex', gap: '12px' }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ fontSize: '11px', color: 'rgba(52,199,89,0.9)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>
                                                     {t('agents.guardrail_allow')}
@@ -1014,7 +1022,8 @@ export default function AgentsPage() {
                                                     disabled={!editing}
                                                 />
                                             </div>
-                                            <div>
+                                            <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ fontSize: '11px', color: 'rgba(244,63,94,0.9)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }}></span>
                                                     {t('agents.guardrail_deny')}
@@ -1036,11 +1045,8 @@ export default function AgentsPage() {
                                         </div>
                                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
                                             {DOC_TYPES.map(dt => (
-                                                <button key={dt} className={`soul-tab${activeDocTab === dt ? ' active' : ''}`} onClick={() => setActiveDocTab(dt)}>{dt}</button>
+                                                <button key={dt} className={`soul-tab${activeDocTab === dt ? ' active' : ''}`} title={DOC_DESCRIPTIONS[dt]} onClick={() => setActiveDocTab(dt)}>{dt}</button>
                                             ))}
-                                        </div>
-                                        <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '7px', lineHeight: 1.5 }}>
-                                            {DOC_DESCRIPTIONS[activeDocTab]}
                                         </div>
                                         <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
                                             <div style={{ height: '26px', background: '#2C2C2E', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>

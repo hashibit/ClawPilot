@@ -266,6 +266,7 @@
     "request_failed": "请求失败",
     "ai_generate_placeholder": "用一句话描述智能体，AI 自动生成完整配置…",
     "ai_generate_btn": "AI 生成",
+    "ai_quick_gen": "一键生成",
     "generating": "生成中...",
     "skill_modal_title": "技能管理",
     "skill_modal_subtitle": "安装技能后可添加到 Agent，部署时自动打包",
