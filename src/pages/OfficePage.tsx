@@ -40,6 +40,8 @@ export default function OfficePage() {
     const [isNewOffice, setIsNewOffice] = useState(false)
     const [saving, setSaving] = useState(false)
     const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
+    const [avatarHovered, setAvatarHovered] = useState(false)
+    const [hoveredOfficeId, setHoveredOfficeId] = useState<string | null>(null)
     const avatarPickerRef = useRef<HTMLDivElement>(null)
     const [confirmDelete, setConfirmDelete] = useState<Office | null>(null)
     const [deployHistory, setDeployHistory] = useState<OfficeDeployment[]>([])
@@ -396,12 +398,33 @@ export default function OfficePage() {
                             onClick={() => handleSelect(office)}
                             style={{ cursor: 'pointer' }}
                         >
-                            <div style={{
-                                width: '30px', height: '30px', borderRadius: '8px',
-                                background: '#8b5cf6',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '14px', flexShrink: 0,
-                            }}>🏢</div>
+                            <div
+                                style={{ position: 'relative', flexShrink: 0 }}
+                                onMouseEnter={() => office.receptionist_image && setHoveredOfficeId(office.id)}
+                                onMouseLeave={() => setHoveredOfficeId(null)}
+                            >
+                                <div style={{
+                                    width: '30px', height: '30px', borderRadius: '8px',
+                                    background: '#8b5cf6',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '16px', overflow: 'hidden',
+                                }}>
+                                    {office.receptionist_image
+                                        ? <img src={office.receptionist_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                        : '💁‍♀️'}
+                                </div>
+                                {hoveredOfficeId === office.id && (
+                                    <div style={{
+                                        position: 'absolute', top: '0', left: '38px', zIndex: 300,
+                                        borderRadius: '10px', overflow: 'hidden',
+                                        boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        pointerEvents: 'none',
+                                    }}>
+                                        <img src={office.receptionist_image!} alt="" style={{ width: '160px', height: '160px', objectFit: 'cover', display: 'block' }} />
+                                    </div>
+                                )}
+                            </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', overflow: 'hidden' }}>
                                     <span style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id && !isNewOffice ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -477,27 +500,39 @@ export default function OfficePage() {
                                 <div className="section-label" style={{ padding: '0 0 5px' }}>{t('office.section_basic')}</div>
                                 <div className="group">
                                     <div className="group-row" style={{ gap: '10px' }}>
-                                        <span className="group-label">{t('office.label_name')}</span>
+                                        <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_name')}</span>
                                         <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
                                     </div>
                                     <div className="group-row" style={{ gap: '10px' }}>
-                                        <span className="group-label">{t('office.label_receptionist')}</span>
-                                        <div style={{ position: 'relative', flex: 1 }} ref={avatarPickerRef}>
+                                        <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_receptionist')}</span>
+                                        <div style={{ position: 'relative' }} ref={avatarPickerRef}>
                                             <div
                                                 onClick={() => editing && setAvatarPickerOpen(v => !v)}
+                                                onMouseEnter={() => form.receptionist_image && setAvatarHovered(true)}
+                                                onMouseLeave={() => setAvatarHovered(false)}
                                                 style={{
-                                                    width: '100%', height: '28px', borderRadius: '7px', overflow: 'hidden',
                                                     background: 'none', border: 'none',
-                                                    display: 'flex', alignItems: 'center', gap: '6px', padding: '0 2px',
-                                                    cursor: editing ? 'pointer' : 'default', boxSizing: 'border-box',
+                                                    display: 'flex', alignItems: 'center',
+                                                    cursor: editing ? 'pointer' : 'default',
                                                 }}
                                             >
                                                 {form.receptionist_image ? (
-                                                    <img src={form.receptionist_image} alt="" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
+                                                    <img src={form.receptionist_image} alt="" style={{ width: '36px', height: '36px', borderRadius: '7px', objectFit: 'cover', display: 'block' }} />
                                                 ) : (
-                                                    <span style={{ fontSize: '18px' }}>💁‍♀️</span>
+                                                    <span style={{ fontSize: '28px' }}>💁‍♀️</span>
                                                 )}
                                             </div>
+                                            {avatarHovered && form.receptionist_image && (
+                                                <div style={{
+                                                    position: 'absolute', top: '0', left: '44px', zIndex: 300,
+                                                    borderRadius: '10px', overflow: 'hidden',
+                                                    boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
+                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    pointerEvents: 'none',
+                                                }}>
+                                                    <img src={form.receptionist_image} alt="" style={{ width: '160px', height: '160px', objectFit: 'cover', display: 'block' }} />
+                                                </div>
+                                            )}
                                             {avatarPickerOpen && (
                                                 <>
                                                     <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setAvatarPickerOpen(false)} />
@@ -528,7 +563,7 @@ export default function OfficePage() {
                                         </div>
                                     </div>
                                     <div className="group-row" style={{ gap: '10px' }}>
-                                        <span className="group-label">{t('office.label_address')}</span>
+                                        <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_address')}</span>
                                         <div style={{ display: 'flex', gap: '6px', flex: 1, alignItems: 'center' }}>
                                             {(['local', 'remote'] as const).map(addrType => {
                                                 const active = addrType === 'local' ? addressMode === false : addressMode === true
@@ -606,7 +641,7 @@ export default function OfficePage() {
                                         </div>
                                     )}
                                     <div className="group-row" style={{ gap: '10px' }}>
-                                        <span className="group-label">{t('office.label_grade')}</span>
+                                        <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_grade')}</span>
                                         <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
                                             {(['HIGH', 'MEDIUM', 'LOW'] as OfficeGrade[]).map(v => (
                                                 <button
