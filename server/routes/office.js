@@ -534,6 +534,40 @@ export function createOfficeRouter(db) {
     }
   })
 
+  // probe_local_daemon: silently discover a running local daemon (no install)
+  router.post('/probe_local_daemon', async (req, res) => {
+    const { office_id } = req.body
+    const PORTS = [16668, 8443]
+    for (const port of PORTS) {
+      const url = `http://127.0.0.1:${port}`
+      if (await isDaemonRunning(url)) {
+        const apiKey = readLocalKey()
+        if (office_id && apiKey) {
+          const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
+          const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
+          db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
+            .run(url, encrypt(apiKey), initialConfig, now(), office_id)
+        }
+        return res.json({ ok: true, daemon_url: url, api_key: apiKey })
+      }
+    }
+    return res.json({ ok: false })
+  })
+
+  // get_local_daemon_version: read version from local clawpilot-daemon binary
+  router.post('/get_local_daemon_version', async (req, res) => {
+    const binPath = await findDaemonBinary()
+    if (!binPath) return res.json({ ok: false, error: '未找到 clawpilot-daemon 二进制' })
+    try {
+      const { stdout } = await execAsync(`"${binPath}" --version`, { timeout: 5000 })
+      const match = stdout.trim().match(/(\d+\.\d+\.\d+[\w.-]*)/)
+      const version = match ? match[1] : stdout.trim()
+      return res.json({ ok: true, version })
+    } catch (err) {
+      return res.json({ ok: false, error: err.message })
+    }
+  })
+
   return router
 }
 

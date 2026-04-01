@@ -118,14 +118,27 @@ export function createChannelRouter(db) {
     }
   })
 
-  // test_feishu_connection
-  router.post('/test_feishu_connection', (req, res) => {
+  // test_feishu_connection — 真实调用飞书接口获取 app_access_token
+  router.post('/test_feishu_connection', async (req, res) => {
+    const { app_id, app_secret } = req.body
+    if (!app_id || !app_secret) {
+      return res.json(false)
+    }
     try {
-      const { app_id, app_secret } = req.body
-      const ok = !!(app_id && app_secret && app_id.length > 0 && app_secret.length > 0)
+      const response = await fetch('https://open.feishu.cn/open-apis/auth/v3/app_access_token/internal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ app_id, app_secret }),
+        signal: AbortSignal.timeout(8000),
+      })
+      const data = await response.json()
+      // code === 0 表示成功，有 app_access_token
+      const ok = data.code === 0 && !!data.app_access_token
+      log.info(`test_feishu_connection: app_id=${app_id} code=${data.code} ok=${ok}`)
       res.json(ok)
     } catch (err) {
-      res.status(500).json({ error: err.message })
+      log.warn(`test_feishu_connection: ${err.message}`)
+      res.json(false)
     }
   })
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDaemon, installOpenclaw } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDaemon, installOpenclaw, probeLocalDaemon, getLocalDaemonVersion } from '../lib/api'
 import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment, AccessAuthType } from '../lib/types'
@@ -33,12 +33,14 @@ export default function OfficePage() {
     const installAbortRef = useRef<boolean>(false)
     const [sshChecking, setSshChecking] = useState(false)
     const [sshResult, setSshResult] = useState<{ ok: boolean; latency_ms?: number; error?: string } | null>(null)
+    const [latestDaemonVersion, setLatestDaemonVersion] = useState<string | null>(null)
 
     // Derived from form.address: true = remote, false = localhost, null = unset
     const addressMode = (form.address === null || form.address === undefined) ? null : form.address === 'localhost' ? false : true
 
     useEffect(() => {
         loadOffices()
+        getLocalDaemonVersion().then(r => { if (r.ok && r.version) setLatestDaemonVersion(r.version) }).catch(() => {})
     }, [])
 
     const loadOffices = async () => {
@@ -46,8 +48,14 @@ export default function OfficePage() {
             const list = await getOffices()
             setOffices(list)
             if (list.length > 0 && !selected) {
-                setSelected(list[0]); setForm(list[0])
-                getOfficeDeployments(list[0].id).then(setDeployHistory).catch(() => setDeployHistory([]))
+                const first = list[0]
+                setSelected(first); setForm(first)
+                getOfficeDeployments(first.id).then(setDeployHistory).catch(() => setDeployHistory([]))
+                if (first.daemon_url) {
+                    checkDaemon(first.daemon_url, first.daemon_api_key ?? '')
+                } else {
+                    silentProbeLocalDaemon(first)
+                }
             } else if (selected) {
                 // refresh selected with latest data (e.g. current_opc_name updated)
                 const updated = list.find(o => o.id === selected.id)
@@ -69,6 +77,21 @@ export default function OfficePage() {
         }
     }, [])
 
+    const silentProbeLocalDaemon = useCallback(async (office: Office) => {
+        if (office.daemon_url) return
+        if (office.address && office.address !== 'localhost') return
+        try {
+            const r = await probeLocalDaemon(office.id)
+            if (r.ok && r.daemon_url && r.api_key) {
+                const updates = { daemon_url: r.daemon_url, daemon_api_key: r.api_key }
+                setOffices(prev => prev.map(o => o.id === office.id ? { ...o, ...updates } : o))
+                setSelected(prev => prev?.id === office.id ? { ...prev, ...updates } : prev)
+                setForm(prev => ({ ...prev, ...updates }))
+                checkDaemon(r.daemon_url, r.api_key)
+            }
+        } catch { /* silent */ }
+    }, [checkDaemon])
+
     const handleSelect = useCallback((office: Office) => {
         if (isNewOffice) setIsNewOffice(false)
         setSelected(office); setForm(office)
@@ -76,8 +99,12 @@ export default function OfficePage() {
         setDaemonHealth(null)
         setSshResult(null)
         getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
-        if (office.daemon_url) checkDaemon(office.daemon_url, office.daemon_api_key ?? '')
-    }, [checkDaemon, isNewOffice])
+        if (office.daemon_url) {
+            checkDaemon(office.daemon_url, office.daemon_api_key ?? '')
+        } else {
+            silentProbeLocalDaemon(office)
+        }
+    }, [checkDaemon, silentProbeLocalDaemon, isNewOffice])
 
     const handleFormChange = (field: keyof Office, value: unknown) => {
         setForm(prev => ({ ...prev, [field]: value }))
@@ -522,7 +549,11 @@ export default function OfficePage() {
                                                 opacity: (installStep === 'openclaw' || installStep === 'daemon') ? 0.5 : 1,
                                             }}
                                         >
-                                            {installStep === 'openclaw' ? t('office.installing_openclaw') : installStep === 'daemon' ? t('office.installing_daemon') : t('office.install_latest')}
+                                            {installStep === 'openclaw' ? t('office.installing_openclaw')
+                                                : installStep === 'daemon' ? t('office.installing_daemon')
+                                                : (daemonHealth?.ok && daemonHealth.version && latestDaemonVersion && daemonHealth.version !== latestDaemonVersion)
+                                                    ? t('office.update_property')
+                                                    : t('office.install_latest')}
                                         </button>
                                     </div>
                                 </div>

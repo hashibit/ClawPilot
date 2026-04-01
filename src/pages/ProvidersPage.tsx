@@ -231,6 +231,7 @@ export default function ProvidersPage() {
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
+  const [formTestPassed, setFormTestPassed] = useState<boolean | null>(null)
 
   // Model edit state
   const [modelEditMode, setModelEditMode] = useState(false)
@@ -322,6 +323,7 @@ export default function ProvidersPage() {
     setFormApiKey('')
     setPendingModels([])
     setNameTouched(false)
+    setFormTestPassed(null)
     setEditMode('create')
   }
 
@@ -333,10 +335,12 @@ export default function ProvidersPage() {
     setFormApiKey(selectedProvider.api_key ?? '')
     setPendingModels([])
     setNameTouched(true)
+    setFormTestPassed(null)
     setEditMode('edit')
   }
 
   const handleCancel = () => {
+    setFormTestPassed(null)
     setEditMode('none')
   }
 
@@ -352,6 +356,8 @@ export default function ProvidersPage() {
           base_url: formBaseUrl,
           api_key: formApiKey,
           is_enabled: true,
+          is_available: formTestPassed === true,
+          last_tested: formTestPassed !== null ? Math.floor(Date.now() / 1000) : undefined,
         })
       } else {
         saved = await updateProvider({
@@ -369,7 +375,7 @@ export default function ProvidersPage() {
       await reloadProviders()
       setSelectedId(saved.id)
       setEditMode('none')
-      toast('Provider saved', 'success')
+      toast(t('providers.saved'), 'success')
     } catch (e) {
       toast(String(e), 'error')
     } finally {
@@ -386,7 +392,7 @@ export default function ProvidersPage() {
         setEditMode('none')
       }
       setConfirmDelete(null)
-      toast('Provider deleted', 'success')
+      toast(t('providers.deleted'), 'success')
     } catch (e) {
       toast(String(e), 'error')
     }
@@ -403,7 +409,7 @@ export default function ProvidersPage() {
     try {
       await apiSetModels(selectedProvider.name, known.models)
       await loadModels(selectedProvider.name)
-      toast('Models reset to defaults', 'success')
+      toast(t('providers.models_reset'), 'success')
     } catch (e) {
       toast(String(e), 'error')
     }
@@ -478,6 +484,7 @@ export default function ProvidersPage() {
       } else {
         toast(`连接失败: ${result.error ?? '未知错误'}`, 'error')
       }
+      if (editMode !== 'none') setFormTestPassed(result.ok)
       if (providerId) await reloadProviders()
     } catch (e) {
       toast(String(e), 'error')
@@ -563,10 +570,10 @@ export default function ProvidersPage() {
               </>
             )}
             {editMode === 'create' && (
-              <span style={{ fontSize: '15px', fontWeight: 600 }}>Add Provider</span>
+              <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.add_provider')}</span>
             )}
             {editMode === 'edit' && (
-              <span style={{ fontSize: '15px', fontWeight: 600 }}>Edit Provider</span>
+              <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.edit_provider')}</span>
             )}
             {editMode === 'none' && !selectedProvider && (
               <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
@@ -617,7 +624,7 @@ export default function ProvidersPage() {
           {editMode === 'none' && !selectedProvider && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
               <div style={{ fontSize: '13px', color: '#8E8E93', textAlign: 'center' }}>
-                Select a provider or click "+ Add"
+                {t('providers.select_hint')}
               </div>
             </div>
           )}
@@ -678,7 +685,7 @@ export default function ProvidersPage() {
 
               {pendingModels.length > 0 && (
                 <div style={{ fontSize: '11px', color: '#8E8E93', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
-                  <div style={{ marginBottom: '6px', color: '#a78bfa' }}>Auto-detected {pendingModels.length} models:</div>
+                  <div style={{ marginBottom: '6px', color: '#a78bfa' }}>{t('providers.auto_detected_models', { count: pendingModels.length })}</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {pendingModels.slice(0, 8).map((m, i) => (
                       <span key={i} style={{ padding: '2px 6px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', borderRadius: '4px', fontSize: '10px' }}>
@@ -741,7 +748,7 @@ export default function ProvidersPage() {
               {confirmDelete === selectedProvider.id && (
                 <div style={{ padding: '10px', background: 'rgba(244,63,94,0.08)', borderRadius: '8px', border: '1px solid rgba(244,63,94,0.2)' }}>
                   <div style={{ fontSize: '12px', marginBottom: '8px', color: '#f43f5e' }}>
-                    Delete provider "{selectedProvider.name}"? This will also delete all associated models.
+                    {t('providers.delete_confirm_msg', { name: selectedProvider.name })}
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
@@ -749,10 +756,10 @@ export default function ProvidersPage() {
                       style={{ fontSize: '11px', background: 'rgba(244,63,94,0.2)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.3)' }}
                       onClick={() => handleDeleteProvider(selectedProvider.id)}
                     >
-                      Confirm Delete
+                      {t('providers.delete_confirm_btn')}
                     </button>
                     <button className="tbtn tbtn-ghost" style={{ fontSize: '11px' }} onClick={() => setConfirmDelete(null)}>
-                      Cancel
+                      {t('common.button_cancel')}
                     </button>
                   </div>
                 </div>

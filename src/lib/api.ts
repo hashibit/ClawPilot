@@ -14,7 +14,8 @@ import type {
 // ── Transport ──────────────────────────────────────────────
 // In Tauri context: use invoke(). In browser dev mode: use HTTP.
 const USE_HTTP = !('__TAURI_INTERNALS__' in window)
-const DEV_BASE = 'http://localhost:16667/api'
+const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
+const DEV_BASE = `http://localhost:${SERVER_PORT}/api`
 
 async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
   if (USE_HTTP) {
@@ -65,7 +66,7 @@ export const getAgentDocuments = (agentId: string) =>
 
 // ── Model / Provider ──────────────────────────────────────
 export const getProviders = () => call<ProviderConfig[]>('get_providers', {})
-export const createProvider = (data: Omit<ProviderConfig, 'id' | 'created_at' | 'updated_at' | 'is_available'>) =>
+export const createProvider = (data: Omit<ProviderConfig, 'id' | 'created_at' | 'updated_at'>) =>
   call<ProviderConfig>('create_provider', data)
 export const updateProvider = (data: Partial<ProviderConfig> & { id: string }) =>
   call<ProviderConfig>('update_provider', data)
@@ -166,6 +167,12 @@ export interface DaemonHealthResult {
 }
 export const checkDaemonHealth = (daemon_url: string, daemon_api_key: string) =>
   call<DaemonHealthResult>('check_daemon_health', { daemon_url, daemon_api_key })
+
+export const probeLocalDaemon = (office_id: string) =>
+  call<{ ok: boolean; daemon_url?: string; api_key?: string }>('probe_local_daemon', { office_id })
+
+export const getLocalDaemonVersion = () =>
+  call<{ ok: boolean; version?: string; error?: string }>('get_local_daemon_version', {})
 
 export const checkSshConnection = (host: string, port = 22) =>
   call<{ ok: boolean; latency_ms?: number; error?: string }>('check_ssh_connection', { host, port })

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "bash dev.sh",
-    "stop": "echo 'Stopping ClawPilot services...' && lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null; echo 'Done'",
+    "stop": "echo 'Stopping ClawPilot services...' && (cat .dev-ports 2>/dev/null | tr ' ' ',' | xargs -I{} lsof -ti:{} | xargs kill -9 2>/dev/null || lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null); echo 'Done'",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

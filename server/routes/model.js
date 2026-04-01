@@ -49,14 +49,14 @@ export function createModelRouter(db) {
   // POST /create_provider
   router.post('/create_provider', (req, res) => {
     try {
-      const { name, api, base_url, api_key } = req.body
+      const { name, api, base_url, api_key, is_available, last_tested } = req.body
       if (!name || !api || !base_url) return res.status(400).json({ error: 'name, api, base_url required' })
       const id = uuidv4()
       const n = now()
       db.prepare(`
-        INSERT INTO model_providers_v2 (id, name, api, base_url, api_key, is_enabled, is_available, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)
-      `).run(id, name, api, base_url, encrypt(api_key ?? ''), n, n)
+        INSERT INTO model_providers_v2 (id, name, api, base_url, api_key, is_enabled, is_available, last_tested, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+      `).run(id, name, api, base_url, encrypt(api_key ?? ''), is_available ? 1 : 0, last_tested ?? null, n, n)
       const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
       res.json(rowToProvider(row))
     } catch (err) {
