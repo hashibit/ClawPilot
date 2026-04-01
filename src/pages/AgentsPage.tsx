@@ -4,7 +4,7 @@ import { useOpc } from '../contexts/OpcContext'
 import {
     getAgents, createAgent, updateAgent, deleteAgent, reorderAgents, setDefaultAgent,
     getAgentDocument, updateAgentDocument, aiGenerateAgent, getModels,
-    chatWithAgent,
+    chatWithAgent, createSnapshot,
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType, ModelInfo, OpcConfig } from '../lib/types'
@@ -236,11 +236,11 @@ function SkillModal({ enabled, onClose, onToggle }: {
 
     return (
         <div
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh' }}
             onClick={onClose}
         >
             <div
-                style={{ background: '#1c1c1e', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.12)', width: '540px', maxWidth: '90vw', maxHeight: '82vh', display: 'flex', flexDirection: 'column' }}
+                style={{ background: '#1c1c1e', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', width: '580px', maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -413,6 +413,10 @@ export default function AgentsPage() {
     const [aiPrompt, setAiPrompt] = useState('')
     const [aiGenerating, setAiGenerating] = useState(false)
     const [aiModalOpen, setAiModalOpen] = useState(false)
+    const [batchModalOpen, setBatchModalOpen] = useState(false)
+    const [batchPrompts, setBatchPrompts] = useState<string[]>(['', ''])
+    const [batchProgress, setBatchProgress] = useState<('idle' | 'generating' | 'done' | 'error')[]>([])
+    const [batchRunning, setBatchRunning] = useState(false)
     const [models, setModels] = useState<ModelInfo[]>([])
     const [skillModalOpen, setSkillModalOpen] = useState(false)
     const [chatAgent, setChatAgent] = useState<AgentConfig | null>(null)
@@ -469,6 +473,7 @@ export default function AgentsPage() {
         if (!selectedAgent || !currentOpc) return
         setSaving(true)
         try {
+            await createSnapshot(currentOpc.id, `auto:save-agent:${form.display_name ?? selectedAgent.display_name}`, true).catch(() => {})
             const updated: AgentConfig = { ...selectedAgent, ...form, updated_at: Math.floor(Date.now() / 1000) }
             if (isNewAgent) {
                 await createAgent(updated)
@@ -540,6 +545,62 @@ export default function AgentsPage() {
             await updateAgentDocument(selectedAgent.id, activeDocTab, docContent)
             toast(t('agents.doc_saved'), 'success')
         } catch (e) { toast(String(e), 'error') }
+    }
+
+    const handleBatchGenerate = async () => {
+        const opc = currentOpc
+        if (!opc) return
+        const prompts = batchPrompts.filter(p => p.trim())
+        if (!prompts.length) return
+        setBatchRunning(true)
+        setBatchProgress(batchPrompts.map(p => p.trim() ? 'idle' : 'done'))
+        await createSnapshot(opc.id, `auto:batch-add:${prompts.length}agents`, true).catch(() => {})
+        const allAgents = Object.values(opcAgentsMap).flat()
+        const usedColors = new Set(allAgents.map(a => a.gradient_start))
+        let currentAgents = opcAgentsMap[opc.id] ?? []
+        const activeIndices = batchPrompts.map((p, i) => p.trim() ? i : -1).filter(i => i >= 0)
+        for (const idx of activeIndices) {
+            setBatchProgress(prev => { const n = [...prev]; n[idx] = 'generating'; return n })
+            try {
+                const result = await aiGenerateAgent(batchPrompts[idx].trim())
+                const colorPick = AGENT_COLORS.find(c => !usedColors.has(c)) ?? AGENT_COLORS[(allAgents.length + currentAgents.length) % AGENT_COLORS.length]
+                usedColors.add(colorPick)
+                const now = Math.floor(Date.now() / 1000)
+                const agent: AgentConfig = {
+                    id: crypto.randomUUID(), opc_id: opc.id,
+                    name: slugify(result.name || batchPrompts[idx]),
+                    display_name: result.display_name || batchPrompts[idx].slice(0, 8),
+                    job_title: result.job_title,
+                    description: result.description,
+                    personality: result.personality,
+                    initials: (result.display_name || batchPrompts[idx]).slice(0, 2),
+                    gradient_start: colorPick, gradient_end: colorPick,
+                    is_default: false, order_index: currentAgents.length,
+                    model: undefined,
+                    enabled_tools: result.enabled_tools ?? [],
+                    disabled_tools: [],
+                    enabled_skills: result.enabled_skills ?? [],
+                    guardrail_rules: result.guardrail_allow ?? [],
+                    guardrail_allow: result.guardrail_allow ?? [],
+                    guardrail_deny: result.guardrail_deny ?? [],
+                    reports_to: [], manages: [],
+                    created_at: now, updated_at: now,
+                }
+                await createAgent(agent)
+                const docMap: Record<string, string> = { SOUL: result.soul, IDENTITY: result.identity, AGENTS: result.agents, USER: result.user, MEMORY: result.memory, HEARTBEAT: result.heartbeat, TOOLS: result.tools }
+                for (const [docType, content] of Object.entries(docMap)) {
+                    if (content) await updateAgentDocument(agent.id, docType, content)
+                }
+                currentAgents = [...currentAgents, agent]
+                setBatchProgress(prev => { const n = [...prev]; n[idx] = 'done'; return n })
+            } catch {
+                setBatchProgress(prev => { const n = [...prev]; n[idx] = 'error'; return n })
+            }
+        }
+        const list = await getAgents(opc.id)
+        setOpcAgentsMap(prev => ({ ...prev, [opc.id]: list }))
+        setBatchRunning(false)
+        toast(t('agents.ai_generate_success'), 'success')
     }
 
     const handleAddAgent = (targetOpc?: OpcConfig) => {
@@ -677,8 +738,8 @@ export default function AgentsPage() {
         <>
             {/* ── AI 一键生成 Modal ── */}
             {aiModalOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => { if (!aiGenerating) setAiModalOpen(false) }}>
-                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '420px', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', zIndex: 1000 }} onClick={() => { if (!aiGenerating) setAiModalOpen(false) }}>
+                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '480px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
                         <div>
                             <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>{t('agents.ai_quick_gen')}</div>
                             <div style={{ fontSize: '12px', color: '#8E8E93' }}>{aiGenerating ? t('agents.generating') : t('agents.ai_generate_placeholder')}</div>
@@ -703,6 +764,56 @@ export default function AgentsPage() {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                             <button className="tbtn tbtn-ghost" disabled={aiGenerating} onClick={() => setAiModalOpen(false)}>{t('common.button_cancel')}</button>
                             <button className="tbtn tbtn-accent" disabled={aiGenerating || !aiPrompt.trim()} onClick={handleAiGenerate}>{t('agents.ai_generate_btn')}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── 批量添加 Modal ── */}
+            {batchModalOpen && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', zIndex: 1000 }} onClick={() => { if (!batchRunning) setBatchModalOpen(false) }}>
+                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '580px', maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
+                        <div>
+                            <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>批量添加智能体</div>
+                            <div style={{ fontSize: '12px', color: '#8E8E93' }}>每行描述一个智能体角色，AI 自动生成并立即保存</div>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {batchPrompts.map((p, i) => {
+                                const status = batchProgress[i]
+                                return (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '11px', color: '#8E8E93', width: '16px', textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                                        <input
+                                            className="field-input"
+                                            style={{ flex: 1 }}
+                                            placeholder={`智能体 ${i + 1} 的角色描述…`}
+                                            value={p}
+                                            disabled={batchRunning}
+                                            onChange={e => setBatchPrompts(prev => { const n = [...prev]; n[i] = e.target.value; return n })}
+                                            onKeyDown={e => { if (e.key === 'Enter' && i === batchPrompts.length - 1 && !batchRunning) setBatchPrompts(prev => [...prev, '']) }}
+                                        />
+                                        {status === 'generating' && (
+                                            <svg style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} width="14" height="14" fill="none" stroke="#a78bfa" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                        )}
+                                        {status === 'done' && <span style={{ color: '#34c759', fontSize: '14px', flexShrink: 0 }}>✓</span>}
+                                        {status === 'error' && <span style={{ color: '#f43f5e', fontSize: '14px', flexShrink: 0 }}>✗</span>}
+                                        {!batchRunning && !status && (
+                                            <button onClick={() => setBatchPrompts(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '16px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                            {!batchRunning && (
+                                <button className="tbtn tbtn-ghost" style={{ alignSelf: 'flex-start', fontSize: '12px' }} onClick={() => setBatchPrompts(prev => [...prev, ''])}>+ 添加一行</button>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button className="tbtn tbtn-ghost" disabled={batchRunning} onClick={() => setBatchModalOpen(false)}>{batchProgress.every(s => s === 'done' || s === 'error') && batchRunning === false && batchProgress.length > 0 ? '关闭' : t('common.button_cancel')}</button>
+                            {!batchProgress.length || batchProgress.some(s => s === 'idle') ? (
+                                <button className="tbtn tbtn-accent" disabled={batchRunning || !batchPrompts.some(p => p.trim())} onClick={handleBatchGenerate}>
+                                    {batchRunning ? t('agents.generating') : '开始生成'}
+                                </button>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -769,13 +880,13 @@ export default function AgentsPage() {
                 ) : (
                     <>
                         {/* Agents strip */}
-                        <div style={{ flexShrink: 0, background: '#1a1a1f' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '10px 12px', overflowX: 'auto' }}>
+                        <div style={{ flexShrink: 0, background: '#1a1a1f', display: 'flex', alignItems: 'center' }}>
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '2px', padding: '10px 12px', overflowX: 'auto', minWidth: 0 }}>
                                 {(() => {
                                     const base = [...(opcAgentsMap[currentOpc.id] ?? [])].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
                                     const list = isNewAgent && selectedAgent ? [...base, selectedAgent] : base
                                     return list
-                                })().map((agent, index) => {
+                                })().map((agent) => {
                                     const isActive = selectedAgent?.id === agent.id
                                     return (
                                         <div
@@ -791,13 +902,15 @@ export default function AgentsPage() {
                                                     <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: '#a78bfa', border: '1.5px solid #1a1a1f' }} />
                                                 )}
                                             </div>
-                                            <span style={{ fontSize: '10px', color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.6)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                                            <span style={{ fontSize: '10px', color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.85)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
                                                 {agent.display_name}{(isNewAgent || editing) && selectedAgent?.id === agent.id ? ' *' : ''}
                                             </span>
                                         </div>
                                     )
                                 })}
-                                {/* Add agent button */}
+                            </div>
+                            {/* Add buttons — right-aligned, same column style as before */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '10px 12px', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
                                 <div
                                     onClick={() => handleAddAgent()}
                                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed rgba(255,255,255,0.15)', transition: 'all 0.15s' }}
@@ -805,7 +918,16 @@ export default function AgentsPage() {
                                     <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <svg fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                                     </div>
-                                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>{t('common.button_add')}</span>
+                                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>添加智能体</span>
+                                </div>
+                                <div
+                                    onClick={() => { setBatchPrompts(['', '']); setBatchProgress([]); setBatchRunning(false); setBatchModalOpen(true) }}
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed rgba(139,92,246,0.3)', transition: 'all 0.15s' }}
+                                >
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg fill="none" stroke="rgba(139,92,246,0.6)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                    </div>
+                                    <span style={{ fontSize: '10px', color: 'rgba(139,92,246,0.9)' }}>批量添加</span>
                                 </div>
                             </div>
                         </div>

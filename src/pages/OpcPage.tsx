@@ -70,8 +70,8 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#2C2C2E', borderRadius: 12, padding: 20, width: 360, border: '1px solid rgba(255,255,255,0.12)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', zIndex: 1000 }}>
+      <div style={{ background: '#1c1c1e', borderRadius: 14, padding: 24, width: 420, maxWidth: '90vw', border: '1px solid rgba(255,255,255,0.12)' }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', marginBottom: 14 }}>{t('opc.modal_title')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
@@ -225,8 +225,8 @@ export default function OpcPage() {
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={reload} />}
 
       {confirmOffline && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', zIndex: 1000 }}>
+          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '420px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5', marginBottom: '8px' }}>{t('opc.confirm_undeploy_title', { name: confirmOffline.display_name })}</div>
               <div style={{ fontSize: '13px', color: '#8E8E93', lineHeight: 1.6 }}>
@@ -285,7 +285,7 @@ export default function OpcPage() {
                   className={`list-row${selected?.id === opc.id ? ' selected' : ''}`}
                   onClick={() => selectOpc(opc)}
                 >
-                  <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8E8E93'},#3A3A3C)` }}>
+                  <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)` }}>
                     {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
