@@ -13,13 +13,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 0;
-  min-height: 44px;
+  padding: 14px 0;
+  min-height: 48px;
 }
 .overview-row + .overview-row {
   border-top: 1px solid rgba(255,255,255,0.06);
-  margin-top: 4px;
-  padding-top: 12px;
+  margin-top: 0;
+  padding-top: 14px;
 }
 .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .stat-value { font-size: 28px; font-weight: 600; color: #FFFFFF; line-height: 1.2; }
