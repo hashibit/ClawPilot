@@ -1,7 +1,25 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
 import { createTestDb } from '../helpers/db.js'
 import { createTestApp } from '../helpers/app.js'
+
+// Mock child_process so stop/start/reload never touch the real openclaw
+vi.mock('child_process', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    execSync: vi.fn(() => ''),
+    spawn: vi.fn(() => ({ unref: vi.fn() })),
+  }
+})
+
+// Mock global fetch so get_process_status / restart_openclaw never hit the daemon
+vi.stubGlobal('fetch', vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ openclaw_status: 'running', openclaw_pid: 12345 }),
+  })
+))
 
 describe('Process Routes', () => {
   let db, app
@@ -18,30 +36,30 @@ describe('Process Routes', () => {
       expect(res.body).toHaveProperty('is_running')
       expect(res.body).toHaveProperty('pid')
       expect(res.body).toHaveProperty('uptime_seconds')
-    }, 15000) // 增加超时时间到 15 秒
+    })
   })
 
   describe('start_openclaw', () => {
-    it('尝试启动进程', async () => {
+    it('返回启动成功', async () => {
       const res = await request(app).post('/api/start_openclaw').send({})
-      // 根据进程状态返回不同结果
-      expect([200, 500]).toContain(res.status)
-    }, 15000)
+      expect(res.status).toBe(200)
+      expect(res.body.ok).toBe(true)
+    })
   })
 
   describe('stop_openclaw', () => {
-    it('尝试停止进程', async () => {
+    it('返回停止成功', async () => {
       const res = await request(app).post('/api/stop_openclaw').send({})
-      // 无论进程是否运行，接口都应该返回 200
-      expect([200, 500]).toContain(res.status)
-    }, 15000) // 增加超时时间到 15 秒
+      expect(res.status).toBe(200)
+      expect(res.body.ok).toBe(true)
+    })
   })
 
   describe('reload_openclaw', () => {
-    it('尝试重载进程', async () => {
+    it('返回重载成功', async () => {
       const res = await request(app).post('/api/reload_openclaw').send({})
-      // 只有进程运行时才返回 200
-      expect([200, 400, 500]).toContain(res.status)
-    }, 15000)
+      expect(res.status).toBe(200)
+      expect(res.body.ok).toBe(true)
+    })
   })
 })
