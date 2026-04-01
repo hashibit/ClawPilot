@@ -3,7 +3,8 @@
 # Usage: bash dev.sh [--start-port N]   (default: 16666)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
 
 # ── Parse --start-port ─────────────────────────────────────
 START_PORT=16666
@@ -48,16 +49,16 @@ echo "  Vite started (PID: $VITE_PID) -> logs/vite.log"
 
 # Start server
 echo "Starting Server..."
-(cd "$SCRIPT_DIR/server" && PORT=$SERVER_PORT node --watch index.js) > "$SCRIPT_DIR/logs/server.log" 2>&1 &
+(cd "$ROOT_DIR/server" && PORT=$SERVER_PORT node --watch index.js) > "$ROOT_DIR/logs/server.log" 2>&1 &
 SERVER_PID=$!
 echo "  Server started (PID: $SERVER_PID) -> logs/server.log"
 
 # Start daemon
 echo "Starting Daemon..."
-cd "$SCRIPT_DIR/daemon"
-cargo watch -x "run -- --listen 127.0.0.1:$DAEMON_PORT" > ../logs/daemon.log 2>&1 &
+cd "$ROOT_DIR/daemon"
+cargo watch -x "run -- --listen 127.0.0.1:$DAEMON_PORT" > "$ROOT_DIR/logs/daemon.log" 2>&1 &
 DAEMON_PID=$!
-cd "$SCRIPT_DIR"
+cd "$ROOT_DIR"
 echo "  Daemon started (PID: $DAEMON_PID) -> logs/daemon.log"
 
 echo ""

@@ -1,4 +1,5 @@
 .DS_Store
+**/artifacts/
 node_modules/
 src-tauri/target/
 src-tauri/gen/
@@ -14,8 +15,8 @@ daemon/target
 *.bin
 dev.db-shm
 dev.db-wal
-playwright-report/
-test-results/
+tests/reports/
+tests/results/
 .claude
 .dev-pids
 .dev-ports
