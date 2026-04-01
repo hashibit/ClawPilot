@@ -29,7 +29,8 @@ export default function OfficePage() {
     const [daemonHealth, setDaemonHealth] = useState<DaemonHealthResult | null>(null)
     const [healthChecking, setHealthChecking] = useState(false)
     const [installLogs, setInstallLogs] = useState<string[]>([])
-    const [installStep, setInstallStep] = useState<'idle' | 'openclaw' | 'daemon' | 'done' | 'error'>('idle')
+    const [installStep, setInstallStep] = useState<'idle' | 'checking' | 'openclaw' | 'daemon' | 'done' | 'error'>('idle')
+    const [installModalOpen, setInstallModalOpen] = useState(false)
     const installAbortRef = useRef<boolean>(false)
     const healthCacheRef = useRef<Map<string, DaemonHealthResult>>(new Map())
     const [sshChecking, setSshChecking] = useState(false)
@@ -268,37 +269,22 @@ export default function OfficePage() {
         }
     }
 
-    const handleInstallLatest = async () => {
+    const handleInstallLatest = () => {
         if (!selected) return
         if (isNewOffice) { toast('请先保存办公室后再安装物业', 'error'); return }
-        if (installStep === 'openclaw' || installStep === 'daemon') return
-
-        // Address validation
+        if (installStep !== 'idle' && installStep !== 'done' && installStep !== 'error') return
         if (!isValidAddress(selected.address)) {
             toast('请先设置有效的办公室地址（本机或合法 IP/主机名）', 'error'); return
         }
-        const isRemoteAddr = selected.address !== 'localhost'
-        if (isRemoteAddr) {
-            setSshChecking(true)
-            setSshResult(null)
-            let connOk = false
-            try {
-                const { host: chkHost, port: chkPort } = parseAddress(selected.address!)
-                const r = await checkSshConnection(chkHost, chkPort)
-                setSshResult(r)
-                connOk = r.ok
-            } catch {
-                setSshResult({ ok: false, error: '网络检测失败' })
-            } finally {
-                setSshChecking(false)
-            }
-            if (!connOk) { toast('无法连通远程主机，请检查地址和网络后重试', 'error'); return }
-        }
         installAbortRef.current = false
         setInstallLogs([])
-        setInstallStep('openclaw')
+        setInstallStep('checking')
+        setInstallModalOpen(true)
+        runInstall(selected)
+    }
+
+    const runInstall = async (saved: Office) => {
         const lg = (line: string) => setInstallLogs(prev => [...prev, line])
-        const saved = selected
         const isRemote = !(!saved.address || saved.address === 'localhost')
         const { host: sshHost, port: sshPort } = isRemote ? parseAddress(saved.address!) : { host: '', port: 22 }
         const sshBase = isRemote ? {
@@ -309,20 +295,44 @@ export default function OfficePage() {
                 : { ssh_user: saved.access_user ?? 'root', ssh_password: saved.access_password }),
         } : {}
         const mode = isRemote ? 'ssh' : 'local'
+
+        // Step 0: SSH connectivity check (remote only)
+        if (isRemote) {
+            lg(`🔍 检查与 ${saved.address} 的 SSH 连通性…`)
+            try {
+                const r = await checkSshConnection(sshHost, sshPort)
+                setSshResult(r)
+                if (!r.ok) {
+                    lg(`❌ SSH 连通性检查失败：${r.error ?? '无法连通远程主机'}`)
+                    setInstallStep('error')
+                    return
+                }
+                lg(`✅ SSH 连通（延迟 ${r.latency_ms ?? '?'} ms）`)
+            } catch (e) {
+                setSshResult({ ok: false, error: String(e) })
+                lg(`❌ SSH 检测异常：${String(e)}`)
+                setInstallStep('error')
+                return
+            }
+            if (installAbortRef.current) { setInstallStep('idle'); return }
+        }
+
         // Step 1: install openclaw
+        setInstallStep('openclaw')
         try {
             lg(t('office.install_openclaw_start'))
-            const r1 = await installOpenclaw({ office_id: selected.id, mode, ...sshBase })
+            const r1 = await installOpenclaw({ office_id: saved.id, mode, ...sshBase })
             r1.logs?.forEach(l => lg(l))
             if (!r1.ok) { lg(`❌ ${r1.error ?? t('office.install_failed')}`); setInstallStep('error'); return }
             lg(t('office.install_openclaw_done'))
         } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); return }
         if (installAbortRef.current) { setInstallStep('idle'); return }
+
         // Step 2: install daemon
         setInstallStep('daemon')
         try {
             lg(t('office.install_daemon_start'))
-            const r2 = await installDaemon({ office_id: selected.id, mode, ...sshBase })
+            const r2 = await installDaemon({ office_id: saved.id, mode, ...sshBase })
             r2.logs?.forEach(l => lg(l))
             if (!r2.ok) { lg(`❌ ${r2.error ?? t('office.install_failed')}`); setInstallStep('error'); return }
             lg(t('office.install_daemon_done'))
@@ -330,10 +340,23 @@ export default function OfficePage() {
                 handleFormChange('daemon_url', r2.daemon_url)
                 handleFormChange('daemon_api_key', r2.api_key)
                 loadOffices()
-                checkDaemon(r2.daemon_url, r2.api_key, { officeId: selected.id })
+                checkDaemon(r2.daemon_url, r2.api_key, { officeId: saved.id })
             }
             setInstallStep('done')
         } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); }
+    }
+
+    const handleInstallStop = () => {
+        installAbortRef.current = true
+        setInstallStep('idle')
+        setInstallModalOpen(false)
+    }
+
+    const handleInstallClose = () => {
+        setInstallModalOpen(false)
+        if (installStep !== 'done' && installStep !== 'error') return
+        setInstallStep('idle')
+        setInstallLogs([])
     }
 
     return (
@@ -358,7 +381,7 @@ export default function OfficePage() {
                         >
                             <div style={{
                                 width: '30px', height: '30px', borderRadius: '8px',
-                                background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)',
+                                background: '#8b5cf6',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontSize: '14px', flexShrink: 0,
                             }}>🏢</div>
@@ -564,18 +587,14 @@ export default function OfficePage() {
                                         )}
                                         <button
                                             onClick={handleInstallLatest}
-                                            disabled={installStep === 'openclaw' || installStep === 'daemon'}
                                             style={{
                                                 padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer',
                                                 border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.12)', color: '#c4b5fd',
-                                                opacity: (installStep === 'openclaw' || installStep === 'daemon') ? 0.5 : 1,
                                             }}
                                         >
-                                            {installStep === 'openclaw' ? t('office.installing_openclaw')
-                                                : installStep === 'daemon' ? t('office.installing_daemon')
-                                                : (daemonHealth?.ok && daemonHealth.version && latestDaemonVersion && daemonHealth.version !== latestDaemonVersion)
-                                                    ? t('office.update_property')
-                                                    : t('office.install_latest')}
+                                            {(daemonHealth?.ok && daemonHealth.version && latestDaemonVersion && daemonHealth.version !== latestDaemonVersion)
+                                                ? t('office.update_property')
+                                                : t('office.install_latest')}
                                         </button>
                                     </div>
                                 </div>
@@ -611,26 +630,6 @@ export default function OfficePage() {
                                     {daemonHealth && !daemonHealth.ok && daemonHealth.error && (
                                         <div style={{ padding: '5px 10px', fontSize: '11px', color: '#f87171', background: 'rgba(244,63,94,0.06)', borderTop: '1px solid rgba(244,63,94,0.1)' }}>
                                             {daemonHealth.error}
-                                        </div>
-                                    )}
-                                    {/* 安装进度日志 */}
-                                    {installLogs.length > 0 && (
-                                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px 4px' }}>
-                                                <span style={{ fontSize: '11px', color: 'rgba(235,235,245,0.4)' }}>
-                                                    {installStep === 'openclaw' ? t('office.installing_openclaw') : installStep === 'daemon' ? t('office.installing_daemon') : installStep === 'done' ? `✅ ${t('office.install_done')}` : `❌ ${t('office.install_failed')}`}
-                                                </span>
-                                                {(installStep === 'done' || installStep === 'error') && (
-                                                    <button onClick={() => { setInstallLogs([]); setInstallStep('idle') }} style={{ fontSize: '10px', background: 'none', border: 'none', color: 'rgba(235,235,245,0.35)', cursor: 'pointer', padding: 0 }}>{t('common.collapse')}</button>
-                                                )}
-                                            </div>
-                                            <div style={{ margin: '0 10px 8px', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', padding: '8px 10px', fontFamily: 'monospace', fontSize: '11px', lineHeight: 1.7, maxHeight: '160px', overflowY: 'auto' }}>
-                                                {installLogs.map((line, i) => (
-                                                    <div key={i} style={{ color: line.startsWith('❌') ? '#f87171' : (line.startsWith('✅') || line.startsWith('🔑') || line.startsWith('💾')) ? '#34d399' : line.startsWith('▶') ? '#a78bfa' : '#EBEBF5' }}>
-                                                        {line}
-                                                    </div>
-                                                ))}
-                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -697,6 +696,113 @@ export default function OfficePage() {
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                             <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
                             <button className="tbtn" style={{ background: '#f43f5e', color: '#fff', border: 'none' }} onClick={() => handleDelete(confirmDelete)}>确认删除</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 安装物业弹窗 */}
+            {installModalOpen && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 1000,
+                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <div style={{
+                        width: '520px', maxWidth: '90vw',
+                        background: '#1c1c1e', borderRadius: '14px',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
+                        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                    }}>
+                        {/* Header */}
+                        <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', flex: 1 }}>
+                                {installStep === 'done' ? '✅ 安装完成' : installStep === 'error' ? '❌ 安装失败' : '安装物业'}
+                            </span>
+                            <span style={{
+                                fontSize: '11px', padding: '2px 8px', borderRadius: '4px',
+                                background: installStep === 'done' ? 'rgba(52,199,89,0.15)' : installStep === 'error' ? 'rgba(248,113,113,0.15)' : 'rgba(139,92,246,0.15)',
+                                color: installStep === 'done' ? '#34d399' : installStep === 'error' ? '#f87171' : '#a78bfa',
+                            }}>
+                                {installStep === 'checking' ? '检查连通性…'
+                                    : installStep === 'openclaw' ? '安装 OpenClaw…'
+                                    : installStep === 'daemon' ? '安装 Daemon…'
+                                    : installStep === 'done' ? '完成'
+                                    : installStep === 'error' ? '出错'
+                                    : '就绪'}
+                            </span>
+                        </div>
+
+                        {/* Steps indicator */}
+                        <div style={{ padding: '12px 20px 8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {[
+                                { key: 'checking', label: 'SSH 检查' },
+                                { key: 'openclaw', label: 'OpenClaw' },
+                                { key: 'daemon', label: 'Daemon' },
+                            ].map((step, i) => {
+                                const stepOrder = ['checking', 'openclaw', 'daemon']
+                                const currentIdx = installStep === 'done' ? 3 : installStep === 'error' ? -1 : stepOrder.indexOf(installStep)
+                                const isDone = currentIdx > i || installStep === 'done'
+                                const isActive = stepOrder[i] === installStep
+                                const isError = installStep === 'error' && isActive
+                                const isPending = currentIdx !== -1 && currentIdx < i && installStep !== 'done'
+                                return (
+                                    <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        {i > 0 && <div style={{ width: '20px', height: '1px', background: isDone ? '#34d399' : 'rgba(255,255,255,0.12)' }} />}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <div style={{
+                                                width: '7px', height: '7px', borderRadius: '50%',
+                                                background: isDone ? '#34d399' : isError ? '#f87171' : isActive ? '#a78bfa' : 'rgba(255,255,255,0.15)',
+                                                boxShadow: isActive && !isDone ? '0 0 6px #a78bfa' : 'none',
+                                            }} />
+                                            <span style={{ fontSize: '11px', color: isPending ? 'rgba(235,235,245,0.3)' : '#EBEBF5' }}>{step.label}</span>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+
+                        {/* Log area */}
+                        <div style={{
+                            margin: '0 16px 12px',
+                            background: 'rgba(0,0,0,0.35)', borderRadius: '8px',
+                            padding: '10px 12px',
+                            fontFamily: 'monospace', fontSize: '11px', lineHeight: 1.8,
+                            height: '260px', overflowY: 'auto',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                        }}>
+                            {installLogs.length === 0 ? (
+                                <span style={{ color: 'rgba(235,235,245,0.25)' }}>等待开始…</span>
+                            ) : installLogs.map((line, i) => (
+                                <div key={i} style={{
+                                    color: line.startsWith('❌') ? '#f87171'
+                                        : (line.startsWith('✅') || line.startsWith('🔑') || line.startsWith('💾')) ? '#34d399'
+                                        : line.startsWith('▶') || line.startsWith('🔍') ? '#a78bfa'
+                                        : '#EBEBF5',
+                                }}>
+                                    {line}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Footer buttons */}
+                        <div style={{ padding: '0 16px 16px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            {(installStep === 'done' || installStep === 'error') ? (
+                                <button
+                                    onClick={handleInstallClose}
+                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.07)', color: '#EBEBF5' }}
+                                >
+                                    关闭
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleInstallStop}
+                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}
+                                >
+                                    停止安装
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
