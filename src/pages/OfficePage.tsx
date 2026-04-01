@@ -9,6 +9,21 @@ function fmtDate(ts: number) {
     return new Date(ts * 1000).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// 卡通前台头像预设（本地图片，打包进 Tauri app）
+const RECEPTIONIST_PRESETS = [
+    '/avatars/receptionist/half_size_beautiful-cartoon-woman-portrait.jpg',
+    '/avatars/receptionist/half_size_beautiful-cartoon-woman-portrait-2.jpg',
+    '/avatars/receptionist/half_size_3d-cartoon-style-character.jpg',
+    '/avatars/receptionist/half_size_3d-cartoon-style-character-2.jpg',
+    '/avatars/receptionist/half_size_3d-portrait-woman-1.jpg',
+    '/avatars/receptionist/half_size_3d-portrait-woman-2.jpg',
+    '/avatars/receptionist/half_size_portrait-3d-female-doctor.jpg',
+    '/avatars/receptionist/half_size_portrait-3d-female-doctor-2.jpg',
+    '/avatars/receptionist/half_size_rendering-portrait-anime-doctor.jpg',
+    '/avatars/receptionist/half_size_bc110031-06a7-460a-bf9c-545e5e896824.jpg',
+    '/avatars/receptionist/half_size_b2c71b70-a938-44e5-903b-f963d3bffe04.jpg',
+]
+
 export default function OfficePage() {
     const { t } = useTranslation()
 
@@ -24,6 +39,8 @@ export default function OfficePage() {
     const [editing, setEditing] = useState(false)
     const [isNewOffice, setIsNewOffice] = useState(false)
     const [saving, setSaving] = useState(false)
+    const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
+    const avatarPickerRef = useRef<HTMLDivElement>(null)
     const [confirmDelete, setConfirmDelete] = useState<Office | null>(null)
     const [deployHistory, setDeployHistory] = useState<OfficeDeployment[]>([])
     const [daemonHealth, setDaemonHealth] = useState<DaemonHealthResult | null>(null)
@@ -118,7 +135,7 @@ export default function OfficePage() {
     const handleSelect = useCallback((office: Office) => {
         if (isNewOffice) setIsNewOffice(false)
         setSelected(office); setForm(office)
-        setEditing(false)
+        setEditing(false); setAvatarPickerOpen(false)
         setDaemonHealth(null)
         setSshResult(null)
         getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
@@ -152,7 +169,7 @@ export default function OfficePage() {
                 await loadOffices()
                 setSelected(newOffice)
                 setIsNewOffice(false)
-                setEditing(false)
+                setEditing(false); setAvatarPickerOpen(false)
                 toast('办公室已创建', 'success')
             } else {
                 const addressChanged = form.address !== selected.address
@@ -161,7 +178,7 @@ export default function OfficePage() {
                 await updateOffice(selected.id, updated)
                 setOffices(prev => prev.map(o => o.id === updated.id ? updated : o))
                 setSelected(updated)
-                setEditing(false)
+                setEditing(false); setAvatarPickerOpen(false)
                 setDaemonHealth(null)
                 toast('办公室信息已保存', 'success')
                 if (!addressChanged && updated.daemon_url) {
@@ -175,12 +192,12 @@ export default function OfficePage() {
     const handleCancel = () => {
         if (isNewOffice) {
             setIsNewOffice(false)
-            setEditing(false)
+            setEditing(false); setAvatarPickerOpen(false)
             const prev = offices[0] ?? null
             setSelected(prev); setForm(prev ?? {})
             if (prev) getOfficeDeployments(prev.id).then(setDeployHistory).catch(() => setDeployHistory([]))
         } else {
-            setEditing(false)
+            setEditing(false); setAvatarPickerOpen(false)
             if (selected) setForm(selected)
         }
     }
@@ -462,6 +479,52 @@ export default function OfficePage() {
                                     <div className="group-row" style={{ gap: '10px' }}>
                                         <span className="group-label">{t('office.label_name')}</span>
                                         <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
+                                        <span className="group-label" style={{ flexShrink: 0 }}>{t('office.label_receptionist')}</span>
+                                        <div style={{ position: 'relative', flex: 1 }} ref={avatarPickerRef}>
+                                            <div
+                                                onClick={() => editing && setAvatarPickerOpen(v => !v)}
+                                                style={{
+                                                    width: '100%', height: '28px', borderRadius: '7px', overflow: 'hidden',
+                                                    background: 'rgba(255,255,255,0.05)',
+                                                    border: avatarPickerOpen ? '2px solid #a78bfa' : '2px solid rgba(255,255,255,0.1)',
+                                                    display: 'flex', alignItems: 'center', gap: '6px', padding: '0 6px',
+                                                    cursor: editing ? 'pointer' : 'default', boxSizing: 'border-box',
+                                                }}
+                                            >
+                                                {form.receptionist_image ? (
+                                                    <img src={form.receptionist_image} alt="" style={{ width: '20px', height: '20px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
+                                                ) : (
+                                                    <span style={{ fontSize: '11px', color: 'rgba(235,235,245,0.3)' }}>未选择</span>
+                                                )}
+                                            </div>
+                                            {avatarPickerOpen && (
+                                                <>
+                                                    <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setAvatarPickerOpen(false)} />
+                                                    <div style={{
+                                                        position: 'absolute', top: '34px', left: 0, zIndex: 200,
+                                                        background: '#2c2c2e', border: '1px solid rgba(255,255,255,0.12)',
+                                                        borderRadius: '12px', padding: '10px',
+                                                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                                                        display: 'grid', gridTemplateColumns: 'repeat(4, 52px)', gap: '6px',
+                                                    }}>
+                                                        {RECEPTIONIST_PRESETS.map(url => (
+                                                            <button
+                                                                key={url}
+                                                                onClick={() => { handleFormChange('receptionist_image', url); setAvatarPickerOpen(false) }}
+                                                                style={{
+                                                                    width: '52px', height: '52px', padding: 0,
+                                                                    border: form.receptionist_image === url ? '2px solid #a78bfa' : '2px solid transparent',
+                                                                    borderRadius: '9px', overflow: 'hidden', cursor: 'pointer',
+                                                                    background: 'rgba(255,255,255,0.05)', outline: 'none',
+                                                                }}
+                                                            >
+                                                                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="group-row" style={{ gap: '10px' }}>
                                         <span className="group-label">{t('office.label_address')}</span>
@@ -559,10 +622,6 @@ export default function OfficePage() {
                                                 </button>
                                             ))}
                                         </div>
-                                    </div>
-                                    <div className="group-row" style={{ gap: '10px' }}>
-                                        <span className="group-label">{t('office.label_receptionist')}</span>
-                                        <input type="text" value={form.receptionist_image ?? ''} onChange={e => handleFormChange('receptionist_image', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder={t('office.placeholder_receptionist')} disabled={!editing} />
                                     </div>
                                     <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
                                         <span className="group-label" style={{ paddingTop: '2px' }}>{t('office.label_notes')}</span>
