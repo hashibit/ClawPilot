@@ -16,3 +16,4 @@ dev.db-shm
 dev.db-wal
 .claude
 .dev-pids
+.dev-ports
