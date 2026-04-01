@@ -382,3 +382,143 @@ pub async fn deploy_to_office(
         "task_id": task_id
     }))
 }
+
+/// Generate openclaw.json config from OPC data
+pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_json::Value> {
+    use crate::utils::crypto::decrypt;
+
+    let conn = pool.get()?;
+
+    // Collect OPC data
+    let opc: (String, String) = conn
+        .query_row(
+            "SELECT name, display_name FROM opc_config WHERE id = ?1",
+            rusqlite::params![opc_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                AppError::NotFound(format!("OPC not found: {}", opc_id))
+            }
+            other => AppError::Database(other),
+        })?;
+
+    let (_opc_name, opc_display_name) = opc;
+
+    // Get agents
+    let agents: Vec<(String, String, Option<String>, Option<String>)> = conn
+        .prepare(
+            "SELECT name, display_name, model, initials FROM agents WHERE opc_id = ?1 ORDER BY order_index",
+        )?
+        .query_map(rusqlite::params![opc_id], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Get channels (FEISHU, etc.)
+    let channels: Vec<(String, Option<String>)> = conn
+        .prepare("SELECT channel_type, feishu_config FROM channels WHERE opc_id = ?1")?
+        .query_map(rusqlite::params![opc_id], |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Get model providers
+    let providers: Vec<(String, String, String, String, i64)> = conn
+        .prepare("SELECT name, api, base_url, api_key, is_enabled FROM model_providers_v2")?
+        .query_map([], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    // Build agents list
+    let agents_list: Vec<serde_json::Value> = agents
+        .iter()
+        .map(|(name, display_name, model, initials)| {
+            let model_str = model.as_deref().unwrap_or("anthropic/claude-opus-4-5");
+            let emoji = initials.as_deref().and_then(|s| s.chars().next()).unwrap_or('?');
+            serde_json::json!({
+                "name": name,
+                "workspace": format!("~/.openclaw/CPOPC/{}/workspace-{}", opc_display_name, display_name),
+                "model": {
+                    "primary": model_str
+                },
+                "identity": {
+                    "name": display_name,
+                    "emoji": emoji.to_string(),
+                },
+            })
+        })
+        .collect();
+
+    // Default model from first enabled provider
+    let first_enabled = providers.iter().find(|p| p.4 == 1);
+    let default_model = first_enabled
+        .map(|p| format!("{}/default", p.0))
+        .unwrap_or_else(|| "anthropic/claude-opus-4-5".to_string());
+
+    // Build channels section
+    let mut channels_section = serde_json::Map::new();
+    for (channel_type, feishu_config_enc) in &channels {
+        if channel_type == "FEISHU" {
+            if let Some(enc_data) = feishu_config_enc {
+                if let Ok(decrypted) = decrypt(enc_data) {
+                    if let Ok(feishu_config) = serde_json::from_str::<serde_json::Value>(&decrypted) {
+                        if let Some(app_id) = feishu_config.get("app_id").and_then(|v| v.as_str()) {
+                            let app_secret = feishu_config.get("app_secret").and_then(|v| v.as_str()).unwrap_or("");
+                            channels_section.insert("feishu".to_string(), serde_json::json!({
+                                "appId": app_id,
+                                "appSecret": {
+                                    "source": "env",
+                                    "id": "FEISHU_APP_SECRET"
+                                },
+                                "rawAppSecret": app_secret, // Also include raw value for convenience
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Build models section
+    let mut providers_section = serde_json::Map::new();
+    for (name, api, base_url, api_key_enc, is_enabled) in &providers {
+        if *is_enabled == 1 {
+            // Decrypt API key
+            let api_key = decrypt(api_key_enc).unwrap_or_default();
+            let env_key = name.to_uppercase().replace(|c: char| !c.is_alphanumeric(), "_");
+            providers_section.insert(
+                name.clone(),
+                serde_json::json!({
+                    "api": api,
+                    "baseUrl": base_url,
+                    "apiKey": {
+                        "source": "env",
+                        "id": format!("{}_API_KEY", env_key)
+                    },
+                    "rawApiKey": api_key, // Also include raw value for convenience
+                }),
+            );
+        }
+    }
+
+    Ok(serde_json::json!({
+        "agents": {
+            "defaults": {
+                "workspace": format!("~/.openclaw/CPOPC/{}", opc_display_name),
+                "model": {
+                    "primary": default_model
+                },
+            },
+            "list": agents_list,
+        },
+        "channels": channels_section,
+        "models": {
+            "providers": providers_section,
+        },
+    }))
+}

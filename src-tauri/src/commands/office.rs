@@ -185,3 +185,27 @@ pub async fn install_openclaw(
         error: Some("OpenClaw 安装功能尚未在 Tauri 版本中实现".into()),
     }
 }
+
+/// Probe local daemon for running daemon on common ports
+#[tauri::command]
+pub async fn probe_local_daemon(
+    pool: State<'_, DbPool>,
+    office_id: Option<String>,
+) -> Result<office_service::ProbeDaemonResult> {
+    Ok(office_service::probe_local_daemon(&pool, office_id.as_deref()).await)
+}
+
+/// Probe remote daemon via SSH
+#[tauri::command]
+pub async fn probe_remote_daemon(
+    pool: State<'_, DbPool>,
+    office_id: String,
+) -> Result<office_service::ProbeDaemonResult> {
+    Ok(office_service::probe_remote_daemon(&pool, &office_id).await)
+}
+
+/// Get the version of local clawpilot-daemon binary
+#[tauri::command]
+pub async fn get_local_daemon_version() -> Result<Option<String>> {
+    office_service::get_local_daemon_version().await
+}

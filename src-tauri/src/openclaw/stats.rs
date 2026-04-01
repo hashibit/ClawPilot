@@ -1,6 +1,6 @@
 /// openclaw/stats.rs
 /// 从数据库日志解析消息统计与增长趋势
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::database::pool::DbPool;

@@ -51,3 +51,12 @@ pub async fn deploy_to_office(
     deployment_service::deploy_to_office(&pool, &opc_id, &office_id).await
 }
 
+/// Generate openclaw.json config from OPC data
+#[tauri::command]
+pub fn generate_openclaw_config(
+    pool: State<'_, DbPool>,
+    opc_id: String,
+) -> Result<serde_json::Value> {
+    deployment_service::generate_openclaw_config(&pool, &opc_id)
+}
+
