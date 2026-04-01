@@ -29,6 +29,17 @@ export function createSnapshotRouter(db) {
   const log = createLogger('snapshot')
   const router = Router()
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'snapshot', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // create_snapshot
   router.post('/create_snapshot', (req, res) => {
     try {
@@ -45,6 +56,7 @@ export function createSnapshotRouter(db) {
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(id, label.trim(), data.opc.name, configData, is_auto ? 1 : 0, now())
 
+      writeLog('INFO', `快照已创建: '${label.trim()}' (opc: ${data.opc.name})`)
       res.json(id)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -218,6 +230,7 @@ export function createSnapshotRouter(db) {
     try {
       const { id } = req.body
       db.prepare('DELETE FROM local_snapshots WHERE id = ?').run(id)
+      writeLog('INFO', `快照已删除: ${id}`)
       res.json(null)
     } catch (err) {
       res.status(500).json({ error: err.message })

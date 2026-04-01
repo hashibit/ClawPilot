@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import { detectProvider, KNOWN_PROVIDERS } from '../known-providers.js'
 import { encrypt, decrypt } from '../utils/crypto.js'
+import { createLogger } from '../logger.js'
 
 const now = () => Math.floor(Date.now() / 1000)
 
@@ -22,7 +23,19 @@ function rowToModel(row) {
 }
 
 export function createModelRouter(db) {
+  const log = createLogger('model')
   const router = Router()
+
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'model', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
 
   // GET /get_providers — 所有 provider 实例
   router.post('/get_providers', (req, res) => {
@@ -58,6 +71,7 @@ export function createModelRouter(db) {
         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
       `).run(id, name, api, base_url, encrypt(api_key ?? ''), is_available ? 1 : 0, last_tested ?? null, n, n)
       const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
+      writeLog('INFO', `模型提供商已创建: ${name}`)
       res.json(rowToProvider(row))
     } catch (err) {
       if (err.message.includes('UNIQUE')) return res.status(409).json({ error: `Provider name "${req.body.name}" already exists` })
@@ -90,6 +104,7 @@ export function createModelRouter(db) {
       const { id } = req.body
       if (!id) return res.status(400).json({ error: 'id required' })
       db.prepare('DELETE FROM model_providers_v2 WHERE id = ?').run(id)
+      writeLog('INFO', `模型提供商已删除: ${id}`)
       res.json(null)
     } catch (err) { res.status(500).json({ error: err.message }) }
   })
@@ -232,14 +247,17 @@ export function createModelRouter(db) {
       const latency_ms = Date.now() - start
       if (r.ok) {
         saveResult(true)
+        writeLog('INFO', `模型提供商连接测试成功: ${base_url} (${latency_ms}ms)`)
         res.json({ ok: true, latency_ms })
       } else {
         saveResult(false)
         const body = await r.text().catch(() => '')
+        writeLog('WARN', `模型提供商连接测试失败: ${base_url}, HTTP ${r.status}`)
         res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: ${body.slice(0, 200)}` })
       }
     } catch (err) {
       saveResult(false)
+      writeLog('WARN', `模型提供商连接测试异常: ${base_url}, ${err.message}`)
       res.json({ ok: false, latency_ms: Date.now() - start, error: err.message })
     }
   })

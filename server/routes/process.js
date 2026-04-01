@@ -78,6 +78,17 @@ export function createProcessRouter(db) {
   const log = createLogger('process')
   const router = Router()
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'process', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // Kick off an immediate probe then schedule every 120s
   probeLocalStatus(db, log)
   setInterval(() => probeLocalStatus(db, log), PROBE_INTERVAL_MS)
@@ -104,10 +115,10 @@ export function createProcessRouter(db) {
         stdio: 'ignore',
       })
       child.unref()
-      log.info('start_openclaw: spawned openclaw gateway start')
+      writeLog('INFO', 'openclaw gateway start 已触发')
       res.json({ ok: true, message: 'started' })
     } catch (err) {
-      log.error(`start_openclaw: ${err.message}`)
+      writeLog('ERROR', `start_openclaw 失败: ${err.message}`)
       res.status(500).json({ ok: false, message: err.message })
     }
   })
@@ -116,10 +127,10 @@ export function createProcessRouter(db) {
   router.post('/stop_openclaw', (_req, res) => {
     try {
       execSync(`${OPENCLAW_BIN} gateway stop`, { timeout: 5000 })
-      log.info('stop_openclaw: openclaw gateway stop succeeded')
+      writeLog('INFO', 'openclaw gateway stop 已执行')
       res.json({ ok: true, message: 'stopped' })
     } catch (err) {
-      log.error(`stop_openclaw: ${err.message}`)
+      writeLog('ERROR', `stop_openclaw 失败: ${err.message}`)
       res.status(500).json({ ok: false, message: err.message })
     }
   })
@@ -128,10 +139,10 @@ export function createProcessRouter(db) {
   router.post('/reload_openclaw', (_req, res) => {
     try {
       execSync(`${OPENCLAW_BIN} gateway restart`, { timeout: 10000 })
-      log.info('reload_openclaw: openclaw gateway restart succeeded')
+      writeLog('INFO', 'openclaw gateway reload 已执行')
       res.json({ ok: true, message: 'reloaded' })
     } catch (err) {
-      log.error(`reload_openclaw: ${err.message}`)
+      writeLog('ERROR', `reload_openclaw 失败: ${err.message}`)
       res.status(500).json({ ok: false, message: err.message })
     }
   })
@@ -149,10 +160,10 @@ export function createProcessRouter(db) {
         signal: AbortSignal.timeout(15000),
       })
       const data = await r.json()
-      log.info(`restart_openclaw: daemon responded ok=${data.ok}`)
+      writeLog(data.ok ? 'INFO' : 'WARN', `openclaw gateway restart: daemon responded ok=${data.ok}`)
       res.json(data)
     } catch (err) {
-      log.error(`restart_openclaw: ${err.message}`)
+      writeLog('ERROR', `restart_openclaw 失败: ${err.message}`)
       res.status(500).json({ ok: false, message: err.message })
     }
   })

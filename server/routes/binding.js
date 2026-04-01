@@ -15,6 +15,17 @@ export function createBindingRouter(db) {
   const log = createLogger('binding')
   const router = Router()
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'binding', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // get_bindings
   router.post('/get_bindings', (req, res) => {
     try {
@@ -61,6 +72,7 @@ export function createBindingRouter(db) {
         binding.is_enabled ? 1 : 0,
         binding.created_at ?? now(), binding.updated_at ?? now()
       )
+      writeLog('INFO', `绑定已创建: ${binding.agent_name} ↔ ${binding.channel_name} (${binding.channel_type})`)
       res.json(binding.id)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -92,6 +104,7 @@ export function createBindingRouter(db) {
     try {
       const { id } = req.body
       db.prepare('DELETE FROM bindings WHERE id = ?').run(id)
+      writeLog('INFO', `绑定已删除: ${id}`)
       res.json(null)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -105,6 +118,7 @@ export function createBindingRouter(db) {
       db.prepare('UPDATE bindings SET is_enabled = ?, updated_at = ? WHERE id = ?').run(
         is_enabled ? 1 : 0, now(), id
       )
+      writeLog('INFO', `绑定已${is_enabled ? '启用' : '停用'}: ${id}`)
       res.json(null)
     } catch (err) {
       res.status(500).json({ error: err.message })
