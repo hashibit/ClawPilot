@@ -33,6 +33,17 @@ export function createSkillRouter(db) {
   const log = createLogger('skill')
   const router = Router()
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'skill', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // get_skills
   router.post('/get_skills', (_req, res) => {
     try {
@@ -63,6 +74,7 @@ export function createSkillRouter(db) {
         slug,
         ts,
       )
+      writeLog('INFO', `技能已创建: ${skill.name}`)
       res.json(result.lastInsertRowid)
     } catch (err) {
       if (err.message.includes('UNIQUE')) return res.status(400).json({ error: '技能名称已存在' })
@@ -79,6 +91,7 @@ export function createSkillRouter(db) {
         fs.rmSync(row.install_path, { recursive: true, force: true })
       }
       db.prepare('DELETE FROM skills WHERE id = ? AND is_local = 1').run(Number(id))
+      writeLog('INFO', `技能已删除: id=${id}`)
       res.json({ ok: true })
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -207,11 +220,11 @@ export function createSkillRouter(db) {
         `).run(slug, slug, slug, skillDir, ts, ts)
       }
 
-      log.info(`install_skill: OK → ${skillDir}`)
+      writeLog('INFO', `技能已安装: ${slug} → ${skillDir}`)
       const updated = rowToSkill(db.prepare('SELECT * FROM skills WHERE slug = ?').get(slug))
       res.json(updated)
     } catch (err) {
-      log.error(`install_skill: ${err.message}`)
+      writeLog('ERROR', `技能安装失败: ${slug}, ${err.message}`)
       res.status(500).json({ error: err.message })
     }
   })
@@ -234,7 +247,7 @@ export function createSkillRouter(db) {
           .run(slug)
       }
 
-      log.info(`uninstall_skill: ${slug}`)
+      writeLog('INFO', `技能已卸载: ${slug}`)
       res.json({ ok: true })
     } catch (err) {
       log.error(`uninstall_skill: ${err.message}`)

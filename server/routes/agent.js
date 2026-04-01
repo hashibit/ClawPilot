@@ -45,6 +45,17 @@ export function createAgentRouter(db) {
   const log = createLogger('agent')
   const router = Router()
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'agent', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // get_agents
   router.post('/get_agents', (req, res) => {
     try {
@@ -93,6 +104,7 @@ export function createAgentRouter(db) {
         toJsonStr(config.reports_to), toJsonStr(config.manages),
         config.created_at ?? now(), config.updated_at ?? now()
       )
+      writeLog('INFO', `Agent 已创建: ${config.name} (${config.id}) in opc ${config.opc_id}`)
       res.json(config.id)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -135,6 +147,7 @@ export function createAgentRouter(db) {
       const agent = db.prepare('SELECT opc_id, is_default FROM agents WHERE id = ?').get(id)
       db.prepare('DELETE FROM bindings WHERE agent_id = ?').run(id)
       db.prepare('DELETE FROM agents WHERE id = ?').run(id)
+      writeLog('INFO', `Agent 已删除: ${id}`)
       // If deleted agent was the leader, promote the one with lowest order_index
       if (agent?.is_default) {
         const now = Math.floor(Date.now() / 1000)

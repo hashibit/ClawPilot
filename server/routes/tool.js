@@ -1,9 +1,22 @@
 import { Router } from 'express'
+import { createLogger } from '../logger.js'
 
 const now = () => Math.floor(Date.now() / 1000)
 
 export function createToolRouter(db) {
+  const log = createLogger('tool')
   const router = Router()
+
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'tool', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
 
   // get_tools
   router.post('/get_tools', (_req, res) => {
@@ -33,6 +46,7 @@ export function createToolRouter(db) {
         tool.category?.trim() ?? 'general',
         ts,
       )
+      writeLog('INFO', `工具已创建: ${tool.name}`)
       res.json(result.lastInsertRowid)
     } catch (err) {
       if (err.message.includes('UNIQUE')) return res.status(400).json({ error: '工具名称已存在' })
@@ -45,6 +59,7 @@ export function createToolRouter(db) {
     try {
       const { id } = req.body
       db.prepare('DELETE FROM tools WHERE id = ? AND is_local = 1').run(Number(id))
+      writeLog('INFO', `工具已删除: id=${id}`)
       res.json({ ok: true })
     } catch (err) {
       res.status(500).json({ error: err.message })

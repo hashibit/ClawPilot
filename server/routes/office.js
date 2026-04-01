@@ -68,6 +68,17 @@ export function createOfficeRouter(db) {
   const router = Router()
   const now = () => Math.floor(Date.now() / 1000)
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'office', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // get_offices
   router.post('/get_offices', (req, res) => {
     try {
@@ -124,6 +135,7 @@ export function createOfficeRouter(db) {
         office.daemon_url ?? null, encrypt(office.daemon_api_key ?? null),
         office.created_at ?? now(), office.updated_at ?? now()
       )
+      writeLog('INFO', `办公室已创建: ${office.name} (${office.id})`)
       res.json(office.id)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -166,6 +178,7 @@ export function createOfficeRouter(db) {
       const { id } = req.body
       db.prepare('UPDATE opc_config SET office_id = NULL WHERE office_id = ?').run(id)
       db.prepare('DELETE FROM offices WHERE id = ?').run(id)
+      writeLog('INFO', `办公室已删除: ${id}`)
       res.json(null)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -179,6 +192,7 @@ export function createOfficeRouter(db) {
       db.prepare('UPDATE opc_config SET office_id = ? WHERE id = ?').run(
         office_id ?? null, opc_id
       )
+      writeLog('INFO', `OPC ${opc_id} 分配到办公室 ${office_id ?? '(无)'}`)
       res.json(null)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -346,6 +360,7 @@ export function createOfficeRouter(db) {
             .run(daemonUrl, encrypt(apiKey), now(), office_id)
           step('💾 配置已自动保存')
         }
+        writeLog('INFO', `daemon 安装完成 (local): ${daemonUrl}`)
         return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs })
 
       } else if (mode === 'ssh') {
@@ -395,13 +410,14 @@ export function createOfficeRouter(db) {
             .run(daemonUrl, encrypt(apiKey), now(), office_id)
           step('💾 配置已自动保存')
         }
+        writeLog('INFO', `daemon 安装完成 (ssh): ${daemonUrl}`)
         return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey, logs })
       }
 
       res.json({ ok: false, error: '未知安装模式', logs })
     } catch (err) {
       step(`❌ ${err.message}`)
-      log.error(`install_daemon failed: ${err.message}`)
+      writeLog('ERROR', `install_daemon 失败: ${err.message}`)
       res.json({ ok: false, error: err.message, logs })
     }
   })
@@ -463,6 +479,7 @@ export function createOfficeRouter(db) {
           return res.json({ ok: false, error: err.message, logs })
         }
 
+        writeLog('INFO', 'openclaw 安装完成 (local)')
         return res.json({ ok: true, logs })
 
       } else if (mode === 'ssh') {
@@ -524,12 +541,14 @@ export function createOfficeRouter(db) {
           return res.json({ ok: false, error: err.message, logs })
         }
 
+        writeLog('INFO', `openclaw 安装完成 (ssh): ${ssh_host}`)
         return res.json({ ok: true, logs })
       }
 
       res.json({ ok: false, error: '未知安装模式', logs })
     } catch (err) {
       lg(`❌ ${err.message}`)
+      writeLog('ERROR', `install_openclaw 失败: ${err.message}`)
       res.json({ ok: false, error: err.message, logs })
     }
   })

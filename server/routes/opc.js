@@ -18,6 +18,17 @@ export function createOpcRouter(db) {
   const log = createLogger('opc')
   const router = Router()
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'opc', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // get_all_opcs
   router.post('/get_all_opcs', (req, res) => {
     try {
@@ -75,6 +86,7 @@ export function createOpcRouter(db) {
         config.dm_count ?? 0, config.message_count_today ?? 0, config.message_growth ?? 0.0,
         config.created_at ?? now(), config.updated_at ?? now()
       )
+      writeLog('INFO', `OPC 已创建: ${config.name} (${config.id})`)
       res.json(config.id)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -110,6 +122,7 @@ export function createOpcRouter(db) {
     try {
       const { id } = req.body
       db.prepare('DELETE FROM opc_config WHERE id = ?').run(id)
+      writeLog('INFO', `OPC 已删除: ${id}`)
       res.json(null)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -127,6 +140,7 @@ export function createOpcRouter(db) {
         db.prepare('UPDATE opc_config SET is_active = 1 WHERE id = ?').run(id)
         db.prepare('UPDATE openclaw_config SET current_opc = ?, last_updated = ? WHERE id = 1').run(row.name, now())
       })()
+      writeLog('INFO', `当前 OPC 切换为: ${row.name} (${id})`)
       res.json({ ok: true })
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -198,6 +212,7 @@ export function createOpcRouter(db) {
       }
       const channels = db.prepare('SELECT * FROM channels WHERE opc_id = ?').all(opc_id)
       const bindings = db.prepare('SELECT * FROM bindings WHERE opc_id = ?').all(opc_id)
+      writeLog('INFO', `OPC 已导出: ${opc.name} (${opc_id})`)
       res.json(JSON.stringify({ opc, agents, agent_documents: agentDocs, channels, bindings }))
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -278,6 +293,7 @@ export function createOpcRouter(db) {
       })
 
       insertOpc()
+      writeLog('INFO', `OPC 已导入: ${opc.name} (${opc.id}), agents=${agents.length}`)
       res.json(opc.id)
     } catch (err) {
       res.status(500).json({ error: err.message })

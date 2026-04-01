@@ -38,6 +38,17 @@ export function createChannelRouter(db) {
   const log = createLogger('channel')
   const router = Router()
 
+  function writeLog(level, message) {
+    try {
+      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
+        .run(Math.floor(Date.now() / 1000), level, 'channel', message)
+    } catch (_) {}
+    const lvl = level.toLowerCase()
+    if (lvl === 'error') log.error(message)
+    else if (lvl === 'warn') log.warn(message)
+    else log.info(message)
+  }
+
   // get_channels
   router.post('/get_channels', (req, res) => {
     try {
@@ -85,6 +96,7 @@ export function createChannelRouter(db) {
           config.is_connected ? 1 : 0, config.last_connected ?? null,
           now(), Number(config.id)
         )
+        writeLog('INFO', `渠道已更新: ${config.channel_type} (${config.id})`)
         res.json(Number(config.id))
       } else {
         const result = db.prepare(`
@@ -99,6 +111,7 @@ export function createChannelRouter(db) {
           config.is_connected ? 1 : 0, config.last_connected ?? null,
           now(), now()
         )
+        writeLog('INFO', `渠道已创建: ${config.channel_type}`)
         res.json(Number(result.lastInsertRowid))
       }
     } catch (err) {
@@ -112,6 +125,7 @@ export function createChannelRouter(db) {
       const { id } = req.body
       db.prepare('DELETE FROM bindings WHERE channel_id = ?').run(Number(id))
       db.prepare('DELETE FROM channels WHERE id = ?').run(Number(id))
+      writeLog('INFO', `渠道已删除: ${id}`)
       res.json(null)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -134,10 +148,11 @@ export function createChannelRouter(db) {
       const data = await response.json()
       // code === 0 表示成功，有 app_access_token
       const ok = data.code === 0 && !!data.app_access_token
-      log.info(`test_feishu_connection: app_id=${app_id} code=${data.code} ok=${ok}`)
+      if (!ok) writeLog('WARN', `飞书连接测试失败: app_id=${app_id}, code=${data.code}`)
+      else writeLog('INFO', `飞书连接测试成功: app_id=${app_id}`)
       res.json(ok)
     } catch (err) {
-      log.warn(`test_feishu_connection: ${err.message}`)
+      writeLog('WARN', `飞书连接测试异常: app_id=${app_id}, ${err.message}`)
       res.json(false)
     }
   })
