@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { LANGUAGES, setLanguage, isRtl } from '../i18n'
+import { Icon } from '../components/Icon'
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation()
@@ -61,9 +62,7 @@ export default function SettingsPage() {
                   </div>
                   {active && (
                     <div style={{ flexShrink: 0 }}>
-                      <svg width="14" height="14" fill="none" stroke="#a78bfa" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
+                      <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />
                     </div>
                   )}
                 </button>
@@ -78,9 +77,7 @@ export default function SettingsPage() {
               background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)',
               fontSize: '11px', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '6px',
             }}>
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <Icon name="info" size={12} />
               RTL layout active — text flows right to left
             </div>
           )}
@@ -101,13 +98,9 @@ export default function SettingsPage() {
             background: 'rgba(139,92,246,0.15)',
             width: 'fit-content',
           }}>
-            <svg width="16" height="16" fill="none" stroke="#a78bfa" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-            </svg>
+            <Icon name="moon" size={16} stroke="#a78bfa" strokeWidth={2} />
             <span style={{ fontSize: '13px', color: '#a78bfa', fontWeight: 500 }}>{t('settings.dark')}</span>
-            <svg width="14" height="14" fill="none" stroke="#a78bfa" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+            <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />
           </div>
         </section>
 
@@ -123,9 +116,7 @@ export default function SettingsPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <div className="logo-box">
-                <svg width="13" height="13" fill="none" stroke="white" strokeWidth="2.2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+                <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
               </div>
               <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>ClawPilot</span>
             </div>

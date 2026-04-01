@@ -5,6 +5,7 @@ import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats, createSnapshot
 import { toast } from '../components/Toast'
 import type { OpcConfig, OpcStats } from '../lib/types'
 import type { LocalSnapshot } from '../lib/types'
+import { Icon } from '../components/Icon'
 
 function fmtRelTime(ts: number, t: (key: string, opts?: any) => string) {
   const diff = Math.floor((Date.now() / 1000 - ts))
@@ -334,7 +335,7 @@ export default function OpcPage() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button className="tbtn tbtn-ghost" onClick={() => handleExport(selected)}>
-                  <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="12" height="12" style={{ display: 'inline', marginRight: '4px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  <Icon name="download" size={12} style={{ display: 'inline', marginRight: '4px' }} />
                   {t('common.button_export')}
                 </button>
                 <button className="tbtn tbtn-danger" onClick={() => handleDelete(selected)}>{t('common.button_delete')}</button>
@@ -446,9 +447,7 @@ export default function OpcPage() {
                     {snapshots.map(snap => (
                       <div key={snap.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '4px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                         <div style={{ flexShrink: 0 }}>
-                          <svg fill="none" stroke={snap.is_auto ? '#f59e0b' : '#8b5cf6'} strokeWidth="1.75" viewBox="0 0 24 24" width="15" height="15">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
-                          </svg>
+                          <Icon name="folder" size={15} stroke={snap.is_auto ? '#f59e0b' : '#8b5cf6'} strokeWidth={1.75} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

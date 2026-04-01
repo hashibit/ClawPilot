@@ -4,6 +4,7 @@ import { getAllOpcs, getOffices, startDeployment, getDeploymentStatus, cancelDep
 import { useApi } from '../hooks/useApi'
 import { toast } from '../components/Toast'
 import type { OpcConfig, Office, DeploymentTask } from '../lib/types'
+import { Icon } from '../components/Icon'
 
 const DEPLOY_STEPS = ['prepare_config', 'write_dir', 'reload_process', 'health_check']
 
@@ -231,15 +232,13 @@ export default function DeployPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
                       <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: colorMap.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {status === 'running' ? (
-                          <svg fill="none" stroke={colorMap.stroke} strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" style={{ animation: 'spin 1s linear infinite' }}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                          </svg>
+                          <Icon name="loading" size={12} stroke={colorMap.stroke} strokeWidth={2.5} spin />
                         ) : status === 'failed' ? (
-                          <svg fill="none" stroke={colorMap.stroke} strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                          <Icon name="x" size={12} stroke={colorMap.stroke} strokeWidth={2.5} />
                         ) : status === 'done' ? (
-                          <svg fill="none" stroke={colorMap.stroke} strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                          <Icon name="check" size={12} stroke={colorMap.stroke} strokeWidth={2.5} />
                         ) : (
-                          <svg fill="none" stroke={colorMap.stroke} strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12"><circle cx="12" cy="12" r="4"/></svg>
+                          <Icon name="circle" size={12} stroke={colorMap.stroke} strokeWidth={2.5} />
                         )}
                       </div>
                       <div>
