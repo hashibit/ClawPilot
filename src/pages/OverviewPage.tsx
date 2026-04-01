@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
 import { getOpcStats } from '../lib/api'
 import type { OpcStats } from '../lib/types'
+import { Icon } from '../components/Icon'
 
 function formatUptime(sec: number | null, lang: string): string {
   if (sec === null) return '—'
@@ -60,7 +61,7 @@ export default function OverviewPage() {
             <div className="stat-value">{opcs.length}</div>
             <div className="stat-label">{t('overview.companies')}</div>
             <div className="stat-change neutral">
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14"/></svg>
+              <Icon name="minus" size={12} />
               {t('overview.noChange')}
             </div>
           </div>
@@ -68,7 +69,7 @@ export default function OverviewPage() {
             <div className="stat-value">{totals.agents}</div>
             <div className="stat-label">{t('overview.agents')}</div>
             <div className="stat-change up">
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+              <Icon name="arrow-up" size={12} />
               {t('overview.realtime')}
             </div>
           </div>
@@ -76,7 +77,7 @@ export default function OverviewPage() {
             <div className="stat-value">{totals.channels}</div>
             <div className="stat-label">{t('overview.channels')}</div>
             <div className="stat-change up">
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+              <Icon name="arrow-up" size={12} />
               {t('overview.realtime')}
             </div>
           </div>
@@ -84,7 +85,7 @@ export default function OverviewPage() {
             <div className="stat-value">{totals.messages.toLocaleString()}</div>
             <div className="stat-label">{t('overview.todayMessages')}</div>
             <div className={`stat-change ${totals.growth >= 0 ? 'up' : 'down'}`}>
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={totals.growth >= 0 ? "M5 10l7-7m0 0l7 7m-7-7v18" : "M5 14l7 7m0 0l7-7m-7 7V3"}/></svg>
+              <Icon name={totals.growth >= 0 ? 'arrow-up' : 'arrow-down'} size={12} />
               {growthSign}{totals.growth.toFixed(1)}% {t('overview.vsYesterday')}
             </div>
           </div>

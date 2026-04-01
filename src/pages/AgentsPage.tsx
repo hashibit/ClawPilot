@@ -8,6 +8,7 @@ import {
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType, ModelInfo, OpcConfig } from '../lib/types'
+import { Icon } from '../components/Icon'
 
 const AGENT_COLORS: string[] = [
     '#8b5cf6', '#f97316', '#ec4899', '#10b981', '#3b82f6', '#ef4444', '#a855f7', '#14b8a6',
@@ -746,7 +747,7 @@ export default function AgentsPage() {
                         </div>
                         {aiGenerating ? (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '20px 0', color: '#a78bfa', fontSize: '13px' }}>
-                                <svg style={{ animation: 'spin 1s linear infinite' }} width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                <Icon name="loading" size={18} spin />
                                 {t('agents.generating')}
                             </div>
                         ) : (
@@ -793,7 +794,7 @@ export default function AgentsPage() {
                                             onKeyDown={e => { if (e.key === 'Enter' && i === batchPrompts.length - 1 && !batchRunning) setBatchPrompts(prev => [...prev, '']) }}
                                         />
                                         {status === 'generating' && (
-                                            <svg style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} width="14" height="14" fill="none" stroke="#a78bfa" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                            <Icon name="loading" size={14} stroke="#a78bfa" strokeWidth={2} spin />
                                         )}
                                         {status === 'done' && <span style={{ color: '#34c759', fontSize: '14px', flexShrink: 0 }}>✓</span>}
                                         {status === 'error' && <span style={{ color: '#f43f5e', fontSize: '14px', flexShrink: 0 }}>✗</span>}
@@ -916,7 +917,7 @@ export default function AgentsPage() {
                                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed rgba(255,255,255,0.15)', transition: 'all 0.15s' }}
                                 >
                                     <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <svg fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                        <Icon name="plus" size={16} stroke="rgba(255,255,255,0.4)" strokeWidth={2} />
                                     </div>
                                     <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>添加智能体</span>
                                 </div>
@@ -925,7 +926,7 @@ export default function AgentsPage() {
                                     style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed rgba(139,92,246,0.3)', transition: 'all 0.15s' }}
                                 >
                                     <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <svg fill="none" stroke="rgba(139,92,246,0.6)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                        <Icon name="bolt" size={16} stroke="rgba(139,92,246,0.6)" strokeWidth={2} />
                                     </div>
                                     <span style={{ fontSize: '10px', color: 'rgba(139,92,246,0.9)' }}>批量添加</span>
                                 </div>
@@ -952,7 +953,7 @@ export default function AgentsPage() {
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         {editing && <button className="tbtn tbtn-ghost" style={{ color: '#a78bfa' }} disabled={aiGenerating} onClick={() => { setAiPrompt(''); setAiModalOpen(true) }}>
-                                            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" style={{ display: 'inline', marginRight: '4px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                            <Icon name="bolt" size={11} strokeWidth={2.2} style={{ display: 'inline', marginRight: '4px' }} />
                                             {aiGenerating ? t('agents.generating') : t('agents.ai_quick_gen')}
                                         </button>}
                                         <button className="tbtn tbtn-ghost" style={{ color: '#06b6d4' }} onClick={async () => {
@@ -1042,7 +1043,7 @@ export default function AgentsPage() {
                                                                 </optgroup>
                                                             ))}
                                                         </select>
-                                                        <svg style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#8E8E93' }} width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                                        <Icon name="chevron-down" size={10} stroke="#8E8E93" strokeWidth={2} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                                                     </div>
                                                 ) : (
                                                     <span className="group-value">{selectedModel || t('agents.model_none')}</span>
@@ -1110,7 +1111,7 @@ export default function AgentsPage() {
                                                 style={{ padding: '1px 8px', fontSize: '11px' }}
                                                 onClick={() => setSkillModalOpen(true)}
                                             >
-                                                <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="10" height="10" style={{ display: 'inline', marginRight: '3px' }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                                <Icon name="plus" size={10} strokeWidth={1.75} style={{ display: 'inline', marginRight: '3px' }} />
                                                 {t('common.button_add')}
                                             </button>}
                                         </div>

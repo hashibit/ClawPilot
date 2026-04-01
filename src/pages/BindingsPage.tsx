@@ -9,6 +9,7 @@ import {
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { ChannelConfig, BindingRule, AgentConfig } from '../lib/types'
+import { Icon } from '../components/Icon'
 
 export default function BindingsPage() {
     const { t } = useTranslation()
@@ -208,7 +209,7 @@ export default function BindingsPage() {
                                                     </div>
                                                     <div className="text-xs text-dim">{opc.agent_count} {t('bindings.agents_count')} · {opc.channel_count} {t('bindings.groups_count')}</div>
                                                 </div>
-                                                <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: currentOpc?.id === opc.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                                                <Icon name="chevron-right" size={14} style={{ color: currentOpc?.id === opc.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)' }} />
                                             </div>
                                         ))}
                                     </>
@@ -233,7 +234,7 @@ export default function BindingsPage() {
                                                     </div>
                                                     <div className="text-xs text-dim">{opc.agent_count} {t('bindings.agents_count')} · {opc.channel_count} {t('bindings.groups_count')}</div>
                                                 </div>
-                                                <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: 'rgba(255,255,255,0.3)' }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                                                <Icon name="chevron-right" size={14} style={{ color: 'rgba(255,255,255,0.3)' }} />
                                             </div>
                                         ))}
                                     </>
@@ -311,7 +312,7 @@ export default function BindingsPage() {
                                                 }}
                                             >
                                                 <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: '#a78bfa' }}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                    <Icon name="users" size={14} stroke="#a78bfa" strokeWidth={1.75} />
                                                 </div>
                                                 <div style={{ flex: 1, minWidth: 0 }}>
                                                     <div className="text-xs text-medium">{binding.channel_name || '（未命名群组）'}</div>
@@ -319,7 +320,7 @@ export default function BindingsPage() {
                                                         {binding.is_enabled ? t('bindings.status_bound') : t('bindings.status_disabled')} · {binding.agent_name || t('bindings.no_agent')}
                                                     </div>
                                                 </div>
-                                                <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: selectedBinding?.id === binding.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)', flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                                                <Icon name="chevron-right" size={14} style={{ color: selectedBinding?.id === binding.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
                                             </div>
                                         ))}
                                         {isNewBinding && selectedBinding && (
@@ -328,7 +329,7 @@ export default function BindingsPage() {
                                                 style={{ background: 'rgba(139,92,246,0.15)', cursor: 'default' }}
                                             >
                                                 <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="14" height="14" style={{ color: '#a78bfa' }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                                    <Icon name="plus" size={14} stroke="#a78bfa" strokeWidth={1.75} />
                                                 </div>
                                                 <div style={{ flex: 1, minWidth: 0 }}>
                                                     <div className="text-xs text-medium">{bindingForm.channel_name || t('bindings.new_group')}</div>
