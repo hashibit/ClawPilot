@@ -22,7 +22,7 @@ export function createBindingRouter(db) {
       const rows = db.prepare('SELECT * FROM bindings WHERE opc_id = ? ORDER BY created_at').all(opc_id)
       res.json(rows.map(rowToBinding))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -34,7 +34,7 @@ export function createBindingRouter(db) {
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToBinding(row))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -63,7 +63,7 @@ export function createBindingRouter(db) {
       )
       res.json(binding.id)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -83,7 +83,7 @@ export function createBindingRouter(db) {
       )
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -94,7 +94,7 @@ export function createBindingRouter(db) {
       db.prepare('DELETE FROM bindings WHERE id = ?').run(id)
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -107,7 +107,7 @@ export function createBindingRouter(db) {
       )
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

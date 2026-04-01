@@ -30,7 +30,7 @@ export function createLogRouter(db) {
 
       res.json(rows)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -44,7 +44,7 @@ export function createLogRouter(db) {
       `).run(now(), level, component ?? null, message, agent_id ?? null, channel ?? null)
       res.json(Number(result.lastInsertRowid))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

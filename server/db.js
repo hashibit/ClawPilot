@@ -160,14 +160,20 @@ export function applySchema(db) {
   `)
 }
 
+// ── Migration helper ───────────────────────────────────────
+// Silently skips "column already exists" (idempotent migrations),
+// but throws on any real database error so failures are visible.
+function safeAddColumn(db, table, colDef) {
+  const colName = colDef.trim().split(/\s+/)[0]
+  const cols = db.prepare(`PRAGMA table_info("${table}")`).all()
+  if (cols.some(c => c.name === colName)) return
+  db.exec(`ALTER TABLE "${table}" ADD COLUMN ${colDef}`)
+}
+
 export function runMigrations(db) {
   // Migrations for model_providers
-  const migrations1 = [
-    'base_url TEXT NOT NULL DEFAULT \'\'',
-    'is_coding_plan INTEGER NOT NULL DEFAULT 0'
-  ]
-  migrations1.forEach(col => {
-    try { db.exec(`ALTER TABLE model_providers ADD COLUMN ${col}`) } catch {}
+  ;['base_url TEXT NOT NULL DEFAULT \'\'', 'is_coding_plan INTEGER NOT NULL DEFAULT 0'].forEach(col => {
+    safeAddColumn(db, 'model_providers', col)
   })
 
   // Tools & Skills tables
@@ -195,7 +201,7 @@ export function runMigrations(db) {
 
   // Multi-channel support
   ;['dingtalk_config TEXT', 'slack_config TEXT'].forEach(col => {
-    try { db.exec(`ALTER TABLE channels ADD COLUMN ${col}`) } catch {}
+    safeAddColumn(db, 'channels', col)
   })
 
   // Office table
@@ -218,7 +224,7 @@ export function runMigrations(db) {
   `)
 
   // Add office_id to opc_config
-  try { db.exec('ALTER TABLE opc_config ADD COLUMN office_id TEXT') } catch {}
+  safeAddColumn(db, 'opc_config', 'office_id TEXT')
 
   // Office deployment history
   db.exec(`CREATE TABLE IF NOT EXISTS office_deployments (
@@ -233,36 +239,25 @@ export function runMigrations(db) {
   );`)
 
   // Add opc_id/office_id to deployment_tasks
-  try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN opc_id TEXT') } catch {}
-  try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN office_id TEXT') } catch {}
-  try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN daemon_task_id TEXT') } catch {}
-  try { db.exec('ALTER TABLE deployment_tasks ADD COLUMN updated_at INTEGER') } catch {}
+  ;['opc_id TEXT', 'office_id TEXT', 'daemon_task_id TEXT', 'updated_at INTEGER'].forEach(col => {
+    safeAddColumn(db, 'deployment_tasks', col)
+  })
 
   // Daemon fields for offices
-  try { db.exec('ALTER TABLE offices ADD COLUMN daemon_url TEXT') } catch {}
-  try { db.exec('ALTER TABLE offices ADD COLUMN daemon_api_key TEXT') } catch {}
-  // Remote access credential fields
-  try { db.exec("ALTER TABLE offices ADD COLUMN access_auth_type TEXT DEFAULT 'password'") } catch {}
-  try { db.exec('ALTER TABLE offices ADD COLUMN access_user TEXT') } catch {}
-  try { db.exec('ALTER TABLE offices ADD COLUMN access_password TEXT') } catch {}
-  try { db.exec('ALTER TABLE offices ADD COLUMN ssh_key_path TEXT') } catch {}
-  try { db.exec('ALTER TABLE offices ADD COLUMN initial_openclaw_config TEXT') } catch {}
+  ;[
+    'daemon_url TEXT', 'daemon_api_key TEXT',
+    "access_auth_type TEXT DEFAULT 'password'",
+    'access_user TEXT', 'access_password TEXT', 'ssh_key_path TEXT',
+    'initial_openclaw_config TEXT',
+  ].forEach(col => safeAddColumn(db, 'offices', col))
 
   // Skills table extended fields
-  ;[
-    'slug TEXT',
-    'author TEXT',
-    'version TEXT',
-    'url TEXT',
-    'download_url TEXT',
-    'tags TEXT',
-    'installed_at INTEGER',
-    'is_installed INTEGER NOT NULL DEFAULT 0',
-    'install_path TEXT',
-  ].forEach(col => { try { db.exec(`ALTER TABLE skills ADD COLUMN ${col}`) } catch {} })
+  ;['slug TEXT', 'author TEXT', 'version TEXT', 'url TEXT', 'download_url TEXT',
+    'tags TEXT', 'installed_at INTEGER', 'is_installed INTEGER NOT NULL DEFAULT 0', 'install_path TEXT',
+  ].forEach(col => safeAddColumn(db, 'skills', col))
 
   // Migration: add model field to agents table (replaces model_provider + model_name)
-  try { db.exec(`ALTER TABLE agents ADD COLUMN model TEXT`) } catch {}
+  safeAddColumn(db, 'agents', 'model TEXT')
 
   // Migration: rebuild model_providers with new schema (name-based, not provider_type-based)
   // 新表用 _v2 后缀先建，再重命名
@@ -300,6 +295,20 @@ export function runMigrations(db) {
       UNIQUE(provider_name, model_id),
       FOREIGN KEY (provider_name) REFERENCES model_providers_v2(name) ON DELETE CASCADE
     );
+  `)
+
+  // Indexes for high-frequency foreign key lookups
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_agents_opc_id           ON agents(opc_id);
+    CREATE INDEX IF NOT EXISTS idx_channels_opc_id         ON channels(opc_id);
+    CREATE INDEX IF NOT EXISTS idx_bindings_opc_id         ON bindings(opc_id);
+    CREATE INDEX IF NOT EXISTS idx_bindings_agent_id       ON bindings(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_agent_documents_agent   ON agent_documents(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_office_deployments_opc  ON office_deployments(opc_id);
+    CREATE INDEX IF NOT EXISTS idx_office_deployments_off  ON office_deployments(office_id);
+    CREATE INDEX IF NOT EXISTS idx_deployment_tasks_opc    ON deployment_tasks(opc_id);
+    CREATE INDEX IF NOT EXISTS idx_log_entries_timestamp   ON log_entries(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_model_info_provider     ON model_info_v2(provider_name);
   `)
 }
 

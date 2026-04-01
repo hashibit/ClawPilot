@@ -1,7 +1,19 @@
 import { Router } from 'express'
 import { createLogger } from '../logger.js'
+import { encrypt, decrypt } from '../utils/crypto.js'
 
 const now = () => Math.floor(Date.now() / 1000)
+
+function safeDecryptJson(v) {
+  if (!v) return null
+  try {
+    const plain = decrypt(v)
+    return JSON.parse(plain)
+  } catch {
+    // Fallback for unencrypted legacy rows
+    try { return JSON.parse(v) } catch { return null }
+  }
+}
 
 function rowToChannel(row) {
   if (!row) return null
@@ -10,15 +22,16 @@ function rowToChannel(row) {
     id: String(row.id),
     is_enabled: row.is_enabled === 1,
     is_connected: row.is_connected === 1,
-    feishu_config: row.feishu_config ? JSON.parse(row.feishu_config) : null,
-    dingtalk_config: row.dingtalk_config ? JSON.parse(row.dingtalk_config) : null,
-    slack_config: row.slack_config ? JSON.parse(row.slack_config) : null,
+    feishu_config: safeDecryptJson(row.feishu_config),
+    dingtalk_config: safeDecryptJson(row.dingtalk_config),
+    slack_config: safeDecryptJson(row.slack_config),
   }
 }
 
-function toJsonStr(v) {
+function toEncryptedJsonStr(v) {
   if (!v) return null
-  return typeof v === 'string' ? v : JSON.stringify(v)
+  const str = typeof v === 'string' ? v : JSON.stringify(v)
+  return encrypt(str)
 }
 
 export function createChannelRouter(db) {
@@ -32,7 +45,7 @@ export function createChannelRouter(db) {
       const rows = db.prepare('SELECT * FROM channels WHERE opc_id = ? ORDER BY id').all(opc_id)
       res.json(rows.map(rowToChannel))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -44,7 +57,7 @@ export function createChannelRouter(db) {
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToChannel(row))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -52,9 +65,9 @@ export function createChannelRouter(db) {
   router.post('/upsert_channel', (req, res) => {
     try {
       const { config } = req.body
-      const feishuStr = toJsonStr(config.feishu_config)
-      const dingtalkStr = toJsonStr(config.dingtalk_config)
-      const slackStr = toJsonStr(config.slack_config)
+      const feishuStr = toEncryptedJsonStr(config.feishu_config)
+      const dingtalkStr = toEncryptedJsonStr(config.dingtalk_config)
+      const slackStr = toEncryptedJsonStr(config.slack_config)
 
       const hasId = config.id && String(config.id) !== '0'
 
@@ -89,7 +102,7 @@ export function createChannelRouter(db) {
         res.json(Number(result.lastInsertRowid))
       }
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -101,7 +114,7 @@ export function createChannelRouter(db) {
       db.prepare('DELETE FROM channels WHERE id = ?').run(Number(id))
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -112,7 +125,7 @@ export function createChannelRouter(db) {
       const ok = !!(app_id && app_secret && app_id.length > 0 && app_secret.length > 0)
       res.json(ok)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

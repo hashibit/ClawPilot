@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useApi } from '../hooks/useApi'
 import {
   getProviders,
   createProvider,
@@ -244,16 +245,18 @@ export default function ProvidersPage() {
   const [nameTouched, setNameTouched] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
 
-  const loadProviders = async (selectFirst = false) => {
-    try {
-      const [provs, known] = await Promise.all([getProviders(), getKnownProviders()])
-      setProviders(provs)
-      setKnownProviders(known)
-      if (selectFirst && provs.length > 0) setSelectedId(p => p ?? provs[0].id)
-    } catch (e) {
-      toast(String(e), 'error')
+  const { reload: reloadProviders } = useApi(
+    () => Promise.all([getProviders(), getKnownProviders()]),
+    [],
+    {
+      onSuccess: ([provs, known]) => {
+        setProviders(provs)
+        setKnownProviders(known)
+        setSelectedId(prev => prev ?? provs[0]?.id ?? null)
+      },
+      onError: (e) => toast(e.message, 'error'),
     }
-  }
+  )
 
   const loadModels = async (providerName: string) => {
     try {
@@ -264,7 +267,6 @@ export default function ProvidersPage() {
     }
   }
 
-  useEffect(() => { loadProviders(true) }, [])
 
   const selectedProvider = providers.find(p => p.id === selectedId) ?? null
 
@@ -364,7 +366,7 @@ export default function ProvidersPage() {
       if (pendingModels.length > 0) {
         await apiSetModels(saved.name, pendingModels)
       }
-      await loadProviders()
+      await reloadProviders()
       setSelectedId(saved.id)
       setEditMode('none')
       toast('Provider saved', 'success')
@@ -378,7 +380,7 @@ export default function ProvidersPage() {
   const handleDeleteProvider = async (id: string) => {
     try {
       await deleteProvider(id)
-      await loadProviders()
+      await reloadProviders()
       if (selectedId === id) {
         setSelectedId(null)
         setEditMode('none')
@@ -476,7 +478,7 @@ export default function ProvidersPage() {
       } else {
         toast(`连接失败: ${result.error ?? '未知错误'}`, 'error')
       }
-      if (providerId) await loadProviders()
+      if (providerId) await reloadProviders()
     } catch (e) {
       toast(String(e), 'error')
     } finally {

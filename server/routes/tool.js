@@ -11,7 +11,7 @@ export function createToolRouter(db) {
       const rows = db.prepare('SELECT * FROM tools ORDER BY created_at DESC').all()
       res.json(rows)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -19,8 +19,8 @@ export function createToolRouter(db) {
   router.post('/create_tool', (req, res) => {
     try {
       const { tool } = req.body
-      if (!tool?.name?.trim()) return res.status(400).send('name is required')
-      if (!tool?.display_name?.trim()) return res.status(400).send('display_name is required')
+      if (!tool?.name?.trim()) return res.status(400).json({ error: 'name is required' })
+      if (!tool?.display_name?.trim()) return res.status(400).json({ error: 'display_name is required' })
 
       const ts = now()
       const result = db.prepare(`
@@ -35,8 +35,8 @@ export function createToolRouter(db) {
       )
       res.json(result.lastInsertRowid)
     } catch (err) {
-      if (err.message.includes('UNIQUE')) return res.status(400).send('工具名称已存在')
-      res.status(500).send(err.message)
+      if (err.message.includes('UNIQUE')) return res.status(400).json({ error: '工具名称已存在' })
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -47,7 +47,7 @@ export function createToolRouter(db) {
       db.prepare('DELETE FROM tools WHERE id = ? AND is_local = 1').run(Number(id))
       res.json({ ok: true })
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

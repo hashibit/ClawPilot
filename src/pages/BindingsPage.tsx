@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
+import { useApi } from '../hooks/useApi'
 import {
     getChannels, upsertChannel, testFeishuConnection,
     getBindings, createBinding, updateBinding, deleteBinding, toggleBinding,
@@ -38,37 +39,33 @@ export default function BindingsPage() {
     const [isNewBinding, setIsNewBinding] = useState(false)
     const [savingBinding, setSavingBinding] = useState(false)
 
-    useEffect(() => {
-        if (!currentOpc) return
-        loadData()
-    }, [currentOpc?.id])
-
-    const loadData = async () => {
-        if (!currentOpc) return
-        try {
-            const [channels, bindingList, agentList] = await Promise.all([
-                getChannels(currentOpc.id),
-                getBindings(currentOpc.id),
-                getAgents(currentOpc.id),
-            ])
-            const feishu = channels.find(c => c.channel_type === 'FEISHU') ?? null
-            const dingtalk = channels.find(c => c.channel_type === 'DINGTALK') ?? null
-            const slack = channels.find(c => c.channel_type === 'SLACK') ?? null
-            setChannel(feishu)
-            setAppId(feishu?.feishu_config?.app_id ?? '')
-            setAppSecret(feishu?.feishu_config?.app_secret ?? '')
-            setDtAppKey((dingtalk as any)?.dingtalk_config?.app_key ?? '')
-            setDtAppSecret((dingtalk as any)?.dingtalk_config?.app_secret ?? '')
-            setDtWebhook((dingtalk as any)?.dingtalk_config?.webhook_url ?? '')
-            setSlackBotToken((slack as any)?.slack_config?.bot_token ?? '')
-            setSlackSigningSecret((slack as any)?.slack_config?.signing_secret ?? '')
-            setChannelEditing(false)
-            setBindings(bindingList)
-            setAgents(agentList)
-        } catch (e) {
-            toast(String(e), 'error')
+    const { reload: reloadData } = useApi(
+        () => currentOpc
+            ? Promise.all([getChannels(currentOpc.id), getBindings(currentOpc.id), getAgents(currentOpc.id)])
+            : Promise.resolve(null),
+        [currentOpc?.id],
+        {
+            onSuccess: (result) => {
+                if (!result) return
+                const [channels, bindingList, agentList] = result
+                const feishu = channels.find(c => c.channel_type === 'FEISHU') ?? null
+                const dingtalk = channels.find(c => c.channel_type === 'DINGTALK') ?? null
+                const slack = channels.find(c => c.channel_type === 'SLACK') ?? null
+                setChannel(feishu)
+                setAppId(feishu?.feishu_config?.app_id ?? '')
+                setAppSecret(feishu?.feishu_config?.app_secret ?? '')
+                setDtAppKey((dingtalk as any)?.dingtalk_config?.app_key ?? '')
+                setDtAppSecret((dingtalk as any)?.dingtalk_config?.app_secret ?? '')
+                setDtWebhook((dingtalk as any)?.dingtalk_config?.webhook_url ?? '')
+                setSlackBotToken((slack as any)?.slack_config?.bot_token ?? '')
+                setSlackSigningSecret((slack as any)?.slack_config?.signing_secret ?? '')
+                setChannelEditing(false)
+                setBindings(bindingList)
+                setAgents(agentList)
+            },
+            onError: (e) => toast(e.message, 'error'),
         }
-    }
+    )
 
     const handleSaveChannel = async () => {
         if (!currentOpc) return
@@ -94,7 +91,7 @@ export default function BindingsPage() {
             }
         try {
             await upsertChannel(config)
-            await loadData()
+            await reloadData()
             const labels: Record<string, string> = { FEISHU: t('bindings.feishu'), DINGTALK: t('bindings.dingtalk'), SLACK: 'Slack' }
             toast(t('bindings.channel_config_saved', { channel: labels[channelType] ?? channelType }), 'success')
         } catch (e) {
@@ -170,7 +167,7 @@ export default function BindingsPage() {
             const updated: BindingRule = { ...selectedBinding, ...bindingForm, updated_at: Math.floor(Date.now() / 1000) } as BindingRule
             if (isNewBinding) {
                 await createBinding(updated)
-                await loadData()
+                await reloadData()
                 setSelectedBinding(updated)
             } else {
                 await updateBinding(selectedBinding.id, updated)

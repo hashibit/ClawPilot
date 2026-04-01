@@ -29,7 +29,7 @@ export function createModelRouter(db) {
     try {
       const rows = db.prepare('SELECT * FROM model_providers_v2 ORDER BY created_at').all()
       res.json(rows.map(rowToProvider))
-    } catch (err) { res.status(500).send(err.message) }
+    } catch (err) { res.status(500).json({ error: err.message }) }
   })
 
   // POST /suggest_provider — 根据 baseUrl 推断配置
@@ -50,7 +50,7 @@ export function createModelRouter(db) {
   router.post('/create_provider', (req, res) => {
     try {
       const { name, api, base_url, api_key } = req.body
-      if (!name || !api || !base_url) return res.status(400).send('name, api, base_url required')
+      if (!name || !api || !base_url) return res.status(400).json({ error: 'name, api, base_url required' })
       const id = uuidv4()
       const n = now()
       db.prepare(`
@@ -60,8 +60,8 @@ export function createModelRouter(db) {
       const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
       res.json(rowToProvider(row))
     } catch (err) {
-      if (err.message.includes('UNIQUE')) return res.status(409).send(`Provider name "${req.body.name}" already exists`)
-      res.status(500).send(err.message)
+      if (err.message.includes('UNIQUE')) return res.status(409).json({ error: `Provider name "${req.body.name}" already exists` })
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -69,18 +69,18 @@ export function createModelRouter(db) {
   router.post('/update_provider', (req, res) => {
     try {
       const { id, name, api, base_url, api_key, is_enabled } = req.body
-      if (!id) return res.status(400).send('id required')
+      if (!id) return res.status(400).json({ error: 'id required' })
       db.prepare(`
         UPDATE model_providers_v2
         SET name=?, api=?, base_url=?, api_key=?, is_enabled=?, updated_at=?
         WHERE id=?
       `).run(name, api, base_url, encrypt(api_key ?? ''), is_enabled ? 1 : 0, now(), id)
       const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
-      if (!row) return res.status(404).send('Not found')
+      if (!row) return res.status(404).json({ error: 'Not found' })
       res.json(rowToProvider(row))
     } catch (err) {
-      if (err.message.includes('UNIQUE')) return res.status(409).send(`Provider name "${req.body.name}" already exists`)
-      res.status(500).send(err.message)
+      if (err.message.includes('UNIQUE')) return res.status(409).json({ error: `Provider name "${req.body.name}" already exists` })
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -88,10 +88,10 @@ export function createModelRouter(db) {
   router.post('/delete_provider', (req, res) => {
     try {
       const { id } = req.body
-      if (!id) return res.status(400).send('id required')
+      if (!id) return res.status(400).json({ error: 'id required' })
       db.prepare('DELETE FROM model_providers_v2 WHERE id = ?').run(id)
       res.json(null)
-    } catch (err) { res.status(500).send(err.message) }
+    } catch (err) { res.status(500).json({ error: err.message }) }
   })
 
   // POST /get_models — 获取某 provider 的所有模型
@@ -102,14 +102,14 @@ export function createModelRouter(db) {
         ? db.prepare('SELECT * FROM model_info_v2 WHERE provider_name = ? ORDER BY sort_order, model_id').all(provider_name)
         : db.prepare('SELECT * FROM model_info_v2 ORDER BY provider_name, sort_order, model_id').all()
       res.json(rows.map(rowToModel))
-    } catch (err) { res.status(500).send(err.message) }
+    } catch (err) { res.status(500).json({ error: err.message }) }
   })
 
   // POST /set_models — 批量设置某 provider 的模型列表（覆盖写）
   router.post('/set_models', (req, res) => {
     try {
       const { provider_name, models } = req.body
-      if (!provider_name || !Array.isArray(models)) return res.status(400).send('provider_name and models[] required')
+      if (!provider_name || !Array.isArray(models)) return res.status(400).json({ error: 'provider_name and models[] required' })
       const n = now()
       const upsert = db.prepare(`
         INSERT INTO model_info_v2
@@ -125,6 +125,8 @@ export function createModelRouter(db) {
           cost_input=excluded.cost_input,
           cost_output=excluded.cost_output,
           supports_vision=excluded.supports_vision,
+          supports_function_calling=excluded.supports_function_calling,
+          supports_streaming=excluded.supports_streaming,
           is_custom=excluded.is_custom,
           sort_order=excluded.sort_order,
           updated_at=excluded.updated_at
@@ -142,19 +144,19 @@ export function createModelRouter(db) {
           uuidv4(), provider_name, m.model_id, m.display_name ?? m.model_id,
           m.context_window ?? 0, m.max_tokens ?? 0, m.input_types ?? '["text"]',
           m.cost_input ?? 0, m.cost_output ?? 0,
-          m.supports_vision ? 1 : 0, m.supports_function_calling ? 1 : 0, 1,
+          m.supports_vision ? 1 : 0, m.supports_function_calling ? 1 : 0, m.supports_streaming !== false ? 1 : 0,
           m.is_custom ? 1 : 0, idx, n
         )
       })
       const rows = db.prepare('SELECT * FROM model_info_v2 WHERE provider_name = ? ORDER BY sort_order, model_id').all(provider_name)
       res.json(rows.map(rowToModel))
-    } catch (err) { res.status(500).send(err.message) }
+    } catch (err) { res.status(500).json({ error: err.message }) }
   })
 
   // POST /test_provider — 测试 API Key 连通性
   router.post('/test_provider', async (req, res) => {
     const { base_url, api_key, api, provider_id } = req.body
-    if (!base_url || !api) return res.status(400).send('base_url and api required')
+    if (!base_url || !api) return res.status(400).json({ error: 'base_url and api required' })
 
     const saveResult = (ok) => {
       if (!provider_id) return

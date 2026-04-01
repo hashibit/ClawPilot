@@ -47,7 +47,8 @@ function collectOpcData(opcId) {
 
   const channels = db.prepare('SELECT * FROM channels WHERE opc_id = ?').all(opcId)
   const bindings = db.prepare('SELECT * FROM bindings WHERE opc_id = ?').all(opcId)
-  const modelProviders = db.prepare('SELECT provider_type, api_key, base_url, is_enabled FROM model_providers').all()
+  const modelProviders = db.prepare('SELECT name, api, api_key, base_url, is_enabled FROM model_providers_v2').all()
+    .map(p => ({ ...p, api_key: decrypt(p.api_key) }))
   
   // Tools metadata (from DB)
   const tools = db.prepare('SELECT * FROM tools ORDER BY id').all()
@@ -200,7 +201,7 @@ function generateOpenclawConfig(opcId) {
   const agentsList = agents.map(agent => ({
     name: agent.name,
     workspace: `~/.openclaw/CPOPC/${opc.display_name}/workspace-${agent.display_name}`,
-    model: { primary: `${agent.model_provider ?? 'anthropic'}/${agent.model_name ?? 'claude-opus-4-5'}` },
+    model: { primary: agent.model ?? `${agent.model_provider ?? 'anthropic'}/${agent.model_name ?? 'claude-opus-4-5'}` },
     identity: {
       name: agent.display_name,
       emoji: agent.initials || (agent.name ? agent.name[0] : '?'),
@@ -210,17 +211,18 @@ function generateOpenclawConfig(opcId) {
   // Default model from first enabled provider
   const firstProvider = modelProviders.find(p => p.is_enabled === 1) ?? modelProviders[0]
   const defaultModel = firstProvider
-    ? `${firstProvider.provider_type}/default`
+    ? `${firstProvider.name}/default`
     : 'anthropic/claude-opus-4-5'
 
   // Build channels section
   const channelsSection = {}
-  const feishuChannel = channels.find(c => c.type === 'FEISHU')
+  const feishuChannel = channels.find(c => c.channel_type === 'FEISHU')
   if (feishuChannel) {
     try {
-      const feishuConfig = typeof feishuChannel.feishu_config === 'string'
-        ? JSON.parse(feishuChannel.feishu_config)
-        : (feishuChannel.feishu_config ?? {})
+      let feishuConfig = feishuChannel.feishu_config ?? {}
+      if (typeof feishuConfig === 'string') {
+        try { feishuConfig = JSON.parse(decrypt(feishuConfig)) } catch { try { feishuConfig = JSON.parse(feishuConfig) } catch { feishuConfig = {} } }
+      }
       if (feishuConfig.app_id) {
         channelsSection.feishu = {
           appId: feishuConfig.app_id,
@@ -233,8 +235,9 @@ function generateOpenclawConfig(opcId) {
   // Build models section
   const providersSection = {}
   for (const p of modelProviders.filter(mp => mp.is_enabled === 1)) {
-    const envKey = `${p.provider_type.toUpperCase()}_API_KEY`
-    providersSection[p.provider_type] = {
+    const envKey = `${p.name.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`
+    providersSection[p.name] = {
+      api: p.api,
       baseUrl: p.base_url,
       apiKey: { source: 'env', id: envKey },
     }
@@ -259,11 +262,11 @@ function generateOpenclawConfig(opcId) {
 router.post('/generate_openclaw_config', (req, res) => {
   try {
     const { opc_id } = req.body
-    if (!opc_id) return res.status(400).send('opc_id is required')
+    if (!opc_id) return res.status(400).json({ error: 'opc_id is required' })
     const config = generateOpenclawConfig(opc_id)
     res.json(config)
   } catch (err) {
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -271,7 +274,7 @@ router.post('/generate_openclaw_config', (req, res) => {
 router.post('/build_deploy_package', async (req, res) => {
   try {
     const { opc_id } = req.body
-    if (!opc_id) return res.status(400).send('opc_id is required')
+    if (!opc_id) return res.status(400).json({ error: 'opc_id is required' })
 
     const data = collectOpcData(opc_id)
     const version = new Date().toISOString()
@@ -291,7 +294,7 @@ router.post('/build_deploy_package', async (req, res) => {
 
     res.json({ ok: true, checksum, size: pkgBuf.length })
   } catch (err) {
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -364,13 +367,13 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
 router.post('/start_deployment', async (req, res) => {
   try {
     const { opc_id, office_id } = req.body
-    if (!opc_id || !office_id) return res.status(400).send('opc_id and office_id are required')
+    if (!opc_id || !office_id) return res.status(400).json({ error: 'opc_id and office_id are required' })
 
     const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opc_id)
-    if (!opc) return res.status(400).send('OPC not found')
+    if (!opc) return res.status(400).json({ error: 'OPC not found' })
 
     const officeRow = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
-    if (!officeRow) return res.status(400).send('Office not found')
+    if (!officeRow) return res.status(400).json({ error: 'Office not found' })
     const office = { ...officeRow, daemon_api_key: decrypt(officeRow.daemon_api_key) }
 
     const taskId = randomUUID()
@@ -397,7 +400,7 @@ router.post('/start_deployment', async (req, res) => {
     res.json(taskId)
   } catch (err) {
     log.error(`start_deployment: ${err.message}`)
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -549,7 +552,7 @@ router.post('/get_deployment_status', (req, res) => {
     if (!row) throw new Error(`Not found: ${task_id}`)
     res.json(row)
   } catch (err) {
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -563,7 +566,7 @@ router.post('/cancel_deployment', (req, res) => {
     res.json(null)
   } catch (err) {
     log.error(`cancel_deployment: ${err.message}`)
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -640,7 +643,7 @@ router.post('/undeploy', async (req, res) => {
 
     res.json(null)
   } catch (err) {
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -664,7 +667,7 @@ router.post('/get_recent_deployments', (req, res) => {
     }
     res.json(rows)
   } catch (err) {
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -677,7 +680,7 @@ router.post('/get_office_deployments', (req, res) => {
     `).all(office_id, limit)
     res.json(rows)
   } catch (err) {
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 
@@ -685,13 +688,13 @@ router.post('/get_office_deployments', (req, res) => {
 router.post('/deploy_to_office', async (req, res) => {
   try {
     const { opc_id, office_id } = req.body
-    if (!opc_id || !office_id) return res.status(400).send('opc_id and office_id are required')
+    if (!opc_id || !office_id) return res.status(400).json({ error: 'opc_id and office_id are required' })
 
     const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opc_id)
-    if (!opc) return res.status(400).send('OPC not found')
+    if (!opc) return res.status(400).json({ error: 'OPC not found' })
 
     const officeRow2 = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
-    if (!officeRow2) return res.status(400).send('Office not found')
+    if (!officeRow2) return res.status(400).json({ error: 'Office not found' })
     const office = { ...officeRow2, daemon_api_key: decrypt(officeRow2.daemon_api_key) }
 
     if (!office.daemon_url) {
@@ -810,7 +813,7 @@ router.post('/deploy_to_office', async (req, res) => {
     }, 3000)
 
   } catch (err) {
-    res.status(500).send(err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 

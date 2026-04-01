@@ -26,6 +26,16 @@ export function createApp(db) {
   app.use(cors())
   app.use(express.json())
 
+  // Health check — lets other services verify the server is up and DB is reachable
+  app.get('/health', (req, res) => {
+    try {
+      db.prepare('SELECT 1').get()
+      res.json({ ok: true, db: 'ok' })
+    } catch (err) {
+      res.status(503).json({ ok: false, error: err.message })
+    }
+  })
+
   // Mount routes with injected db
   app.use('/api', createOpcRouter(db))
   app.use('/api', createAgentRouter(db))
@@ -52,6 +62,15 @@ async function main() {
 
   const app = createApp(db)
   app.use(accessLogger)
+
+  // Verify DB is accessible before accepting traffic
+  try {
+    db.prepare('SELECT 1').get()
+    log.info('DB connectivity check passed')
+  } catch (err) {
+    log.error(`DB connectivity check FAILED: ${err.message}`)
+    process.exit(1)
+  }
 
   const PORT = process.env.PORT || 16667
   app.listen(PORT, '127.0.0.1', () => {

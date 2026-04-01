@@ -138,7 +138,7 @@ export function createProcessRouter(db) {
 
   // POST /api/restart_openclaw — 通过 daemon 重启 openclaw gateway
   router.post('/restart_openclaw', async (_req, res) => {
-    const daemon = getLocalDaemon(db)
+    const daemon = LOCAL_DAEMON.daemon_api_key ? LOCAL_DAEMON : null
     if (!daemon) {
       return res.status(503).json({ ok: false, message: '本地 office 未配置 daemon' })
     }

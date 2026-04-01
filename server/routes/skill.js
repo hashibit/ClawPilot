@@ -39,7 +39,7 @@ export function createSkillRouter(db) {
       const rows = db.prepare('SELECT * FROM skills ORDER BY is_installed DESC, created_at DESC').all()
       res.json(rows.map(rowToSkill))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -47,8 +47,8 @@ export function createSkillRouter(db) {
   router.post('/create_skill', (req, res) => {
     try {
       const { skill } = req.body
-      if (!skill?.name?.trim()) return res.status(400).send('name is required')
-      if (!skill?.display_name?.trim()) return res.status(400).send('display_name is required')
+      if (!skill?.name?.trim()) return res.status(400).json({ error: 'name is required' })
+      if (!skill?.display_name?.trim()) return res.status(400).json({ error: 'display_name is required' })
 
       const ts = now()
       const slug = skill.slug || skill.name.trim().toLowerCase().replace(/\s+/g, '-')
@@ -65,8 +65,8 @@ export function createSkillRouter(db) {
       )
       res.json(result.lastInsertRowid)
     } catch (err) {
-      if (err.message.includes('UNIQUE')) return res.status(400).send('技能名称已存在')
-      res.status(500).send(err.message)
+      if (err.message.includes('UNIQUE')) return res.status(400).json({ error: '技能名称已存在' })
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -81,7 +81,7 @@ export function createSkillRouter(db) {
       db.prepare('DELETE FROM skills WHERE id = ? AND is_local = 1').run(Number(id))
       res.json({ ok: true })
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -92,7 +92,7 @@ export function createSkillRouter(db) {
         `${CLAWHUB_BASE}/skills?page=1&pageSize=100&sortBy=score&order=desc`,
         { signal: AbortSignal.timeout(15000) }
       )
-      if (!r.ok) return res.status(502).send(`ClawHub 返回 ${r.status}`)
+      if (!r.ok) return res.status(502).json({ error: `ClawHub 返回 ${r.status}` })
 
       const data = await r.json()
       const skills = data?.data?.skills ?? []
@@ -155,7 +155,7 @@ export function createSkillRouter(db) {
       res.json({ ok: true, count })
     } catch (err) {
       log.error(`sync_skills: ${err.message}`)
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -163,7 +163,7 @@ export function createSkillRouter(db) {
   router.post('/install_skill', async (req, res) => {
     try {
       const { slug } = req.body
-      if (!slug) return res.status(400).send('slug is required')
+      if (!slug) return res.status(400).json({ error: 'slug is required' })
 
       const row = db.prepare('SELECT * FROM skills WHERE slug = ?').get(slug)
       const downloadUrl = row?.download_url || `${CLAWHUB_BASE}/skills/${slug}/download`
@@ -171,7 +171,7 @@ export function createSkillRouter(db) {
       log.info(`install_skill: ${slug} from ${downloadUrl}`)
 
       const r = await fetch(downloadUrl, { signal: AbortSignal.timeout(30000) })
-      if (!r.ok) return res.status(502).send(`下载失败 ${r.status}: ${slug}`)
+      if (!r.ok) return res.status(502).json({ error: `下载失败 ${r.status}: ${slug}` })
 
       const buf = Buffer.from(await r.arrayBuffer())
 
@@ -212,7 +212,7 @@ export function createSkillRouter(db) {
       res.json(updated)
     } catch (err) {
       log.error(`install_skill: ${err.message}`)
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -220,7 +220,7 @@ export function createSkillRouter(db) {
   router.post('/uninstall_skill', (req, res) => {
     try {
       const { slug } = req.body
-      if (!slug) return res.status(400).send('slug is required')
+      if (!slug) return res.status(400).json({ error: 'slug is required' })
 
       const row = db.prepare('SELECT * FROM skills WHERE slug = ?').get(slug)
       const skillDir = row?.install_path || path.join(SKILLS_DIR, slug)
@@ -238,7 +238,7 @@ export function createSkillRouter(db) {
       res.json({ ok: true })
     } catch (err) {
       log.error(`uninstall_skill: ${err.message}`)
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -260,9 +260,9 @@ export function createSkillRouter(db) {
           }),
           signal: AbortSignal.timeout(10000),
         })
-        if (!r.ok) return res.status(502).send(`clawhub ${r.status}`)
+        if (!r.ok) return res.status(502).json({ error: `clawhub ${r.status}` })
         const data = await r.json()
-        if (data.errorMessage) return res.status(502).send(data.errorMessage)
+        if (data.errorMessage) return res.status(502).json({ error: data.errorMessage })
         const skills = (data.value ?? []).map(item => ({
           slug: item.skill.slug,
           name: item.skill.displayName,
@@ -280,13 +280,13 @@ export function createSkillRouter(db) {
           `${LIGHTMAKE_BASE}/skills?page=1&pageSize=${limit}&sortBy=score&order=desc&keyword=${encodeURIComponent(q.trim())}`,
           { signal: AbortSignal.timeout(10000) }
         )
-        if (!r.ok) return res.status(502).send(`lightmake ${r.status}`)
+        if (!r.ok) return res.status(502).json({ error: `lightmake ${r.status}` })
         const data = await r.json()
         return res.json(data?.data?.skills ?? [])
       }
     } catch (err) {
       log.error(`search_skills: ${err.message}`)
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

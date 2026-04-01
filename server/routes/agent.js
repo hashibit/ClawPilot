@@ -52,7 +52,7 @@ export function createAgentRouter(db) {
       const rows = db.prepare('SELECT * FROM agents WHERE opc_id = ? ORDER BY order_index').all(opc_id)
       res.json(rows.map(rowToAgent))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -64,7 +64,7 @@ export function createAgentRouter(db) {
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToAgent(row))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -95,7 +95,7 @@ export function createAgentRouter(db) {
       )
       res.json(config.id)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -124,7 +124,7 @@ export function createAgentRouter(db) {
       )
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -143,7 +143,7 @@ export function createAgentRouter(db) {
       }
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -160,7 +160,7 @@ export function createAgentRouter(db) {
       reorder()
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -175,7 +175,7 @@ export function createAgentRouter(db) {
       })()
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -188,7 +188,7 @@ export function createAgentRouter(db) {
       ).all(agent_id)
       res.json(rows)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -201,7 +201,7 @@ export function createAgentRouter(db) {
       ).get(agent_id, doc_type)
       res.json(row ? row.content : '')
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -215,7 +215,7 @@ export function createAgentRouter(db) {
       `).run(agent_id, doc_type, content)
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

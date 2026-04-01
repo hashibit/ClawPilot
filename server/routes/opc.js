@@ -32,7 +32,7 @@ export function createOpcRouter(db) {
       `).all()
       res.json(rows.map(rowToOpc))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -51,7 +51,7 @@ export function createOpcRouter(db) {
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToOpc(row))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -77,7 +77,7 @@ export function createOpcRouter(db) {
       )
       res.json(config.id)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -101,7 +101,7 @@ export function createOpcRouter(db) {
       )
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -112,7 +112,7 @@ export function createOpcRouter(db) {
       db.prepare('DELETE FROM opc_config WHERE id = ?').run(id)
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -120,15 +120,16 @@ export function createOpcRouter(db) {
   router.post('/set_current_opc', (req, res) => {
     try {
       const { id } = req.body
-      db.prepare('UPDATE opc_config SET is_active = 0').run()
-      db.prepare('UPDATE opc_config SET is_active = 1 WHERE id = ?').run(id)
       const row = db.prepare('SELECT name FROM opc_config WHERE id = ?').get(id)
-      db.prepare('UPDATE openclaw_config SET current_opc = ?, last_updated = ? WHERE id = 1').run(
-        row ? row.name : '', now()
-      )
+      if (!row) return res.status(404).json({ error: `OPC not found: ${id}` })
+      db.transaction(() => {
+        db.prepare('UPDATE opc_config SET is_active = 0').run()
+        db.prepare('UPDATE opc_config SET is_active = 1 WHERE id = ?').run(id)
+        db.prepare('UPDATE openclaw_config SET current_opc = ?, last_updated = ? WHERE id = 1').run(row.name, now())
+      })()
       res.json({ ok: true })
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -147,7 +148,7 @@ export function createOpcRouter(db) {
       if (!row) return res.json({})
       res.json(rowToOpc(row))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -165,7 +166,7 @@ export function createOpcRouter(db) {
       const dm_count = db.prepare("SELECT COUNT(*) as cnt FROM bindings WHERE opc_id = ? AND channel_type = 'DM'").get(opc_id).cnt
       res.json({ agent_count, channel_count, group_count, dm_count, message_count_today: base.message_count_today, message_growth: base.message_growth })
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -179,7 +180,7 @@ export function createOpcRouter(db) {
         .run(agentCount, channelCount, now(), id)
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -199,7 +200,7 @@ export function createOpcRouter(db) {
       const bindings = db.prepare('SELECT * FROM bindings WHERE opc_id = ?').all(opc_id)
       res.json(JSON.stringify({ opc, agents, agent_documents: agentDocs, channels, bindings }))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -227,16 +228,16 @@ export function createOpcRouter(db) {
         for (const agent of agents) {
           db.prepare(`INSERT OR REPLACE INTO agents
             (id, opc_id, name, display_name, job_title, personality, description, initials,
-             gradient_start, gradient_end, is_default, order_index, model_provider, model_name,
+             gradient_start, gradient_end, is_default, order_index, model_provider, model_name, model,
              enabled_tools, disabled_tools, enabled_skills, guardrail_rules, reports_to, manages,
              created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             agent.id, agent.opc_id, agent.name, agent.display_name,
             agent.job_title ?? null, agent.personality ?? null, agent.description ?? null,
             agent.initials ?? null, agent.gradient_start ?? null, agent.gradient_end ?? null,
             agent.is_default ? 1 : 0, agent.order_index ?? 0,
-            agent.model_provider ?? null, agent.model_name ?? null,
+            agent.model_provider ?? null, agent.model_name ?? null, agent.model ?? null,
             typeof agent.enabled_tools === 'string' ? agent.enabled_tools : JSON.stringify(agent.enabled_tools ?? []),
             typeof agent.disabled_tools === 'string' ? agent.disabled_tools : JSON.stringify(agent.disabled_tools ?? []),
             typeof agent.enabled_skills === 'string' ? agent.enabled_skills : JSON.stringify(agent.enabled_skills ?? []),
@@ -279,7 +280,7 @@ export function createOpcRouter(db) {
       insertOpc()
       res.json(opc.id)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

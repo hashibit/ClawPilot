@@ -79,7 +79,7 @@ export function createOfficeRouter(db) {
       `).all()
       res.json(rows.map(rowToOffice))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -96,7 +96,7 @@ export function createOfficeRouter(db) {
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToOffice(row))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -126,7 +126,7 @@ export function createOfficeRouter(db) {
       )
       res.json(office.id)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -156,7 +156,7 @@ export function createOfficeRouter(db) {
       )
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -168,7 +168,7 @@ export function createOfficeRouter(db) {
       db.prepare('DELETE FROM offices WHERE id = ?').run(id)
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -181,7 +181,7 @@ export function createOfficeRouter(db) {
       )
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -287,7 +287,7 @@ export function createOfficeRouter(db) {
       const row = db.prepare('SELECT * FROM offices WHERE id = ?').get(opc.office_id)
       res.json(row ? rowToOffice(row) : null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

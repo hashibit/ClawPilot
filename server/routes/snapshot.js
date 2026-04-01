@@ -33,8 +33,8 @@ export function createSnapshotRouter(db) {
   router.post('/create_snapshot', (req, res) => {
     try {
       const { opc_id, label, is_auto = false } = req.body
-      if (!opc_id) return res.status(400).send('opc_id is required')
-      if (!label?.trim()) return res.status(400).send('label is required')
+      if (!opc_id) return res.status(400).json({ error: 'opc_id is required' })
+      if (!label?.trim()) return res.status(400).json({ error: 'label is required' })
 
       const data = collectOpcSnapshot(db, opc_id)
       const configData = JSON.stringify(data)
@@ -47,7 +47,7 @@ export function createSnapshotRouter(db) {
 
       res.json(id)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -55,7 +55,7 @@ export function createSnapshotRouter(db) {
   router.post('/get_snapshots', (req, res) => {
     try {
       const { opc_id } = req.body
-      if (!opc_id) return res.status(400).send('opc_id is required')
+      if (!opc_id) return res.status(400).json({ error: 'opc_id is required' })
 
       const opc = db.prepare('SELECT name FROM opc_config WHERE id = ?').get(opc_id)
       const opcName = opc?.name ?? opc_id
@@ -66,7 +66,7 @@ export function createSnapshotRouter(db) {
 
       res.json(rows.map(r => ({ ...r, is_auto: r.is_auto === 1 })))
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -90,7 +90,7 @@ export function createSnapshotRouter(db) {
 
       res.json({ ...row, is_auto: row.is_auto === 1, summary })
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -142,16 +142,16 @@ export function createSnapshotRouter(db) {
           db.prepare(`
             INSERT INTO agents
               (id, opc_id, name, display_name, job_title, personality, description, initials,
-               gradient_start, gradient_end, is_default, order_index, model_provider, model_name,
+               gradient_start, gradient_end, is_default, order_index, model_provider, model_name, model,
                enabled_tools, disabled_tools, enabled_skills, guardrail_rules, reports_to, manages,
                created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             agent.id, agent.opc_id, agent.name, agent.display_name,
             agent.job_title ?? null, agent.personality ?? null, agent.description ?? null,
             agent.initials ?? null, agent.gradient_start ?? null, agent.gradient_end ?? null,
             agent.is_default ? 1 : 0, agent.order_index ?? 0,
-            agent.model_provider ?? null, agent.model_name ?? null,
+            agent.model_provider ?? null, agent.model_name ?? null, agent.model ?? null,
             toStr(agent.enabled_tools), toStr(agent.disabled_tools),
             toStr(agent.enabled_skills), toStr(agent.guardrail_rules),
             toStr(agent.reports_to), toStr(agent.manages),
@@ -209,7 +209,7 @@ export function createSnapshotRouter(db) {
 
       res.json(opc.id)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 
@@ -220,7 +220,7 @@ export function createSnapshotRouter(db) {
       db.prepare('DELETE FROM local_snapshots WHERE id = ?').run(id)
       res.json(null)
     } catch (err) {
-      res.status(500).send(err.message)
+      res.status(500).json({ error: err.message })
     }
   })
 

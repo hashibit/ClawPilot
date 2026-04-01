@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAllOpcs, getOffices, startDeployment, getDeploymentStatus, cancelDeployment, undeploy, getRecentDeployments } from '../lib/api'
+import { useApi } from '../hooks/useApi'
 import { toast } from '../components/Toast'
 import type { OpcConfig, Office, DeploymentTask } from '../lib/types'
 
@@ -32,18 +33,16 @@ export default function DeployPage() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
   }
 
-  useEffect(() => {
-    loadData()
-    return () => stopPolling()
-  }, [])
+  const { reload: reloadData } = useApi(
+    () => Promise.all([getAllOpcs(), getOffices()]),
+    [],
+    {
+      onSuccess: ([allOpcs, allOffices]) => { setOpcs(allOpcs); setOffices(allOffices) },
+      onError: (e) => toast(e.message, 'error'),
+    }
+  )
 
-  const loadData = async () => {
-    try {
-      const [allOpcs, allOffices] = await Promise.all([getAllOpcs(), getOffices()])
-      setOpcs(allOpcs)
-      setOffices(allOffices)
-    } catch (e) { toast(String(e), 'error') }
-  }
+  useEffect(() => () => stopPolling(), [])
 
   const loadHistory = async (opcId: string) => {
     try {
@@ -76,7 +75,7 @@ export default function DeployPage() {
           task.status === 'SUCCESS' ? t('deploy.deploy_success') : t('deploy.deploy_failed', { msg: task.message ?? t('common.unknown_error') }),
           task.status === 'SUCCESS' ? 'success' : 'error',
         )
-        await loadData()
+        await reloadData()
         await loadHistory(opcId)
       }
     } catch (e) {
@@ -112,7 +111,7 @@ export default function DeployPage() {
     try {
       await undeploy(opc.id)
       toast(t('deploy.undeploy_success', { name: opc.display_name }), 'success')
-      await loadData()
+      await reloadData()
     } catch (e) { toast(String(e), 'error') }
   }
 

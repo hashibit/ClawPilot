@@ -23,7 +23,12 @@ async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(args),
     })
-    if (!res.ok) throw new Error(await res.text())
+    if (!res.ok) {
+      const text = await res.text()
+      let message = text
+      try { message = JSON.parse(text).error ?? text } catch {}
+      throw new Error(message)
+    }
     return res.json() as Promise<T>
   }
   return invoke<T>(cmd, args)
@@ -90,7 +95,13 @@ export const updateBinding = (id: string, binding: BindingRule) =>
 export const deleteBinding = (id: string) => call<void>('delete_binding', { id })
 export const toggleBinding = (id: string, isEnabled: boolean) =>
   call<void>('toggle_binding', { id, is_enabled: isEnabled })
-export const getFeishuChannels = () => call<unknown[]>('get_feishu_channels')
+export interface FeishuChannel {
+  chat_id: string
+  name: string
+  avatar?: string
+  description?: string
+}
+export const getFeishuChannels = () => call<FeishuChannel[]>('get_feishu_channels')
 
 // ── Deployment ────────────────────────────────────────────
 export const startDeployment = (opcId: string, officeId: string) =>

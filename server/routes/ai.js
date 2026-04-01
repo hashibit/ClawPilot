@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { createLogger } from '../logger.js'
+import { decrypt } from '../utils/crypto.js'
 
 const SYSTEM_PROMPT = `/no_think 你是一个 OpenClaw Agent 人格配置生成器。根据用户的描述，生成完整的 Agent 配置，包含 7 个人格文档。
 
@@ -35,13 +36,13 @@ router.post('/ai_generate_agent', async (req, res) => {
   const { prompt } = req.body
   log.info(`ai_generate_agent: prompt="${(prompt ?? '').slice(0, 60)}${(prompt?.length ?? 0) > 60 ? '...' : ''}"`)
 
-  if (!prompt?.trim()) return res.status(400).send('prompt is required')
+  if (!prompt?.trim()) return res.status(400).json({ error: 'prompt is required' })
 
-  const row = db.prepare("SELECT * FROM model_providers WHERE provider_type = 'BAILIAN'").get()
-  if (!row?.api_key) return res.status(400).send('BAILIAN 未配置 API Key，请先在模型管理页完成配置并测试连接')
-  if (!row?.base_url) return res.status(400).send('BAILIAN 未配置 Base URL，请先在模型管理页完成配置并测试连接')
+  const row = db.prepare("SELECT * FROM model_providers_v2 WHERE name = 'bailian'").get()
+  if (!row?.api_key) return res.status(400).json({ error: 'BAILIAN 未配置 API Key，请先在模型管理页完成配置并测试连接' })
+  if (!row?.base_url) return res.status(400).json({ error: 'BAILIAN 未配置 Base URL，请先在模型管理页完成配置并测试连接' })
 
-  const apiKey = row.api_key
+  const apiKey = decrypt(row.api_key)
   const baseUrl = row.base_url.replace(/\/$/, '')
   const isAnthropicUrl = baseUrl.includes('anthropic')
   const MODEL = 'qwen3.5-plus'
@@ -74,7 +75,7 @@ router.post('/ai_generate_agent', async (req, res) => {
       if (!r.ok) {
         const t = await r.text()
         log.error(`ai_generate_agent: anthropic error body: ${t.slice(0, 200)}`)
-        return res.status(502).send(`Anthropic API 错误 ${r.status}: ${t.slice(0, 200)}`)
+        return res.status(502).json({ error: `Anthropic API 错误 ${r.status}: ${t.slice(0, 200)}` })
       }
       const data = await r.json()
       rawText = data.content?.[0]?.text ?? ''
@@ -103,14 +104,14 @@ router.post('/ai_generate_agent', async (req, res) => {
       if (!r.ok) {
         const t = await r.text()
         log.error(`ai_generate_agent: openai error body: ${t.slice(0, 200)}`)
-        return res.status(502).send(`OpenAI API 错误 ${r.status}: ${t.slice(0, 200)}`)
+        return res.status(502).json({ error: `OpenAI API 错误 ${r.status}: ${t.slice(0, 200)}` })
       }
       const data = await r.json()
       rawText = data.choices?.[0]?.message?.content ?? ''
     }
   } catch (e) {
     log.error(`ai_generate_agent: fetch exception: ${e.message}`)
-    return res.status(502).send(`请求失败: ${e.message}`)
+    return res.status(502).json({ error: `请求失败: ${e.message}` })
   }
 
   log.debug(`ai_generate_agent: raw response (${rawText.length} chars): ${rawText.slice(0, 120)}`)
@@ -122,7 +123,7 @@ router.post('/ai_generate_agent', async (req, res) => {
     parsed = JSON.parse(jsonStr)
   } catch {
     log.error(`ai_generate_agent: JSON parse failed, raw: ${rawText.slice(0, 300)}`)
-    return res.status(502).send(`AI 返回格式错误，无法解析 JSON:\n${rawText.slice(0, 300)}`)
+    return res.status(502).json({ error: `AI 返回格式错误，无法解析 JSON:\n${rawText.slice(0, 300)}` })
   }
 
   const result = {
@@ -147,8 +148,8 @@ router.post('/ai_generate_agent', async (req, res) => {
 // POST /api/chat_with_agent { agent_id, messages: [{role, content}] }
 router.post('/chat_with_agent', async (req, res) => {
   const { agent_id, messages, soul_override } = req.body
-  if (!soul_override && !agent_id) return res.status(400).send('agent_id is required')
-  if (!Array.isArray(messages) || messages.length === 0) return res.status(400).send('messages is required')
+  if (!soul_override && !agent_id) return res.status(400).json({ error: 'agent_id is required' })
+  if (!Array.isArray(messages) || messages.length === 0) return res.status(400).json({ error: 'messages is required' })
 
   let systemPrompt
   if (soul_override?.trim()) {
@@ -168,8 +169,8 @@ router.post('/chat_with_agent', async (req, res) => {
   }
 
   // Get configured provider
-  const row = db.prepare("SELECT * FROM model_providers WHERE provider_type = 'BAILIAN' AND is_enabled = 1").get()
-  if (!row?.api_key) return res.status(400).send('BAILIAN 未配置 API Key，请先在模型管理页完成配置')
+  const row = db.prepare("SELECT * FROM model_providers_v2 WHERE name = 'bailian' AND is_enabled = 1").get()
+  if (!row?.api_key) return res.status(400).json({ error: 'BAILIAN 未配置 API Key，请先在模型管理页完成配置' })
 
   const MODEL = 'qwen3.5-plus'
   // Derive the OpenAI-compatible endpoint using the same logic as model.js
@@ -184,7 +185,7 @@ router.post('/chat_with_agent', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${row.api_key}`,
+        'Authorization': `Bearer ${decrypt(row.api_key)}`,
       },
       body: JSON.stringify({
         model: MODEL,
@@ -200,13 +201,13 @@ router.post('/chat_with_agent', async (req, res) => {
     })
     if (!r.ok) {
       const t = await r.text()
-      return res.status(502).send(`API 错误 ${r.status}: ${t.slice(0, 200)}`)
+      return res.status(502).json({ error: `API 错误 ${r.status}: ${t.slice(0, 200)}` })
     }
     const data = await r.json()
     const reply = data.choices?.[0]?.message?.content ?? ''
     res.json({ reply })
   } catch (e) {
-    res.status(502).send(`请求失败: ${e.message}`)
+    res.status(502).json({ error: `请求失败: ${e.message}` })
   }
 })
 
