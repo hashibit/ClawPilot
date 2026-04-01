@@ -479,22 +479,23 @@ export default function OfficePage() {
                                     <div className="group-row" style={{ gap: '10px' }}>
                                         <span className="group-label">{t('office.label_name')}</span>
                                         <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
-                                        <span className="group-label" style={{ flexShrink: 0 }}>{t('office.label_receptionist')}</span>
+                                    </div>
+                                    <div className="group-row" style={{ gap: '10px' }}>
+                                        <span className="group-label">{t('office.label_receptionist')}</span>
                                         <div style={{ position: 'relative', flex: 1 }} ref={avatarPickerRef}>
                                             <div
                                                 onClick={() => editing && setAvatarPickerOpen(v => !v)}
                                                 style={{
                                                     width: '100%', height: '28px', borderRadius: '7px', overflow: 'hidden',
-                                                    background: 'rgba(255,255,255,0.05)',
-                                                    border: avatarPickerOpen ? '2px solid #a78bfa' : '2px solid rgba(255,255,255,0.1)',
-                                                    display: 'flex', alignItems: 'center', gap: '6px', padding: '0 6px',
+                                                    background: 'none', border: 'none',
+                                                    display: 'flex', alignItems: 'center', gap: '6px', padding: '0 2px',
                                                     cursor: editing ? 'pointer' : 'default', boxSizing: 'border-box',
                                                 }}
                                             >
                                                 {form.receptionist_image ? (
-                                                    <img src={form.receptionist_image} alt="" style={{ width: '20px', height: '20px', borderRadius: '4px', objectFit: 'cover', flexShrink: 0 }} />
+                                                    <img src={form.receptionist_image} alt="" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'cover', flexShrink: 0 }} />
                                                 ) : (
-                                                    <span style={{ fontSize: '11px', color: 'rgba(235,235,245,0.3)' }}>未选择</span>
+                                                    <span style={{ fontSize: '18px' }}>💁‍♀️</span>
                                                 )}
                                             </div>
                                             {avatarPickerOpen && (
