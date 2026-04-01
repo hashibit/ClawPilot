@@ -102,6 +102,9 @@ pub fn run() {
             commands::office::check_ssh_auth,
             commands::office::install_daemon,
             commands::office::install_openclaw,
+            commands::office::probe_local_daemon,
+            commands::office::probe_remote_daemon,
+            commands::office::get_local_daemon_version,
             // Deployment
             commands::deployment::start_deployment,
             commands::deployment::get_deployment_status,
@@ -110,8 +113,7 @@ pub fn run() {
             commands::deployment::undeploy,
             commands::deployment::build_deploy_package,
             commands::deployment::deploy_to_office,
-            commands::deployment::build_deploy_package,
-            commands::deployment::deploy_to_office,
+            commands::deployment::generate_openclaw_config,
             // Log
             commands::log::get_logs,
             commands::log::write_log,
