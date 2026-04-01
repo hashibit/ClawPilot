@@ -148,21 +148,6 @@ export default function Layout() {
             <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           } />
 
-          {!collapsed && <div className="section-label" style={{ marginTop: '6px' }}>{t('nav_sections.advanced')}</div>}
-          {collapsed && <div style={{ height: '6px' }} />}
-          <a href="#" className="nav-item" title={collapsed ? t('nav.templates') : undefined}>
-            <span className="nav-icon ic-16" style={{ flexShrink: 0 }}>
-              <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-            </span>
-            {!collapsed && <><span className="text-sm">{t('nav.templates')}</span><span className="pro-badge">{t('common.pro')}</span></>}
-          </a>
-          <a href="#" className="nav-item" title={collapsed ? t('nav.cloudSync') : undefined}>
-            <span className="nav-icon ic-16" style={{ flexShrink: 0 }}>
-              <svg fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            </span>
-            {!collapsed && <><span className="text-sm">{t('nav.cloudSync')}</span><span className="pro-badge">{t('common.pro')}</span></>}
-          </a>
-
           {/* Settings */}
           {!collapsed && <div style={{ height: '6px' }} />}
           {collapsed && <div style={{ height: '6px' }} />}
