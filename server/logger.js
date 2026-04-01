@@ -2,7 +2,7 @@ import { createWriteStream, mkdirSync } from 'fs'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
 
-const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), 'logs')
+const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'logs')
 mkdirSync(ROOT, { recursive: true })
 
 // ── Stream pool ────────────────────────────────────────────

@@ -14,6 +14,8 @@ daemon/target
 *.bin
 dev.db-shm
 dev.db-wal
+playwright-report/
+test-results/
 .claude
 .dev-pids
 .dev-ports
