@@ -272,7 +272,7 @@ pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealt
 
 /// Probe local daemon for running daemon on common ports
 pub async fn probe_local_daemon(pool: &DbPool, office_id: Option<&str>) -> ProbeDaemonResult {
-    let ports = [16668u16, 8443];
+    let ports = [16668u16];
 
     for port in &ports {
         let url = format!("http://127.0.0.1:{}", port);
@@ -392,7 +392,7 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
     let target = format!("{}@{}", ssh_user, host);
 
     // Probe common daemon ports
-    let daemon_ports = [16668u16, 8443];
+    let daemon_ports = [16668u16];
     let mut found_port: Option<u16> = None;
 
     for dp in &daemon_ports {

@@ -44,7 +44,7 @@ pub async fn deploy_to_remote(
 
     // 3. SSH 执行 curl 调用 Daemon API
     let curl_cmd = format!(
-        r#"curl -X POST http://localhost:8443/deploy \
+        r#"curl -X POST http://localhost:16668/deploy \
           -H "Authorization: Bearer {}" \
           -F "manifest={}" \
           -F "package=@{}""#,
@@ -112,7 +112,7 @@ pub async fn deploy(opc_id: &str, office_id: &str) -> Result<DeployResult> {
     
     match office.deployment_mode {
         DeploymentMode::Local => {
-            // 本地部署：直接调用 localhost:8443
+            // 本地部署：直接调用 localhost:16668
             deploy_to_local(&package, &office.daemon_api_key.unwrap()).await
         }
         DeploymentMode::Remote => {
@@ -139,7 +139,7 @@ pub async fn deploy(opc_id: &str, office_id: &str) -> Result<DeployResult> {
 1. **本地部署测试**:
    ```bash
    # 启动 Daemon
-   ./target/debug/clawpilot-daemon --listen 127.0.0.1:8443
+   ./target/debug/clawpilot-daemon --listen 127.0.0.1:16668
    
    # Tauri App 调用部署
    ```

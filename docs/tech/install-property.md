@@ -87,7 +87,7 @@ ssh user@host "openclaw onboard --non-interactive --install-daemon --skip-skills
 # 3. 上传并启动 clawpilot-daemon
 scp clawpilot-daemon user@host:/tmp/
 ssh user@host "sudo mv /tmp/clawpilot-daemon /usr/local/bin/ && chmod +x /usr/local/bin/clawpilot-daemon"
-ssh user@host "nohup clawpilot-daemon --listen 0.0.0.0:8443 > /tmp/daemon.log 2>&1 &"
+ssh user@host "nohup clawpilot-daemon --listen 0.0.0.0:16668 > /tmp/daemon.log 2>&1 &"
 
 # 4. 读取 API Key
 ssh user@host "cat ~/.clawpilot/daemon.key"
@@ -295,7 +295,7 @@ OpenClaw 对以下变更**无需重启**（热重载）：
 ```
 § Daemon 部署配置  [在线 · v0.1.2]    [安装物业]  [检测连接]
 ┌──────────────────────────────────────────────────────┐
-│ Daemon URL  │ http://127.0.0.1:8443                  │
+│ Daemon URL  │ http://127.0.0.1:16668                  │
 │ API Key     │ ••••••••••••••••••••••••••             │
 │ (未配置时使用仿真模式，不会实际部署到服务器)           │
 └──────────────────────────────────────────────────────┘
@@ -325,7 +325,7 @@ OpenClaw 对以下变更**无需重启**（热重载）：
 ├─────────────────────────────────────────┤
 │ [🖥 本机安装]  [🌐 SSH 远程]            │
 │                                         │
-│ 监听端口  [8443]  默认 8443             │
+│ 监听端口  [16668]  默认 16668             │
 │                                         │
 │ (SSH 模式下展示)                        │
 │ ┌─────────────────────────────────────┐ │
@@ -350,7 +350,7 @@ OpenClaw 对以下变更**无需重启**（热重载）：
 │ (成功后显示结果卡片)                     │
 │ ┌─────────────────────────────────────┐ │
 │ │ ✅ 安装成功                         │ │
-│ │ Daemon URL  http://127.0.0.1:8443   │ │
+│ │ Daemon URL  http://127.0.0.1:16668   │ │
 │ │ API Key     abc123...               │ │
 │ │ 配置已自动写入办公室，点击保存生效   │ │
 │ └─────────────────────────────────────┘ │
@@ -387,7 +387,7 @@ OpenClaw 对以下变更**无需重启**（热重载）：
 │                                         │
 │  Step 2: 安装 clawpilot-daemon          │
 │  ┌──────────────────────────────────┐  │
-│  │ 监听端口  [8443]                  │  │
+│  │ 监听端口  [16668]                  │  │
 │  └──────────────────────────────────┘  │
 │                                         │
 │  [     开始安装 Daemon        ]         │

@@ -408,14 +408,14 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "sudo mv /tmp/clawpilot-daemon /u
 #### 2. 启动 Daemon
 
 ```bash
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "nohup clawpilot-daemon --listen 0.0.0.0:8443 > /tmp/daemon.log 2>&1 &"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "nohup clawpilot-daemon --listen 0.0.0.0:16668 > /tmp/daemon.log 2>&1 &"
 sleep 3
 ```
 
 #### 3. 验证 Health
 
 ```bash
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:8443/health"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:16668/health"
 ```
 
 预期输出：
@@ -439,7 +439,7 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl -X POST \
   -H 'Authorization: Bearer ${API_KEY}' \
   -F 'manifest=@/tmp/manifest.json' \
   -F 'package=@/tmp/package.tar.gz' \
-  http://localhost:8443/deploy"
+  http://localhost:16668/deploy"
 ```
 
 #### 5. 清理

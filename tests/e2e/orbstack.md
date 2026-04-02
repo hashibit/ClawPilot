@@ -83,19 +83,19 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "clawpilot-daemon --version"
 **步骤**:
 ```bash
 # 启动 Daemon
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "nohup clawpilot-daemon --listen 0.0.0.0:8443 > /tmp/daemon.log 2>&1 &"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "nohup clawpilot-daemon --listen 0.0.0.0:16668 > /tmp/daemon.log 2>&1 &"
 sleep 3
 
 # 检查进程
 ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "pgrep -f clawpilot-daemon"
 
 # 检查端口
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "ss -tlnp | grep 8443"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "ss -tlnp | grep 16668"
 ```
 
 **预期结果**:
 - 进程存在
-- 端口 8443 处于 LISTEN 状态
+- 端口 16668 处于 LISTEN 状态
 
 ---
 
@@ -106,10 +106,10 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "ss -tlnp | grep 8443"
 **步骤**:
 ```bash
 # 本地调用（VM 内部）
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:8443/health"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:16668/health"
 
 # 远程调用（从本机）
-curl http://$VM_IP:8443/health
+curl http://$VM_IP:16668/health
 ```
 
 **预期结果**:
@@ -138,7 +138,7 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl -X POST \
   -H 'Authorization: Bearer ${API_KEY}' \
   -F 'manifest=@/tmp/manifest.json' \
   -F 'package=@/tmp/package.tar.gz' \
-  http://localhost:8443/deploy"
+  http://localhost:16668/deploy"
 ```
 
 **预期结果**: 返回任务 ID 和状态，无报错
@@ -152,7 +152,7 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl -X POST \
 **步骤**:
 ```bash
 # 假设上一步返回的 task_id 为 "task-xxx"
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:8443/tasks/task-xxx"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:16668/tasks/task-xxx"
 ```
 
 **预期结果**: 返回任务状态 JSON

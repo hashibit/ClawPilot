@@ -308,7 +308,7 @@ export function createOfficeRouter(db) {
   // install_daemon
   router.post('/install_daemon', async (req, res) => {
     const {
-      office_id, mode = 'local', daemon_port = 8443,
+      office_id, mode = 'local', daemon_port = 16668,
       ssh_host, ssh_port = 22, ssh_user = 'root', ssh_key_path, ssh_config_file,
       daemon_host,
     } = req.body
@@ -556,7 +556,7 @@ export function createOfficeRouter(db) {
   // probe_local_daemon: silently discover a running local daemon (no install)
   router.post('/probe_local_daemon', async (req, res) => {
     const { office_id } = req.body
-    const PORTS = [16668, 8443]
+    const PORTS = [16668]
     for (const port of PORTS) {
       const url = `http://127.0.0.1:${port}`
       if (await isDaemonRunning(url)) {
@@ -610,7 +610,7 @@ export function createOfficeRouter(db) {
     try {
       // Probe common daemon ports on the remote host
       let foundPort = null
-      for (const port of [16668, 8443]) {
+      for (const port of [16668]) {
         try {
           const { stdout } = await execAsync(
             `${sshPrefix} "${target}" "curl -sf http://127.0.0.1:${port}/health > /dev/null 2>&1 && echo ok"`,
