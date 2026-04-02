@@ -88,6 +88,10 @@ export interface IconProps {
   spin?: boolean;
   className?: string;
   style?: React.CSSProperties;
+  // HTML attributes for accessibility and testing
+  'aria-label'?: string;
+  'data-testid'?: string;
+  onClick?: () => void;
 }
 
 const icons: Record<IconName, JSX.Element> = {
@@ -304,6 +308,9 @@ export function Icon({
   spin = false,
   className = '',
   style = {},
+  'aria-label': ariaLabel,
+  'data-testid': dataTestId,
+  onClick,
 }: IconProps) {
   const resolvedWidth = width ?? size ?? 16;
   const resolvedHeight = height ?? size ?? 16;
@@ -325,6 +332,9 @@ export function Icon({
       viewBox="0 0 24 24"
       className={className}
       style={iconStyle}
+      aria-label={ariaLabel}
+      data-testid={dataTestId}
+      onClick={onClick}
     >
       {icons[name]}
     </svg>

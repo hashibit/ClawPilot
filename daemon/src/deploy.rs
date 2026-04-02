@@ -591,3 +591,203 @@ pub async fn run_rollback(
     tracing::info!("rollback task {} completed for opc={}", task_id, opc_id);
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    // ── verify_checksum 测试 ──────────────────────────────────────
+
+    #[test]
+    fn test_verify_checksum_valid() {
+        let data = b"hello world";
+        let hash = hex::encode(Sha256::digest(data));
+        let checksum = format!("sha256:{}", hash);
+
+        assert!(verify_checksum(data, &checksum));
+    }
+
+    #[test]
+    fn test_verify_checksum_invalid() {
+        let data = b"hello world";
+
+        // Wrong hash
+        assert!(!verify_checksum(data, "sha256:0000000000000000000000000000000000000000000000000000000000000000"));
+
+        // Empty checksum
+        assert!(!verify_checksum(data, ""));
+    }
+
+    #[test]
+    fn test_verify_checksum_without_prefix() {
+        let data = b"hello world";
+        let hash = hex::encode(Sha256::digest(data));
+
+        // Should work without sha256: prefix too
+        assert!(verify_checksum(data, &hash));
+    }
+
+    // ── safe_join 测试 ────────────────────────────────────────────
+
+    #[test]
+    fn test_safe_join_valid() {
+        let base = Path::new("/base");
+        let entry = Path::new("subdir/file.txt");
+
+        let result = safe_join(base, entry).unwrap();
+        assert_eq!(result, PathBuf::from("/base/subdir/file.txt"));
+    }
+
+    #[test]
+    fn test_safe_join_current_dir() {
+        let base = Path::new("/base");
+        let entry = Path::new("./subdir/file.txt");
+
+        let result = safe_join(base, entry).unwrap();
+        assert_eq!(result, PathBuf::from("/base/./subdir/file.txt"));
+    }
+
+    #[test]
+    fn test_safe_join_parent_dir_rejected() {
+        let base = Path::new("/base");
+        let entry = Path::new("../etc/passwd");
+
+        assert!(safe_join(base, entry).is_none());
+    }
+
+    #[test]
+    fn test_safe_join_absolute_path_rejected() {
+        let base = Path::new("/base");
+        let entry = Path::new("/etc/passwd");
+
+        assert!(safe_join(base, entry).is_none());
+    }
+
+    #[test]
+    fn test_safe_join_traversal_after_valid_prefix() {
+        let base = Path::new("/base");
+        let entry = Path::new("valid/../..");
+
+        assert!(safe_join(base, entry).is_none());
+    }
+
+    #[test]
+    fn test_safe_join_complex_traversal() {
+        let base = Path::new("/base");
+        let entry = Path::new("a/b/../../c/../../../etc/passwd");
+
+        assert!(safe_join(base, entry).is_none());
+    }
+
+    #[test]
+    fn test_safe_join_stays_inside_base() {
+        let base = Path::new("/base");
+        let entry = Path::new("subdir");
+
+        let result = safe_join(base, entry).unwrap();
+        assert!(result.starts_with(base));
+    }
+
+    // ── safe_join_canonical 测试 ─────────────────────────────────
+
+    #[test]
+    fn test_safe_join_canonical_valid() {
+        let temp = TempDir::new().unwrap();
+        let subdir = temp.path().join("subdir");
+        fs::create_dir_all(&subdir).unwrap();
+
+        let entry = Path::new("subdir/file.txt");
+        let result = safe_join_canonical(temp.path(), entry);
+
+        assert!(result.is_some());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_safe_join_canonical_symlink_escape() {
+        use std::os::unix::fs::symlink;
+
+        let temp = TempDir::new().unwrap();
+        let base = temp.path().join("base");
+        fs::create_dir_all(&base).unwrap();
+
+        let outside = temp.path().join("outside");
+        fs::write(&outside, "secret").unwrap();
+
+        // Create symlink inside base pointing outside
+        let symlink_path = base.join("escape");
+        symlink(&outside, &symlink_path).unwrap();
+
+        // Try to traverse through symlink
+        let entry = Path::new("escape/../outside");
+        let result = safe_join_canonical(&base, entry);
+
+        // Should be None because canonicalization resolves symlinks
+        // and the result would be outside base
+        assert!(result.is_none());
+    }
+
+    // ── copy_dir_all 测试 ────────────────────────────────────────
+
+    #[test]
+    fn test_copy_dir_all() {
+        let src_temp = TempDir::new().unwrap();
+        let dst_temp = TempDir::new().unwrap();
+
+        // Create source structure
+        let src = src_temp.path();
+        fs::create_dir_all(src.join("subdir")).unwrap();
+        fs::write(src.join("file1.txt"), "content1").unwrap();
+        fs::write(src.join("subdir/file2.txt"), "content2").unwrap();
+
+        let dst = dst_temp.path().join("dest");
+
+        copy_dir_all(src, &dst).unwrap();
+
+        // Verify structure copied
+        assert!(dst.join("file1.txt").exists());
+        assert!(dst.join("subdir/file2.txt").exists());
+        assert_eq!(fs::read_to_string(dst.join("file1.txt")).unwrap(), "content1");
+    }
+
+    // ── Gateway status 测试 ──────────────────────────────────────
+
+    #[test]
+    fn test_gateway_status_structure() {
+        let status = GatewayStatus {
+            is_running: false,
+            pid: None,
+            rpc_ok: false,
+        };
+
+        assert!(!status.is_running);
+        assert!(status.pid.is_none());
+        assert!(!status.rpc_ok);
+    }
+
+    #[test]
+    fn test_gateway_status_with_pid() {
+        let status = GatewayStatus {
+            is_running: true,
+            pid: Some(12345),
+            rpc_ok: true,
+        };
+
+        assert!(status.is_running);
+        assert_eq!(status.pid, Some(12345));
+        assert!(status.rpc_ok);
+    }
+
+    // ── Path traversal security tests ─────────────────────────────
+
+    #[test]
+    fn test_path_traversal_stays_inside_base() {
+        let base = Path::new("/base");
+        let entry = Path::new("file.txt");
+
+        let result = safe_join(base, entry).unwrap();
+        assert!(result.starts_with(base));
+    }
+}
+
