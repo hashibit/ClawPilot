@@ -5,6 +5,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::sync::atomic::{AtomicU64, Ordering};
 use uuid::Uuid;
 
 use crate::{
@@ -12,6 +13,40 @@ use crate::{
     error::{AppError, Result},
     state::{AppState, TaskRecord},
 };
+
+// Configuration constants
+const MAX_PACKAGE_SIZE: usize = 50 * 1024 * 1024; // 50MB max package size
+const MAX_OPC_ID_LEN: usize = 64;
+
+// Rate limit for health endpoint: requests per second
+const HEALTH_RATE_LIMIT: u64 = 10;
+static HEALTH_REQUESTS: AtomicU64 = AtomicU64::new(0);
+
+// Simple rate limiter: returns false if rate limit exceeded
+fn check_rate_limit(max_per_second: u64) -> bool {
+    let current = HEALTH_REQUESTS.fetch_add(1, Ordering::Relaxed);
+    // Reset counter periodically (every 1000 requests)
+    if current > 1000 {
+        HEALTH_REQUESTS.store(0, Ordering::Relaxed);
+    }
+    current < max_per_second
+}
+
+// Validate opc_id format (alphanumeric, dash, underscore only)
+fn validate_opc_id(opc_id: &str) -> bool {
+    !opc_id.is_empty()
+        && opc_id.len() <= MAX_OPC_ID_LEN
+        && opc_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+// Validate checksum format: "sha256:<64-hex-chars>"
+fn validate_checksum(checksum: &str) -> bool {
+    if !checksum.starts_with("sha256:") {
+        return false;
+    }
+    let hex_part = &checksum[7..];
+    hex_part.len() == 64 && hex_part.chars().all(|c| c.is_ascii_hexdigit())
+}
 
 // ── POST /restart ────────────────────────────────────────────
 
@@ -32,26 +67,18 @@ pub async fn restart_openclaw() -> Json<Value> {
 
 // ── GET /health ──────────────────────────────────────────────
 
-pub async fn health(State(state): State<AppState>) -> Json<Value> {
-    let gw = openclaw_gateway_status();
-    let task_count = state.tasks.len();
+pub async fn health(State(_state): State<AppState>) -> Json<Value> {
+    // Rate limit health endpoint
+    if !check_rate_limit(HEALTH_RATE_LIMIT) {
+        return Json(json!({ "status": "rate_limited" }));
+    }
 
-    let openclaw_version = std::process::Command::new("openclaw")
-        .arg("--version")
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+    let gw = openclaw_gateway_status();
 
     Json(json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
-        "openclaw_version": openclaw_version,
         "openclaw_status": if gw.is_running { "running" } else { "stopped" },
-        "openclaw_pid": gw.pid,
-        "openclaw_rpc_ok": gw.rpc_ok,
-        "active_tasks": task_count,
     }))
 }
 
@@ -69,6 +96,7 @@ pub async fn deploy(
 ) -> Result<Json<Value>> {
     let mut manifest: Option<Manifest> = None;
     let mut package_bytes: Option<Bytes> = None;
+    let mut total_bytes: usize = 0;
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         AppError::BadRequest(format!("multipart error: {}", e))
@@ -82,11 +110,18 @@ pub async fn deploy(
                 manifest = Some(serde_json::from_slice(&data)?);
             }
             "package" => {
-                package_bytes = Some(
-                    field.bytes().await.map_err(|e| {
-                        AppError::BadRequest(format!("package read error: {}", e))
-                    })?
-                );
+                // Stream package bytes with size limit
+                let data = field.bytes().await.map_err(|e| {
+                    AppError::BadRequest(format!("package read error: {}", e))
+                })?;
+                total_bytes = total_bytes.saturating_add(data.len());
+                if total_bytes > MAX_PACKAGE_SIZE {
+                    return Err(AppError::BadRequest(format!(
+                        "部署包过大 (max {}MB)",
+                        MAX_PACKAGE_SIZE / 1024 / 1024
+                    )));
+                }
+                package_bytes = Some(data);
             }
             _ => {}
         }
@@ -94,6 +129,18 @@ pub async fn deploy(
 
     let manifest = manifest.ok_or_else(|| AppError::BadRequest("缺少 manifest 字段".into()))?;
     let package = package_bytes.ok_or_else(|| AppError::BadRequest("缺少 package 字段".into()))?;
+
+    // Validate opc_id format
+    if !validate_opc_id(&manifest.opc_id) {
+        return Err(AppError::BadRequest("无效的 opc_id 格式".into()));
+    }
+
+    // Validate checksum format if provided
+    if let Some(ref cs) = manifest.checksum {
+        if !cs.is_empty() && !validate_checksum(cs) {
+            return Err(AppError::BadRequest("无效的 checksum 格式 (应为 sha256:<64 位 hex>)".into()));
+        }
+    }
 
     let task_id = format!("deploy-{}", Uuid::new_v4());
     let record = TaskRecord::new(task_id.clone(), manifest.opc_id.clone());
