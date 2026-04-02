@@ -16,6 +16,7 @@ const SKILLS_DIR = fs.existsSync(BUNDLE_SKILLS_DIR) && fs.readdirSync(BUNDLE_SKI
   : USER_SKILLS_DIR
 
 const now = () => Math.floor(Date.now() / 1000)
+const log = createLogger('skill')
 const CLAWHUB_CONVEX = 'https://wry-manatee-359.convex.cloud/api/action'
 const LIGHTMAKE_BASE = 'https://lightmake.site/api'
 /** @deprecated kept for backward compat in sync_skills */
@@ -73,19 +74,19 @@ export function registerBundleSkills(db) {
       db.prepare(`
         UPDATE skills SET
           display_name = ?, description = ?, category = ?, is_installed = 1,
-          install_path = ?, updated_at = ?
+          install_path = ?
         WHERE slug = ?
-      `).run(display_name || slug, description || '', category || 'general', skillDir, now, slug)
+      `).run(display_name || slug, description || '', category || 'general', skillDir, slug)
     } else {
       // 插入新技能
       db.prepare(`
         INSERT INTO skills (
           name, display_name, description, slug, category,
           is_local, is_installed, install_path,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?)
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)
       `).run(
-        name || slug, display_name || slug, description || '', slug, category || 'general', skillDir, now, now
+        name || slug, display_name || slug, description || '', slug, category || 'general', skillDir, now
       )
       registered++
     }
