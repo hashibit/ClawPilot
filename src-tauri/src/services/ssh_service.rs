@@ -381,3 +381,192 @@ pub fn upload_file(
 
     Ok(())
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- SshConfig 测试 ---
+    #[test]
+    fn test_ssh_config() {
+        let config = SshConfig {
+            host: "192.168.1.1".to_string(),
+            port: 22,
+            username: "root".to_string(),
+            auth_type: SshAuthType::Password("secret".to_string()),
+        };
+
+        assert_eq!(config.host, "192.168.1.1");
+        assert_eq!(config.port, 22);
+        assert_eq!(config.username, "root");
+    }
+
+    // --- SshAuthType 测试 ---
+    #[test]
+    fn test_ssh_auth_type_password() {
+        let auth = SshAuthType::Password("secret".to_string());
+
+        match auth {
+            SshAuthType::Password(pwd) => assert_eq!(pwd, "secret"),
+            _ => panic!("Expected Password variant"),
+        }
+    }
+
+    #[test]
+    fn test_ssh_auth_type_key() {
+        let auth = SshAuthType::Key {
+            key_path: "~/.ssh/id_rsa".to_string(),
+            passphrase: Some("passphrase".to_string()),
+        };
+
+        match auth {
+            SshAuthType::Key { key_path, passphrase } => {
+                assert_eq!(key_path, "~/.ssh/id_rsa");
+                assert_eq!(passphrase, Some("passphrase".to_string()));
+            }
+            _ => panic!("Expected Key variant"),
+        }
+    }
+
+    // --- ConnectionTestResult 测试 ---
+    #[test]
+    fn test_connection_test_result_serde() {
+        let result = ConnectionTestResult {
+            ok: true,
+            latency_ms: 42,
+            error: None,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: ConnectionTestResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(result.ok, parsed.ok);
+        assert_eq!(result.latency_ms, parsed.latency_ms);
+        assert_eq!(result.error, parsed.error);
+    }
+
+    #[test]
+    fn test_connection_test_result_error() {
+        let result = ConnectionTestResult {
+            ok: false,
+            latency_ms: 0,
+            error: Some("Connection refused".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: ConnectionTestResult = serde_json::from_str(&json).unwrap();
+
+        assert!(!parsed.ok);
+        assert_eq!(parsed.error, Some("Connection refused".to_string()));
+    }
+
+    // --- AuthTestResult 测试 ---
+    #[test]
+    fn test_auth_test_result_serde() {
+        let result = AuthTestResult {
+            ok: true,
+            latency_ms: 150,
+            error: None,
+            message: Some("SSH 认证成功".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: AuthTestResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(result.ok, parsed.ok);
+        assert_eq!(result.latency_ms, parsed.latency_ms);
+        assert_eq!(result.message, parsed.message);
+    }
+
+    #[test]
+    fn test_auth_test_result_failure() {
+        let result = AuthTestResult {
+            ok: false,
+            latency_ms: 50,
+            error: Some("认证失败：Permission denied".to_string()),
+            message: None,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: AuthTestResult = serde_json::from_str(&json).unwrap();
+
+        assert!(!parsed.ok);
+        assert!(parsed.error.unwrap().contains("认证失败"));
+    }
+
+    // --- RemoteExecResult 测试 ---
+    #[test]
+    fn test_remote_exec_result_serde() {
+        let result = RemoteExecResult {
+            ok: true,
+            exit_code: 0,
+            stdout: "output".to_string(),
+            stderr: String::new(),
+            error: None,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: RemoteExecResult = serde_json::from_str(&json).unwrap();
+
+        assert!(parsed.ok);
+        assert_eq!(parsed.exit_code, 0);
+        assert_eq!(parsed.stdout, "output");
+    }
+
+    #[test]
+    fn test_remote_exec_result_with_error() {
+        let result = RemoteExecResult {
+            ok: false,
+            exit_code: 1,
+            stdout: String::new(),
+            stderr: "error output".to_string(),
+            error: Some("error output".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: RemoteExecResult = serde_json::from_str(&json).unwrap();
+
+        assert!(!parsed.ok);
+        assert_eq!(parsed.exit_code, 1);
+        assert_eq!(parsed.stderr, "error output");
+    }
+
+    // --- test_tcp_connection 测试 ---
+    #[test]
+    fn test_tcp_connection_invalid_host() {
+        // Testing with an obviously invalid host that will fail
+        let result = test_tcp_connection("0.0.0.0", 1, 1);
+
+        // Should fail (or timeout) since nothing is listening
+        assert!(!result.ok || result.error.is_some());
+    }
+
+    // --- 边界条件测试 ---
+    #[test]
+    fn test_ssh_config_default_port() {
+        // SSH default port is 22
+        let config = SshConfig {
+            host: "localhost".to_string(),
+            port: 22, // default SSH port
+            username: "root".to_string(),
+            auth_type: SshAuthType::Password("".to_string()),
+        };
+
+        assert_eq!(config.port, 22);
+    }
+
+    #[test]
+    fn test_connection_test_result_latency() {
+        let result = ConnectionTestResult {
+            ok: true,
+            latency_ms: 1000, // 1 second
+            error: None,
+        };
+
+        assert!(result.latency_ms > 0);
+    }
+}
