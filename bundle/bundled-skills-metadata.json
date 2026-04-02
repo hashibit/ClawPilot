@@ -1,0 +1,122 @@
+{
+  "version": "1.0.0",
+  "skills": [
+    {
+      "slug": "multi-round-memory",
+      "name": "multi-round-memory",
+      "display_name": "多轮记忆",
+      "description": "保持对话上下文记忆，让 Agent 记住之前的对话内容",
+      "category": "core",
+      "icon": "💾",
+      "tags": ["memory", "context"]
+    },
+    {
+      "slug": "proactive-speak",
+      "name": "proactive-speak",
+      "display_name": "主动发言",
+      "description": "满足条件时主动发起消息，无需等待触发",
+      "category": "core",
+      "icon": "📢",
+      "tags": ["proactive", "automation"]
+    },
+    {
+      "slug": "scheduled-heartbeat",
+      "name": "scheduled-heartbeat",
+      "display_name": "定时心跳",
+      "description": "按计划定期执行任务，如定时报告、巡检",
+      "category": "core",
+      "icon": "💓",
+      "tags": ["schedule", "automation"]
+    },
+    {
+      "slug": "mention-response",
+      "name": "mention-response",
+      "display_name": "@响应",
+      "description": "群聊中被@时才回复，避免打扰",
+      "category": "core",
+      "icon": "🔔",
+      "tags": ["mention", "group-chat"]
+    },
+    {
+      "slug": "direct-response",
+      "name": "direct-response",
+      "display_name": "私信响应",
+      "description": "私聊中响应所有消息",
+      "category": "core",
+      "icon": "💬",
+      "tags": ["direct-message", "chat"]
+    },
+    {
+      "slug": "message-routing",
+      "name": "message-routing",
+      "display_name": "消息路由",
+      "description": "将消息分发给合适的 Agent 处理",
+      "category": "core",
+      "icon": "🔀",
+      "tags": ["routing", "multi-agent"]
+    },
+    {
+      "slug": "context-compression",
+      "name": "context-compression",
+      "display_name": "上下文压缩",
+      "description": "压缩长对话节省 token，保持关键信息",
+      "category": "core",
+      "icon": "🗜️",
+      "tags": ["compression", "optimization"]
+    },
+    {
+      "slug": "tool-calling",
+      "name": "tool-calling",
+      "display_name": "工具调用",
+      "description": "自动选择合适的工具执行任务",
+      "category": "core",
+      "icon": "🛠️",
+      "tags": ["tools", "automation"]
+    },
+    {
+      "slug": "memory-persistence",
+      "name": "memory-persistence",
+      "display_name": "记忆持久化",
+      "description": "跨会话保存重要记忆，长期积累知识",
+      "category": "core",
+      "icon": "💾",
+      "tags": ["memory", "persistence"]
+    },
+    {
+      "slug": "emotional-aware",
+      "name": "emotional-aware",
+      "display_name": "情绪感知",
+      "description": "识别用户情绪，调整回复风格",
+      "category": "core",
+      "icon": "😊",
+      "tags": ["emotion", "empathy"]
+    },
+    {
+      "slug": "github-helper",
+      "name": "github-helper",
+      "display_name": "GitHub 助手",
+      "description": "GitHub 仓库管理、PR/Issue 操作",
+      "category": "integration",
+      "icon": "🐙",
+      "tags": ["github", "integration", "dev-tools"]
+    },
+    {
+      "slug": "web-search",
+      "name": "web-search",
+      "display_name": "网页搜索",
+      "description": "多引擎网页搜索（Google/Bing/百度）",
+      "category": "integration",
+      "icon": "🔍",
+      "tags": ["search", "web"]
+    },
+    {
+      "slug": "feishu-helper",
+      "name": "feishu-helper",
+      "display_name": "飞书助手",
+      "description": "飞书消息、日历、文档管理",
+      "category": "integration",
+      "icon": "📱",
+      "tags": ["feishu", "integration", "productivity"]
+    }
+  ]
+}

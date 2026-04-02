@@ -390,7 +390,15 @@ export default function AgentsPage() {
         { id: 'tts', name: t('agents.tool_tts') },
     ]
 
-    const SKILL_REGISTRY = [
+    // Load skill registry from bundled-skills-metadata.json
+    const SKILL_REGISTRY = (window as any).__BUNDLE_SKILLS_METADATA?.skills?.map((s: any) => ({
+        slug: s.slug,
+        name: s.display_name,
+        icon: s.icon || '🔧',
+        desc: s.description,
+        tag: s.category === 'core' ? t('agents.tag_core') : t('agents.tag_integration'),
+    })) ?? [
+        // Fallback to hardcoded list if metadata not loaded
         { slug: 'multi-round-memory', name: t('agents.skill_multi_round_memory'), icon: '💾', desc: t('agents.skill_multi_round_memory_desc'), tag: t('agents.tag_memory') },
         { slug: 'proactive-speak', name: t('agents.skill_proactive_speak'), icon: '🔔', desc: t('agents.skill_proactive_speak_desc'), tag: t('agents.tag_interaction') },
         { slug: 'scheduled-heartbeat', name: t('agents.skill_scheduled_heartbeat'), icon: '⏰', desc: t('agents.skill_scheduled_heartbeat_desc'), tag: t('agents.tag_scheduled') },
@@ -401,6 +409,9 @@ export default function AgentsPage() {
         { slug: 'tool-calling', name: t('agents.skill_tool_calling'), icon: '🔧', desc: t('agents.skill_tool_calling_desc'), tag: t('agents.tag_smart') },
         { slug: 'memory-persistence', name: t('agents.skill_memory_persistence'), icon: '💾', desc: t('agents.skill_memory_persistence_desc'), tag: t('agents.tag_memory') },
         { slug: 'emotional-aware', name: t('agents.skill_emotional_aware'), icon: '💭', desc: t('agents.skill_emotional_aware_desc'), tag: t('agents.tag_interaction') },
+        { slug: 'github-helper', name: 'GitHub 助手', icon: '🐙', desc: 'GitHub 仓库管理、PR/Issue 操作', tag: t('agents.tag_integration') },
+        { slug: 'web-search', name: '网页搜索', icon: '🔍', desc: '多引擎网页搜索（Google/Bing/百度）', tag: t('agents.tag_search') },
+        { slug: 'feishu-helper', name: '飞书助手', icon: '📱', desc: '飞书消息、日历、文档管理', tag: t('agents.tag_integration') },
     ]
     const [selectedAgent, setSelectedAgent] = useState<AgentConfig | null>(null)
     const [activeDocTab, setActiveDocTab] = useState<DocumentType>('SOUL')

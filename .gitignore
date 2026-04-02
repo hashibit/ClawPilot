@@ -7,11 +7,6 @@ src-tauri/target
 dist
 daemon/target
 *.log
-*.png
-*.jpg
-*.mp4
-*.mp3
-*.jpeg
 *.bin
 dev.db-shm
 dev.db-wal
@@ -20,3 +15,4 @@ tests/results/
 .claude
 .dev-pids
 .dev-ports
+.bundle/

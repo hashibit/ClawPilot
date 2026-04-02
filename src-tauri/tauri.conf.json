@@ -36,6 +36,7 @@
       "icons/128x128@2x.png",
       "icons/icon.png"
     ],
+    "resources": ["../bundle/**/*"],
     "category": "Productivity",
     "shortDescription": "OpenClaw OPC configuration and deployment manager",
     "longDescription": "ClawPilot is a desktop application for managing OpenClaw OPC (Organization with People & Channels) configurations, agents, models, channels, and deployments.",
