@@ -16,3 +16,4 @@ tests/results/
 .dev-pids
 .dev-ports
 .bundle/
+tests/e2e/screenshots
