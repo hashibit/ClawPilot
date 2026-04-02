@@ -14,12 +14,65 @@ const WORKSPACE_ROOT = path.resolve(__dirname, '../..')
 
 const now = () => Math.floor(Date.now() / 1000)
 
+// Configuration constants
+const DAEMON_UPLOAD_TIMEOUT_MS = parseInt(process.env.DAEMON_UPLOAD_TIMEOUT_MS, 10) || 30000 // 30s default
+const DAEMON_DEPLOY_TIMEOUT_MS = parseInt(process.env.DAEMON_DEPLOY_TIMEOUT_MS, 10) || 120000 // 120s default
+const DAEMON_POLL_INTERVAL_MS = 2000
+
+// LRU cache for deployment packages with TTL and max size
+const MAX_CACHE_SIZE = 50 // max entries
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 export function createDeploymentRouter(db) {
   const log = createLogger('deployment')
   const router = Router()
 
-  // In-memory cache: opc_id → { buf: Buffer, checksum: string }
+  // In-memory cache: opc_id → { buf: Buffer, checksum: string, version: string, lastAccess: number }
   const packageCache = new Map()
+
+  function cleanupCache() {
+    const cutoff = Date.now() - CACHE_TTL_MS
+    let deleted = 0
+    for (const [key, value] of packageCache.entries()) {
+      if (value.lastAccess < cutoff) {
+        packageCache.delete(key)
+        deleted++
+      }
+    }
+    // If still over limit, remove oldest entries
+    if (packageCache.size > MAX_CACHE_SIZE) {
+      const entries = Array.from(packageCache.entries())
+        .sort((a, b) => a[1].lastAccess - b[1].lastAccess)
+      for (let i = 0; i < entries.length - MAX_CACHE_SIZE; i++) {
+        packageCache.delete(entries[i][0])
+        deleted++
+      }
+    }
+    if (deleted > 0) {
+      log.debug(`[packageCache] Cleaned up ${deleted} entries`)
+    }
+  }
+
+  // Periodic cleanup every 2 minutes
+  // Note: cleanup runs for process lifetime; no router-level cleanup needed
+  const cleanupInterval = setInterval(cleanupCache, 2 * 60 * 1000)
+
+  function getCachedPackage(opcId) {
+    const entry = packageCache.get(opcId)
+    if (entry) {
+      entry.lastAccess = Date.now()
+      return entry
+    }
+    return null
+  }
+
+  function setCachedPackage(opcId, pkgBuf, checksum, version) {
+    // Cleanup before adding new entry
+    if (packageCache.size >= MAX_CACHE_SIZE) {
+      cleanupCache()
+    }
+    packageCache.set(opcId, { buf: pkgBuf, checksum, version, lastAccess: Date.now() })
+  }
 
 function writeLog(level, component, message) {
   try {
@@ -289,8 +342,8 @@ router.post('/build_deploy_package', async (req, res) => {
     // Compute checksum
     const checksum = 'sha256:' + createHash('sha256').update(pkgBuf).digest('hex')
 
-    // Store in cache
-    packageCache.set(opc_id, { buf: pkgBuf, checksum, version })
+    // Store in cache with TTL
+    setCachedPackage(opc_id, pkgBuf, checksum, version)
 
     res.json({ ok: true, checksum, size: pkgBuf.length })
   } catch (err) {
@@ -473,7 +526,7 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
         'Authorization': `Bearer ${office.daemon_api_key}`,
       },
       body: form.getBuffer(),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(DAEMON_UPLOAD_TIMEOUT_MS),
     })
 
     if (!response.ok) {
@@ -490,9 +543,9 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
     writeLog('INFO', 'deployment', `Daemon task accepted: ${daemonTaskId}`)
 
     // Poll daemon status
-    const deadline = Date.now() + 120_000
+    const deadline = Date.now() + DAEMON_DEPLOY_TIMEOUT_MS
     while (Date.now() < deadline) {
-      await sleep(2000)
+      await sleep(DAEMON_POLL_INTERVAL_MS)
 
       const statusResp = await fetch(`${daemonUrl}/deploy/${daemonTaskId}`, {
         headers: { 'Authorization': `Bearer ${office.daemon_api_key}` },
@@ -633,7 +686,7 @@ router.post('/undeploy', async (req, res) => {
           method: 'POST',
           headers: { ...form.getHeaders(), 'Authorization': `Bearer ${office.daemon_api_key}` },
           body: form.getBuffer(),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(DAEMON_UPLOAD_TIMEOUT_MS),
         })
         writeLog('INFO', 'deployment', `Pushed initial config to daemon after undeploy opc_id=${opc_id}`)
       } catch (e) {
@@ -702,7 +755,7 @@ router.post('/deploy_to_office', async (req, res) => {
     }
 
     // Build or use cached package
-    let cached = packageCache.get(opc_id)
+    let cached = getCachedPackage(opc_id)
     if (!cached) {
       const data = collectOpcData(opc_id)
       const version = new Date().toISOString()
@@ -711,7 +764,7 @@ router.post('/deploy_to_office', async (req, res) => {
       const pkgBuf = await buildPackageWithOpenclaw(data, manifest, openclawConfig)
       const checksum = 'sha256:' + createHash('sha256').update(pkgBuf).digest('hex')
       cached = { buf: pkgBuf, checksum, version }
-      packageCache.set(opc_id, cached)
+      setCachedPackage(opc_id, pkgBuf, checksum, version)
     }
 
     const { buf: pkgBuf, checksum, version } = cached
@@ -745,7 +798,7 @@ router.post('/deploy_to_office', async (req, res) => {
           'Authorization': `Bearer ${office.daemon_api_key ?? ''}`,
         },
         body: form.getBuffer(),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(DAEMON_UPLOAD_TIMEOUT_MS),
       })
       if (!response.ok) {
         const text = await response.text()

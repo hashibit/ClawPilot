@@ -58,7 +58,7 @@
 ```
 ClawPilot App (Tauri, macOS)
        │
-       │ HTTP → http://localhost:8443/deploy
+       │ HTTP → http://localhost:16668/deploy
        ▼
 Local Daemon (launchd 服务)
        │
@@ -68,7 +68,7 @@ OpenClaw (同机)
 ```
 
 **特点**:
-- Daemon 监听 `127.0.0.1:8443` (仅本地访问)
+- Daemon 监听 `127.0.0.1:16668` (仅本地访问)
 - Tauri App 启动时自动注册并启动 Daemon
 - API Key 自动生成并存储在 `~/.clawpilot/daemon.key`
 - 适用于个人开发者、小团队测试
@@ -82,9 +82,9 @@ ClawPilot App (Tauri, 本地 Mac)
        │
        │ 1. SSH 登录远程服务器
        │ 2. scp 上传部署包到 /tmp/
-       │ 3. SSH 执行：curl localhost:8443/deploy ...
+       │ 3. SSH 执行：curl localhost:16668/deploy ...
        ▼
-Remote Daemon (systemd 服务，监听 127.0.0.1:8443)
+Remote Daemon (systemd 服务，监听 127.0.0.1:16668)
        │
        │ 文件系统 + 进程信号
        ▼
@@ -92,7 +92,7 @@ OpenClaw (EC2)
 ```
 
 **特点**:
-- Daemon 监听 `127.0.0.1:8443` (**永不暴露到公网**)
+- Daemon 监听 `127.0.0.1:16668` (**永不暴露到公网**)
 - 通过 **SSH 隧道** 间接调用 Daemon API
 - 用户通过安装脚本手动部署 Daemon
 - API Key 安装时生成，用户一次性复制
@@ -373,7 +373,7 @@ ALTER TABLE offices ADD COLUMN daemon_version TEXT;
 
 | 字段 | 说明 | 示例 |
 |------|------|------|
-| daemon_url | Daemon HTTP 端点 | `https://deploy.bj.example.com:8443` |
+| daemon_url | Daemon HTTP 端点 | `https://deploy.bj.example.com:16668` |
 | daemon_api_key | 认证密钥 (加密) | `enc:aes256:xxx...` |
 | daemon_version | Daemon 版本号 | `0.1.0` |
 
@@ -526,7 +526,7 @@ POST /rollback
          │     deploy-xxx.tar.gz ──────────────────────> │ /tmp/
          │                                               │
          │  3. SSH 执行部署命令                          │
-         │     curl -X POST localhost:8443/deploy \      │
+         │     curl -X POST localhost:16668/deploy \      │
          │       -H "Authorization: Bearer xxx" \        │
          │       -F "manifest=@..." \                    │
          │       -F "package=@/tmp/deploy-xxx.tar.gz"    │
@@ -542,7 +542,7 @@ POST /rollback
          │     { "task_id": "xxx" } <──────────────────  │
          │                                               │
          │  5. 轮询状态 (SSH)                            │
-         │     curl localhost:8443/deploy/xxx            │
+         │     curl localhost:16668/deploy/xxx            │
          │ ───────────────────────────────────────────>  │
          │                                               │
          │  6. 返回最终状态                              │
@@ -551,7 +551,7 @@ POST /rollback
 ```
 
 **关键设计**:
-- Daemon **永远监听** `127.0.0.1:8443`，不暴露到公网
+- Daemon **永远监听** `127.0.0.1:16668`，不暴露到公网
 - 所有远程调用通过 **SSH 隧道** 间接执行
 - 无需配置防火墙规则
 
@@ -569,7 +569,7 @@ brew install clawpilot
 # 1. 复制 Daemon 二进制到 ~/.clawpilot/daemon
 # 2. 注册 launchd 服务
 # 3. 生成 API Key 并保存到 ~/.clawpilot/daemon.key
-# 4. 启动 Daemon (监听 localhost:8443)
+# 4. 启动 Daemon (监听 localhost:16668)
 
 # 手动管理 Daemon
 clawpilot daemon start    # 启动
@@ -592,7 +592,7 @@ clawpilot daemon logs     # 查看日志
     <array>
         <string>/Users/username/.clawpilot/daemon</string>
         <string>--listen</string>
-        <string>127.0.0.1:8443</string>
+        <string>127.0.0.1:16668</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -632,7 +632,7 @@ sudo journalctl -u clawpilot-daemon -n 50 | grep "API Key"
 
 # 6. 验证 Daemon 运行
 sudo systemctl status clawpilot-daemon
-curl -H "Authorization: Bearer abc123..." http://localhost:8443/health
+curl -H "Authorization: Bearer abc123..." http://localhost:16668/health
 ```
 
 **方式二：一键安装脚本**
@@ -662,7 +662,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/local/bin/clawpilot-daemon --listen 0.0.0.0:8443
+ExecStart=/usr/local/bin/clawpilot-daemon --listen 0.0.0.0:16668
 Restart=always
 RestartSec=5
 
@@ -677,15 +677,15 @@ WantedBy=multi-user.target
 **远程服务器需要开放端口**:
 
 ```bash
-# AWS EC2 (安全组)
-# 添加入站规则：TCP 8443，来源限制为 ClawPilot App 所在 IP
+# AWS Ec2 (安全组)
+# 添加入站规则：TCP 16668，来源限制为 ClawPilot App 所在 IP
 
 # Ubuntu (ufw)
-sudo ufw allow 8443/tcp
+sudo ufw allow 16668/tcp
 sudo ufw enable
 
 # CentOS (firewalld)
-sudo firewall-cmd --add-port=8443/tcp --permanent
+sudo firewall-cmd --add-port=16668/tcp --permanent
 sudo firewall-cmd --reload
 ```
 
@@ -726,7 +726,7 @@ Daemon: v0.1.0
 // ~/.clawpilot/config.json
 {
   "daemon": {
-    "url": "http://127.0.0.1:8443",
+    "url": "http://127.0.0.1:16668",
     "api_key_file": "~/.clawpilot/daemon.key",
     "mode": "local"
   }
@@ -743,7 +743,7 @@ Daemon: v0.1.0
       "id": "office-bj-ec2",
       "name": "北京 EC2 办公室",
       "daemon": {
-        "url": "https://ec2-52-xxx-xxx-xxx.compute.amazonaws.com:8443",
+        "url": "https://ec2-52-xxx-xxx-xxx.compute.amazonaws.com:16668",
         "api_key": "enc:aes256:xxx...",  // 加密存储
         "mode": "remote",
         "skip_tls_verify": false  // 开发环境可设为 true
@@ -753,7 +753,7 @@ Daemon: v0.1.0
       "id": "office-sh-ec2",
       "name": "上海 EC2 办公室",
       "daemon": {
-        "url": "https://ec2-xxx.compute.cn-shanghai.aliyuncs.com:8443",
+        "url": "https://ec2-xxx.compute.cn-shanghai.aliyuncs.com:16668",
         "api_key": "enc:aes256:yyy...",
         "mode": "remote"
       }
@@ -783,13 +783,13 @@ async fn initialize_app() -> Result<(), String> {
     }
     
     // 3. 等待 Daemon 就绪
-    wait_for_daemon_health("http://127.0.0.1:8443")?;
+    wait_for_daemon_health("http://127.0.0.1:16668")?;
     
     // 4. 获取 API Key
     let api_key = read_or_generate_api_key()?;
     
     // 5. 设置全局配置
-    set_daemon_config("http://127.0.0.1:8443", &api_key)?;
+    set_daemon_config("http://127.0.0.1:16668", &api_key)?;
     
     Ok(())
 }

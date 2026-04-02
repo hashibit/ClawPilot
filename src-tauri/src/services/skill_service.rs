@@ -1,11 +1,11 @@
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
 use crate::models::skill::SkillInfo;
-use uuid::Uuid;
-use std::io::Cursor;
-use zip::ZipArchive;
 use std::fs;
+use std::io::Cursor;
 use std::path::PathBuf;
+use uuid::Uuid;
+use zip::ZipArchive;
 
 /// Local skill input for create_skill command
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -58,7 +58,8 @@ pub fn get_skills(pool: &DbPool) -> Result<Vec<SkillInfo>> {
                 size: row.get(5)?,
                 url: row.get(6)?,
                 version: row.get(7)?,
-                tags: row.get::<_, Option<String>>(8)?
+                tags: row
+                    .get::<_, Option<String>>(8)?
                     .map(|s| serde_json::from_str(&s).unwrap_or_default())
                     .unwrap_or_default(),
                 category: row.get(9)?,
@@ -93,12 +94,11 @@ pub fn create_skill(pool: &DbPool, skill: LocalSkillInput) -> Result<i64> {
     let slug = skill.name.trim().to_lowercase().replace(' ', "-");
 
     // Check for duplicate name or slug
-    let exists: bool = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM skills WHERE name = ?1 OR slug = ?2)",
-            rusqlite::params![skill.name.trim(), &slug],
-            |row| row.get(0),
-        )?;
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM skills WHERE name = ?1 OR slug = ?2)",
+        rusqlite::params![skill.name.trim(), &slug],
+        |row| row.get(0),
+    )?;
 
     if exists {
         return Err(AppError::Validation("技能名称已存在".into()));
@@ -126,10 +126,7 @@ pub fn create_skill(pool: &DbPool, skill: LocalSkillInput) -> Result<i64> {
 /// Delete a local skill by id
 pub fn delete_skill(pool: &DbPool, id: String) -> Result<()> {
     let conn = pool.get()?;
-    conn.execute(
-        "DELETE FROM skills WHERE id = ?1",
-        rusqlite::params![id],
-    )?;
+    conn.execute("DELETE FROM skills WHERE id = ?1", rusqlite::params![id])?;
     Ok(())
 }
 
@@ -181,7 +178,8 @@ pub async fn install_skill(pool: &DbPool, slug: String) -> Result<SkillInstallRe
     let mut extracted_paths = Vec::new();
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| AppError::Validation(format!("ZIP 文件索引失败：{}", e)))?;
 
         let outpath = match file.enclosed_name() {
@@ -219,7 +217,8 @@ pub async fn install_skill(pool: &DbPool, slug: String) -> Result<SkillInstallRe
     let ts = chrono::Utc::now().timestamp();
 
     // Check if skill exists
-    let exists: bool = pool.get()?
+    let exists: bool = pool
+        .get()?
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM skills WHERE slug = ?1)",
             rusqlite::params![&slug],
@@ -262,16 +261,22 @@ pub async fn uninstall_skill(pool: &DbPool, slug: String) -> Result<serde_json::
     }
 
     // Remove from database
-    pool.get()?.execute(
-        "DELETE FROM skills WHERE slug = ?1",
-        rusqlite::params![&slug],
-    ).map_err(|e| AppError::Database(e))?;
+    pool.get()?
+        .execute(
+            "DELETE FROM skills WHERE slug = ?1",
+            rusqlite::params![&slug],
+        )
+        .map_err(|e| AppError::Database(e))?;
 
     Ok(serde_json::json!({ "ok": true }))
 }
 
 /// Search for skills from clawhub
-pub async fn search_skills(_q: String, _source: Option<String>, _limit: Option<i64>) -> Result<Vec<SkillInfo>> {
+pub async fn search_skills(
+    _q: String,
+    _source: Option<String>,
+    _limit: Option<i64>,
+) -> Result<Vec<SkillInfo>> {
     // Simplified: return empty list for now
     Ok(vec![])
 }
@@ -319,9 +324,13 @@ fn get_bundle_skills_metadata_path() -> Result<PathBuf> {
         .ok_or_else(|| AppError::Validation("无法获取可执行文件目录".into()))?;
 
     let possible_paths = vec![
-        exe_dir.parent().map(|p| p.join("bundle/bundled-skills-metadata.json")),
+        exe_dir
+            .parent()
+            .map(|p| p.join("bundle/bundled-skills-metadata.json")),
         Some(exe_dir.join("bundle/bundled-skills-metadata.json")),
-        exe_dir.parent().map(|p| p.join("Resources/bundle/bundled-skills-metadata.json")),
+        exe_dir
+            .parent()
+            .map(|p| p.join("Resources/bundle/bundled-skills-metadata.json")),
     ];
 
     for path in possible_paths.into_iter().flatten() {
@@ -357,11 +366,13 @@ pub fn register_bundle_skills(pool: &DbPool) -> Result<()> {
 
         let conn = pool.get()?;
 
-        let exists: bool = conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM skills WHERE slug = ?1)",
-            rusqlite::params![&skill.slug],
-            |row| row.get(0),
-        ).unwrap_or(false);
+        let exists: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM skills WHERE slug = ?1)",
+                rusqlite::params![&skill.slug],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
 
         if exists {
             conn.execute(
@@ -381,7 +392,8 @@ pub fn register_bundle_skills(pool: &DbPool) -> Result<()> {
                     ts,
                     &skill.slug
                 ],
-            ).map_err(|e| AppError::Database(e))?;
+            )
+            .map_err(|e| AppError::Database(e))?;
         } else {
             let id = Uuid::new_v4().to_string();
             conn.execute(
@@ -436,4 +448,219 @@ fn get_bundle_skills_dir() -> Result<PathBuf> {
 
     // Fallback to a default path relative to current directory
     Ok(PathBuf::from("bundle/skills"))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::{migrations, pool::DbPool};
+    use rusqlite::Connection;
+
+    fn setup() -> DbPool {
+        let conn = Connection::open_in_memory().unwrap();
+        let pool = DbPool::new_in_memory_for_test(conn);
+        migrations::run_migrations(&pool).unwrap();
+        pool
+    }
+
+    // --- get_skills 测试 ---
+    #[test]
+    fn test_get_skills_empty() {
+        let pool = setup();
+
+        let result = get_skills(&pool);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    // --- create_skill 测试 ---
+    #[test]
+    fn test_create_skill() {
+        let pool = setup();
+
+        let input = LocalSkillInput {
+            name: "test-skill".to_string(),
+            display_name: "Test Skill".to_string(),
+            description: Some("A test skill".to_string()),
+            category: Some("general".to_string()),
+        };
+
+        let result = create_skill(&pool, input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_create_skill_requires_name() {
+        let pool = setup();
+
+        let input = LocalSkillInput {
+            name: "".to_string(),
+            display_name: "Test".to_string(),
+            description: None,
+            category: None,
+        };
+
+        let result = create_skill(&pool, input);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("name is required"));
+    }
+
+    #[test]
+    fn test_create_skill_requires_display_name() {
+        let pool = setup();
+
+        let input = LocalSkillInput {
+            name: "test".to_string(),
+            display_name: "".to_string(),
+            description: None,
+            category: None,
+        };
+
+        let result = create_skill(&pool, input);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("display_name is required"));
+    }
+
+    #[test]
+    fn test_create_skill_prevents_duplicates() {
+        let pool = setup();
+
+        let input = LocalSkillInput {
+            name: "duplicate-skill".to_string(),
+            display_name: "Duplicate".to_string(),
+            description: None,
+            category: None,
+        };
+
+        create_skill(&pool, input.clone()).unwrap();
+
+        let result = create_skill(&pool, input);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("技能名称已存在"));
+    }
+
+    #[test]
+    fn test_create_skill_trims_whitespace() {
+        let pool = setup();
+
+        let input = LocalSkillInput {
+            name: "  test-skill  ".to_string(),
+            display_name: "  Test Skill  ".to_string(),
+            description: Some("  Description  ".to_string()),
+            category: Some("  general  ".to_string()),
+        };
+
+        let result = create_skill(&pool, input);
+        assert!(result.is_ok());
+
+        let skills = get_skills(&pool).unwrap();
+        assert_eq!(skills[0].name, "test-skill");
+        assert_eq!(skills[0].description, Some("Description".to_string()));
+    }
+
+    #[test]
+    fn test_create_skill_generates_slug() {
+        let pool = setup();
+
+        let input = LocalSkillInput {
+            name: "My Test Skill".to_string(),
+            display_name: "My Test Skill".to_string(),
+            description: None,
+            category: None,
+        };
+
+        create_skill(&pool, input).unwrap();
+
+        let skills = get_skills(&pool).unwrap();
+        assert_eq!(skills[0].slug, "my-test-skill");
+    }
+
+    // --- delete_skill 测试 ---
+    #[test]
+    fn test_delete_skill() {
+        let pool = setup();
+
+        let input = LocalSkillInput {
+            name: "to-delete".to_string(),
+            display_name: "To Delete".to_string(),
+            description: None,
+            category: None,
+        };
+
+        create_skill(&pool, input).unwrap();
+        let skills = get_skills(&pool).unwrap();
+        let skill_id = skills[0].id.clone();
+
+        let result = delete_skill(&pool, skill_id);
+        assert!(result.is_ok());
+
+        let skills = get_skills(&pool).unwrap();
+        assert!(skills.is_empty());
+    }
+
+    // --- sync_skills_from_clawhub 测试 ---
+    #[test]
+    fn test_sync_skills_from_clawhub_returns_empty() {
+        let pool = setup();
+
+        let result = sync_skills_from_clawhub(&pool);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    // --- LocalSkillInput 测试 ---
+    #[test]
+    fn test_local_skill_input_serde() {
+        let input = LocalSkillInput {
+            name: "test".to_string(),
+            display_name: "Test".to_string(),
+            description: Some("Description".to_string()),
+            category: Some("general".to_string()),
+        };
+
+        let json = serde_json::to_string(&input).unwrap();
+        let parsed: LocalSkillInput = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(input.name, parsed.name);
+        assert_eq!(input.display_name, parsed.display_name);
+        assert_eq!(input.description, parsed.description);
+        assert_eq!(input.category, parsed.category);
+    }
+
+    // --- SkillInstallResult 测试 ---
+    #[test]
+    fn test_skill_install_result_serde() {
+        let result = SkillInstallResult {
+            ok: true,
+            skill: None,
+            error: None,
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: SkillInstallResult = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(result.ok, parsed.ok);
+    }
+
+    #[test]
+    fn test_skill_install_result_error() {
+        let result = SkillInstallResult {
+            ok: false,
+            skill: None,
+            error: Some("Download failed".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let parsed: SkillInstallResult = serde_json::from_str(&json).unwrap();
+
+        assert!(!parsed.ok);
+        assert_eq!(parsed.error, Some("Download failed".to_string()));
+    }
 }

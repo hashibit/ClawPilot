@@ -9,6 +9,7 @@ mod utils;
 mod tests;
 
 use axum::{
+    extract::DefaultBodyLimit,
     middleware,
     routing::{get, post},
     Router,
@@ -20,6 +21,9 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use scheduler::{Db, DagScheduler, Worker, Recovery, artifacts};
+
+// Maximum request body size for deploy endpoint (50MB)
+const MAX_DEPLOY_BODY_SIZE: usize = 50 * 1024 * 1024;
 
 /// ClawPilot Deploy Daemon
 #[derive(Parser, Debug)]
@@ -153,7 +157,8 @@ async fn main() {
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_auth,
-        ));
+        ))
+        .layer(DefaultBodyLimit::max(MAX_DEPLOY_BODY_SIZE));
 
     // Unprotected routes (health)
     let app = Router::new()

@@ -1,6 +1,6 @@
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
-use crate::models::channel::{ChannelConfig, ChannelType};
+use crate::models::channel::{ChannelConfig, ChannelType, FeishuConfig};
 
 /// 指定 OPC に属する全チャンネル設定を取得する。
 pub fn get_channels(pool: &DbPool, opc_id: &str) -> Result<Vec<ChannelConfig>> {

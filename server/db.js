@@ -163,11 +163,24 @@ export function applySchema(db) {
 // ── Migration helper ───────────────────────────────────────
 // Silently skips "column already exists" (idempotent migrations),
 // but throws on any real database error so failures are visible.
+
+// Whitelist of valid table names to prevent SQL injection
+const VALID_TABLES = new Set([
+  'openclaw_config', 'opc_config', 'agents', 'agent_documents',
+  'model_providers', 'model_providers_v2', 'model_info', 'model_info_v2',
+  'channels', 'bindings', 'local_snapshots', 'deployment_tasks',
+  'log_entries', 'tools', 'skills', 'offices', 'office_deployments'
+])
+
 function safeAddColumn(db, table, colDef) {
+  // Validate table name against whitelist
+  if (!VALID_TABLES.has(table)) {
+    throw new Error(`[db] Invalid table name: ${table}`)
+  }
   const colName = colDef.trim().split(/\s+/)[0]
-  const cols = db.prepare(`PRAGMA table_info("${table}")`).all()
+  const cols = db.prepare(`PRAGMA table_info("${table.replace(/"/g, '""')}")`).all()
   if (cols.some(c => c.name === colName)) return
-  db.exec(`ALTER TABLE "${table}" ADD COLUMN ${colDef}`)
+  db.exec(`ALTER TABLE "${table.replace(/"/g, '""')}" ADD COLUMN ${colDef}`)
 }
 
 export function runMigrations(db) {

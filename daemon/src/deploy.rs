@@ -9,7 +9,7 @@ use std::{
 };
 use tar::Archive;
 
-use crate::state::{AppState, TaskRecord, TaskStatus};
+use crate::state::{AppState, TaskState, TaskStatus};
 use crate::utils::extract_json;
 
 /// ~/.openclaw base directory
@@ -220,6 +220,47 @@ pub(crate) fn safe_join(base: &Path, entry_path: &Path) -> Option<PathBuf> {
     }
 }
 
+/// Canonicalize both base and path, then verify the resolved path is inside base.
+/// This prevents symlink escape attacks where an attacker could place a symlink
+/// inside base that points outside the directory.
+pub(crate) fn safe_join_canonical(base: &Path, entry_path: &Path) -> Option<PathBuf> {
+    use std::path::Component;
+
+    // First do lexical check
+    let _lexical_path = safe_join(base, entry_path)?;
+
+    // Canonicalize base directory (must exist)
+    let base_canon = base.canonicalize().ok()?;
+
+    // For the entry path, we need to handle the case where parent dirs may not exist yet
+    // Canonicalize what exists, then append remaining components
+    let mut check_path = base_canon.clone();
+    for component in entry_path.components() {
+        match component {
+            Component::RootDir | Component::Prefix(_) | Component::ParentDir => return None,
+            Component::CurDir => {}
+            Component::Normal(part) => {
+                check_path.push(part);
+                // If this component exists (as file, dir, or symlink), canonicalize it
+                if check_path.exists() {
+                    check_path = check_path.canonicalize().ok()?;
+                    // Verify we're still inside base
+                    if !check_path.starts_with(&base_canon) {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+
+    // Final check: the full resolved path must be inside base
+    if check_path.starts_with(&base_canon) {
+        Some(check_path)
+    } else {
+        None
+    }
+}
+
 /// Extract tar.gz package to OPC directory
 pub fn extract_package(opc_id: &str, data: &[u8]) -> anyhow::Result<()> {
     let opc_dir = openclaw_home().join("OPC").join(opc_id);
@@ -232,7 +273,8 @@ pub fn extract_package(opc_id: &str, data: &[u8]) -> anyhow::Result<()> {
         let mut entry = entry?;
         let path = entry.path()?;
 
-        let dest = safe_join(&opc_dir, &path)
+        // Use canonical safe_join to prevent symlink escape attacks
+        let dest = safe_join_canonical(&opc_dir, &path)
             .ok_or_else(|| anyhow!("Path traversal detected in archive: {}", path.display()))?;
 
         if entry.header().entry_type().is_dir() {
@@ -270,9 +312,9 @@ pub async fn run_deploy(
     package_bytes: Vec<u8>,
     checksum: Option<String>,
 ) {
-    let update = |f: &dyn Fn(&mut TaskRecord)| {
-        if let Some(mut t) = state.tasks.get_mut(&task_id) {
-            f(&mut t);
+    let update = |f: &dyn Fn(&mut TaskState)| {
+        if let Some(t) = state.tasks.get(&task_id) {
+            t.update_blocking(f);
         }
     };
 
@@ -430,9 +472,9 @@ pub async fn run_rollback(
     opc_id: String,
     target_version: Option<String>,
 ) {
-    let update = |f: &dyn Fn(&mut TaskRecord)| {
-        if let Some(mut t) = state.tasks.get_mut(&task_id) {
-            f(&mut t);
+    let update = |f: &dyn Fn(&mut TaskState)| {
+        if let Some(t) = state.tasks.get(&task_id) {
+            t.update_blocking(f);
         }
     };
 

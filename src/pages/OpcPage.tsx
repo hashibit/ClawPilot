@@ -122,6 +122,7 @@ export default function OpcPage() {
   const [snapshotLabel, setSnapshotLabel] = useState('')
   const [snapshotLoading, setSnapshotLoading] = useState(false)
   const [confirmOffline, setConfirmOffline] = useState<OpcConfig | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<OpcConfig | null>(null)
 
 
   const selected = currentOpc
@@ -183,7 +184,7 @@ export default function OpcPage() {
   }
 
   const handleDelete = async (opc: OpcConfig) => {
-    if (!confirm(`确认删除「${opc.display_name}」？此操作不可恢复。`)) return
+    
     try {
       await deleteOpc(opc.id)
       toast(t('common.status_deleted'), 'success')
@@ -242,6 +243,23 @@ export default function OpcPage() {
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button className="tbtn tbtn-ghost" onClick={() => setConfirmOffline(null)}>{t('common.button_cancel')}</button>
               <button className="tbtn tbtn-danger" onClick={() => handleUndeploy(confirmOffline)}>{t('opc.button_confirm_undeploy')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff', marginBottom: '8px' }}>{confirmDelete.display_name}</div>
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>
+                {t('opc.confirm_delete')}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>{t('common.button_cancel')}</button>
+              <button className="tbtn" style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e' }} onClick={() => handleDelete(confirmDelete)}>{t('common.button_delete')}</button>
             </div>
           </div>
         </div>
@@ -338,7 +356,7 @@ export default function OpcPage() {
                   <Icon name="download" size={12} style={{ display: 'inline', marginRight: '4px' }} />
                   {t('common.button_export')}
                 </button>
-                <button className="tbtn tbtn-danger" onClick={() => handleDelete(selected)}>{t('common.button_delete')}</button>
+                <button className="tbtn tbtn-danger" onClick={() => setConfirmDelete(selected)}>{t('common.button_delete')}</button>
               </div>
             </div>
 

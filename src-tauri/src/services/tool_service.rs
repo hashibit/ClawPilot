@@ -106,3 +106,196 @@ pub fn delete_tool(pool: &DbPool, id: String) -> Result<()> {
     )?;
     Ok(())
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::{migrations, pool::DbPool};
+    use rusqlite::Connection;
+
+    fn setup() -> DbPool {
+        let conn = Connection::open_in_memory().unwrap();
+        let pool = DbPool::new_in_memory_for_test(conn);
+        migrations::run_migrations(&pool).unwrap();
+        pool
+    }
+
+    // --- get_tools 测试 ---
+    #[test]
+    fn test_get_tools_empty() {
+        let pool = setup();
+
+        let result = get_tools(&pool);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    // --- create_tool 测试 ---
+    #[test]
+    fn test_create_tool() {
+        let pool = setup();
+
+        let input = LocalToolInput {
+            name: "test-tool".to_string(),
+            display_name: "Test Tool".to_string(),
+            description: Some("A test tool".to_string()),
+            category: Some("general".to_string()),
+        };
+
+        let result = create_tool(&pool, input);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_create_tool_requires_name() {
+        let pool = setup();
+
+        let input = LocalToolInput {
+            name: "".to_string(),
+            display_name: "Test".to_string(),
+            description: None,
+            category: None,
+        };
+
+        let result = create_tool(&pool, input);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("name is required"));
+    }
+
+    #[test]
+    fn test_create_tool_requires_display_name() {
+        let pool = setup();
+
+        let input = LocalToolInput {
+            name: "test".to_string(),
+            display_name: "".to_string(),
+            description: None,
+            category: None,
+        };
+
+        let result = create_tool(&pool, input);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("display_name is required"));
+    }
+
+    #[test]
+    fn test_create_tool_prevents_duplicates() {
+        let pool = setup();
+
+        let input = LocalToolInput {
+            name: "duplicate-tool".to_string(),
+            display_name: "Duplicate".to_string(),
+            description: None,
+            category: None,
+        };
+
+        create_tool(&pool, input.clone()).unwrap();
+
+        let result = create_tool(&pool, input);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("工具名称已存在"));
+    }
+
+    #[test]
+    fn test_create_tool_trims_whitespace() {
+        let pool = setup();
+
+        let input = LocalToolInput {
+            name: "  test-tool  ".to_string(),
+            display_name: "  Test Tool  ".to_string(),
+            description: Some("  Description  ".to_string()),
+            category: Some("  general  ".to_string()),
+        };
+
+        let result = create_tool(&pool, input);
+        assert!(result.is_ok());
+
+        let tools = get_tools(&pool).unwrap();
+        assert_eq!(tools[0].name, "test-tool");
+        assert_eq!(tools[0].description, Some("Description".to_string()));
+    }
+
+    #[test]
+    fn test_create_tool_generates_slug() {
+        let pool = setup();
+
+        let input = LocalToolInput {
+            name: "My Test Tool".to_string(),
+            display_name: "My Test Tool".to_string(),
+            description: None,
+            category: None,
+        };
+
+        create_tool(&pool, input).unwrap();
+
+        let tools = get_tools(&pool).unwrap();
+        assert_eq!(tools[0].slug, "my-test-tool");
+    }
+
+    // --- delete_tool 测试 ---
+    #[test]
+    fn test_delete_tool() {
+        let pool = setup();
+
+        let input = LocalToolInput {
+            name: "to-delete".to_string(),
+            display_name: "To Delete".to_string(),
+            description: None,
+            category: None,
+        };
+
+        create_tool(&pool, input).unwrap();
+        let tools = get_tools(&pool).unwrap();
+        let tool_id = tools[0].id.clone();
+
+        let result = delete_tool(&pool, tool_id);
+        assert!(result.is_ok());
+
+        let tools = get_tools(&pool).unwrap();
+        assert!(tools.is_empty());
+    }
+
+    // --- sync_tools_from_clawhub 测试 ---
+    #[test]
+    fn test_sync_tools_from_clawhub_returns_empty() {
+        let pool = setup();
+
+        let result = sync_tools_from_clawhub(&pool);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    // --- LocalToolInput 测试 ---
+    #[test]
+    fn test_local_tool_input_serde() {
+        let input = LocalToolInput {
+            name: "test".to_string(),
+            display_name: "Test".to_string(),
+            description: Some("Description".to_string()),
+            category: Some("general".to_string()),
+        };
+
+        let json = serde_json::to_string(&input).unwrap();
+        let parsed: LocalToolInput = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(input.name, parsed.name);
+        assert_eq!(input.display_name, parsed.display_name);
+        assert_eq!(input.description, parsed.description);
+        assert_eq!(input.category, parsed.category);
+    }
+
+    #[test]
+    fn test_local_tool_input_optional_fields() {
+        let json = r#"{"name":"test","display_name":"Test"}"#;
+        let parsed: LocalToolInput = serde_json::from_str(json).unwrap();
+
+        assert_eq!(parsed.name, "test");
+        assert_eq!(parsed.display_name, "Test");
+        assert!(parsed.description.is_none());
+        assert!(parsed.category.is_none());
+    }
+}

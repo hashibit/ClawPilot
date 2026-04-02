@@ -2,8 +2,8 @@
 
 > 本文档说明如何运行 ClawPilot 项目的所有自动化测试。
 >
-> 版本: v1.0
-> 日期: 2026-03-20
+> 版本: v1.1
+> 日期: 2026-04-02
 
 ---
 
@@ -14,11 +14,12 @@
 3. [前端测试](#前端测试)
 4. [Tauri 后端测试](#tauri-后端测试)
 5. [Daemon 测试](#daemon-测试)
-6. [agent-browser 测试](#agent-browser-测试非-e2e-代码断言)
+6. [E2E 测试](#e2e-测试)
 7. [OrbStack 真实部署测试](#orbstack-真实部署测试)
 8. [CI/CD 集成](#cicd-集成)
 9. [故障排除](#故障排除)
-10. [手动测试（TEST_PATHS.md）](#手动测试清单)
+10. [测试策略总结](#测试策略总结)
+11. [agent-browser 测试](#agent-browser-测试ai-驾驶浏览器)
 
 ---
 
@@ -41,8 +42,8 @@ cd src-tauri && cargo test      # Tauri 后端 Rust 测试
 cd daemon && cargo test         # Daemon 测试
 npx playwright test             # i18n 自动化测试（i18n.spec.ts）
 
-# 2. agent-browser 测试（Claude Code 驾驶浏览器执行，场景见 agent-tests/scenarios.md）
-lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
+# 2. agent-browser 测试（Claude Code 驾驶浏览器执行，场景见 tests/e2e/scenarios.md）
+lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null || true
 npm run dev &
 # → 告诉 Claude Code 执行 agent-browser 测试
 ```
@@ -138,7 +139,9 @@ src/
 │   ├── helpers/
 │   │   └── testing-library.tsx
 │   ├── unit/              # 单元测试
-│   └── integration/       # 集成测试
+│   ├── api.test.ts
+│   ├── example.test.ts
+│   └── i18n.test.ts
 ```
 
 ### 运行测试
@@ -280,10 +283,22 @@ cargo test --test deploy_test
 ### 目录结构
 
 ```
-agent-tests/
+tests/e2e/
 ├── i18n.spec.ts    # i18n 自动化测试（代码断言，16 语言 + RTL + 持久化）
 ├── scenarios.md    # agent-browser 测试总览（自然语言）
-└── office.md       # Office 管理 agent-browser 测试（详细，25 个测试点）
+├── orbstack.md     # OrbStack 真实部署测试（手动）
+├── office.md       # Office 管理 agent-browser 测试（详细，25 个测试点）
+├── opc.md          # OPC 管理 agent-browser 测试
+├── agents.md       # Agent 管理 agent-browser 测试
+├── bindings.md     # 渠道绑定 agent-browser 测试
+├── providers.md    # 模型提供商 agent-browser 测试
+├── skill.md        # 技能管理 agent-browser 测试
+├── tool.md         # 工具管理 agent-browser 测试
+├── deploy.md       # 部署流程 agent-browser 测试
+├── logs.md         # 日志 agent-browser 测试
+├── settings.md     # 设置 agent-browser 测试
+├── overview.md     # 基础页面加载测试
+└── screenshots/    # 测试截图存储
 ```
 
 ### i18n 自动化测试
@@ -321,7 +336,7 @@ npx playwright test --ui
 执行方式：
 
 ```bash
-lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
+lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null || true
 npm run dev &
 # → 告诉 Claude Code 执行 agent-browser 测试
 ```
@@ -331,6 +346,7 @@ npm run dev &
 ## OrbStack 真实部署测试
 
 > ⚠️ **注意**: 这些测试需要手动执行，需要真实的 OrbStack 环境。
+> 详细测试场景参见 [`tests/e2e/orbstack.md`](../tests/e2e/orbstack.md)。
 
 ### 前置要求
 
@@ -341,18 +357,7 @@ npm run dev &
    cd daemon && cargo build --release
    ```
 
-### 运行测试
-
-```bash
-# 运行完整测试脚本
-./tests/orbstack/test-deploy.sh
-```
-
-### 手动测试步骤
-
-如果自动脚本失败，可以手动执行：
-
-#### 0. SSH 环境准备（首次执行一次）
+### 环境准备（首次执行）
 
 OrbStack VM 默认不启动 sshd，需要先完成以下 setup：
 
@@ -376,6 +381,9 @@ orbctl run -m clawpilot-test -u root bash -c "
 # 获取 VM IP
 VM_IP=$(orbctl list --format json | python3 -c "import sys,json; [print(m['ip']) for m in json.load(sys.stdin) if m['name']=='clawpilot-test']")
 echo "VM IP: $VM_IP"
+
+# 验证 SSH 连接
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "echo ok"
 ```
 
 之后所有 SSH/SCP 操作统一使用：
@@ -385,18 +393,11 @@ SSH="ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP"
 SCP="scp -i ~/.orbstack/ssh/id_ed25519"
 ```
 
-#### 1. 创建测试 VM
+### 手动测试步骤
+
+#### 1. 安装 Daemon 到 VM
 
 ```bash
-orbctl create ubuntu clawpilot-test
-```
-
-#### 2. 安装 Daemon
-
-```bash
-# 获取 VM IP
-VM_IP=$(orbctl info clawpilot-test | grep 'IPv4' | awk '{print $2}')
-
 # 复制到 VM
 scp -i ~/.orbstack/ssh/id_ed25519 daemon/target/release/clawpilot-daemon $USER@$VM_IP:/tmp/
 
@@ -404,17 +405,17 @@ scp -i ~/.orbstack/ssh/id_ed25519 daemon/target/release/clawpilot-daemon $USER@$
 ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "sudo mv /tmp/clawpilot-daemon /usr/local/bin/ && sudo chmod +x /usr/local/bin/clawpilot-daemon"
 ```
 
-#### 3. 启动 Daemon
+#### 2. 启动 Daemon
 
 ```bash
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "nohup clawpilot-daemon --listen 0.0.0.0:8443 > /tmp/daemon.log 2>&1 &"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "nohup clawpilot-daemon --listen 0.0.0.0:16668 > /tmp/daemon.log 2>&1 &"
 sleep 3
 ```
 
-#### 4. 验证 Health
+#### 3. 验证 Health
 
 ```bash
-ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:8443/health"
+ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:16668/health"
 ```
 
 预期输出：
@@ -422,7 +423,7 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl http://localhost:8443/healt
 {"status":"ok","version":"0.1.0"}
 ```
 
-#### 5. 测试部署
+#### 4. 测试部署
 
 ```bash
 # 创建测试包
@@ -438,10 +439,10 @@ ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "curl -X POST \
   -H 'Authorization: Bearer ${API_KEY}' \
   -F 'manifest=@/tmp/manifest.json' \
   -F 'package=@/tmp/package.tar.gz' \
-  http://localhost:8443/deploy"
+  http://localhost:16668/deploy"
 ```
 
-#### 6. 清理
+#### 5. 清理
 
 ```bash
 ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP "pkill -f clawpilot-daemon || true"
@@ -457,6 +458,28 @@ orbctl delete clawpilot-test
 | Health 检查 | 返回正确 JSON |
 | 部署包上传 | 文件接收成功 |
 | 任务状态查询 | 状态返回正常 |
+
+### 常见问题
+
+**问题**: SSH 连接失败（Connection refused）
+```bash
+# sshd 未启动
+orbctl run -m clawpilot-test -u root systemctl start ssh
+```
+
+**问题**: SSH 认证失败（Permission denied）
+```bash
+# 重新注入公钥
+PUBKEY=$(cat ~/.orbstack/ssh/id_ed25519.pub)
+orbctl run -m clawpilot-test -u root bash -c "echo '$PUBKEY' >> /home/$USER/.ssh/authorized_keys"
+```
+
+**问题**: 不知道 VM 的 IP
+```bash
+orbctl info clawpilot-test | grep IPv4
+# 或
+orbctl list
+```
 
 ---
 
@@ -526,11 +549,11 @@ jobs:
 | Server 安全 | ✅ | ✅ | ✅ |
 | Server 性能 | ✅ | ✅ | ✅ |
 | 前端单元 | ✅ | ✅ | ✅ |
-| 前端集成 | ✅ | ✅ | ✅ |
 | Tauri 后端（Rust）| ✅ | ✅ | ✅ |
 | Daemon 单元 | ✅ | ✅ | ✅ |
-| E2E | ✅ | ✅ | ✅ |
-| OrbStack | ✅ | - | ✅ |
+| E2E (Playwright) | ✅ | ✅ | ✅ |
+| agent-browser | ✅ | - | ✅ |
+| OrbStack 真实部署 | ✅ | - | ✅ |
 
 ---
 
@@ -612,7 +635,7 @@ orbctl create ubuntu clawpilot-test
 
 **问题**: SSH 连接失败（Connection refused）
 ```bash
-# sshd 未启动，执行 setup（见步骤 0）
+# sshd 未启动
 orbctl run -m clawpilot-test -u root systemctl start ssh
 ```
 
@@ -646,7 +669,9 @@ orbctl stop && open -a OrbStack
     ┌─────────────────────────────┐
     │  OrbStack 真实部署测试 (手动) │  ← 验证真实环境部署
     ├─────────────────────────────┤
-    │    E2E 测试 (Playwright)    │  ← 验证用户旅程
+    │   agent-browser 测试 (手动)  │  ← 验证用户交互流程
+    ├─────────────────────────────┤
+    │    E2E 测试 (Playwright)    │  ← 验证 i18n 等自动化场景
     ├─────────────────────────────┤
     │   Daemon 集成 (axum-test)   │  ← 验证 HTTP API
     ├─────────────────────────────┤
@@ -664,12 +689,12 @@ orbctl stop && open -a OrbStack
 
 ## agent-browser 测试（AI 驾驶浏览器）
 
-Claude Code 通过 `claude-code-harness:agent-browser` skill 驾驶浏览器执行。场景以自然语言定义于 `agent-tests/`，涵盖所有页面的导航与渲染、表单交互、关键用户流程，截图留证。
+Claude Code 通过 `claude-code-harness:agent-browser` skill 驾驶浏览器执行。场景以自然语言定义于 `tests/e2e/`，涵盖所有页面的导航与渲染、表单交互、关键用户流程，截图留证。
 
 ### 执行方式
 
 ```bash
-lsof -ti:1420,3001 | xargs kill -9 2>/dev/null || true
+lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null || true
 npm run dev &
 # → 告诉 Claude Code 执行 agent-browser 测试
 ```
