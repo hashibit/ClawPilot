@@ -1,19 +1,60 @@
 import { Router } from 'express'
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
 import { decrypt } from '../utils/crypto.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Load bundle skills metadata for valid skills list
+const BUNDLE_SKILLS_METADATA_PATH = path.resolve(__dirname, '../../bundle/bundled-skills-metadata.json')
+let _cachedValidSkillSlugs = null
+let _cachedSystemPromptSkills = null
+
+function getValidSkillSlugs() {
+  if (_cachedValidSkillSlugs) return _cachedValidSkillSlugs
+  try {
+    const metadata = JSON.parse(fs.readFileSync(BUNDLE_SKILLS_METADATA_PATH, 'utf8'))
+    _cachedValidSkillSlugs = new Set(metadata.skills.map(s => s.slug))
+    return _cachedValidSkillSlugs
+  } catch {
+    // Fallback to hardcoded list if metadata file not found
+    return new Set([
+      'multi-round-memory','proactive-speak','scheduled-heartbeat','mention-response','direct-response',
+      'message-routing','context-compression','tool-calling','memory-persistence','emotional-aware',
+      'github-helper','web-search','feishu-helper'
+    ])
+  }
+}
+
+function getSystemPromptSkillsText() {
+  if (_cachedSystemPromptSkills) return _cachedSystemPromptSkills
+  try {
+    const metadata = JSON.parse(fs.readFileSync(BUNDLE_SKILLS_METADATA_PATH, 'utf8'))
+    const coreSkills = metadata.skills.filter(s => s.category === 'core')
+    const extSkills = metadata.skills.filter(s => s.category === 'integration')
+    const coreList = coreSkills.map(s => `${s.slug} (${s.display_name})`).join(',')
+    const extList = extSkills.map(s => `${s.slug} (${s.display_name})`).join(',')
+    _cachedSystemPromptSkills = `核心技能：${coreList}\n扩展技能：${extList}`
+    return _cachedSystemPromptSkills
+  } catch {
+    return '核心技能：multi-round-memory（多轮记忆）、proactive-speak（主动发言）、scheduled-heartbeat（定时心跳）、mention-response（被@响应）、direct-response（私信响应）、message-routing（消息路由）、context-compression（上下文压缩）、tool-calling（工具调用）、memory-persistence（记忆持久化）、emotional-aware（情绪感知）\n扩展技能：github-helper（GitHub 助手）、web-search（网页搜索）、feishu-helper（飞书助手）'
+  }
+}
 
 const SYSTEM_PROMPT = `/no_think 你是一个 OpenClaw Agent 人格配置生成器。根据用户的描述，生成完整的 Agent 配置。
 
 可选工具 ID（enabled_tools 从中选择合适的，数组）：
-web_search（网页搜索）、web_reader（网页阅读）、feishu_message（发飞书消息）、code_interpreter（代码解释器）、file_reader（文件读取）、image_gen（图像生成）、image_analysis（视觉理解）、http_request（HTTP请求）、asr（语音识别）、tts（语音合成）
+web_search（网页搜索）、web_reader（网页阅读）、feishu_message（发飞书消息）、code_interpreter（代码解释器）、file_reader（文件读取）、image_gen（图像生成）、image_analysis（视觉理解）、http_request（HTTP 请求）、asr（语音识别）、tts（语音合成）
 
 可选技能 slug（enabled_skills 从中选择合适的，数组）：
-multi-round-memory（多轮记忆）、proactive-speak（主动发言）、scheduled-heartbeat（定时心跳）、mention-response（被@响应）、direct-response（私信响应）、message-routing（消息路由）、context-compression（上下文压缩）、tool-calling（工具调用）、memory-persistence（记忆持久化）、emotional-aware（情绪感知）
+${getSystemPromptSkillsText()}
 
 严格以 JSON 格式返回，包含以下字段：
 {
-  "display_name": "显示名称（2-8字，中文）",
-  "name": "英文标识（小写字母+下划线，如 ux_designer）",
+  "display_name": "显示名称（2-8 字，中文）",
+  "name": "英文标识（小写字母 + 下划线，如 ux_designer）",
   "job_title": "职位名称",
   "description": "一句话描述",
   "personality": "性格关键词，逗号分隔，如：细腻、严谨、主动",
@@ -25,7 +66,7 @@ multi-round-memory（多轮记忆）、proactive-speak（主动发言）、sched
   "identity": "IDENTITY.md 内容（列出 Name/Title/Persona/Role/Emoji/Boss 字段）",
   "agents": "AGENTS.md 内容（Markdown，包含成员编制表占位 + Every Session 阅读清单 + Memory 规则 + Safety 原则）",
   "user": "USER.md 内容（简短：Boss 是唯一汇报对象，可加一句 Boss 偏好）",
-  "memory": "MEMORY.md 内容（Markdown，包含置信度图例 + 关于Boss/项目/经验教训三个空章节）",
+  "memory": "MEMORY.md 内容（Markdown，包含置信度图例 + 关于 Boss/项目/经验教训三个空章节）",
   "heartbeat": "HEARTBEAT.md 内容（注释说明 heartbeat 用途，默认为空）",
   "tools": "TOOLS.md 内容（说明用途：记录常用工具和使用心得）"
 }
@@ -117,14 +158,14 @@ router.post('/ai_generate_agent', async (req, res) => {
     }
   } catch (e) {
     log.error(`ai_generate_agent: fetch exception: ${e.message}`)
-    return res.status(502).json({ error: `请求失败: ${e.message}` })
+    return res.status(502).json({ error: `请求失败：${e.message}` })
   }
 
   log.debug(`ai_generate_agent: raw response (${rawText.length} chars): ${rawText.slice(0, 120)}`)
 
   let parsed
   try {
-    const match = rawText.match(/```(?:json)?\s*([\s\S]*?)```/)
+    const match = rawText.match(/```(?:json)?\s*([\s\S]*?)```/m)
     const jsonStr = match ? match[1] : rawText.trim()
     parsed = JSON.parse(jsonStr)
   } catch {
@@ -133,7 +174,7 @@ router.post('/ai_generate_agent', async (req, res) => {
   }
 
   const validToolIds = new Set(['web_search','web_reader','feishu_message','code_interpreter','file_reader','image_gen','image_analysis','http_request','asr','tts'])
-  const validSkillSlugs = new Set(['multi-round-memory','proactive-speak','scheduled-heartbeat','mention-response','direct-response','message-routing','context-compression','tool-calling','memory-persistence','emotional-aware'])
+  const validSkillSlugs = getValidSkillSlugs()
 
   const result = {
     display_name: parsed.display_name ?? '',
@@ -220,7 +261,7 @@ router.post('/chat_with_agent', async (req, res) => {
     const reply = data.choices?.[0]?.message?.content ?? ''
     res.json({ reply })
   } catch (e) {
-    res.status(502).json({ error: `请求失败: ${e.message}` })
+    res.status(502).json({ error: `请求失败：${e.message}` })
   }
 })
 

@@ -15,7 +15,7 @@ import { createAiRouter } from './routes/ai.js'
 import { createOfficeRouter } from './routes/office.js'
 import { createProcessRouter } from './routes/process.js'
 import { createToolRouter } from './routes/tool.js'
-import { createSkillRouter } from './routes/skill.js'
+import { createSkillRouter, registerBundleSkills } from './routes/skill.js'
 
 const log = createLogger('server')
 
@@ -59,6 +59,9 @@ export function createApp(db) {
 async function main() {
   const { default: db, DB_PATH } = await import('./db.js')
   const { accessLogger } = await import('./logger.js')
+
+  // 注册 bundle 中的技能到数据库
+  await registerBundleSkills(db)
 
   const app = createApp(db)
   app.use(accessLogger)

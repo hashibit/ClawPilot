@@ -1,0 +1,9 @@
+{
+  "name": "multi-round-memory",
+  "version": "1.0.0",
+  "description": "多轮对话记忆技能，保持对话上下文",
+  "main": "index.js",
+  "keywords": ["memory", "context", "conversation"],
+  "author": "ClawPilot Team",
+  "license": "MIT"
+}

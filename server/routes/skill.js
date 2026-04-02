@@ -7,7 +7,13 @@ import { Readable } from 'stream'
 import { createLogger } from '../logger.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const SKILLS_DIR = path.resolve(__dirname, '../../skills')
+// Bundle skills metadata - single source of truth
+const BUNDLE_SKILLS_METADATA_PATH = path.resolve(__dirname, '../../bundle/bundled-skills-metadata.json')
+const BUNDLE_SKILLS_DIR = path.resolve(__dirname, '../../bundle/skills')
+const USER_SKILLS_DIR = path.resolve(__dirname, '../../skills')
+const SKILLS_DIR = fs.existsSync(BUNDLE_SKILLS_DIR) && fs.readdirSync(BUNDLE_SKILLS_DIR).length > 0
+  ? BUNDLE_SKILLS_DIR
+  : USER_SKILLS_DIR
 
 const now = () => Math.floor(Date.now() / 1000)
 const CLAWHUB_CONVEX = 'https://wry-manatee-359.convex.cloud/api/action'
@@ -17,6 +23,75 @@ const CLAWHUB_BASE = LIGHTMAKE_BASE
 
 function ensureSkillsDir() {
   if (!fs.existsSync(SKILLS_DIR)) fs.mkdirSync(SKILLS_DIR, { recursive: true })
+}
+
+/**
+ * 从 bundled-skills-metadata.json 加载技能元数据
+ */
+function loadBundleSkillsMetadata() {
+  try {
+    if (!fs.existsSync(BUNDLE_SKILLS_METADATA_PATH)) return null
+    const content = fs.readFileSync(BUNDLE_SKILLS_METADATA_PATH, 'utf8')
+    return JSON.parse(content)
+  } catch (e) {
+    log.warn(`Failed to load bundle skills metadata: ${e.message}`)
+    return null
+  }
+}
+
+/**
+ * 启动时注册 bundle 中的技能到数据库
+ * 基于 bundled-skills-metadata.json 中的元数据
+ */
+export function registerBundleSkills(db) {
+  const metadata = loadBundleSkillsMetadata()
+  const skills = metadata?.skills || []
+
+  if (skills.length === 0) {
+    log.info('No bundle skills metadata found, skipping registration')
+    return
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  let registered = 0
+
+  for (const skill of skills) {
+    const { slug, name, display_name, description, category } = skill
+    const skillDir = path.join(BUNDLE_SKILLS_DIR, slug)
+
+    // 只有技能目录存在时才注册
+    if (!fs.existsSync(skillDir)) {
+      log.warn(`Skill directory not found: ${slug}, skipping`)
+      continue
+    }
+
+    // 检查是否已存在
+    const existing = db.prepare('SELECT id FROM skills WHERE slug = ?').get(slug)
+
+    if (existing) {
+      // 更新现有技能
+      db.prepare(`
+        UPDATE skills SET
+          display_name = ?, description = ?, category = ?, is_installed = 1,
+          install_path = ?, updated_at = ?
+        WHERE slug = ?
+      `).run(display_name || slug, description || '', category || 'general', skillDir, now, slug)
+    } else {
+      // 插入新技能
+      db.prepare(`
+        INSERT INTO skills (
+          name, display_name, description, slug, category,
+          is_local, is_installed, install_path,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?)
+      `).run(
+        name || slug, display_name || slug, description || '', slug, category || 'general', skillDir, now, now
+      )
+      registered++
+    }
+  }
+
+  log.info(`Registered ${registered} bundle skills from ${BUNDLE_SKILLS_DIR}`)
 }
 
 function rowToSkill(row) {
@@ -43,6 +118,20 @@ export function createSkillRouter(db) {
     else if (lvl === 'warn') log.warn(message)
     else log.info(message)
   }
+
+  // get_bundle_skills_metadata - Returns the bundled-skills-metadata.json content
+  router.get('/get_bundle_skills_metadata', (_req, res) => {
+    try {
+      const metadataPath = path.resolve(__dirname, '../../bundle/bundled-skills-metadata.json')
+      if (!fs.existsSync(metadataPath)) {
+        return res.status(404).json({ error: 'Bundle skills metadata not found' })
+      }
+      const content = fs.readFileSync(metadataPath, 'utf8')
+      res.json(JSON.parse(content))
+    } catch (err) {
+      res.status(500).json({ error: err.message })
+    }
+  })
 
   // get_skills
   router.post('/get_skills', (_req, res) => {

@@ -12,7 +12,23 @@ import SettingsPage from './pages/SettingsPage'
 import { OpcProvider } from './contexts/OpcContext'
 import { ToastContainer } from './components/Toast'
 
+// Load bundle skills metadata at app startup
+async function loadBundleSkillsMetadata() {
+  try {
+    const res = await fetch('/api/get_bundle_skills_metadata')
+    if (res.ok) {
+      const metadata = await res.json()
+      ;(window as any).__BUNDLE_SKILLS_METADATA = metadata
+    }
+  } catch (e) {
+    console.warn('Failed to load bundle skills metadata, using fallback')
+  }
+}
+
 export default function App() {
+  // Load metadata asynchronously (won't block rendering)
+  loadBundleSkillsMetadata()
+
   return (
     <OpcProvider>
       <Routes>

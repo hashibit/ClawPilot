@@ -5,6 +5,7 @@ use uuid::Uuid;
 use std::io::Cursor;
 use zip::ZipArchive;
 use std::fs;
+use std::path::PathBuf;
 
 /// Local skill input for create_skill command
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -273,4 +274,166 @@ pub async fn uninstall_skill(pool: &DbPool, slug: String) -> Result<serde_json::
 pub async fn search_skills(_q: String, _source: Option<String>, _limit: Option<i64>) -> Result<Vec<SkillInfo>> {
     // Simplified: return empty list for now
     Ok(vec![])
+}
+
+/// Bundle skills metadata structure
+#[derive(Debug, serde::Deserialize)]
+struct BundleSkillsMetadata {
+    skills: Vec<BundleSkillInfo>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct BundleSkillInfo {
+    slug: String,
+    name: String,
+    display_name: String,
+    description: String,
+    #[serde(default)]
+    category: String,
+}
+
+/// Load bundle skills metadata from JSON file
+fn load_bundle_skills_metadata() -> Result<Option<BundleSkillsMetadata>> {
+    let metadata_path = get_bundle_skills_metadata_path()?;
+
+    if !metadata_path.exists() {
+        tracing::warn!("Bundle skills metadata file not found: {:?}", metadata_path);
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&metadata_path)
+        .map_err(|e| AppError::Validation(format!("读取技能元数据文件失败：{}", e)))?;
+
+    let metadata: BundleSkillsMetadata = serde_json::from_str(&content)
+        .map_err(|e| AppError::Validation(format!("解析技能元数据 JSON 失败：{}", e)))?;
+
+    Ok(Some(metadata))
+}
+
+/// Get the bundle skills metadata file path
+fn get_bundle_skills_metadata_path() -> Result<PathBuf> {
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| AppError::Validation(format!("获取可执行文件路径失败：{}", e)))?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| AppError::Validation("无法获取可执行文件目录".into()))?;
+
+    let possible_paths = vec![
+        exe_dir.parent().map(|p| p.join("bundle/bundled-skills-metadata.json")),
+        Some(exe_dir.join("bundle/bundled-skills-metadata.json")),
+        exe_dir.parent().map(|p| p.join("Resources/bundle/bundled-skills-metadata.json")),
+    ];
+
+    for path in possible_paths.into_iter().flatten() {
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+
+    Ok(PathBuf::from("bundle/bundled-skills-metadata.json"))
+}
+
+/// Register bundle skills from the project's bundle/skills directory
+/// Uses bundled-skills-metadata.json as the single source of truth
+pub fn register_bundle_skills(pool: &DbPool) -> Result<()> {
+    let metadata = match load_bundle_skills_metadata()? {
+        Some(m) => m,
+        None => {
+            tracing::info!("No bundle skills metadata found, skipping registration");
+            return Ok(());
+        }
+    };
+
+    let ts = chrono::Utc::now().timestamp();
+    let mut registered = 0;
+
+    for skill in &metadata.skills {
+        let skill_dir = get_bundle_skills_dir()?.join(&skill.slug);
+
+        if !skill_dir.exists() {
+            tracing::warn!("Skill directory not found: {}, skipping", skill.slug);
+            continue;
+        }
+
+        let conn = pool.get()?;
+
+        let exists: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM skills WHERE slug = ?1)",
+            rusqlite::params![&skill.slug],
+            |row| row.get(0),
+        ).unwrap_or(false);
+
+        if exists {
+            conn.execute(
+                r#"UPDATE skills SET
+                    display_name = ?1,
+                    description = ?2,
+                    category = ?3,
+                    is_installed = 1,
+                    install_path = ?4,
+                    updated_at = ?5
+                   WHERE slug = ?6"#,
+                rusqlite::params![
+                    skill.display_name,
+                    skill.description,
+                    skill.category,
+                    skill_dir.to_string_lossy(),
+                    ts,
+                    &skill.slug
+                ],
+            ).map_err(|e| AppError::Database(e))?;
+        } else {
+            let id = Uuid::new_v4().to_string();
+            conn.execute(
+                r#"INSERT INTO skills
+                    (id, name, display_name, description, slug, category, is_installed, install_path, created_at, updated_at)
+                   VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8, ?9)"#,
+                rusqlite::params![
+                    id,
+                    skill.name,
+                    skill.display_name,
+                    skill.description,
+                    skill.slug,
+                    skill.category,
+                    skill_dir.to_string_lossy(),
+                    ts,
+                    ts
+                ],
+            ).map_err(|e| AppError::Database(e))?;
+            registered += 1;
+        }
+    }
+
+    tracing::info!("Registered {} bundle skills", registered);
+    Ok(())
+}
+
+/// Get the bundle skills directory path
+fn get_bundle_skills_dir() -> Result<PathBuf> {
+    // Try to find bundle/skills relative to the executable
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| AppError::Validation(format!("获取可执行文件路径失败：{}", e)))?
+        .parent()
+        .map(|p| p.to_path_buf())
+        .ok_or_else(|| AppError::Validation("无法获取可执行文件目录".into()))?;
+
+    // Try multiple possible locations:
+    // 1. ../bundle/skills (for development, exe is in target/)
+    // 2. bundle/skills (for production, exe is in app bundle)
+    // 3. Resources/bundle/skills (for macOS app bundle)
+
+    let possible_paths = vec![
+        exe_dir.parent().map(|p| p.join("bundle/skills")),
+        Some(exe_dir.join("bundle/skills")),
+        exe_dir.parent().map(|p| p.join("Resources/bundle/skills")),
+    ];
+
+    for path in possible_paths.into_iter().flatten() {
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+
+    // Fallback to a default path relative to current directory
+    Ok(PathBuf::from("bundle/skills"))
 }

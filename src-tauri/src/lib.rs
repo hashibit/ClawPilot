@@ -19,9 +19,12 @@ pub fn run() {
     let pool = DbPool::new(&db_path).expect("failed to open database");
     migrations::run_migrations(&pool).expect("failed to run migrations");
 
+    // 注册 bundle 中的技能到数据库
+    services::skill_service::register_bundle_skills(&pool).expect("failed to register bundle skills");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .manage(pool)
+        .manage(pool.clone())
         .invoke_handler(tauri::generate_handler![
             // OPC
             commands::opc::get_all_opcs,
