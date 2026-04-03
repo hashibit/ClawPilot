@@ -5,6 +5,12 @@ use crate::error::Result;
 use crate::models::skill::SkillInfo;
 use crate::services::skill_service::{self, LocalSkillInput};
 
+/// 返回 bundle 技能元数据（格式与 Node.js /get_bundle_skills_metadata 一致）
+#[tauri::command]
+pub fn get_bundle_skills_metadata(pool: State<'_, DbPool>) -> serde_json::Value {
+    skill_service::get_bundle_skills_metadata(&pool).unwrap_or_else(|_| serde_json::json!({ "skills": [] }))
+}
+
 #[tauri::command]
 pub fn get_skills(pool: State<'_, DbPool>) -> Result<Vec<SkillInfo>> {
     skill_service::get_skills(&pool)

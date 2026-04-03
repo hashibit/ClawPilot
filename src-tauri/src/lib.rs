@@ -35,6 +35,7 @@ pub fn run() {
             commands::opc::set_current_opc,
             commands::opc::get_current_opc,
             commands::opc::get_opc_stats,
+            commands::opc::update_opc_stats,
             commands::opc::export_opc,
             commands::opc::import_opc,
             // Agent
@@ -78,6 +79,7 @@ pub fn run() {
             commands::tool::sync_tools_from_clawhub,
             commands::tool::create_tool,
             commands::tool::delete_tool,
+            commands::skill::get_bundle_skills_metadata,
             commands::skill::get_skills,
             commands::skill::sync_skills_from_clawhub,
             commands::skill::create_skill,

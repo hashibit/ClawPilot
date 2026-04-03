@@ -212,6 +212,30 @@ pub fn get_opc_stats(pool: &DbPool, opc_id: &str) -> Result<OpcStats> {
     Ok(opc.stats())
 }
 
+/// 重新计算并持久化 OPC 的 agent_count 和 channel_count。
+pub fn update_opc_stats(pool: &DbPool, id: &str) -> Result<()> {
+    let now = Utc::now().timestamp();
+    let conn = pool.get()?;
+    let agent_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM agents WHERE opc_id = ?1",
+        rusqlite::params![id],
+        |row| row.get(0),
+    )?;
+    let channel_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM channels WHERE opc_id = ?1",
+        rusqlite::params![id],
+        |row| row.get(0),
+    )?;
+    let rows = conn.execute(
+        "UPDATE opc_config SET agent_count = ?2, channel_count = ?3, updated_at = ?4 WHERE id = ?1",
+        rusqlite::params![id, agent_count, channel_count, now],
+    )?;
+    if rows == 0 {
+        return Err(AppError::NotFound(format!("OPC not found: {id}")));
+    }
+    Ok(())
+}
+
 /// Serialises an OPC config to a JSON string for export.
 pub fn export_opc(pool: &DbPool, opc_id: &str) -> Result<String> {
     let opc = get_opc(pool, opc_id)?;

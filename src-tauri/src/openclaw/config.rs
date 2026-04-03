@@ -68,8 +68,9 @@ pub fn generate_opc_config(pool: &DbPool, opc_id: &str) -> Result<PathBuf> {
         .filter(|p| p.is_enabled)
         .map(|p| {
             json!({
-                "provider_type": p.provider_type,
-                "endpoint": p.endpoint,
+                "name": p.name,
+                "api": p.api,
+                "base_url": p.base_url,
                 "is_enabled": p.is_enabled,
             })
         })

@@ -46,6 +46,11 @@ pub fn get_opc_stats(pool: State<'_, DbPool>, opc_id: String) -> Result<OpcStats
 }
 
 #[tauri::command]
+pub fn update_opc_stats(pool: State<'_, DbPool>, id: String) -> Result<()> {
+    opc_service::update_opc_stats(&pool, &id)
+}
+
+#[tauri::command]
 pub fn export_opc(pool: State<'_, DbPool>, opc_id: String) -> Result<String> {
     opc_service::export_opc(&pool, &opc_id)
 }

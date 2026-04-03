@@ -34,6 +34,44 @@ CREATE INDEX IF NOT EXISTS idx_office_deployments_office_id ON office_deployment
 CREATE INDEX IF NOT EXISTS idx_office_deployments_opc_id ON office_deployments(opc_id);
 "#;
 
+/// V3 migration: model_providers_v2 and model_info_v2 (name-keyed, flexible)
+pub const MIGRATION_V3_TABLES: &str = r#"
+CREATE TABLE IF NOT EXISTS model_providers_v2 (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    api TEXT NOT NULL,
+    base_url TEXT NOT NULL DEFAULT '',
+    api_key TEXT NOT NULL DEFAULT '',
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    is_available INTEGER NOT NULL DEFAULT 0,
+    last_tested INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS model_info_v2 (
+    id TEXT PRIMARY KEY,
+    provider_name TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    context_window INTEGER NOT NULL DEFAULT 0,
+    max_tokens INTEGER NOT NULL DEFAULT 0,
+    input_types TEXT NOT NULL DEFAULT '["text"]',
+    cost_input REAL NOT NULL DEFAULT 0,
+    cost_output REAL NOT NULL DEFAULT 0,
+    supports_vision INTEGER NOT NULL DEFAULT 0,
+    supports_function_calling INTEGER NOT NULL DEFAULT 0,
+    supports_streaming INTEGER NOT NULL DEFAULT 1,
+    is_custom INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(provider_name, model_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_providers_v2_name ON model_providers_v2(name);
+CREATE INDEX IF NOT EXISTS idx_model_info_v2_provider ON model_info_v2(provider_name);
+"#;
+
 /// V1 スキーマ：すべてのコアテーブルと索引を定義する。
 ///
 /// 外部キー依存を考慮した作成順序:

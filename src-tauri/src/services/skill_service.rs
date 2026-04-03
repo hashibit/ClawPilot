@@ -72,6 +72,41 @@ pub fn get_skills(pool: &DbPool) -> Result<Vec<SkillInfo>> {
     Ok(rows)
 }
 
+/// 返回 bundle 技能元数据（与 Node.js /get_bundle_skills_metadata 等价）
+/// 从 DB 读取内置技能，构造 { skills: [...] } JSON。
+pub fn get_bundle_skills_metadata(pool: &DbPool) -> Result<serde_json::Value> {
+    let conn = pool.get()?;
+    // 查询 DB 中存储的技能，同时读取 display_name 列（由 migration v2 添加）
+    let mut stmt = conn.prepare(
+        "SELECT slug, name, COALESCE(NULLIF(display_name, ''), name), description, category, is_builtin \
+         FROM skills ORDER BY name",
+    )?;
+    let skill_list: Vec<serde_json::Value> = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
+                row.get::<_, i64>(5)?,
+            ))
+        })?
+        .filter_map(|r| r.ok())
+        .map(|(slug, name, display_name, description, category, is_builtin)| {
+            serde_json::json!({
+                "slug": slug,
+                "name": name,
+                "display_name": display_name,
+                "description": description.unwrap_or_default(),
+                "category": category.unwrap_or_else(|| "general".to_string()),
+                "is_builtin": is_builtin != 0,
+            })
+        })
+        .collect();
+    Ok(serde_json::json!({ "skills": skill_list }))
+}
+
 /// Stub: syncs skills from clawhub.ai (HTTP not implemented yet)
 pub fn sync_skills_from_clawhub(_pool: &DbPool) -> Result<Vec<SkillInfo>> {
     Ok(vec![])

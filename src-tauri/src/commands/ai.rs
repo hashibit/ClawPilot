@@ -11,6 +11,10 @@ pub struct AiGeneratedAgent {
     pub job_title: String,
     pub description: String,
     pub personality: String,
+    pub guardrail_allow: Vec<String>,
+    pub guardrail_deny: Vec<String>,
+    pub enabled_tools: Vec<String>,
+    pub enabled_skills: Vec<String>,
     pub soul: String,
     pub identity: String,
     pub agents: String,
@@ -33,44 +37,26 @@ pub struct ChatResponse {
     pub reply: String,
 }
 
-/// 使用百炼 AI 生成 Agent 配置
-#[tauri::command]
-pub async fn ai_generate_agent(pool: State<'_, DbPool>, prompt: String) -> Result<AiGeneratedAgent> {
-    use std::time::Duration;
+const VALID_TOOL_IDS: &[&str] = &[
+    "web_search", "web_reader", "feishu_message", "code_interpreter",
+    "file_reader", "image_gen", "image_analysis", "http_request", "asr", "tts",
+];
 
-    if prompt.trim().is_empty() {
-        return Err(AppError::Validation("prompt is required".to_string()));
-    }
+const VALID_SKILL_SLUGS: &[&str] = &[
+    "multi-round-memory", "proactive-speak", "scheduled-heartbeat",
+    "mention-response", "direct-response", "message-routing",
+    "context-compression", "tool-calling", "memory-persistence",
+    "emotional-aware", "github-helper", "web-search", "feishu-helper",
+];
 
-    // 获取百炼配置
-    let row = pool
-        .get()?
-        .query_row(
-            "SELECT api_key, endpoint FROM model_providers WHERE provider_type = 'BAILIAN'",
-            [],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)),
-        )
-        .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => {
-                AppError::NotFound("BAILIAN 未配置".to_string())
-            }
-            other => AppError::Database(other),
-        })?;
+const SYSTEM_PROMPT: &str = r#"/no_think 你是一个 OpenClaw Agent 人格配置生成器。根据用户的描述，生成完整的 Agent 配置。
 
-    let api_key = row.0;
-    let base_url = row.1.unwrap_or_else(|| "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string());
+可选工具 ID（enabled_tools 从中选择合适的，数组）：
+web_search（网页搜索）、web_reader（网页阅读）、feishu_message（发飞书消息）、code_interpreter（代码解释器）、file_reader（文件读取）、image_gen（图像生成）、image_analysis（视觉理解）、http_request（HTTP 请求）、asr（语音识别）、tts（语音合成）
 
-    if api_key.is_empty() {
-        return Err(AppError::Validation(
-            "BAILIAN 未配置 API Key，请先在模型管理页完成配置并测试连接".to_string(),
-        ));
-    }
-
-    let base_url = base_url.trim_end_matches('/');
-    let is_anthropic_url = base_url.contains("anthropic");
-    let model = "qwen3.5-plus";
-
-    let system_prompt = r#"/no_think 你是一个 OpenClaw Agent 人格配置生成器。根据用户的描述，生成完整的 Agent 配置，包含 7 个人格文档。
+可选技能 slug（enabled_skills 从中选择合适的，数组）：
+核心技能：multi-round-memory（多轮记忆）、proactive-speak（主动发言）、scheduled-heartbeat（定时心跳）、mention-response（被@响应）、direct-response（私信响应）、message-routing（消息路由）、context-compression（上下文压缩）、tool-calling（工具调用）、memory-persistence（记忆持久化）、emotional-aware（情绪感知）
+扩展技能：github-helper（GitHub 助手）、web-search（网页搜索）、feishu-helper（飞书助手）
 
 严格以 JSON 格式返回，包含以下字段：
 {
@@ -79,6 +65,10 @@ pub async fn ai_generate_agent(pool: State<'_, DbPool>, prompt: String) -> Resul
   "job_title": "职位名称",
   "description": "一句话描述",
   "personality": "性格关键词，逗号分隔，如：细腻、严谨、主动",
+  "guardrail_allow": ["允许自主执行的操作，每条简短短语"],
+  "guardrail_deny": ["禁止或须请示的操作，每条简短短语"],
+  "enabled_tools": ["根据角色职能选择合适的工具 ID，数组"],
+  "enabled_skills": ["根据角色行为选择合适的技能 slug，数组"],
   "soul": "SOUL.md 完整内容（Markdown，包含：身份定位 + 核心职责列表 + Boss/定位/emoji + 记忆管理规则 + 权限护栏，按角色特点详细撰写）",
   "identity": "IDENTITY.md 内容（列出 Name/Title/Persona/Role/Emoji/Boss 字段）",
   "agents": "AGENTS.md 内容（Markdown，包含成员编制表占位 + Every Session 阅读清单 + Memory 规则 + Safety 原则）",
@@ -88,12 +78,43 @@ pub async fn ai_generate_agent(pool: State<'_, DbPool>, prompt: String) -> Resul
   "tools": "TOOLS.md 内容（说明用途：记录常用工具和使用心得）"
 }
 
-SOUL.md 重要规范：
-- 权限护栏内允许：查询搜索读取、写日记/记忆、生成报告草稿、发飞书消息、加角色专属自主范围
-- 权限护栏外须请示：删除数据文件、不可逆操作、对外正式文件、加角色专属限制
-- 按角色类型适配护栏内容（财务类：生成报告允许，转账禁止；合规类：查阅法规允许，发正式意见禁止等）
-
+guardrail 规范：每条 3-10 字的短语，允许 3-6 条，禁止 3-5 条，按角色职能定制。
 只输出 JSON，不要有任何其他内容。"#;
+
+/// 使用配置的 AI 提供商生成 Agent 配置
+#[tauri::command]
+pub async fn ai_generate_agent(pool: State<'_, DbPool>, prompt: String) -> Result<AiGeneratedAgent> {
+    use std::time::Duration;
+
+    if prompt.trim().is_empty() {
+        return Err(AppError::Validation("prompt is required".to_string()));
+    }
+
+    // 优先从 model_providers_v2 查询 bailian
+    let (api_key_enc, base_url) = pool
+        .get()?
+        .query_row(
+            "SELECT api_key, base_url FROM model_providers_v2 WHERE name = 'bailian' AND is_enabled = 1",
+            [],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                AppError::NotFound("BAILIAN 未配置，请先在模型管理页完成配置并测试连接".to_string())
+            }
+            other => AppError::Database(other),
+        })?;
+
+    if api_key_enc.is_empty() {
+        return Err(AppError::Validation(
+            "BAILIAN 未配置 API Key，请先在模型管理页完成配置并测试连接".to_string(),
+        ));
+    }
+
+    let api_key = crate::utils::crypto::decrypt(&api_key_enc)?;
+    let base_url = base_url.trim_end_matches('/');
+    let is_anthropic_url = base_url.contains("anthropic");
+    let model = "qwen3.5-plus";
 
     let endpoint = if is_anthropic_url {
         format!("{}/v1/messages", base_url)
@@ -107,7 +128,6 @@ SOUL.md 重要规范：
         .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
 
     let raw_text = if is_anthropic_url {
-        // Anthropic 格式
         let resp = client
             .post(&endpoint)
             .header("Content-Type", "application/json")
@@ -115,9 +135,9 @@ SOUL.md 重要规范：
             .header("anthropic-version", "2023-06-01")
             .json(&serde_json::json!({
                 "model": model,
-                "system": system_prompt,
+                "system": SYSTEM_PROMPT,
                 "messages": [{ "role": "user", "content": prompt }],
-                "max_tokens": 1024,
+                "max_tokens": 2048,
                 "thinking": { "type": "disabled" },
             }))
             .send()
@@ -133,14 +153,12 @@ SOUL.md 重要规范：
                 body.chars().take(200).collect::<String>()
             )));
         }
-
         let data: serde_json::Value = resp
             .json()
             .await
             .map_err(|e| AppError::Internal(format!("解析响应失败：{}", e)))?;
         data["content"][0]["text"].as_str().unwrap_or("").to_string()
     } else {
-        // OpenAI 兼容格式
         let resp = client
             .post(&endpoint)
             .header("Content-Type", "application/json")
@@ -148,7 +166,7 @@ SOUL.md 重要规范：
             .json(&serde_json::json!({
                 "model": model,
                 "messages": [
-                    { "role": "system", "content": system_prompt },
+                    { "role": "system", "content": SYSTEM_PROMPT },
                     { "role": "user", "content": prompt }
                 ],
                 "max_tokens": 2048,
@@ -169,7 +187,6 @@ SOUL.md 重要规范：
                 body.chars().take(200).collect::<String>()
             )));
         }
-
         let data: serde_json::Value = resp
             .json()
             .await
@@ -180,10 +197,9 @@ SOUL.md 重要规范：
             .to_string()
     };
 
-    // 解析 JSON
+    // 解析 JSON（支持 markdown 代码块）
     let parsed: serde_json::Value = serde_json::from_str(&raw_text)
         .or_else(|_| {
-            // 尝试提取 markdown 代码块中的 JSON
             if let Some(m) = regex::Regex::new(r"```(?:json)?\s*([\s\S]*?)```")
                 .unwrap()
                 .captures(&raw_text)
@@ -201,6 +217,9 @@ SOUL.md 重要规范：
             ))
         })?;
 
+    let valid_tools: std::collections::HashSet<&str> = VALID_TOOL_IDS.iter().copied().collect();
+    let valid_skills: std::collections::HashSet<&str> = VALID_SKILL_SLUGS.iter().copied().collect();
+
     let result = AiGeneratedAgent {
         display_name: parsed["display_name"].as_str().unwrap_or("").to_string(),
         name: parsed["name"]
@@ -211,6 +230,22 @@ SOUL.md 重要规范：
         job_title: parsed["job_title"].as_str().unwrap_or("").to_string(),
         description: parsed["description"].as_str().unwrap_or("").to_string(),
         personality: parsed["personality"].as_str().unwrap_or("").to_string(),
+        guardrail_allow: parsed["guardrail_allow"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
+        guardrail_deny: parsed["guardrail_deny"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
+        enabled_tools: parsed["enabled_tools"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().filter(|s| valid_tools.contains(s)).map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
+        enabled_skills: parsed["enabled_skills"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().filter(|s| valid_skills.contains(s)).map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
         soul: parsed["soul"].as_str().unwrap_or("").to_string(),
         identity: parsed["identity"].as_str().unwrap_or("").to_string(),
         agents: parsed["agents"].as_str().unwrap_or("").to_string(),
@@ -223,7 +258,7 @@ SOUL.md 重要规范：
     Ok(result)
 }
 
-/// 与 Agent 对话
+/// 与 Agent 对话（使用 model_providers_v2 中的 bailian）
 #[tauri::command]
 pub async fn chat_with_agent(
     pool: State<'_, DbPool>,
@@ -241,15 +276,13 @@ pub async fn chat_with_agent(
     let system_prompt = if let Some(ref soul) = soul_override {
         format!("/no_think\n\n{}", soul)
     } else if let Some(ref aid) = agent_id {
-        // 从数据库加载 SOUL.md
         let doc: Option<String> = match pool
             .get()?
             .query_row(
                 "SELECT content FROM agent_documents WHERE agent_id = ?1 AND document_type = 'SOUL'",
                 [aid],
                 |row| Ok(row.get::<_, String>(0)?),
-            )
-        {
+            ) {
             Ok(content) => Some(content),
             Err(rusqlite::Error::QueryReturnedNoRows) => None,
             Err(e) => return Err(AppError::Database(e)),
@@ -261,8 +294,7 @@ pub async fn chat_with_agent(
                 "SELECT display_name, job_title FROM agents WHERE id = ?1",
                 [aid],
                 |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-        {
+            ) {
             Ok(info) => Some(info),
             Err(rusqlite::Error::QueryReturnedNoRows) => None,
             Err(e) => return Err(AppError::Database(e)),
@@ -275,7 +307,9 @@ pub async fn chat_with_agent(
         }
         prompt.push('.');
         if let Some(content) = doc {
-            prompt = format!("/no_think\n\n{}", content);
+            if !content.trim().is_empty() {
+                prompt = format!("/no_think\n\n{}", content);
+            }
         }
         prompt
     } else {
@@ -284,19 +318,13 @@ pub async fn chat_with_agent(
         ));
     };
 
-    // 获取百炼配置
-    let row = pool
+    // 从 model_providers_v2 获取 bailian 配置
+    let (api_key_enc, base_url) = pool
         .get()?
         .query_row(
-            "SELECT api_key, endpoint, is_coding_plan FROM model_providers WHERE provider_type = 'BAILIAN' AND is_enabled = 1",
+            "SELECT api_key, base_url FROM model_providers_v2 WHERE name = 'bailian' AND is_enabled = 1",
             [],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, Option<String>>(1)?,
-                    row.get::<_, Option<i64>>(2)?.unwrap_or(0),
-                ))
-            },
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
         )
         .map_err(|e| match e {
             rusqlite::Error::QueryReturnedNoRows => {
@@ -305,22 +333,15 @@ pub async fn chat_with_agent(
             other => AppError::Database(other),
         })?;
 
-    let api_key = row.0;
-    let base_url = row.1.unwrap_or_else(|| "https://dashscope.aliyuncs.com/compatible-mode/v1".to_string());
-    let is_coding_plan = row.2 != 0;
-
-    if api_key.is_empty() {
+    if api_key_enc.is_empty() {
         return Err(AppError::Validation(
             "BAILIAN 未配置 API Key，请先在模型管理页完成配置".to_string(),
         ));
     }
 
+    let api_key = crate::utils::crypto::decrypt(&api_key_enc)?;
     let model = "qwen3.5-plus";
-    let endpoint = if is_coding_plan {
-        "https://coding.dashscope.aliyuncs.com/v1/chat/completions".to_string()
-    } else {
-        format!("{}/chat/completions", base_url.trim_end_matches('/'))
-    };
+    let endpoint = format!("{}/chat/completions", base_url.trim_end_matches('/'));
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
@@ -331,12 +352,10 @@ pub async fn chat_with_agent(
         "role": "system",
         "content": system_prompt
     }))
-    .chain(messages.iter().map(|m| {
-        serde_json::json!({
-            "role": m.role,
-            "content": &m.content
-        })
-    }))
+    .chain(messages.iter().map(|m| serde_json::json!({
+        "role": m.role,
+        "content": m.content
+    })))
     .collect();
 
     let resp = client
@@ -376,4 +395,3 @@ pub async fn chat_with_agent(
 
     Ok(ChatResponse { reply })
 }
-

@@ -2,7 +2,7 @@ use crate::database::pool::DbPool;
 use crate::error::Result;
 
 /// データベースの現在のターゲットバージョン。
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 
 /// 未実行のマイグレーションをすべて実行する。
 ///
@@ -49,6 +49,12 @@ pub fn run_migrations(pool: &DbPool) -> Result<()> {
         conn.execute_batch("PRAGMA user_version = 2")?;
     }
 
+    if version < 3 {
+        // v2 → v3: model_providers_v2 and model_info_v2 (name-keyed, flexible)
+        conn.execute_batch(crate::database::schema::MIGRATION_V3_TABLES)?;
+        conn.execute_batch("PRAGMA user_version = 3")?;
+    }
+
     Ok(())
 }
 
@@ -87,7 +93,7 @@ mod tests {
         let pool = in_memory_pool();
         run_migrations(&pool).expect("migrations should succeed");
         let v = current_version(&pool).expect("should get version");
-        assert_eq!(v, 2, "user_version should be 2 after migration");
+        assert_eq!(v, 3, "user_version should be 3 after migration");
     }
 
     #[test]
@@ -96,7 +102,7 @@ mod tests {
         run_migrations(&pool).expect("first run");
         run_migrations(&pool).expect("second run should not error");
         let v = current_version(&pool).expect("version after double run");
-        assert_eq!(v, 2);
+        assert_eq!(v, 3);
     }
 
     #[test]
@@ -121,6 +127,8 @@ mod tests {
             "local_snapshots",
             "deployment_tasks",
             "log_entries",
+            "model_providers_v2",
+            "model_info_v2",
         ];
 
         for table in &expected_tables {
@@ -137,6 +145,6 @@ mod tests {
 
     #[test]
     fn test_target_version_constant() {
-        assert_eq!(target_version(), 2);
+        assert_eq!(target_version(), 3);
     }
 }
