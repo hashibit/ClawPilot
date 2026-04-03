@@ -88,7 +88,7 @@ export default function LogsPage() {
     <>
       {/* Log stream */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+        <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('logs.title')}</span>
             <span style={{ fontSize: '11px', color: '#8E8E93' }}>{t('logs.realtimeLabel')}</span>

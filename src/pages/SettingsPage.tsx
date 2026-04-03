@@ -8,7 +8,7 @@ export default function SettingsPage() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div className="toolbar" style={{ justifyContent: 'flex-start' }}>
+      <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'flex-start' }}>
         <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('settings.title')}</span>
       </div>
 

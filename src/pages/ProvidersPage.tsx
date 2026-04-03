@@ -497,7 +497,7 @@ export default function ProvidersPage() {
     <>
       {/* ── Left: Provider List ───────────────────────────── */}
       <div className="list-pane">
-        <div className="toolbar">
+        <div data-tauri-drag-region className="toolbar">
           <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -554,7 +554,7 @@ export default function ProvidersPage() {
       {/* ── Right: Detail / Form ─────────────────────────── */}
       <main className="detail-pane">
         {/* Toolbar */}
-        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+        <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {editMode === 'none' && selectedProvider && (
               <>

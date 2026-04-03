@@ -180,7 +180,7 @@ export default function BindingsPage() {
         <>
             {/* COL2 - company list */}
             <div className="list-pane">
-                <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+                <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('bindings.section_title')}</span>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -247,7 +247,7 @@ export default function BindingsPage() {
 
             {/* COL3 - OPC config: feishu bot + group list */}
             <main className="detail-pane">
-                <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+                <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{currentOpc?.display_name ?? '—'}</span>
                 </div>
                 {!currentOpc ? (

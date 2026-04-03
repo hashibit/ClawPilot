@@ -143,7 +143,7 @@ export default function DeployPage() {
 
   return (
     <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+      <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
         <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('deploy.section_title')}</span>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {deploying ? (

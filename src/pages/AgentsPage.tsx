@@ -833,7 +833,7 @@ export default function AgentsPage() {
 
             {/* ── COL 2: Company list ─────────────────────────── */}
             <div className="list-pane">
-                <div className="toolbar">
+                <div data-tauri-drag-region className="toolbar">
                     <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('agents.section_title')}</span>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto' }}>

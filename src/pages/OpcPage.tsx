@@ -261,7 +261,7 @@ export default function OpcPage() {
 
       {/* COL2: list-pane */}
       <div className="list-pane">
-        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+        <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
           <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('opc.section_my_companies')}</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -338,7 +338,7 @@ export default function OpcPage() {
           </div>
         ) : (
           <>
-            <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+            <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selected.display_name}</span>
                 <span className={`status-badge ${selected.is_running ? 'status-green' : 'status-gray'}`}>

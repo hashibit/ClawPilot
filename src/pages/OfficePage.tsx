@@ -382,7 +382,7 @@ export default function OfficePage() {
         <>
             {/* COL2 - office list */}
             <div className="list-pane">
-                <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+                <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('office.section_title')}</span>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto' }}>

@@ -218,7 +218,7 @@ export default function Layout() {
 
       {isOverviewPage ? (
         <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div className="toolbar" style={{ justifyContent: 'space-between' }}>
+          <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
             <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('overview.title')}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>{t('overview.today')}</button>
