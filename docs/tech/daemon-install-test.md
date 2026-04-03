@@ -16,11 +16,19 @@
 | systemd 服务 | Linux | ✅ 通过 | 用户级 systemd service 正常加载运行 |
 | 健康检查 | Linux | ✅ 通过 | `/health` 返回正确响应 |
 | 一键构建 | macOS | ✅ 通过 | `./build-daemon.sh` 成功构建双平台 binary |
+| Tauri 打包 | macOS | ✅ 通过 | App bundle 和 DMG 生成成功 |
 
 **Binary 验证**:
 ```
 daemon/target/aarch64-apple-darwin/release/clawpilot-daemon:      Mach-O 64-bit executable arm64 (6.6MB)
 daemon/target/aarch64-unknown-linux-gnu/release/clawpilot-daemon: ELF 64-bit LSB pie executable, ARM aarch64 (7.7MB)
+```
+
+**Tauri Bundle 结构**:
+```
+ClawPilot.app/Contents/Resources/resources/
+├── clawpilot-daemon-macos (6.6MB)
+└── clawpilot-daemon-linux (7.7MB)
 ```
 
 ---

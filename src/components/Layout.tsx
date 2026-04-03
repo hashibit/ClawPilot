@@ -79,8 +79,8 @@ export default function Layout() {
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
       <aside className="sidebar" style={{ width: sidebarWidth, transition: 'width 0.2s ease', overflow: 'hidden' }}>
-        {/* Header */}
-        <div className="toolbar" style={{ gap: '8px', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)', justifyContent: 'space-between', flexShrink: 0 }}>
+        {/* Header — also serves as window drag region (titleBarStyle: Overlay) */}
+        <div data-tauri-drag-region className="toolbar" style={{ gap: '8px', padding: '28px 10px 0', height: 'auto', minHeight: '74px', borderBottom: '1px solid rgba(255,255,255,0.08)', justifyContent: 'space-between', flexShrink: 0, alignItems: 'center' }}>
           {!collapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div className="logo-box">

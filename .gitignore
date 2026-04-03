@@ -17,3 +17,5 @@ tests/results/
 .dev-ports
 .bundle/
 tests/e2e/screenshots
+daemon/src-tauri/
+src-tauri/resources/clawpilot-daemon-*

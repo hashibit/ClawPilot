@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:16666",
     "beforeDevCommand": "",
-    "beforeBuildCommand": "bash ../build-daemon.sh"
+    "beforeBuildCommand": "bash -c \"cd '${PROJECT_DIR:-/Users/jiechen/work/code/rust/ClawPilot}' && npx vite build && ./build-daemon.sh\""
   },
   "app": {
     "windows": [
@@ -20,6 +20,7 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
+        "titleBarStyle": "Overlay",
         "devtools": true
       }
     ],
@@ -32,13 +33,17 @@
     "targets": "all",
     "icon": [
       "icons/32x32.png",
+      "icons/32x32@2x.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/256x256.png",
+      "icons/512x512.png",
+      "icons/icon.icns",
       "icons/icon.png"
     ],
     "resources": [
-      "../daemon/target/aarch64-unknown-linux-gnu/release/clawpilot-daemon",
-      "../daemon/target/aarch64-apple-darwin/release/clawpilot-daemon"
+      "resources/clawpilot-daemon-macos",
+      "resources/clawpilot-daemon-linux"
     ],
     "category": "Productivity",
     "shortDescription": "OpenClaw OPC configuration and deployment manager",

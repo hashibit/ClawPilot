@@ -17,6 +17,14 @@ const USE_HTTP = !('__TAURI_INTERNALS__' in window)
 const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
 const DEV_BASE = `http://localhost:${SERVER_PORT}/api`
 
+function snakeToCamel(s: string): string {
+  return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+}
+
+function toInvokeArgs(args: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(args).map(([k, v]) => [snakeToCamel(k), v]))
+}
+
 async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
   if (USE_HTTP) {
     const res = await fetch(`${DEV_BASE}/${cmd}`, {
@@ -32,7 +40,7 @@ async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise
     }
     return res.json() as Promise<T>
   }
-  return invoke<T>(cmd, args)
+  return invoke<T>(cmd, toInvokeArgs(args))
 }
 
 // ── OPC ───────────────────────────────────────────────────

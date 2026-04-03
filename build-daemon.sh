@@ -12,5 +12,13 @@ echo "🔨 Building clawpilot-daemon for Linux (aarch64)..."
 cargo build --release --target aarch64-unknown-linux-gnu
 
 echo "✅ Daemon build complete!"
-echo "  macOS: daemon/target/aarch64-apple-darwin/release/clawpilot-daemon"
-echo "  Linux: daemon/target/aarch64-unknown-linux-gnu/release/clawpilot-daemon"
+
+# Copy binaries to src-tauri/resources for bundling
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+mkdir -p "$SCRIPT_DIR/src-tauri/resources"
+
+cp "target/aarch64-apple-darwin/release/clawpilot-daemon" "$SCRIPT_DIR/src-tauri/resources/clawpilot-daemon-macos"
+cp "target/aarch64-unknown-linux-gnu/release/clawpilot-daemon" "$SCRIPT_DIR/src-tauri/resources/clawpilot-daemon-linux"
+
+echo "  macOS: src-tauri/resources/clawpilot-daemon-macos"
+echo "  Linux: src-tauri/resources/clawpilot-daemon-linux"

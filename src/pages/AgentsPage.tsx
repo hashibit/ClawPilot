@@ -853,7 +853,7 @@ export default function AgentsPage() {
                                     onClick={() => { selectOpc(opc); setIsNewAgent(false); setEditing(false) }}
                                     style={{ cursor: 'pointer' }}
                                 >
-                                    <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)` }}>
+                                    <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
                                         {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>

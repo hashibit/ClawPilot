@@ -156,7 +156,7 @@ export default function OverviewPage() {
               <div key={opc.id} className="overview-row">
                 <div style={{
                   width: '32px', height: '32px', borderRadius: '8px',
-                  background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},${opc.avatar_color ?? '#06b6d4'})`,
+                  background: opc.avatar_color ?? '#8b5cf6',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0,
                 }}>

@@ -15,13 +15,7 @@ function fmtRelTime(ts: number, t: (key: string, opts?: any) => string) {
   return t('common.time_days_ago', { count: Math.floor(diff / 86400) })
 }
 
-const GRAD_PRESETS = [
-  ['#8b5cf6', '#06b6d4'],
-  ['#10b981', '#06b6d4'],
-  ['#f59e0b', '#f97316'],
-  ['#f43f5e', '#ec4899'],
-  ['#3b82f6', '#8b5cf6'],
-]
+const COLOR_PRESETS = ['#8b5cf6', '#10b981', '#f59e0b', '#f43f5e', '#3b82f6']
 
 interface CreateModalProps {
   onClose: () => void
@@ -47,7 +41,7 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
       name: name.trim(),
       display_name: displayName.trim(),
       description: description.trim() || undefined,
-      avatar_color: GRAD_PRESETS[gradIdx][0],
+      avatar_color: COLOR_PRESETS[gradIdx],
       avatar_initials: displayName.trim().slice(0, 2),
       is_active: false,
       is_running: false,
@@ -90,10 +84,10 @@ function CreateModal({ onClose, onCreated }: CreateModalProps) {
           <div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginBottom: 6 }}>{t('opc.form.avatar_color_label')}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              {GRAD_PRESETS.map((g, i) => (
+              {COLOR_PRESETS.map((c, i) => (
                 <div key={i} onClick={() => setGradIdx(i)} style={{
                   width: 28, height: 28, borderRadius: 7,
-                  background: `linear-gradient(135deg,${g[0]},${g[1]})`,
+                  background: c,
                   cursor: 'pointer',
                   outline: gradIdx === i ? '2px solid white' : '2px solid transparent',
                   outlineOffset: 2,
@@ -280,7 +274,7 @@ export default function OpcPage() {
                   className={`list-row${selected?.id === opc.id ? ' selected' : ''}`}
                   onClick={() => selectOpc(opc)}
                 >
-                  <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)` }}>
+                  <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
                     {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -304,7 +298,7 @@ export default function OpcPage() {
                   className={`list-row${selected?.id === opc.id ? ' selected' : ''}`}
                   onClick={() => selectOpc(opc)}
                 >
-                  <div className="avatar avatar-lg" style={{ background: `linear-gradient(135deg,${opc.avatar_color ?? '#8b5cf6'},#06b6d4)` }}>
+                  <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
                     {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
