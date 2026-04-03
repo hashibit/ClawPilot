@@ -278,6 +278,12 @@ WantedBy=default.target"#,
     )
 }
 
+/// 获取当前用户 UID（通过 id -u，不依赖 UID 环境变量）
+fn get_uid() -> Result<String> {
+    let output = Command::new("id").arg("-u").output()?;
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
 /// 安装 launchd agent (macOS)
 fn install_launchd_agent(daemon_path: &str, port: u16) -> Result<()> {
     let home = dirs::home_dir()
@@ -290,16 +296,24 @@ fn install_launchd_agent(daemon_path: &str, port: u16) -> Result<()> {
     let plist_content = generate_launchd_plist(daemon_path, port);
     fs::write(&plist_path, plist_content)?;
 
-    // 加载 launchd agent
+    let uid = get_uid()?;
+    let plist_str = plist_path.display().to_string();
+    let gui_target = format!("gui/{}", uid);
+
+    // 先卸载旧服务（若不存在则忽略错误）
+    let _ = Command::new("launchctl")
+        .args(["bootout", &gui_target, &plist_str])
+        .output();
+
+    // macOS 10.15+ 推荐方式：bootstrap（用户级，无需 sudo）
     let output = Command::new("launchctl")
-        .args(["load", "-w", &plist_path.display().to_string()])
+        .args(["bootstrap", &gui_target, &plist_str])
         .output()?;
 
     if !output.status.success() {
-        // 如果 load 失败，尝试 kickstart（macOS 11+）
-        let label = "com.clawpilot.daemon";
+        // 旧版 macOS 回退到 load（同样无需 sudo）
         let _ = Command::new("launchctl")
-            .args(["kickstart", "-k", &format!("gui/{}/{}", unsafe { std::env::var("UID").unwrap_unchecked() }, label)])
+            .args(["load", "-w", &plist_str])
             .output();
     }
 
@@ -320,7 +334,8 @@ fn install_systemd_user_service(daemon_path: &str, port: u16) -> Result<()> {
 
     // 重载 systemd 并启用服务
     // 注意：这需要 XDG_RUNTIME_DIR 环境变量
-    let runtime_dir = format!("/run/user/{}", unsafe { std::env::var("UID").unwrap_unchecked() });
+    let uid = get_uid()?;
+    let runtime_dir = format!("/run/user/{}", uid);
 
     let output = Command::new("sh")
         .arg("-c")
@@ -362,10 +377,18 @@ fn install_launchd_agent_remote(
 
     Command::new("sh").arg("-c").arg(&create_plist).output()?;
 
-    // 加载 launchd agent
+    // 获取远程 UID 并加载 launchd agent（无需 sudo）
+    let uid_output = Command::new("sh")
+        .arg("-c")
+        .arg(format!("{} {} 'id -u'", ssh_prefix, target))
+        .output()?;
+    let uid = String::from_utf8_lossy(&uid_output.stdout).trim().to_string();
+
     let load_cmd = format!(
-        "{} {} 'launchctl load -w ~/Library/LaunchAgents/com.clawpilot.daemon.plist'",
-        ssh_prefix, target
+        "{} {} 'launchctl bootout gui/{uid} ~/Library/LaunchAgents/com.clawpilot.daemon.plist 2>/dev/null; \
+         launchctl bootstrap gui/{uid} ~/Library/LaunchAgents/com.clawpilot.daemon.plist || \
+         launchctl load -w ~/Library/LaunchAgents/com.clawpilot.daemon.plist'",
+        ssh_prefix, target, uid = uid
     );
 
     Command::new("sh").arg("-c").arg(&load_cmd).output()?;
@@ -562,18 +585,21 @@ mod tests {
 
     #[test]
     fn test_generate_launchd_plist() {
-        let plist = generate_launchd_plist("/usr/local/bin/clawpilot-daemon", 16668);
+        let daemon_path = dirs::home_dir().unwrap().join(".clawpilot/bin/clawpilot-daemon");
+        let plist = generate_launchd_plist(&daemon_path.display().to_string(), 16668);
         assert!(plist.contains("com.clawpilot.daemon"));
         assert!(plist.contains("127.0.0.1:16668"));
-        assert!(plist.contains("launchctl"));
+        assert!(plist.contains(".clawpilot/bin/clawpilot-daemon"));
     }
 
     #[test]
     fn test_generate_systemd_service() {
-        let service = generate_systemd_service("/usr/local/bin/clawpilot-daemon", 16668);
-        assert!(service.contains("clawpilot-daemon.service"));
+        let daemon_path = dirs::home_dir().unwrap().join(".clawpilot/bin/clawpilot-daemon");
+        let service = generate_systemd_service(&daemon_path.display().to_string(), 16668);
+        assert!(service.contains("ClawPilot Daemon"));
         assert!(service.contains("127.0.0.1:16668"));
-        assert!(service.contains("systemctl --user"));
+        assert!(service.contains("WantedBy=default.target"));
+        assert!(service.contains(".clawpilot/bin/clawpilot-daemon"));
     }
 
     #[test]
