@@ -245,6 +245,169 @@ function buildPackage(data, manifest) {
   })
 }
 
+/**
+ * Deploy 前统一重新生成所有 agent 的 AGENTS.md 和 SOUL.md 领队段落。
+ *
+ * - AGENTS.md：全团队花名册（所有 agent 一致）
+ * - SOUL.md：若 agent.manages 非空，追加/替换领队协调段落；否则移除该段落
+ *
+ * 用 <!-- CLAWPILOT:LEADER_START --> / <!-- CLAWPILOT:LEADER_END --> 标记
+ * 划定领队段落边界，避免覆盖用户自定义的其他内容。
+ */
+function regenerateAgentDocuments(opcId) {
+  const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opcId)
+  if (!opc) return
+
+  const agents = db.prepare('SELECT * FROM agents WHERE opc_id = ? ORDER BY order_index').all(opcId)
+  if (agents.length === 0) return
+
+  // Parse JSON fields
+  const parsed = agents.map(a => ({
+    ...a,
+    manages: safeJsonArray(a.manages),
+    reports_to: safeJsonArray(a.reports_to),
+    enabled_skills: safeJsonArray(a.enabled_skills),
+  }))
+
+  // Build unified roster for AGENTS.md
+  const rosterRows = parsed.map(a =>
+    `| **${a.display_name}${a.manages?.length ? '（领队）' : ''}** | ${a.name} | ${a.job_title || '-'} | ${a.initials || '-'} |`
+  ).join('\n')
+
+  const upsertDoc = db.prepare(`
+    INSERT INTO agent_documents (agent_id, document_type, content)
+    VALUES (?, ?, ?)
+    ON CONFLICT(agent_id, document_type) DO UPDATE SET content = excluded.content
+  `)
+
+  for (const agent of parsed) {
+    const isLeader = agent.manages.length > 0
+    const reportsTo = agent.reports_to.length > 0
+      ? parsed.filter(a => agent.reports_to.includes(a.name)).map(a => a.display_name).join('、')
+      : 'Boss（真人）'
+
+    // ── AGENTS.md ───────────────────────────────────────────
+    const agentsMd = buildAgentsMd(agent, parsed, opc, rosterRows, reportsTo)
+    upsertDoc.run(agent.id, 'AGENTS', agentsMd)
+
+    // ── SOUL.md：仅修改领队段落，其他内容保留 ───────────────
+    const existingSoul = db.prepare(
+      `SELECT content FROM agent_documents WHERE agent_id = ? AND document_type = 'SOUL'`
+    ).get(agent.id)
+
+    if (existingSoul) {
+      const updated = isLeader
+        ? injectLeaderSection(existingSoul.content, agent, parsed, opc)
+        : removeLeaderSection(existingSoul.content)
+      upsertDoc.run(agent.id, 'SOUL', updated)
+    }
+  }
+}
+
+function safeJsonArray(val) {
+  if (!val) return []
+  try { const r = JSON.parse(val); return Array.isArray(r) ? r : [] } catch { return [] }
+}
+
+function buildAgentsMd(agent, allAgents, opc, rosterRows, reportsTo) {
+  return `# AGENTS.md - Your Workspace
+
+_${opc.display_name} 团队成员_
+
+## 团队编制
+
+| 成员 | AgentId | 职位 | Emoji |
+|------|---------|------|-------|
+| **Boss** | - | 最高决策者，唯一真人 | 👑 |
+${rosterRows}
+
+## 汇报关系
+
+- **我是：** ${agent.display_name}（${agent.job_title || agent.name}）
+- **汇报给：** ${reportsTo}
+${agent.manages.length > 0 ? `- **我管理：** ${allAgents.filter(a => agent.manages.includes(a.name)).map(a => a.display_name).join('、')}` : ''}
+
+## Every Session
+
+开始任何工作前：
+
+1. 读 \`SOUL.md\` — 这是你的身份
+2. 读 \`USER.md\` — 了解你在帮谁
+3. 读 \`memory/YYYY-MM-DD.md\`（今天 + 昨天）获取近期上下文
+4. 读 \`MEMORY.md\` — 长期记忆
+
+不需要请求许可，直接读。
+
+## Memory
+
+- **日记：** \`memory/YYYY-MM-DD.md\` — 原始工作日志
+- **长期记忆：** \`MEMORY.md\` — 重要决策和经验教训
+
+## Safety
+
+- 不泄露私人数据
+- 不可逆操作前先确认
+- 拿不准时，先问
+`
+}
+
+const LEADER_START = '<!-- CLAWPILOT:LEADER_START -->'
+const LEADER_END = '<!-- CLAWPILOT:LEADER_END -->'
+
+function buildLeaderSection(agent, allAgents, opc) {
+  const managedNames = allAgents
+    .filter(a => agent.manages.includes(a.name))
+    .map(a => `${a.display_name}（${a.name}）`)
+    .join('、')
+
+  return `${LEADER_START}
+
+## 多智能体协调（领队职责）
+
+你是 **${opc.display_name}** 团队的领队，负责协调以下成员：${managedNames}
+
+### 收到用户复杂任务时的流程
+
+1. **提取回复信息**：从系统提示中找到 \`"sender_id": "ou_xxx"\`，这是用户的飞书 open_id
+2. **拆解任务**：将任务拆解为 DAG（多个步骤，明确依赖关系）
+3. **创建 Plan**：使用 \`create-plan\` skill 调用 \`POST /api/plans\`，填入：
+   - \`reply_channel: "feishu"\`
+   - \`reply_to: <sender_id>\`
+4. **展示计划**：在飞书向用户展示计划摘要，等待确认
+5. **执行**：用户确认后调用 \`PATCH /api/plans/:id/approve\`，或等待 daemon 自动审批（2分钟）
+6. **完成回复**：Plan 完成后，根据 \`reply_channel\` 决定回复方式：
+   - \`feishu\`：调用飞书 API，向 \`reply_to\`（open_id）发送消息
+   - null / 未设置：在当前会话直接输出结果（终端测试时的自然状态）
+
+### 何时创建 Plan
+
+- 任务需要多个步骤或多个 agent 协作时
+- 预计耗时超过一次对话能完成的范围时
+- 简单的单步问答**不需要**创建 Plan，直接回复即可
+
+${LEADER_END}`
+}
+
+function injectLeaderSection(soulContent, agent, allAgents, opc) {
+  const section = buildLeaderSection(agent, allAgents, opc)
+  const startIdx = soulContent.indexOf(LEADER_START)
+  const endIdx = soulContent.indexOf(LEADER_END)
+
+  if (startIdx !== -1 && endIdx !== -1) {
+    // Replace existing section
+    return soulContent.slice(0, startIdx) + section + soulContent.slice(endIdx + LEADER_END.length)
+  }
+  // Append at end
+  return soulContent.trimEnd() + '\n\n' + section + '\n'
+}
+
+function removeLeaderSection(soulContent) {
+  const startIdx = soulContent.indexOf(LEADER_START)
+  const endIdx = soulContent.indexOf(LEADER_END)
+  if (startIdx === -1 || endIdx === -1) return soulContent
+  return (soulContent.slice(0, startIdx) + soulContent.slice(endIdx + LEADER_END.length)).trimEnd() + '\n'
+}
+
 /** Generate openclaw.json config from OPC data */
 function generateOpenclawConfig(opcId) {
   const data = collectOpcData(opcId)
@@ -468,6 +631,8 @@ function runStubDeploy(taskId, opc_id, opc, office) {
     } catch (_) {}
   }
 
+  // Regenerate agent documents synchronously before simulation
+  try { regenerateAgentDocuments(opc_id) } catch (_) {}
   setTimeout(() => updateStep(1, 'RUNNING', { started_at: now() }), 300)
   setTimeout(() => updateStep(2, 'RUNNING'), 800)
   setTimeout(() => updateStep(3, 'RUNNING'), 1200)
@@ -498,6 +663,9 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
 
   try {
     mark('RUNNING', 1, { started_at: now() })
+
+    // Regenerate agent documents (AGENTS.md + leader SOUL.md section) before packaging
+    regenerateAgentDocuments(opc_id)
 
     // Build package with openclaw.json included
     const data = collectOpcData(opc_id)
@@ -753,6 +921,9 @@ router.post('/deploy_to_office', async (req, res) => {
     if (!office.daemon_url) {
       return res.json({ ok: false, error: '该办公室未配置 Daemon，请先安装物业' })
     }
+
+    // Regenerate agent documents before packaging (invalidates any stale cache)
+    regenerateAgentDocuments(opc_id)
 
     // Build or use cached package
     let cached = getCachedPackage(opc_id)

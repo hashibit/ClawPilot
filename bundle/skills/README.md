@@ -19,6 +19,7 @@
 | `github-helper` | GitHub 助手 | GitHub 仓库管理和 PR/Issue 操作 |
 | `web-search` | 网页搜索 | 多引擎网页搜索 |
 | `feishu-helper` | 飞书助手 | 飞书消息、文档、日历操作 |
+| `create-plan` | 创建任务计划 | 领队 Agent 拆解 DAG、提交 Plan 给 daemon 调度执行 |
 | `code-review` | 代码审查 | 自动代码审查和改进建议 |
 | `doc-writer` | 文档编写 | 自动生成技术文档 |
 

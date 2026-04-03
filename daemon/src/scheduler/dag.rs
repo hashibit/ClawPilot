@@ -3,6 +3,7 @@
 //! Handles task dependency resolution and dispatches ready tasks.
 
 use crate::scheduler::{Db, Worker};
+use crate::scheduler::models::PlanStatus;
 
 /// DAG scheduler for traversing and executing task graphs
 #[derive(Clone)]
@@ -56,13 +57,90 @@ impl DagScheduler {
                 }
                 Err(e) => {
                     tracing::error!("Failed to start task {}: {}", task.id, e);
-                    // Mark task as failed
                     if let Err(err) = self.db.mark_task_failed(&task.id, &e.to_string()) {
                         tracing::error!("Failed to mark task {} as failed: {}", task.id, err);
                     }
                 }
             }
         }
+
+        // Check if the plan is fully complete after this sweep
+        self.check_plan_completion(plan_id);
+    }
+
+    /// Check whether all tasks in a plan are done. If so, mark the plan completed
+    /// and notify the publisher agent so it can reply to the original user.
+    fn check_plan_completion(&self, plan_id: &str) {
+        // Only act on executing plans
+        let plan = match self.db.get_plan(plan_id) {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        if plan.status != PlanStatus::Executing {
+            return;
+        }
+
+        if !self.db.is_plan_all_tasks_done(plan_id) {
+            return;
+        }
+
+        let has_failures = self.db.has_failed_tasks(plan_id);
+
+        if let Err(e) = self.db.complete_plan(plan_id) {
+            tracing::error!("Failed to mark plan {} as completed: {}", plan_id, e);
+            return;
+        }
+
+        tracing::info!(
+            "Plan {} completed (failures: {}). Notifying publisher agent {}",
+            plan_id,
+            has_failures,
+            plan.publisher_agent_id
+        );
+
+        // Notify the publisher agent (orchestrator) so it can reply to the user
+        self.notify_publisher(&plan, has_failures);
+    }
+
+    /// Spawn `openclaw agent` to notify the orchestrator that the plan is done.
+    /// The orchestrator's SOUL.md instructs it to send a Feishu reply using reply_to.
+    fn notify_publisher(&self, plan: &crate::scheduler::models::Plan, has_failures: bool) {
+        let status_word = if has_failures { "部分失败" } else { "成功" };
+        let reply_hint = match (&plan.reply_channel, &plan.reply_to) {
+            (Some(ch), Some(to)) => format!("请通过 {} 回复用户（{}）执行结果。", ch, to),
+            _ => String::new(),
+        };
+
+        let message = format!(
+            "任务计划 {} 已{}完成。{}\n计划内容：{}",
+            plan.id, status_word, reply_hint, plan.content
+        );
+
+        let agent_id = plan.publisher_agent_id.clone();
+        tracing::info!("Notifying publisher agent: {}", agent_id);
+
+        // Fire-and-forget: spawn in a separate thread to avoid blocking the sweep
+        std::thread::spawn(move || {
+            let result = std::process::Command::new("openclaw")
+                .args(["agent", "--agent", &agent_id, "--message", &message])
+                .output();
+
+            match result {
+                Ok(out) if out.status.success() => {
+                    tracing::info!("Publisher agent {} notified successfully", agent_id);
+                }
+                Ok(out) => {
+                    tracing::warn!(
+                        "Publisher agent {} notification exited with error: {}",
+                        agent_id,
+                        String::from_utf8_lossy(&out.stderr)
+                    );
+                }
+                Err(e) => {
+                    tracing::error!("Failed to notify publisher agent {}: {}", agent_id, e);
+                }
+            }
+        });
     }
 
 }

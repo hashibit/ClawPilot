@@ -275,6 +275,41 @@ impl Db {
         Ok(())
     }
 
+    pub fn complete_plan(&self, plan_id: &str) -> anyhow::Result<()> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE plans SET status = 'completed', completed_at = ? WHERE id = ?",
+            params![chrono::Utc::now().timestamp(), plan_id],
+        )?;
+        Ok(())
+    }
+
+    /// Returns true if all tasks in the plan are completed (none pending/in_progress/failed/blocked).
+    pub fn is_plan_all_tasks_done(&self, plan_id: &str) -> bool {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE plan_id = ? AND status NOT IN ('completed', 'cancelled')",
+                params![plan_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+        count == 0
+    }
+
+    /// Returns true if any task in the plan has failed.
+    pub fn has_failed_tasks(&self, plan_id: &str) -> bool {
+        let conn = self.conn.lock().unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tasks WHERE plan_id = ? AND status = 'failed'",
+                params![plan_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        count > 0
+    }
+
     pub fn get_plan_detail(&self, plan_id: &str) -> anyhow::Result<PlanDetail> {
         let plan = self.get_plan(plan_id)?;
         let tasks = self.get_tasks_by_plan(plan_id)?;
