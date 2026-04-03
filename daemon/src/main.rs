@@ -7,6 +7,8 @@ mod state;
 mod utils;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod scheduler_http_tests;
 
 use axum::{
     extract::DefaultBodyLimit,

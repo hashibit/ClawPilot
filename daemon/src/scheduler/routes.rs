@@ -143,7 +143,7 @@ pub async fn approve_plan(
 
     // Check if plan exists
     let plan = db.get_plan(&plan_id).map_err(|e| {
-        if e.to_string().contains("not found") {
+        if is_not_found(&e) {
             AppError::NotFound(format!("Plan not found: {}", plan_id))
         } else {
             AppError::Internal(anyhow::anyhow!("Failed to get plan: {}", e))
@@ -211,7 +211,7 @@ pub async fn cancel_plan(
 
     // Check if plan exists
     let plan = db.get_plan(&plan_id).map_err(|e| {
-        if e.to_string().contains("not found") {
+        if is_not_found(&e) {
             AppError::NotFound(format!("Plan not found: {}", plan_id))
         } else {
             AppError::Internal(anyhow::anyhow!("Failed to get plan: {}", e))
@@ -266,7 +266,7 @@ pub async fn get_plan(
         AppError::Internal(anyhow::anyhow!("Scheduler database not initialized"))
     })?;
     let detail = db.get_plan_detail(&plan_id).map_err(|e| {
-        if e.to_string().contains("not found") {
+        if is_not_found(&e) {
             AppError::NotFound(format!("Plan not found: {}", plan_id))
         } else {
             AppError::Internal(anyhow::anyhow!("Failed to get plan detail: {}", e))
@@ -326,7 +326,7 @@ pub async fn get_agent(
     })?;
 
     let info = db.get_agent(&agent_id).map_err(|e| {
-        if e.to_string().contains("not found") {
+        if is_not_found(&e) {
             AppError::NotFound(format!("Agent not found: {}", agent_id))
         } else {
             AppError::Internal(anyhow::anyhow!("Failed to get agent: {}", e))
@@ -390,6 +390,14 @@ pub async fn get_agent_tasks(
 // =============================================================================
 // Utility functions
 // =============================================================================
+
+/// Returns true when an anyhow error originates from a "row not found" DB query.
+/// rusqlite surfaces this as `QueryReturnedNoRows` whose Display is
+/// "Query returned no rows", which does not contain "not found".
+fn is_not_found(e: &anyhow::Error) -> bool {
+    let msg = e.to_string().to_lowercase();
+    msg.contains("not found") || msg.contains("no rows")
+}
 
 /// Check for circular dependencies using DFS
 fn has_cycle(
