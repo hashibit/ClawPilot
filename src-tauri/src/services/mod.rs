@@ -1,6 +1,7 @@
 pub mod agent_service;
 pub mod binding_service;
 pub mod channel_service;
+pub mod daemon_install_service;
 pub mod deployment_service;
 pub mod log_service;
 pub mod model_service;

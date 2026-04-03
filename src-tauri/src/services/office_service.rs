@@ -476,7 +476,7 @@ fn read_local_daemon_key() -> Option<String> {
 }
 
 /// Update office daemon configuration
-fn update_office_daemon_config(pool: &DbPool, office_id: &str, daemon_url: &str, api_key: &str) -> Result<()> {
+pub fn update_office_daemon_config(pool: &DbPool, office_id: &str, daemon_url: &str, api_key: &str) -> Result<()> {
     use crate::utils::crypto::encrypt;
 
     let conn = pool.get()?;
@@ -490,6 +490,11 @@ fn update_office_daemon_config(pool: &DbPool, office_id: &str, daemon_url: &str,
     )?;
 
     Ok(())
+}
+
+/// Update office daemon configuration by office ID (public wrapper)
+pub fn update_office_daemon_config_by_id(pool: &DbPool, office_id: &str, daemon_url: &str, api_key: &str) -> Result<()> {
+    update_office_daemon_config(pool, office_id, daemon_url, api_key)
 }
 
 /// Get the version of local clawpilot-daemon binary

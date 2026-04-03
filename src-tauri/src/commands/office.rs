@@ -5,6 +5,7 @@ use crate::error::Result;
 use crate::models::office::{DaemonHealthResult, Office, OfficeDeployment};
 use crate::services::office_service;
 use crate::services::ssh_service;
+use crate::services::daemon_install_service;
 
 /// SSH connection check result
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -147,42 +148,233 @@ pub async fn check_ssh_auth(
     }
 }
 
-/// Install daemon on remote server via SSH
-#[tauri::command]
+/// Install daemon on local or remote server via SSH
+#[tauri::command(async)]
 pub async fn install_daemon(
-    _office_id: String,
-    _mode: Option<String>,
-    _daemon_port: Option<u16>,
-    _ssh_host: Option<String>,
-    _ssh_port: Option<u16>,
-    _ssh_user: Option<String>,
-    _ssh_key_path: Option<String>,
+    pool: State<'_, DbPool>,
+    office_id: String,
+    mode: Option<String>,
+    daemon_port: Option<u16>,
+    ssh_host: Option<String>,
+    ssh_port: Option<u16>,
+    ssh_user: Option<String>,
+    ssh_key_path: Option<String>,
+    _ssh_password: Option<String>,
     _ssh_config_file: Option<String>,
     _daemon_host: Option<String>,
-) -> InstallDaemonResult {
-    // Stub: Daemon installation not yet implemented in Tauri version
-    InstallDaemonResult {
-        ok: false,
-        logs: vec![],
-        error: Some("Daemon 安装功能尚未在 Tauri 版本中实现".into()),
+) -> Result<InstallDaemonResult> {
+    let port = daemon_port.unwrap_or(16668);
+    let is_remote = mode.as_deref() == Some("ssh");
+
+    // Build SSH prefix if remote
+    let (ssh_prefix, ssh_target) = if is_remote {
+        let host = ssh_host.unwrap_or_default();
+        let port = ssh_port.unwrap_or(22);
+        let user = ssh_user.as_deref().unwrap_or("root");
+
+        let key_arg = if let Some(ref key_path) = ssh_key_path {
+            format!("-i \"{}\" ", key_path)
+        } else {
+            String::new()
+        };
+
+        let prefix = format!(
+            "ssh {}-o StrictHostKeyChecking=no -o BatchMode=no -o ConnectTimeout=10 -p {}",
+            key_arg, port
+        );
+
+        let target = format!("{}@{}", user, host);
+        (Some(prefix), Some(target))
+    } else {
+        (None, None)
+    };
+
+    // Call the service layer
+    match daemon_install_service::install_daemon(port, ssh_prefix.as_deref(), ssh_target.as_deref()) {
+        Ok(result) => {
+            // Update office daemon config in DB
+            if let (Some(url), Some(key)) = (&result.daemon_url, &result.api_key) {
+                let _ = office_service::update_office_daemon_config_by_id(&pool, &office_id, url, key);
+            }
+
+            Ok(InstallDaemonResult {
+                ok: true,
+                logs: result.logs,
+                error: None,
+            })
+        }
+        Err(e) => Ok(InstallDaemonResult {
+            ok: false,
+            logs: vec![],
+            error: Some(e.to_string()),
+        }),
     }
 }
 
-/// Install OpenClaw on remote server
-#[tauri::command]
+/// Install OpenClaw on local or remote server
+#[tauri::command(async)]
 pub async fn install_openclaw(
+    _pool: State<'_, DbPool>,
     _office_id: String,
     _opc_id: String,
-    _ssh_host: Option<String>,
-    _ssh_port: Option<u16>,
-    _ssh_user: Option<String>,
-    _ssh_key_path: Option<String>,
-) -> InstallDaemonResult {
-    // Stub: OpenClaw installation not yet implemented in Tauri version
-    InstallDaemonResult {
-        ok: false,
-        logs: vec![],
-        error: Some("OpenClaw 安装功能尚未在 Tauri 版本中实现".into()),
+    mode: Option<String>,
+    ssh_host: Option<String>,
+    ssh_port: Option<u16>,
+    ssh_user: Option<String>,
+    ssh_key_path: Option<String>,
+    _ssh_password: Option<String>,
+) -> Result<InstallDaemonResult> {
+    let is_remote = mode.as_deref() == Some("ssh");
+
+    // Build SSH prefix if remote
+    let (ssh_prefix, ssh_target) = if is_remote {
+        let host = ssh_host.unwrap_or_default();
+        let port = ssh_port.unwrap_or(22);
+        let user = ssh_user.as_deref().unwrap_or("root");
+
+        let key_arg = if let Some(ref key_path) = ssh_key_path {
+            format!("-i \"{}\" ", key_path)
+        } else {
+            String::new()
+        };
+
+        let prefix = format!(
+            "ssh {}-o StrictHostKeyChecking=no -o BatchMode=no -o ConnectTimeout=10 -p {}",
+            key_arg, port
+        );
+
+        let target = format!("{}@{}", user, host);
+        (Some(prefix), Some(target))
+    } else {
+        (None, None)
+    };
+
+    let mut logs = Vec::new();
+    let mut lg = |line: &str| logs.push(line.to_string());
+
+    lg("🔍 探测操作系统类型...");
+
+    // Detect OS type
+    let _os_type = if is_remote {
+        match daemon_install_service::OsType::detect_remote(
+            ssh_prefix.as_ref().unwrap(),
+            ssh_target.as_ref().unwrap(),
+        ) {
+            Ok(os) => {
+                lg(&format!("✅ 检测到 {}", match os {
+                    daemon_install_service::OsType::MacOS => "macOS",
+                    daemon_install_service::OsType::Linux => "Linux",
+                }));
+                os
+            }
+            Err(e) => {
+                lg(&format!("❌ 无法探测系统类型：{}", e));
+                return Ok(InstallDaemonResult {
+                    ok: false,
+                    logs,
+                    error: Some("无法探测远程系统类型".to_string()),
+                });
+            }
+        }
+    } else {
+        match daemon_install_service::OsType::detect() {
+            Ok(os) => {
+                lg(&format!("✅ 检测到 {}", match os {
+                    daemon_install_service::OsType::MacOS => "macOS",
+                    daemon_install_service::OsType::Linux => "Linux",
+                }));
+                os
+            }
+            Err(e) => {
+                lg(&format!("❌ 不支持的操作系统：{}", e));
+                return Ok(InstallDaemonResult {
+                    ok: false,
+                    logs,
+                    error: Some("不支持的操作系统".to_string()),
+                });
+            }
+        }
+    };
+
+    // Install OpenClaw using official install script
+    lg("📥 下载并执行 OpenClaw 安装脚本...");
+
+    let install_cmd = if is_remote {
+        format!(
+            "{} {} 'curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk'",
+            ssh_prefix.as_ref().unwrap(),
+            ssh_target.as_ref().unwrap()
+        )
+    } else {
+        "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk".to_string()
+    };
+
+    let output = tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(&install_cmd)
+        .output()
+        .await;
+
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+
+            if !out.status.success() {
+                lg(&format!("❌ 安装失败：{}", stderr));
+                return Ok(InstallDaemonResult {
+                    ok: false,
+                    logs,
+                    error: Some(format!("OpenClaw 安装失败：{}", stderr)),
+                });
+            }
+
+            lg("✅ OpenClaw 安装完成");
+            lg(&format!("📋 安装日志:\n{}", stdout));
+
+            // Register daemon service using openclaw onboard
+            lg("⚙️  注册 OpenClaw 系统服务...");
+
+            let onboard_cmd = if is_remote {
+                format!(
+                    "{} {} 'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'",
+                    ssh_prefix.as_ref().unwrap(),
+                    ssh_target.as_ref().unwrap()
+                )
+            } else {
+                "openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk".to_string()
+            };
+
+            let onboard_output = tokio::process::Command::new("sh")
+                .arg("-c")
+                .arg(&onboard_cmd)
+                .output()
+                .await;
+
+            match onboard_output {
+                Ok(out) => {
+                    if !out.status.success() {
+                        lg("⚠️  服务注册失败（可选步骤，可手动执行）");
+                    } else {
+                        lg("✅ OpenClaw 系统服务已注册");
+                    }
+                }
+                Err(e) => {
+                    lg(&format!("⚠️  服务注册异常：{}", e));
+                }
+            }
+
+            Ok(InstallDaemonResult {
+                ok: true,
+                logs,
+                error: None,
+            })
+        }
+        Err(e) => Ok(InstallDaemonResult {
+            ok: false,
+            logs,
+            error: Some(format!("执行安装命令失败：{}", e)),
+        }),
     }
 }
 
