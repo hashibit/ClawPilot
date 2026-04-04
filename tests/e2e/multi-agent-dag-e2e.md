@@ -485,6 +485,34 @@ done
 
 **预期**：最终输出 `success`
 
+### 4-5. 审批 Gateway 设备配对（首次部署后必须执行）
+
+> **背景**：Daemon 首次调用 `openclaw agent` 时会向本机 gateway 发起 pairing 请求，gateway 需要人工审批后 daemon 才能正常执行任务。跳过此步骤会导致所有任务以 `pairing required` 错误失败。
+
+```bash
+# 查看 pending 设备列表
+orb run -s -m $VM_NAME \
+  "export PATH=\$PATH:/home/$USER/.npm-global/bin && openclaw devices list"
+```
+
+**预期**：Pending 列表中有 1 个设备（daemon 的 device id），Role 为 `operator`
+
+```bash
+# 审批 pairing 请求（approve --latest 审批最新一条）
+orb run -s -m $VM_NAME \
+  "export PATH=\$PATH:/home/$USER/.npm-global/bin && openclaw devices approve --latest"
+```
+
+**预期**：输出 `Approved <device-id> (<request-id>)`
+
+```bash
+# 确认已配对
+orb run -s -m $VM_NAME \
+  "export PATH=\$PATH:/home/$USER/.npm-global/bin && openclaw devices list"
+```
+
+**预期**：Pending 列表为空，Paired 列表有 1 个设备，Scopes 包含 `operator.admin, operator.write` 等全量权限
+
 ### 阶段四验证
 
 ```bash
@@ -527,43 +555,68 @@ FINAL_STATUS=$(curl -s -X POST $SERVER/get_deployment_status \
   || echo "❌ FAIL  OPC 部署状态: $FINAL_STATUS" | tee -a $TEST_LOG
 
 # 验证 Agent 文档已生成（领队 SOUL.md 含领队段落）
-LEADER_SOUL=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
-  "grep -l 'CLAWPILOT:LEADER_START' ~/.openclaw/OPC/开发团队/workspace-小龙虾/SOUL.md 2>/dev/null && echo found || echo not_found")
+# 注意：workspace 路径使用 OPC_ID，不是 OPC name
+LEADER_SOUL=$(orb run -s -m $VM_NAME \
+  "grep -l 'CLAWPILOT:LEADER_START' ~/.openclaw/OPC/$OPC_ID/workspace-小龙虾/SOUL.md 2>/dev/null && echo found || echo not_found")
 [[ "$LEADER_SOUL" == *"found"* ]] \
   && echo "✅ PASS  领队 SOUL.md 含 CLAWPILOT:LEADER_START" | tee -a $TEST_LOG \
   || echo "❌ FAIL  领队 SOUL.md 缺少领队段落" | tee -a $TEST_LOG
 
 # Worker agents 的 SOUL.md 不含领队段落
-WORKER_CLEAN=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
+WORKER_CLEAN=$(orb run -s -m $VM_NAME \
   "grep -rL 'CLAWPILOT:LEADER_START' \
-    ~/.openclaw/OPC/开发团队/workspace-小前/SOUL.md \
-    ~/.openclaw/OPC/开发团队/workspace-小后/SOUL.md \
-    ~/.openclaw/OPC/开发团队/workspace-小测/SOUL.md 2>/dev/null | wc -l")
+    ~/.openclaw/OPC/$OPC_ID/workspace-小前/SOUL.md \
+    ~/.openclaw/OPC/$OPC_ID/workspace-小后/SOUL.md \
+    ~/.openclaw/OPC/$OPC_ID/workspace-小测/SOUL.md 2>/dev/null | wc -l")
 [[ "$WORKER_CLEAN" == "3" ]] \
   && echo "✅ PASS  Worker agents SOUL.md 无领队段落" | tee -a $TEST_LOG \
   || echo "❌ FAIL  有 Worker agent SOUL.md 含领队段落（干净文件数: $WORKER_CLEAN）" | tee -a $TEST_LOG
 
 # AGENTS.md 花名册一致性
-ROSTER_LINES=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
+ROSTER_LINES=$(orb run -s -m $VM_NAME \
   "grep -h '小龙虾\|小前\|小后\|小测' \
-    ~/.openclaw/OPC/开发团队/workspace-*/AGENTS.md 2>/dev/null | sort -u | wc -l")
+    ~/.openclaw/OPC/$OPC_ID/workspace-*/AGENTS.md 2>/dev/null | sort -u | wc -l")
 [[ "$ROSTER_LINES" == "4" ]] \
   && echo "✅ PASS  AGENTS.md 花名册一致（4 个唯一行）" | tee -a $TEST_LOG \
   || echo "❌ FAIL  AGENTS.md 花名册不一致（唯一行数: $ROSTER_LINES）" | tee -a $TEST_LOG
 
 # 验证部署后 openclaw.json 已合并到 ~/.openclaw/openclaw.json
-MAIN_CONFIG_COUNT=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
+MAIN_CONFIG_COUNT=$(orb run -s -m $VM_NAME \
   "grep -c '小龙虾\|pm' ~/.openclaw/openclaw.json 2>/dev/null" || echo 0)
 [[ "$MAIN_CONFIG_COUNT" -gt 0 ]] \
   && echo "✅ PASS  openclaw.json 已合并（含 $MAIN_CONFIG_COUNT 处 agent 引用）" | tee -a $TEST_LOG \
   || echo "⚠️  WARN  openclaw.json 未合并或合并失败" | tee -a $TEST_LOG
 
-# 验证 models.mode = "merge"
-MODE=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
-  "grep '\"mode\"' ~/.openclaw/openclaw.json 2>/dev/null" || echo "")
-[[ "$MODE" == *"merge"* ]] \
-  && echo "✅ PASS  models.mode = merge" | tee -a $TEST_LOG \
-  || echo "⚠️  WARN  models.mode 非 merge" | tee -a $TEST_LOG
+# 验证 Gateway 已配对
+PAIRED_COUNT=$(orb run -s -m $VM_NAME \
+  "export PATH=\$PATH:/home/$USER/.npm-global/bin && openclaw devices list 2>/dev/null | grep -c 'operator'" || echo 0)
+[[ "$PAIRED_COUNT" -gt 0 ]] \
+  && echo "✅ PASS  Gateway 设备已配对" | tee -a $TEST_LOG \
+  || echo "❌ FAIL  Gateway 设备未配对（任务执行将失败）" | tee -a $TEST_LOG
+
+# 验证 Model Provider 已写入（deploy 时自动注入）
+MODEL_CONF=$(orb run -s -m $VM_NAME \
+  "grep -c '\"providers\"' ~/.openclaw/openclaw.json 2>/dev/null" || echo 0)
+[[ "$MODEL_CONF" -gt 0 ]] \
+  && echo "✅ PASS  openclaw.json 已包含 models.providers" | tee -a $TEST_LOG \
+  || echo "❌ FAIL  openclaw.json 缺少 models.providers（任务执行将报 model_not_found）" | tee -a $TEST_LOG
+
+# 验证 Plugins 联动（如有 channels）
+PLUGINS_CHECK=$(orb run -s -m $VM_NAME \
+  "python3 -c \"
+import json
+with open('/home/$USER/.openclaw/openclaw.json') as f:
+    d = json.load(f)
+plugins = d.get('plugins', {})
+allow = plugins.get('allow', [])
+entries = plugins.get('entries', {})
+# 检查飞书是否在 allow 和 entries 中都存在
+feishu_ok = 'feishu' in allow and 'feishu' in entries
+print('feishu_ok' if feishu_ok else 'feishu_missing')
+\" 2>/dev/null" || echo "parse_error")
+[[ "$PLUGINS_CHECK" == "feishu_ok" ]] \
+  && echo "✅ PASS  plugins.allow 和 plugins.entries 已同步飞书配置" | tee -a $TEST_LOG \
+  || echo "⚠️  WARN  plugins 联动异常或未配置 channels（$PLUGINS_CHECK）" | tee -a $TEST_LOG
 ```
 
 ---
@@ -835,7 +888,9 @@ curl -s -X POST $SERVER/delete_office \
 | Daemon systemd | `systemctl --user is-active clawpilot-daemon` = active | ☐ |
 | OPC 部署 | 部署任务状态 success | ☐ |
 | openclaw.json 合并 | `~/.openclaw/openclaw.json` 含部署的 agents | ☐ |
-| models.mode | `models.mode = "merge"` | ☐ |
+| Gateway 设备配对 | `openclaw devices list` Paired 列表有 daemon 设备 | ☐ |
+| Model provider 配置 | `openclaw.json` 含 `models.providers`（deploy 自动注入） | ☐ |
+| Plugins 联动 | 有 feishu channel 时 `plugins.allow` 含 `"feishu"` | ☐ |
 | 领队 SOUL.md | 含 `CLAWPILOT:LEADER_START` 段落 | ☐ |
 | Worker SOUL.md | 不含领队段落 | ☐ |
 | AGENTS.md 一致 | 四个 agent 的花名册行内容相同 | ☐ |
@@ -862,14 +917,70 @@ Worker 调用 `openclaw agent` 失败（agent 不存在或 openclaw 未配置）
 ### Daemon systemd 服务未启动
 检查 systemd 服务状态：
 ```bash
-ssh $USER@$VM_IP "systemctl --user status clawpilot-daemon"
+orb run -s -m $VM_NAME "systemctl --user status clawpilot-daemon"
 # 查看日志
-ssh $USER@$VM_IP "journalctl --user -u clawpilot-daemon -n 50"
+orb run -s -m $VM_NAME "journalctl --user -u clawpilot-daemon -n 50"
 # 手动启动
-ssh $USER@$VM_IP "systemctl --user start clawpilot-daemon"
+orb run -s -m $VM_NAME "systemctl --user start clawpilot-daemon"
 ```
 
 ### SSH 连接超时
 ```bash
 orbctl run -m clawpilot-test -u root systemctl start ssh
 ```
+
+---
+
+## 踩坑记录（2026-04-05 首次全链路测试）
+
+### 1. 任务全部失败：`gateway connect failed: pairing required`
+
+**现象**：Plan 审批后，t1 立即 failed，错误 `GatewayClientRequestError: pairing required`，retry 后仍失败。
+
+**原因**：Daemon 的 `openclaw agent` 进程连接 gateway 时，该设备尚未完成 pairing。Gateway 会记录一条 pending 配对请求，但不会自动批准，导致所有 WebSocket 连接以 1008 关闭。
+
+**解决**：执行 4-5 节的 `openclaw devices approve --latest`，批准后 daemon 下次 retry 即可成功连接。
+
+---
+
+### 2. 任务失败：`Unknown model: bailian/qwen3-max-2026-01-23 (model_not_found)`
+
+**现象**：pairing 解决后，任务仍报 `All models failed: bailian/qwen3-max-2026-01-23: model_not_found`。
+
+**根因**：`generateOpenclawConfig` 生成的 models 结构是 `{ "bailian": {...} }`，但 OpenClaw schema 要求多一层 `providers` 包装：`{ "providers": { "bailian": {...} } }`。同时 provider 级别多了一个 `api` 字段，也不在 schema 里。另外 deploy.rs 的 merge 逻辑之前显式删除了 models key。
+
+**已修复**：`deployment.js` 改为生成 `models: { providers: {...} }` 结构；`deploy.rs` 改为和 agents 一样直接替换 models，不再删除。
+
+---
+
+### 5. Plugins 未同步 channels
+
+**现象**：部署含飞书 channel 的 OPC 后，`openclaw.json` 的 `plugins.allow` 和 `plugins.entries` 中没有飞书配置，导致飞书消息无法接收。
+
+**根因**：Deploy 只替换了 `channels` key，但 OpenClaw 要求 channel 必须同时在 `plugins.allow` 列表中声明，并在 `plugins.entries` 中有详细配置才能启用。
+
+**已修复**：`deploy.rs` 的 merge 逻辑在替换 `channels` 后，自动同步到 `plugins.allow` 和 `plugins.entries`（仅处理已知 channel 类型：feishu/telegram/discord/slack），用户的其他 plugins 配置不会被覆盖。
+
+---
+
+### 3. Daemon 部署后立即崩溃：`posix_spawn: no such file or directory`
+
+**现象**：`install_daemon` 成功，但 systemd 服务反复重启，日志只有 `posix_spawn: no such file or directory`。
+
+**原因**：`install_daemon` 把本机（macOS）构建的二进制上传到了 Linux VM，Mach-O 格式无法在 Linux 上运行。
+
+**解决**：在上传前交叉编译 Linux arm64 二进制：
+```bash
+cd daemon && cargo build --release --target aarch64-unknown-linux-gnu
+```
+`install_daemon` 代码已处理架构探测，但需确保 `target/aarch64-unknown-linux-gnu/release/clawpilot-daemon` 存在。
+
+---
+
+### 4. 路径错误：workspace 目录用了 OPC name 而非 OPC ID
+
+**现象**：部署成功，但 SOUL.md / AGENTS.md 等文件找不到。
+
+**原因**：OpenClaw 的 workspace 路径格式为 `~/.openclaw/OPC/<opc_id>/workspace-<display_name>`，用的是 OPC 的 ID（如 `opc-1775340170838`），不是 OPC 的 name（如 `dev-team`）。
+
+**解决**：验证命令中一律使用 `$OPC_ID` 变量，不硬编码 OPC name。

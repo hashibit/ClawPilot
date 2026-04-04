@@ -444,26 +444,47 @@ pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyh
         tracing::info!("Backed up main config to {}", backup_path.display());
     }
 
-    // Only update agents from the OPC config — preserve everything else.
-    // models/channels/bindings are intentionally NOT merged here because their
-    // format in the OPC config does not match what OpenClaw expects in the main
-    // openclaw.json (model providers use a different schema from the deploy package).
-    if let Some(agents) = opc_config.get("agents") {
-        main_config["agents"] = agents.clone();
-    }
-    // Remove any stale models/channels/bindings keys that may have been written
-    // by a previous deployment before this restriction was in place.
-    if let Some(obj) = main_config.as_object_mut() {
-        obj.remove("models");
-        obj.remove("channels");
-        obj.remove("bindings");
-    }
-
-    // Also update tools, messages, commands, session, gateway, logging, plugins if present
-    // These may have default values in the OPC config
-    for field in ["tools", "messages", "commands", "session", "gateway", "logging", "plugins"] {
+    // Replace only the 4 OPC-managed keys; preserve everything else
+    // (gateway token, logging, tools, etc. are managed by OpenClaw itself).
+    for field in ["agents", "models", "channels", "bindings"] {
         if let Some(val) = opc_config.get(field) {
             main_config[field] = val.clone();
+        } else if let Some(obj) = main_config.as_object_mut() {
+            obj.remove(field);
+        }
+    }
+
+    // Sync known channel plugins into plugins.allow and plugins.entries.
+    // Only touches the specific channel keys we manage — other user plugins are preserved.
+    const KNOWN_CHANNEL_PLUGINS: &[&str] = &["feishu", "telegram", "discord", "slack"];
+    let channels = main_config.get("channels").cloned().unwrap_or(serde_json::json!({}));
+
+    // Ensure plugins object exists
+    if !main_config.as_object().map_or(false, |o| o.contains_key("plugins")) {
+        main_config["plugins"] = serde_json::json!({ "allow": [], "entries": {} });
+    }
+
+    for &plugin in KNOWN_CHANNEL_PLUGINS {
+        if let Some(channel_cfg) = channels.get(plugin).cloned() {
+            // Add to allow list if not already present
+            let already_allowed = main_config["plugins"]["allow"]
+                .as_array()
+                .map_or(false, |arr| arr.iter().any(|v| v.as_str() == Some(plugin)));
+            if !already_allowed {
+                if let Some(arr) = main_config["plugins"]["allow"].as_array_mut() {
+                    arr.push(serde_json::Value::String(plugin.to_string()));
+                }
+            }
+            // Set entries[plugin] to the channel config
+            main_config["plugins"]["entries"][plugin] = channel_cfg;
+        } else {
+            // Channel removed — clean up allow and entries
+            if let Some(arr) = main_config["plugins"]["allow"].as_array_mut() {
+                arr.retain(|v| v.as_str() != Some(plugin));
+            }
+            if let Some(obj) = main_config["plugins"]["entries"].as_object_mut() {
+                obj.remove(plugin);
+            }
         }
     }
 
