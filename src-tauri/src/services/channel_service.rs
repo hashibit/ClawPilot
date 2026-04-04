@@ -228,7 +228,7 @@ pub fn test_feishu_connection(app_id: &str, app_secret: &str) -> Result<bool> {
 mod tests {
     use super::*;
     use crate::database::pool::DbPool;
-    use crate::database::schema::SCHEMA_V1;
+    use crate::database::schema::SCHEMA;
     use rusqlite::Connection;
 
     fn setup_pool() -> DbPool {
@@ -239,7 +239,7 @@ mod tests {
              PRAGMA synchronous=NORMAL;",
         )
         .expect("configure pragmas");
-        conn.execute_batch(SCHEMA_V1).expect("apply schema");
+        conn.execute_batch(SCHEMA).expect("apply schema");
 
         // channels は opc_id 外部キーを持つため、先に opc_config を挿入する
         conn.execute(

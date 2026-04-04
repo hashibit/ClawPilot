@@ -1,93 +1,14 @@
 use crate::database::pool::DbPool;
 use crate::error::Result;
 
-/// データベースの現在のターゲットバージョン。
-const CURRENT_VERSION: u32 = 4;
-
-/// 未実行のマイグレーションをすべて実行する。
+/// 単一パスでスキーマを初期化する。
 ///
-/// `PRAGMA user_version` でスキーマバージョンを管理する。
-/// 各マイグレーションは冪等であり、複数回実行しても安全。
+/// バージョン管理は不要：製品未リリースのため、
+/// 最初は空のデータベースから始まり、全テーブルを一度に作成する。
 pub fn run_migrations(pool: &DbPool) -> Result<()> {
     let conn = pool.get()?;
-
-    let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-
-    if version < 1 {
-        // v0 → v1: すべてのコアテーブルを作成する
-        conn.execute_batch(crate::database::schema::SCHEMA_V1)?;
-        conn.execute_batch("PRAGMA user_version = 1")?;
-    }
-
-    if version < 2 {
-        // v1 → v2: offices, office_deployments, and new columns on existing tables
-        conn.execute_batch(crate::database::schema::MIGRATION_V2_TABLES)?;
-
-        // ALTER TABLE statements that may fail if column already exists — ignore those errors
-        let alters = [
-            "ALTER TABLE opc_config ADD COLUMN office_id TEXT",
-            "ALTER TABLE deployment_tasks ADD COLUMN opc_id TEXT",
-            "ALTER TABLE deployment_tasks ADD COLUMN office_id TEXT",
-            "ALTER TABLE deployment_tasks ADD COLUMN daemon_task_id TEXT",
-            "ALTER TABLE deployment_tasks ADD COLUMN updated_at INTEGER",
-            "ALTER TABLE skills ADD COLUMN display_name TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE skills ADD COLUMN is_local INTEGER NOT NULL DEFAULT 1",
-            "ALTER TABLE skills ADD COLUMN is_installed INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE skills ADD COLUMN install_path TEXT",
-            "ALTER TABLE skills ADD COLUMN installed_at INTEGER",
-            "ALTER TABLE skills ADD COLUMN download_url TEXT",
-            "ALTER TABLE channels ADD COLUMN dingtalk_config TEXT",
-            "ALTER TABLE channels ADD COLUMN slack_config TEXT",
-            "ALTER TABLE model_providers ADD COLUMN base_url TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE model_providers ADD COLUMN is_coding_plan INTEGER NOT NULL DEFAULT 0",
-        ];
-        for stmt in &alters {
-            // Ignore "duplicate column name" errors
-            let _ = conn.execute_batch(stmt);
-        }
-
-        conn.execute_batch("PRAGMA user_version = 2")?;
-    }
-
-    if version < 3 {
-        // v2 → v3: model_providers_v2 and model_info_v2 (name-keyed, flexible)
-        conn.execute_batch(crate::database::schema::MIGRATION_V3_TABLES)?;
-        conn.execute_batch("PRAGMA user_version = 3")?;
-    }
-
-    if version < 4 {
-        // v3 → v4: SSH credential fields + opc_root on offices, timestamps on agent_documents,
-        //          model field on agents
-        let alters = [
-            "ALTER TABLE offices ADD COLUMN access_auth_type TEXT",
-            "ALTER TABLE offices ADD COLUMN access_user TEXT",
-            "ALTER TABLE offices ADD COLUMN access_password TEXT",
-            "ALTER TABLE offices ADD COLUMN ssh_key_path TEXT",
-            "ALTER TABLE offices ADD COLUMN opc_root TEXT",
-            "ALTER TABLE agent_documents ADD COLUMN created_at INTEGER",
-            "ALTER TABLE agent_documents ADD COLUMN updated_at INTEGER",
-            "ALTER TABLE agents ADD COLUMN model TEXT",
-        ];
-        for stmt in &alters {
-            let _ = conn.execute_batch(stmt);
-        }
-        conn.execute_batch("PRAGMA user_version = 4")?;
-    }
-
+    conn.execute_batch(crate::database::schema::SCHEMA)?;
     Ok(())
-}
-
-/// データベースに保存されている現在のスキーマバージョンを返す。
-pub fn current_version(pool: &DbPool) -> Result<u32> {
-    let conn = pool.get()?;
-    let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    Ok(version)
-}
-
-/// コードで定義されているターゲットバージョンを返す。
-#[allow(dead_code)]
-pub fn target_version() -> u32 {
-    CURRENT_VERSION
 }
 
 #[cfg(test)]
@@ -108,26 +29,9 @@ mod tests {
     }
 
     #[test]
-    fn test_migration_sets_version_to_1() {
+    fn test_schema_initialization() {
         let pool = in_memory_pool();
-        run_migrations(&pool).expect("migrations should succeed");
-        let v = current_version(&pool).expect("should get version");
-        assert_eq!(v, 4, "user_version should be 4 after migration");
-    }
-
-    #[test]
-    fn test_migration_is_idempotent() {
-        let pool = in_memory_pool();
-        run_migrations(&pool).expect("first run");
-        run_migrations(&pool).expect("second run should not error");
-        let v = current_version(&pool).expect("version after double run");
-        assert_eq!(v, 4);
-    }
-
-    #[test]
-    fn test_core_tables_exist() {
-        let pool = in_memory_pool();
-        run_migrations(&pool).expect("migrations");
+        run_migrations(&pool).expect("schema init should succeed");
 
         let conn = pool.get().expect("connection");
 
@@ -138,16 +42,18 @@ mod tests {
             "agent_documents",
             "model_providers",
             "model_info",
+            "model_providers_v2",
+            "model_info_v2",
             "channels",
             "bindings",
             "opc_defaults",
             "tools",
             "skills",
+            "offices",
+            "office_deployments",
             "local_snapshots",
             "deployment_tasks",
             "log_entries",
-            "model_providers_v2",
-            "model_info_v2",
         ];
 
         for table in &expected_tables {
@@ -158,12 +64,14 @@ mod tests {
                     |r| r.get(0),
                 )
                 .unwrap_or(0);
-            assert_eq!(count, 1, "table '{}' should exist after migration", table);
+            assert_eq!(count, 1, "table '{}' should exist after schema init", table);
         }
     }
 
     #[test]
-    fn test_target_version_constant() {
-        assert_eq!(target_version(), 4);
+    fn test_schema_is_idempotent() {
+        let pool = in_memory_pool();
+        run_migrations(&pool).expect("first run");
+        run_migrations(&pool).expect("second run should not error");
     }
 }
