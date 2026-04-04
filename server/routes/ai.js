@@ -198,6 +198,175 @@ router.post('/ai_generate_agent', async (req, res) => {
   res.json(result)
 })
 
+// ai_generate_agents - 一次性生成多个智能体
+const SYSTEM_PROMPT_MULTI = `/no_think 你是一个 OpenClaw Agent 团队配置生成器。根据用户的描述，生成完整的团队配置。
+
+每个智能体配置包含以下字段：
+{
+  "display_name": "显示名称（2-8 字，中文）",
+  "name": "英文标识（小写字母 + 下划线，如 ux_designer）",
+  "job_title": "职位名称",
+  "description": "一句话描述",
+  "personality": "性格关键词，逗号分隔",
+  "guardrail_allow": ["允许自主执行的操作"],
+  "guardrail_deny": ["禁止或须请示的操作"],
+  "enabled_tools": ["工具 ID 数组"],
+  "enabled_skills": ["技能 slug 数组"],
+  "soul": "SOUL.md 内容",
+  "identity": "IDENTITY.md 内容",
+  "agents": "AGENTS.md 内容",
+  "user": "USER.md 内容",
+  "memory": "MEMORY.md 内容",
+  "heartbeat": "HEARTBEAT.md 内容",
+  "tools": "TOOLS.md 内容"
+}
+
+可选工具 ID：web_search, web_reader, feishu_message, code_interpreter, file_reader, image_gen, image_analysis, http_request, asr, tts
+
+严格以 JSON 数组格式返回，每个元素是一个完整的智能体配置。不要有任何其他内容。`
+
+router.post('/ai_generate_agents', async (req, res) => {
+  const { prompts, prompt } = req.body
+  log.info(`ai_generate_agents: received prompts=${Array.isArray(prompts) ? prompts.length : prompt?.slice(0, 60)}`)
+
+  // 支持两种输入格式
+  let promptList = []
+  if (Array.isArray(prompts)) {
+    promptList = prompts.filter(p => p?.trim())
+  } else if (typeof prompt === 'string' && prompt.trim()) {
+    // 按行分割，每行一个角色描述
+    promptList = prompt.split('\n').map(p => p.trim()).filter(p => p)
+  }
+
+  if (promptList.length === 0) {
+    return res.status(400).json({ error: 'prompts array or prompt string is required' })
+  }
+
+  const row = db.prepare("SELECT * FROM model_providers_v2 WHERE name = 'bailian'").get()
+  if (!row?.api_key) return res.status(400).json({ error: 'BAILIAN 未配置 API Key' })
+  if (!row?.base_url) return res.status(400).json({ error: 'BAILIAN 未配置 Base URL' })
+
+  const apiKey = decrypt(row.api_key)
+  const baseUrl = row.base_url.replace(/\/$/, '')
+  const isAnthropicUrl = baseUrl.includes('anthropic')
+  const MODEL = 'qwen3.5-plus'
+
+  const userPrompt = `生成一个包含 ${promptList.length} 个智能体的团队配置。\n\n角色描述：\n${promptList.map((p, i) => `${i + 1}. ${p}`).join('\n')}\n\n请为每个角色生成完整的智能体配置，返回 JSON 数组格式。`
+
+  const endpoint = isAnthropicUrl ? `${baseUrl}/v1/messages` : `${baseUrl}/chat/completions`
+  const format = isAnthropicUrl ? 'anthropic' : 'openai'
+  log.info(`ai_generate_agents: → ${format} POST ${endpoint} model=${MODEL} count=${promptList.length}`)
+
+  let rawText
+  try {
+    if (isAnthropicUrl) {
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'User-Agent': 'anthropic-sdk-node/0.32.1 node/v24.6.0 darwin arm64',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          system: SYSTEM_PROMPT_MULTI,
+          messages: [{ role: 'user', content: userPrompt }],
+          max_tokens: 4096,
+          thinking: { type: 'disabled' },
+        }),
+        signal: AbortSignal.timeout(180000),
+      })
+      log.info(`ai_generate_agents: ← HTTP ${r.status}`)
+      if (!r.ok) {
+        const t = await r.text()
+        log.error(`ai_generate_agents: anthropic error: ${t.slice(0, 200)}`)
+        return res.status(502).json({ error: `Anthropic API 错误 ${r.status}` })
+      }
+      const data = await r.json()
+      rawText = data.content?.[0]?.text ?? ''
+    } else {
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'User-Agent': 'anthropic-sdk-node/0.32.1 node/v24.6.0 darwin arm64',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT_MULTI },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: 4096,
+          response_format: { type: 'json_object' },
+          stream: false,
+          enable_thinking: false,
+        }),
+        signal: AbortSignal.timeout(180000),
+      })
+      log.info(`ai_generate_agents: ← HTTP ${r.status}`)
+      if (!r.ok) {
+        const t = await r.text()
+        log.error(`ai_generate_agents: openai error: ${t.slice(0, 200)}`)
+        return res.status(502).json({ error: `OpenAI API 错误 ${r.status}` })
+      }
+      const data = await r.json()
+      rawText = data.choices?.[0]?.message?.content ?? ''
+    }
+  } catch (e) {
+    log.error(`ai_generate_agents: fetch exception: ${e.message}`)
+    return res.status(502).json({ error: `请求失败：${e.message}` })
+  }
+
+  log.debug(`ai_generate_agents: raw response (${rawText.length} chars): ${rawText.slice(0, 120)}`)
+
+  let parsedArray
+  try {
+    const match = rawText.match(/```(?:json)?\s*([\s\S]*?)```/m)
+    const jsonStr = match ? match[1] : rawText.trim()
+    parsedArray = JSON.parse(jsonStr)
+    if (!Array.isArray(parsedArray)) {
+      // 尝试从对象中提取数组
+      const arr = parsedArray.agents || parsedArray.items || parsedArray.results
+      if (Array.isArray(arr)) {
+        parsedArray = arr
+      } else {
+        throw new Error('返回的不是数组格式')
+      }
+    }
+  } catch (e) {
+    log.error(`ai_generate_agents: JSON parse failed, raw: ${rawText.slice(0, 300)}`)
+    return res.status(502).json({ error: `AI 返回格式错误: ${e.message}` })
+  }
+
+  const validToolIds = new Set(['web_search','web_reader','feishu_message','code_interpreter','file_reader','image_gen','image_analysis','http_request','asr','tts'])
+  const validSkillSlugs = getValidSkillSlugs()
+
+  const results = parsedArray.map((parsed, idx) => ({
+    display_name: parsed.display_name ?? '',
+    name: (parsed.name ?? `agent_${idx + 1}`).replace(/[^\w]/g, '_').toLowerCase(),
+    job_title: parsed.job_title ?? '',
+    description: parsed.description ?? '',
+    personality: parsed.personality ?? '',
+    guardrail_allow: Array.isArray(parsed.guardrail_allow) ? parsed.guardrail_allow.filter(s => typeof s === 'string') : [],
+    guardrail_deny: Array.isArray(parsed.guardrail_deny) ? parsed.guardrail_deny.filter(s => typeof s === 'string') : [],
+    enabled_tools: Array.isArray(parsed.enabled_tools) ? parsed.enabled_tools.filter(id => validToolIds.has(id)) : [],
+    enabled_skills: Array.isArray(parsed.enabled_skills) ? parsed.enabled_skills.filter(s => validSkillSlugs.has(s)) : [],
+    soul: parsed.soul ?? '',
+    identity: parsed.identity ?? '',
+    agents: parsed.agents ?? '',
+    user: parsed.user ?? '',
+    memory: parsed.memory ?? '',
+    heartbeat: parsed.heartbeat ?? '',
+    tools: parsed.tools ?? '',
+  }))
+
+  log.info(`ai_generate_agents: OK generated ${results.length} agents`)
+  res.json(results)
+})
+
 // ── chat_with_agent ──────────────────────────────────────
 // POST /api/chat_with_agent { agent_id, messages: [{role, content}] }
 router.post('/chat_with_agent', async (req, res) => {

@@ -58,7 +58,11 @@ export const importOpc = (json: string) => call<string>('import_opc', { json })
 // ── Agent ─────────────────────────────────────────────────
 export const getAgents = (opcId: string) => call<AgentConfig[]>('get_agents', { opc_id: opcId })
 export const getAgent = (id: string) => call<AgentConfig>('get_agent', { id })
-export const createAgent = (config: AgentConfig) => call<string>('create_agent', { config })
+export const createAgent = (config: AgentConfig, documents?: Record<string, string>) =>
+  call<string>('create_agent', { config, documents })
+
+export const batchCreateAgents = (agents: AgentConfig[], documents?: Record<string, Record<string, string>>) =>
+  call<string[]>('batch_create_agents', { agents, documents })
 export const updateAgent = (id: string, config: AgentConfig) => call<void>('update_agent', { id, config })
 export const deleteAgent = (id: string) => call<void>('delete_agent', { id })
 export const reorderAgents = (opcId: string, agentIds: string[]) =>
@@ -165,6 +169,9 @@ export interface AgentGenerateResult {
 }
 export const aiGenerateAgent = (prompt: string) =>
   call<AgentGenerateResult>('ai_generate_agent', { prompt })
+
+export const aiGenerateAgents = (prompts: string[]) =>
+  call<AgentGenerateResult[]>('ai_generate_agents', { prompts })
 
 // ── Daemon Health ──────────────────────────────────────────
 export interface DaemonHealthResult {

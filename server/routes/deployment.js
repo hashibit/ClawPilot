@@ -275,21 +275,45 @@ function regenerateAgentDocuments(opcId) {
       `SELECT content FROM agent_documents WHERE agent_id = ? AND document_type = 'SOUL'`
     ).get(agent.id)
 
+    // SOUL.md: 只更新已存在的，不创建新的
+    // 新的 SOUL.md 应该由 ai_generate_agents 生成并通过 batch_create_agents 保存
     if (existingSoul) {
-      const updated = isLeader
+      const soulContent = isLeader
         ? injectLeaderSection(existingSoul.content, agent, parsed, opc)
         : removeLeaderSection(existingSoul.content)
-      upsertDoc.run(agent.id, 'SOUL', updated)
+      upsertDoc.run(agent.id, 'SOUL', soulContent)
     }
   }
 }
 
-function safeJsonArray(val) {
-  if (!val) return []
-  try { const r = JSON.parse(val); return Array.isArray(r) ? r : [] } catch { return [] }
+/**
+ * Build initial SOUL.md for an agent
+ */
+function buildInitialSoulMd(agent, opc, isLeader, allAgents) {
+  const reportsTo = agent.reports_to.length > 0
+    ? allAgents.filter(a => agent.reports_to.includes(a.name)).map(a => a.display_name).join('、')
+    : 'Boss（真人）'
+
+  return `# SOUL.md - Your Identity
+
+_你是 ${opc.display_name} 团队的 ${agent.display_name}_
+
+## Your Identity
+
+- **名字:** ${agent.display_name}
+- **职位:** ${agent.job_title || agent.name}
+- **性格:** ${agent.personality || '专业、友好'}
+- **汇报给:** ${reportsTo}
+${isLeader ? `- **你管理:** ${allAgents.filter(a => agent.manages.includes(a.name)).map(a => a.display_name).join('、')}` : ''}
+
+## Your Mission
+
+用你的专业技能帮助团队成功完成任务。保持专注、友好和高效。
+
+`
 }
 
-function buildAgentsMd(agent, allAgents, opc, rosterRows, reportsTo) {
+function safeJsonArray(val) {
   return `# AGENTS.md - Your Workspace
 
 _${opc.display_name} 团队成员_
@@ -582,7 +606,7 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
 
     // Build workspace directories with agent md files
     // Structure: OPC/{OPC_NAME}/workspace-{AGENT_NAME}/*.md
-    const opcDisplayName = data.opc.display_name
+    const opcName = data.opc.display_name
 
     // Group agent documents by agent_id
     const docsByAgent = {}

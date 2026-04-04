@@ -176,10 +176,37 @@ curl -s -X POST $SERVER/set_models \
 
 **预期**：返回模型列表
 
-### 2-4. 批量创建 Agent 团队（使用 batch_create_agents）
+### 2-4. AI 一键生成 Agent 团队（使用 ai_generate_agents）
 
 ```bash
-# 一次性创建所有 agents（单事务）
+# 步骤 1: 用 AI 一次性生成 4 个智能体配置
+AGENTS_GEN=$(curl -s -X POST $SERVER/ai_generate_agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompts": [
+      "产品经理，负责需求拆解和多 Agent 任务协调的领队，性格细致、主动、善于协调",
+      "前端开发工程师，负责落地页 HTML/CSS/JS 实现，追求极致的 UI 体验",
+      "后端开发工程师，负责 API 和服务端逻辑实现，性格严谨、注重性能和安全",
+      "测试工程师，负责功能验收和回归测试，性格严谨、善于发现边界问题"
+    ]
+  }')
+echo "$AGENTS_GEN" | python3 -m json.tool | head -30
+
+# 解析生成的配置，提取 name 字段用于后续管理关系
+PM_NAME=$(echo "$AGENTS_GEN" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])")
+FE_NAME=$(echo "$AGENTS_GEN" | python3 -c "import sys,json; print(json.load(sys.stdin)[1]['name'])")
+BE_NAME=$(echo "$AGENTS_GEN" | python3 -c "import sys,json; print(json.load(sys.stdin)[2]['name'])")
+QA_NAME=$(echo "$AGENTS_GEN" | python3 -c "import sys,json; print(json.load(sys.stdin)[3]['name'])")
+echo "生成的 agent names: $PM_NAME, $FE_NAME, $BE_NAME, $QA_NAME"
+```
+
+**预期**：返回包含 4 个智能体配置的数组，每个配置包含 display_name、name、job_title、description、personality、soul、identity 等字段
+
+### 2-5. 批量保存 Agent 到数据库
+
+```bash
+# 步骤 2: 将 AI 生成的配置批量保存到数据库
+# 添加 manages/reports_to 关系和 order_index
 AGENTS_RESULT=$(curl -s -X POST $SERVER/batch_create_agents \
   -H "Content-Type: application/json" \
   -d "{
@@ -236,7 +263,7 @@ AGENTS_RESULT=$(curl -s -X POST $SERVER/batch_create_agents \
   }")
 echo "Batch create result: $AGENTS_RESULT"
 
-# 2-5. 设置领队（使用 set_leader）
+# 步骤 3: 设置领队（使用 set_leader）
 curl -s -X POST $SERVER/set_leader \
   -H "Content-Type: application/json" \
   -d "{
@@ -246,11 +273,10 @@ curl -s -X POST $SERVER/set_leader \
 echo "Leader set: pm"
 ```
 
-**预期**：batch_create_agents 返回创建的 agent ID 数组，set_leader 返回 null
-
-> **注意**：分开使用 batch_create_agents 和 set_leader 是为了：
-> 1. 批量创建提高效率（单事务）
-> 2. set_leader 明确指定领队（is_default=1）
+**预期**：
+- `ai_generate_agents` 返回 4 个智能体配置的数组
+- `batch_create_agents` 返回创建的 agent ID 数组
+- `set_leader` 返回 null
 
 ### 阶段二验证
 
@@ -764,6 +790,7 @@ curl -s -X POST $SERVER/delete_office \
 | VM 准备 | SSH 连通，输出 `ssh-ok` | ☐ |
 | OPC 创建 | 返回有效 OPC id | ☐ |
 | 模型创建 | 百炼模型提供商 + 3 个模型创建成功 | ☐ |
+| AI 生成智能体 | `ai_generate_agents` 返回 4 个配置 | ☐ |
 | Agent 团队 | 4 个 agent 创建成功，manages/reports_to 正确 | ☐ |
 | Office 创建 | office 记录创建成功 | ☐ |
 | SSH 连通性 | `check_ssh_connection` 返回 ok | ☐ |

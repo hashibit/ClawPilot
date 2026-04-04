@@ -82,29 +82,48 @@ export function createAgentRouter(db) {
   // create_agent
   router.post('/create_agent', (req, res) => {
     try {
-      const { config } = req.body
+      const { config, documents } = req.body
       if (!config.name) throw new Error('Agent name cannot be empty')
       const existing = db.prepare('SELECT COUNT(*) as cnt FROM agents WHERE opc_id = ?').get(config.opc_id)
       if (existing.cnt === 0) config.is_default = true
-      db.prepare(`
-        INSERT INTO agents
-          (id, opc_id, name, display_name, job_title, personality, description, initials,
-           gradient_start, gradient_end, is_default, order_index, model,
-           enabled_tools, disabled_tools, enabled_skills, guardrail_rules, reports_to, manages,
-           created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        config.id, config.opc_id, config.name, config.display_name,
-        config.job_title ?? null, config.personality ?? null, config.description ?? null,
-        config.initials ?? null, config.gradient_start ?? null, config.gradient_end ?? null,
-        config.is_default ? 1 : 0, config.order_index ?? 0,
-        config.model ?? null,
-        toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
-        toJsonStr(config.enabled_skills), serializeGuardrail(config),
-        toJsonStr(config.reports_to), toJsonStr(config.manages),
-        config.created_at ?? now(), config.updated_at ?? now()
-      )
-      writeLog('INFO', `Agent 已创建: ${config.name} (${config.id}) in opc ${config.opc_id}`)
+
+      const insertDoc = db.prepare(`
+        INSERT INTO agent_documents (agent_id, document_type, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+
+      db.transaction(() => {
+        db.prepare(`
+          INSERT INTO agents
+            (id, opc_id, name, display_name, job_title, personality, description, initials,
+             gradient_start, gradient_end, is_default, order_index, model,
+             enabled_tools, disabled_tools, enabled_skills, guardrail_rules, reports_to, manages,
+             created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          config.id, config.opc_id, config.name, config.display_name,
+          config.job_title ?? null, config.personality ?? null, config.description ?? null,
+          config.initials ?? null, config.gradient_start ?? null, config.gradient_end ?? null,
+          config.is_default ? 1 : 0, config.order_index ?? 0,
+          config.model ?? null,
+          toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
+          toJsonStr(config.enabled_skills), serializeGuardrail(config),
+          toJsonStr(config.reports_to), toJsonStr(config.manages),
+          config.created_at ?? now(), config.updated_at ?? now()
+        )
+
+        // 保存文档（如果提供了 documents）
+        if (documents && typeof documents === 'object') {
+          const ts = config.created_at ?? now()
+          for (const [docType, content] of Object.entries(documents)) {
+            if (content && typeof content === 'string') {
+              insertDoc.run(config.id, docType, content, ts, ts)
+            }
+          }
+        }
+      })()
+
+      writeLog('INFO', `Agent 已创建: ${config.name} (${config.id}) in opc ${config.opc_id}${documents ? '（含文档）' : ''}`)
       res.json(config.id)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -233,9 +252,10 @@ export function createAgentRouter(db) {
   })
 
   // batch_create_agents — create multiple agents in a single transaction
+  // 支持同时保存文档: { agents: [...], documents: { agentId: { SOUL: "...", IDENTITY: "..." } } }
   router.post('/batch_create_agents', (req, res) => {
     try {
-      const { agents } = req.body
+      const { agents, documents } = req.body
       if (!Array.isArray(agents) || agents.length === 0) throw new Error('agents array required')
       const insert = db.prepare(`
         INSERT INTO agents
@@ -245,8 +265,12 @@ export function createAgentRouter(db) {
            created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
+      const insertDoc = db.prepare(`
+        INSERT INTO agent_documents (agent_id, document_type, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `)
       const ids = db.transaction(() => {
-        return agents.map((config, idx) => {
+        const createdIds = agents.map((config, idx) => {
           insert.run(
             config.id, config.opc_id, config.name, config.display_name,
             config.job_title ?? null, config.personality ?? null, config.description ?? null,
@@ -258,10 +282,43 @@ export function createAgentRouter(db) {
             toJsonStr(config.reports_to), toJsonStr(config.manages),
             config.created_at ?? now(), config.updated_at ?? now()
           )
+
+          // 保存文档（如果提供了 documents）
+          if (documents && typeof documents === 'object') {
+            const agentDocs = documents[config.id]
+            if (agentDocs && typeof agentDocs === 'object') {
+              const ts = config.created_at ?? now()
+              for (const [docType, content] of Object.entries(agentDocs)) {
+                if (content && typeof content === 'string') {
+                  insertDoc.run(config.id, docType, content, ts, ts)
+                }
+              }
+            }
+          }
+
+          // 保存文档方式 2: 从每个 agent 配置对象中直接提取文档字段
+          // 支持 ai_generate_agents 返回的字段：soul, identity, agents, user, memory, heartbeat, tools
+          const ts2 = config.created_at ?? now()
+          const docFields = {
+            SOUL: config.soul,
+            IDENTITY: config.identity,
+            AGENTS: config.agents,
+            USER: config.user,
+            MEMORY: config.memory,
+            HEARTBEAT: config.heartbeat,
+            TOOLS: config.tools,
+          }
+          for (const [docType, content] of Object.entries(docFields)) {
+            if (content && typeof content === 'string' && content.trim()) {
+              insertDoc.run(config.id, docType, content, ts2, ts2)
+            }
+          }
+
           return config.id
         })
+        return createdIds
       })()
-      writeLog('INFO', `批量创建 ${agents.length} 个 Agent`)
+      writeLog('INFO', `批量创建 ${agents.length} 个 Agent${documents ? '（含文档）' : ''}`)
       res.json(ids)
     } catch (err) {
       res.status(500).json({ error: err.message })

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
 import {
     getAgents, createAgent, updateAgent, deleteAgent, reorderAgents, setDefaultAgent,
-    getAgentDocument, updateAgentDocument, aiGenerateAgent, getModels,
+    getAgentDocument, updateAgentDocument, aiGenerateAgent, aiGenerateAgents, batchCreateAgents, getModels,
     chatWithAgent, createSnapshot,
 } from '../lib/api'
 import { toast } from '../components/Toast'
@@ -567,27 +567,35 @@ export default function AgentsPage() {
         setBatchRunning(true)
         setBatchProgress(batchPrompts.map(p => p.trim() ? 'idle' : 'done'))
         await createSnapshot(opc.id, `auto:batch-add:${prompts.length}agents`, true).catch(() => {})
-        const allAgents = Object.values(opcAgentsMap).flat()
-        const usedColors = new Set(allAgents.map(a => a.gradient_start))
-        let currentAgents = opcAgentsMap[opc.id] ?? []
-        const activeIndices = batchPrompts.map((p, i) => p.trim() ? i : -1).filter(i => i >= 0)
-        for (const idx of activeIndices) {
-            setBatchProgress(prev => { const n = [...prev]; n[idx] = 'generating'; return n })
-            try {
-                const result = await aiGenerateAgent(batchPrompts[idx].trim())
-                const colorPick = AGENT_COLORS.find(c => !usedColors.has(c)) ?? AGENT_COLORS[(allAgents.length + currentAgents.length) % AGENT_COLORS.length]
+
+        try {
+            // 步骤 1: 一次性用 AI 生成多个智能体配置
+            setBatchProgress(prev => prev.map((s, i) => prompts[i] ? 'generating' : s))
+            const generated = await aiGenerateAgents(prompts)
+
+            const allAgents = Object.values(opcAgentsMap).flat()
+            const usedColors = new Set(allAgents.map(a => a.gradient_start))
+            const now = Math.floor(Date.now() / 1000)
+
+            // 步骤 2: 构建 agents 数组和 documents 对象
+            const agents: AgentConfig[] = []
+            const documents: Record<string, Record<string, string>> = {}
+
+            generated.forEach((result, idx) => {
+                const colorPick = AGENT_COLORS.find(c => !usedColors.has(c)) ?? AGENT_COLORS[(allAgents.length + idx) % AGENT_COLORS.length]
                 usedColors.add(colorPick)
-                const now = Math.floor(Date.now() / 1000)
+
+                const agentId = crypto.randomUUID()
                 const agent: AgentConfig = {
-                    id: crypto.randomUUID(), opc_id: opc.id,
-                    name: slugify(result.name || batchPrompts[idx]),
-                    display_name: result.display_name || batchPrompts[idx].slice(0, 8),
+                    id: agentId, opc_id: opc.id,
+                    name: slugify(result.name || prompts[idx]),
+                    display_name: result.display_name || prompts[idx].slice(0, 8),
                     job_title: result.job_title,
                     description: result.description,
                     personality: result.personality,
-                    initials: (result.display_name || batchPrompts[idx]).slice(0, 2),
+                    initials: (result.display_name || prompts[idx]).slice(0, 2),
                     gradient_start: colorPick, gradient_end: colorPick,
-                    is_default: false, order_index: currentAgents.length,
+                    is_default: false, order_index: idx,
                     model: undefined,
                     enabled_tools: result.enabled_tools ?? [],
                     disabled_tools: [],
@@ -598,17 +606,29 @@ export default function AgentsPage() {
                     reports_to: [], manages: [],
                     created_at: now, updated_at: now,
                 }
-                await createAgent(agent)
-                const docMap: Record<string, string> = { SOUL: result.soul, IDENTITY: result.identity, AGENTS: result.agents, USER: result.user, MEMORY: result.memory, HEARTBEAT: result.heartbeat, TOOLS: result.tools }
-                for (const [docType, content] of Object.entries(docMap)) {
-                    if (content) await updateAgentDocument(agent.id, docType, content)
+                agents.push(agent)
+
+                // 收集文档
+                documents[agentId] = {
+                    SOUL: result.soul ?? '',
+                    IDENTITY: result.identity ?? '',
+                    AGENTS: result.agents ?? '',
+                    USER: result.user ?? '',
+                    MEMORY: result.memory ?? '',
+                    HEARTBEAT: result.heartbeat ?? '',
+                    TOOLS: result.tools ?? '',
                 }
-                currentAgents = [...currentAgents, agent]
-                setBatchProgress(prev => { const n = [...prev]; n[idx] = 'done'; return n })
-            } catch {
-                setBatchProgress(prev => { const n = [...prev]; n[idx] = 'error'; return n })
-            }
+            })
+
+            // 步骤 3: 批量保存到数据库（包含文档）
+            await batchCreateAgents(agents, documents)
+
+            setBatchProgress(prev => prev.map((s, i) => prompts[i] ? 'done' : s))
+        } catch (e) {
+            console.error('batch generate error:', e)
+            setBatchProgress(prev => prev.map((s, i) => s === 'generating' ? 'error' : s))
         }
+
         const list = await getAgents(opc.id)
         setOpcAgentsMap(prev => ({ ...prev, [opc.id]: list }))
         setBatchRunning(false)

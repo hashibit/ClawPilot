@@ -184,8 +184,8 @@ function safeAddColumn(db, table, colDef) {
 }
 
 export function runMigrations(db) {
-  // Migrations for model_providers
-  ;['base_url TEXT NOT NULL DEFAULT \'\'', 'is_coding_plan INTEGER NOT NULL DEFAULT 0'].forEach(col => {
+  // Migrations for model_providers - SQLite doesn't support DEFAULT in ALTER TABLE ADD COLUMN
+  ;['base_url TEXT DEFAULT \'\'', 'is_coding_plan INTEGER DEFAULT 0'].forEach(col => {
     safeAddColumn(db, 'model_providers', col)
   })
 
@@ -256,22 +256,26 @@ export function runMigrations(db) {
     safeAddColumn(db, 'deployment_tasks', col)
   })
 
-  // Daemon fields for offices
+  // Daemon fields for offices - SQLite doesn't support DEFAULT in ALTER TABLE ADD COLUMN
   ;[
     'daemon_url TEXT', 'daemon_api_key TEXT',
     "access_auth_type TEXT DEFAULT 'password'",
     'access_user TEXT', 'access_password TEXT', 'ssh_key_path TEXT',
     'initial_openclaw_config TEXT',
-    'opc_root TEXT DEFAULT ~/.openclaw/OPC',  // 可配置的部署目录
+    'opc_root TEXT',  // 可配置的部署目录
   ].forEach(col => safeAddColumn(db, 'offices', col))
 
   // Skills table extended fields
   ;['slug TEXT', 'author TEXT', 'version TEXT', 'url TEXT', 'download_url TEXT',
-    'tags TEXT', 'installed_at INTEGER', 'is_installed INTEGER NOT NULL DEFAULT 0', 'install_path TEXT',
+    'tags TEXT', 'installed_at INTEGER', 'is_installed INTEGER DEFAULT 0', 'install_path TEXT',
   ].forEach(col => safeAddColumn(db, 'skills', col))
 
   // Migration: add model field to agents table (replaces model_provider + model_name)
   safeAddColumn(db, 'agents', 'model TEXT')
+
+  // Migration: add timestamps to agent_documents
+  safeAddColumn(db, 'agent_documents', 'created_at INTEGER')
+  safeAddColumn(db, 'agent_documents', 'updated_at INTEGER')
 
   // Migration: rebuild model_providers with new schema (name-based, not provider_type-based)
   // 新表用 _v2 后缀先建，再重命名
