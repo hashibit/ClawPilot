@@ -2,7 +2,7 @@ use crate::database::pool::DbPool;
 use crate::error::Result;
 
 /// データベースの現在のターゲットバージョン。
-const CURRENT_VERSION: u32 = 3;
+const CURRENT_VERSION: u32 = 4;
 
 /// 未実行のマイグレーションをすべて実行する。
 ///
@@ -55,6 +55,19 @@ pub fn run_migrations(pool: &DbPool) -> Result<()> {
         conn.execute_batch("PRAGMA user_version = 3")?;
     }
 
+    if version < 4 {
+        // v3 → v4: opc_root on offices, timestamps on agent_documents
+        let alters = [
+            "ALTER TABLE offices ADD COLUMN opc_root TEXT",
+            "ALTER TABLE agent_documents ADD COLUMN created_at INTEGER",
+            "ALTER TABLE agent_documents ADD COLUMN updated_at INTEGER",
+        ];
+        for stmt in &alters {
+            let _ = conn.execute_batch(stmt);
+        }
+        conn.execute_batch("PRAGMA user_version = 4")?;
+    }
+
     Ok(())
 }
 
@@ -93,7 +106,7 @@ mod tests {
         let pool = in_memory_pool();
         run_migrations(&pool).expect("migrations should succeed");
         let v = current_version(&pool).expect("should get version");
-        assert_eq!(v, 3, "user_version should be 3 after migration");
+        assert_eq!(v, 4, "user_version should be 4 after migration");
     }
 
     #[test]
@@ -102,7 +115,7 @@ mod tests {
         run_migrations(&pool).expect("first run");
         run_migrations(&pool).expect("second run should not error");
         let v = current_version(&pool).expect("version after double run");
-        assert_eq!(v, 3);
+        assert_eq!(v, 4);
     }
 
     #[test]
@@ -145,6 +158,6 @@ mod tests {
 
     #[test]
     fn test_target_version_constant() {
-        assert_eq!(target_version(), 3);
+        assert_eq!(target_version(), 4);
     }
 }

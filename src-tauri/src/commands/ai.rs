@@ -81,6 +81,226 @@ web_search（网页搜索）、web_reader（网页阅读）、feishu_message（�
 guardrail 规范：每条 3-10 字的短语，允许 3-6 条，禁止 3-5 条，按角色职能定制。
 只输出 JSON，不要有任何其他内容。"#;
 
+const SYSTEM_PROMPT_MULTI: &str = r#"/no_think 你是一个 OpenClaw Agent 团队配置生成器。根据用户的描述，生成完整的团队配置。
+
+每个智能体配置包含以下字段：
+{
+  "display_name": "显示名称（2-8 字，中文）",
+  "name": "英文标识（小写字母 + 下划线，如 ux_designer）",
+  "job_title": "职位名称",
+  "description": "一句话描述",
+  "personality": "性格关键词，逗号分隔",
+  "guardrail_allow": ["允许自主执行的操作"],
+  "guardrail_deny": ["禁止或须请示的操作"],
+  "enabled_tools": ["工具 ID 数组"],
+  "enabled_skills": ["技能 slug 数组"],
+  "soul": "SOUL.md 内容",
+  "identity": "IDENTITY.md 内容",
+  "agents": "AGENTS.md 内容",
+  "user": "USER.md 内容",
+  "memory": "MEMORY.md 内容",
+  "heartbeat": "HEARTBEAT.md 内容",
+  "tools": "TOOLS.md 内容"
+}
+
+严格以 JSON 数组格式返回，每个元素是一个完整的智能体配置。不要有任何其他内容。"#;
+
+/// 一次性生成多个 Agent 配置
+#[tauri::command]
+pub async fn ai_generate_agents(
+    pool: State<'_, DbPool>,
+    prompts: Option<Vec<String>>,
+    prompt: Option<String>,
+) -> Result<Vec<AiGeneratedAgent>> {
+    use std::time::Duration;
+
+    // 支持两种输入：prompts 数组或 prompt 字符串（按行分割）
+    let prompt_list: Vec<String> = if let Some(list) = prompts {
+        list.into_iter().filter(|p| !p.trim().is_empty()).collect()
+    } else if let Some(p) = prompt {
+        p.split('\n').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+    } else {
+        return Err(crate::error::AppError::Validation("prompts or prompt is required".to_string()));
+    };
+
+    if prompt_list.is_empty() {
+        return Err(crate::error::AppError::Validation("prompt list is empty".to_string()));
+    }
+
+    let (api_key_enc, base_url) = pool
+        .get()?
+        .query_row(
+            "SELECT api_key, base_url FROM model_providers_v2 WHERE name = 'bailian' AND is_enabled = 1",
+            [],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                crate::error::AppError::NotFound("BAILIAN 未配置，请先在模型管理页完成配置并测试连接".to_string())
+            }
+            other => crate::error::AppError::Database(other),
+        })?;
+
+    if api_key_enc.is_empty() {
+        return Err(crate::error::AppError::Validation(
+            "BAILIAN 未配置 API Key".to_string(),
+        ));
+    }
+
+    let api_key = crate::utils::crypto::decrypt(&api_key_enc)?;
+    let base_url = base_url.trim_end_matches('/');
+    let is_anthropic_url = base_url.contains("anthropic");
+    let model = "qwen3.5-plus";
+
+    let endpoint = if is_anthropic_url {
+        format!("{}/v1/messages", base_url)
+    } else {
+        format!("{}/chat/completions", base_url)
+    };
+
+    let user_prompt = format!(
+        "生成一个包含 {} 个智能体的团队配置。\n\n角色描述：\n{}\n\n请为每个角色生成完整的智能体配置，返回 JSON 数组格式。",
+        prompt_list.len(),
+        prompt_list.iter().enumerate().map(|(i, p)| format!("{}. {}", i + 1, p)).collect::<Vec<_>>().join("\n")
+    );
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(180))
+        .build()
+        .map_err(|e| crate::error::AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
+
+    let raw_text = if is_anthropic_url {
+        let resp = client
+            .post(&endpoint)
+            .header("Content-Type", "application/json")
+            .header("x-api-key", &api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&serde_json::json!({
+                "model": model,
+                "system": SYSTEM_PROMPT_MULTI,
+                "messages": [{ "role": "user", "content": user_prompt }],
+                "max_tokens": 4096,
+                "thinking": { "type": "disabled" },
+            }))
+            .send()
+            .await
+            .map_err(|e| crate::error::AppError::Internal(format!("请求失败：{}", e)))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(crate::error::AppError::Internal(format!(
+                "Anthropic API 错误 {}: {}",
+                status,
+                body.chars().take(200).collect::<String>()
+            )));
+        }
+        let data: serde_json::Value = resp.json().await
+            .map_err(|e| crate::error::AppError::Internal(format!("解析响应失败：{}", e)))?;
+        data["content"][0]["text"].as_str().unwrap_or("").to_string()
+    } else {
+        let resp = client
+            .post(&endpoint)
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(&serde_json::json!({
+                "model": model,
+                "messages": [
+                    { "role": "system", "content": SYSTEM_PROMPT_MULTI },
+                    { "role": "user", "content": user_prompt }
+                ],
+                "max_tokens": 4096,
+                "response_format": { "type": "json_object" },
+                "stream": false,
+                "enable_thinking": false,
+            }))
+            .send()
+            .await
+            .map_err(|e| crate::error::AppError::Internal(format!("请求失败：{}", e)))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(crate::error::AppError::Internal(format!(
+                "OpenAI API 错误 {}: {}",
+                status,
+                body.chars().take(200).collect::<String>()
+            )));
+        }
+        let data: serde_json::Value = resp.json().await
+            .map_err(|e| crate::error::AppError::Internal(format!("解析响应失败：{}", e)))?;
+        data["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string()
+    };
+
+    // 解析 JSON 数组（支持 markdown 代码块）
+    let match_re = regex::Regex::new(r"```(?:json)?\s*([\s\S]*?)```").unwrap();
+    let json_str = if let Some(m) = match_re.captures(&raw_text) {
+        m[1].to_string()
+    } else {
+        raw_text.trim().to_string()
+    };
+
+    let parsed: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
+        crate::error::AppError::Internal(format!(
+            "JSON 解析失败：{}\n原始响应：{}",
+            e,
+            raw_text.chars().take(300).collect::<String>()
+        ))
+    })?;
+
+    let arr = if parsed.is_array() {
+        parsed.as_array().unwrap().clone()
+    } else {
+        // Try common wrapper keys
+        parsed.get("agents")
+            .or_else(|| parsed.get("items"))
+            .or_else(|| parsed.get("results"))
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| crate::error::AppError::Internal("AI 返回格式错误：不是数组".to_string()))?
+            .clone()
+    };
+
+    let valid_tools: std::collections::HashSet<&str> = VALID_TOOL_IDS.iter().copied().collect();
+    let valid_skills: std::collections::HashSet<&str> = VALID_SKILL_SLUGS.iter().copied().collect();
+
+    let results = arr.iter().enumerate().map(|(idx, parsed)| AiGeneratedAgent {
+        display_name: parsed["display_name"].as_str().unwrap_or("").to_string(),
+        name: parsed["name"]
+            .as_str()
+            .unwrap_or(&format!("agent_{}", idx + 1))
+            .replace(|c: char| !c.is_alphanumeric() && c != '_', "_")
+            .to_lowercase(),
+        job_title: parsed["job_title"].as_str().unwrap_or("").to_string(),
+        description: parsed["description"].as_str().unwrap_or("").to_string(),
+        personality: parsed["personality"].as_str().unwrap_or("").to_string(),
+        guardrail_allow: parsed["guardrail_allow"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
+        guardrail_deny: parsed["guardrail_deny"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
+        enabled_tools: parsed["enabled_tools"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().filter(|s| valid_tools.contains(s)).map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
+        enabled_skills: parsed["enabled_skills"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().filter(|s| valid_skills.contains(s)).map(|s| s.to_string())).collect())
+            .unwrap_or_default(),
+        soul: parsed["soul"].as_str().unwrap_or("").to_string(),
+        identity: parsed["identity"].as_str().unwrap_or("").to_string(),
+        agents: parsed["agents"].as_str().unwrap_or("").to_string(),
+        user: parsed["user"].as_str().unwrap_or("").to_string(),
+        memory: parsed["memory"].as_str().unwrap_or("").to_string(),
+        heartbeat: parsed["heartbeat"].as_str().unwrap_or("").to_string(),
+        tools: parsed["tools"].as_str().unwrap_or("").to_string(),
+    }).collect();
+
+    Ok(results)
+}
+
 /// 使用配置的 AI 提供商生成 Agent 配置
 #[tauri::command]
 pub async fn ai_generate_agent(pool: State<'_, DbPool>, prompt: String) -> Result<AiGeneratedAgent> {

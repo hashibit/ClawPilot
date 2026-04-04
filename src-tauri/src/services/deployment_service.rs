@@ -383,27 +383,37 @@ pub async fn deploy_to_office(
     }))
 }
 
-/// Generate openclaw.json config from OPC data
+/// Generate openclaw.json config from OPC data — matches server format with $include references
 pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_json::Value> {
     use crate::utils::crypto::decrypt;
 
     let conn = pool.get()?;
 
-    // Collect OPC data
-    let opc: (String, String) = conn
+    // Get OPC + associated office (for opc_root)
+    let (opc_name, opc_display_name, office_id): (String, String, Option<String>) = conn
         .query_row(
-            "SELECT name, display_name FROM opc_config WHERE id = ?1",
+            "SELECT name, display_name, office_id FROM opc_config WHERE id = ?1",
             rusqlite::params![opc_id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => {
-                AppError::NotFound(format!("OPC not found: {}", opc_id))
-            }
+            rusqlite::Error::QueryReturnedNoRows => AppError::NotFound(format!("OPC not found: {}", opc_id)),
             other => AppError::Database(other),
         })?;
 
-    let (_opc_name, opc_display_name) = opc;
+    // Resolve opc_root from office settings, fall back to default
+    let opc_root: String = office_id
+        .as_deref()
+        .and_then(|oid| {
+            conn.query_row(
+                "SELECT opc_root FROM offices WHERE id = ?1",
+                rusqlite::params![oid],
+                |r| r.get::<_, Option<String>>(0),
+            )
+            .ok()
+            .flatten()
+        })
+        .unwrap_or_else(|| format!("~/.openclaw/CPOPC/{}", opc_display_name));
 
     // Get agents
     let agents: Vec<(String, String, Option<String>, Option<String>, Option<String>)> = conn
@@ -419,40 +429,44 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
     // Get channels (FEISHU, etc.)
     let channels: Vec<(String, Option<String>)> = conn
         .prepare("SELECT channel_type, feishu_config FROM channels WHERE opc_id = ?1")?
-        .query_map(rusqlite::params![opc_id], |r| {
-            Ok((r.get(0)?, r.get(1)?))
-        })?
+        .query_map(rusqlite::params![opc_id], |r| Ok((r.get(0)?, r.get(1)?)))?
         .filter_map(|r| r.ok())
         .collect();
 
-    // Get model providers (using model_providers table, not model_providers_v2)
-    // Note: Tauri schema uses model_providers with provider_type and endpoint
+    // Get enabled model providers from model_providers_v2
     let providers: Vec<(String, Option<String>, Option<String>, String, i64)> = conn
-        .prepare("SELECT provider_type, endpoint, base_url, api_key, is_enabled FROM model_providers")?
-        .query_map([], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
-        })?
+        .prepare(
+            "SELECT name, api, base_url, COALESCE(api_key, ''), is_enabled FROM model_providers_v2 WHERE is_enabled = 1",
+        )?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))?
         .filter_map(|r| r.ok())
         .collect();
 
-    // Build agents list
+    // Default model from first enabled provider
+    let default_model = providers
+        .first()
+        .map(|(name, api, _, _, _)| {
+            let api_type = api.as_deref().unwrap_or(name.as_str());
+            format!("{}/claude-opus-4-5", api_type)
+        })
+        .unwrap_or_else(|| "anthropic/claude-opus-4-5".to_string());
+
+    // Build agents members list
     let agents_list: Vec<serde_json::Value> = agents
         .iter()
         .map(|(name, display_name, model_provider, model_name, initials)| {
-            // Build model string from provider and model_name
             let model_str = match (model_provider, model_name) {
                 (Some(provider), Some(model)) => format!("{}/{}", provider, model),
                 (Some(provider), None) => format!("{}/default", provider),
                 (None, Some(model)) => model.clone(),
-                (None, None) => "anthropic/claude-opus-4-5".to_string(),
+                (None, None) => default_model.clone(),
             };
-            let emoji = initials.as_deref().and_then(|s| s.chars().next()).unwrap_or('?');
+            let emoji = initials.as_deref().and_then(|s| s.chars().next()).unwrap_or('🤖');
             serde_json::json!({
+                "id": name,
                 "name": name,
-                "workspace": format!("~/.openclaw/CPOPC/{}/workspace-{}", opc_display_name, display_name),
-                "model": {
-                    "primary": model_str
-                },
+                "workspace": format!("{}/workspace-{}", opc_root, display_name),
+                "model": { "primary": model_str },
                 "identity": {
                     "name": display_name,
                     "emoji": emoji.to_string(),
@@ -461,13 +475,7 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         })
         .collect();
 
-    // Default model from first enabled provider
-    let first_enabled = providers.iter().find(|p| p.4 == 1);
-    let default_model = first_enabled
-        .map(|p| format!("{}/default", p.0))
-        .unwrap_or_else(|| "anthropic/claude-opus-4-5".to_string());
-
-    // Build channels section
+    // Build channels/plugins section
     let mut channels_section = serde_json::Map::new();
     for (channel_type, feishu_config_enc) in &channels {
         if channel_type == "FEISHU" {
@@ -477,12 +485,13 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
                         if let Some(app_id) = feishu_config.get("app_id").and_then(|v| v.as_str()) {
                             let app_secret = feishu_config.get("app_secret").and_then(|v| v.as_str()).unwrap_or("");
                             channels_section.insert("feishu".to_string(), serde_json::json!({
+                                "enabled": true,
                                 "appId": app_id,
-                                "appSecret": {
-                                    "source": "env",
-                                    "id": "FEISHU_APP_SECRET"
-                                },
-                                "rawAppSecret": app_secret, // Also include raw value for convenience
+                                "appSecret": app_secret,
+                                "connectionMode": "websocket",
+                                "domain": "feishu",
+                                "groupPolicy": "open",
+                                "tools": { "perm": true },
                             }));
                         }
                     }
@@ -491,44 +500,95 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         }
     }
 
-    // Build models section
+    // Build models section — use actual apiKey string + full models array
     let mut providers_section = serde_json::Map::new();
-    for (provider_type, endpoint, base_url, api_key_enc, is_enabled) in &providers {
-        if *is_enabled == 1 {
-            // Decrypt API key
-            let api_key = decrypt(api_key_enc).unwrap_or_default();
-            let env_key = provider_type.to_uppercase().replace(|c: char| !c.is_alphanumeric(), "_");
-            // Use base_url if present, otherwise endpoint
-            let url = base_url.as_ref().or(endpoint.as_ref()).map(|s| s.as_str()).unwrap_or("");
-            providers_section.insert(
-                provider_type.clone(),
+    for (name, api, base_url, api_key_enc, _) in &providers {
+        let api_key = decrypt(api_key_enc).unwrap_or_default();
+        let url = base_url.as_deref().unwrap_or("");
+        let api_type = api.as_deref().unwrap_or(name.as_str());
+
+        // Get models for this provider
+        let models: Vec<serde_json::Value> = conn
+            .prepare(
+                "SELECT model_id, COALESCE(input_types, '[\"text\"]'), COALESCE(context_window, 0), COALESCE(max_tokens, 0) FROM model_info_v2 WHERE provider_name = ?1 ORDER BY sort_order, model_id",
+            )
+            .and_then(|mut stmt| {
+                stmt.query_map(rusqlite::params![name], |r| {
+                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?, r.get::<_, i64>(3)?))
+                })
+                .map(|rows| rows.filter_map(|r| r.ok()).collect::<Vec<_>>())
+            })
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(model_id, input_types_raw, ctx_window, max_tokens)| {
+                let input: serde_json::Value = serde_json::from_str(&input_types_raw)
+                    .unwrap_or_else(|_| serde_json::json!(["text"]));
                 serde_json::json!({
-                    "api": provider_type, // Use provider_type as API type
-                    "baseUrl": url,
-                    "apiKey": {
-                        "source": "env",
-                        "id": format!("{}_API_KEY", env_key)
-                    },
-                    "rawApiKey": api_key, // Also include raw value for convenience
-                }),
-            );
+                    "id": model_id,
+                    "name": model_id,
+                    "reasoning": false,
+                    "input": input,
+                    "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+                    "contextWindow": ctx_window,
+                    "maxTokens": max_tokens,
+                })
+            })
+            .collect();
+
+        let mut provider_obj = serde_json::json!({
+            "api": api_type,
+            "baseUrl": url,
+            "apiKey": api_key,
+        });
+        if !models.is_empty() {
+            provider_obj["models"] = serde_json::json!(models);
         }
+        providers_section.insert(name.clone(), provider_obj);
     }
+
+    let plugin_allow: Vec<&str> = if channels_section.contains_key("feishu") { vec!["feishu"] } else { vec![] };
 
     Ok(serde_json::json!({
         "agents": {
             "defaults": {
-                "workspace": format!("~/.openclaw/CPOPC/{}", opc_display_name),
-                "model": {
-                    "primary": default_model
-                },
+                "workspace": opc_root,
+                "model": { "primary": default_model },
             },
-            "list": agents_list,
+            "members": agents_list,
         },
-        "channels": channels_section,
-        "models": {
-            "providers": providers_section,
+        "models": { "$include": format!("./OPC/{}/models.json5", opc_name) },
+        "channels": { "$include": format!("./OPC/{}/channels.json5", opc_name) },
+        "bindings": { "$include": format!("./OPC/{}/bindings.json5", opc_name) },
+        "tools": { "profile": "coding" },
+        "messages": { "ackReactionScope": "group-mentions" },
+        "commands": {
+            "native": "auto",
+            "nativeSkills": "auto",
+            "restart": true,
+            "ownerDisplay": "raw",
         },
+        "session": { "dmScope": "per-channel-peer" },
+        "gateway": {
+            "port": 18789,
+            "mode": "local",
+            "bind": "loopback",
+            "auth": { "mode": "token", "token": "" },
+            "tailscale": { "mode": "off", "resetOnExit": false },
+            "nodes": {
+                "denyCommands": [
+                    "camera.snap", "camera.clip", "screen.record",
+                    "contacts.add", "calendar.add", "reminders.add", "sms.send"
+                ],
+            },
+        },
+        "logging": { "level": "debug" },
+        "plugins": {
+            "allow": plugin_allow,
+            "entries": channels_section,
+        },
+        // Inline models data for reference (not written to openclaw.json in server format,
+        // but kept here so callers can preview full model config)
+        "_models_inline": providers_section,
     }))
 }
 
@@ -584,6 +644,7 @@ mod tests {
             description: None,
             daemon_url: None,
             daemon_api_key: None,
+            opc_root: None,
             created_at: 0,
             updated_at: 0,
             current_opc_id: None,

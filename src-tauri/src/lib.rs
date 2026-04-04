@@ -42,6 +42,7 @@ pub fn run() {
             commands::agent::get_agents,
             commands::agent::get_agent,
             commands::agent::create_agent,
+            commands::agent::batch_create_agents,
             commands::agent::update_agent,
             commands::agent::delete_agent,
             commands::agent::reorder_agents,
@@ -130,6 +131,7 @@ pub fn run() {
             commands::process::restart_openclaw,
             // AI
             commands::ai::ai_generate_agent,
+            commands::ai::ai_generate_agents,
             commands::ai::chat_with_agent,
         ])
         .run(tauri::generate_context!())

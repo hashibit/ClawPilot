@@ -22,10 +22,11 @@ fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
         description: row.get(10)?,
         daemon_url: row.get(11)?,
         daemon_api_key: row.get(12)?,
-        created_at: row.get(13)?,
-        updated_at: row.get(14)?,
-        current_opc_id: row.get(15).ok().flatten(),
-        current_opc_name: row.get(16).ok().flatten(),
+        opc_root: row.get(13)?,
+        created_at: row.get(14)?,
+        updated_at: row.get(15)?,
+        current_opc_id: row.get(16).ok().flatten(),
+        current_opc_name: row.get(17).ok().flatten(),
     })
 }
 
@@ -40,7 +41,7 @@ pub fn get_offices(pool: &DbPool) -> Result<Vec<Office>> {
     let mut stmt = conn.prepare(
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
-                o.description, o.daemon_url, o.daemon_api_key, o.created_at, o.updated_at,
+                o.description, o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
          LEFT JOIN opc_config oc ON oc.office_id = o.id AND oc.is_running = 1
@@ -57,7 +58,7 @@ pub fn get_office(pool: &DbPool, id: &str) -> Result<Office> {
     conn.query_row(
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
-                o.description, o.daemon_url, o.daemon_api_key, o.created_at, o.updated_at,
+                o.description, o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
          LEFT JOIN opc_config oc ON oc.office_id = o.id AND oc.is_running = 1
@@ -84,8 +85,8 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
         "INSERT INTO offices
              (id, name, address, access_card, phone, receptionist_image,
               ownership, monthly_rent, internet_speed, decoration_grade,
-              description, daemon_url, daemon_api_key, created_at, updated_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15)",
+              description, daemon_url, daemon_api_key, opc_root, created_at, updated_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)",
         rusqlite::params![
             id,
             office.name,
@@ -100,6 +101,7 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
             office.description,
             office.daemon_url,
             office.daemon_api_key,
+            office.opc_root,
             office.created_at.max(1).min(i64::MAX - 1) + 0 * ts, // use provided or fallback
             office.updated_at,
         ],
@@ -113,7 +115,7 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
         "UPDATE offices SET
              name=?2, address=?3, access_card=?4, phone=?5, receptionist_image=?6,
              ownership=?7, monthly_rent=?8, internet_speed=?9, decoration_grade=?10,
-             description=?11, daemon_url=?12, daemon_api_key=?13, updated_at=?14
+             description=?11, daemon_url=?12, daemon_api_key=?13, opc_root=?14, updated_at=?15
          WHERE id=?1",
         rusqlite::params![
             id,
@@ -129,6 +131,7 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
             office.description,
             office.daemon_url,
             office.daemon_api_key,
+            office.opc_root,
             now(),
         ],
     )?;
@@ -588,6 +591,7 @@ mod tests {
             description: None,
             daemon_url: None,
             daemon_api_key: None,
+            opc_root: None,
             created_at: 0,
             updated_at: 0,
             current_opc_id: None,

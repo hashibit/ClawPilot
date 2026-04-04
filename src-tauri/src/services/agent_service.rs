@@ -287,6 +287,84 @@ pub fn get_agent_documents(pool: &DbPool, agent_id: &str) -> Result<Vec<AgentDoc
     Ok(documents)
 }
 
+/// Create multiple agents in a single transaction.
+/// `documents` maps agent_id → (doc_type → content).
+pub fn batch_create_agents(
+    pool: &DbPool,
+    agents: Vec<AgentConfig>,
+    documents: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+) -> Result<Vec<String>> {
+    if agents.is_empty() {
+        return Ok(vec![]);
+    }
+    let conn = pool.get()?;
+    let tx = conn.unchecked_transaction()?;
+
+    let mut ids = Vec::with_capacity(agents.len());
+    for (idx, config) in agents.iter().enumerate() {
+        tx.execute(
+            r#"INSERT INTO agents (
+                id, opc_id, name, display_name,
+                job_title, personality, description, initials,
+                gradient_start, gradient_end, is_default, order_index,
+                model_provider, model_name,
+                enabled_tools, disabled_tools, enabled_skills,
+                guardrail_rules, reports_to, manages,
+                created_at, updated_at
+            ) VALUES (
+                ?1, ?2, ?3, ?4,
+                ?5, ?6, ?7, ?8,
+                ?9, ?10, ?11, ?12,
+                ?13, ?14,
+                ?15, ?16, ?17,
+                ?18, ?19, ?20,
+                ?21, ?22
+            )"#,
+            rusqlite::params![
+                config.id,
+                config.opc_id,
+                config.name,
+                config.display_name,
+                config.job_title,
+                config.personality,
+                config.description,
+                config.initials,
+                config.gradient_start,
+                config.gradient_end,
+                AgentConfig::bool_to_i64(config.is_default),
+                if config.order_index == 0 { idx as i32 } else { config.order_index },
+                config.model_provider,
+                config.model_name,
+                AgentConfig::vec_to_json(&config.enabled_tools),
+                AgentConfig::vec_to_json(&config.disabled_tools),
+                AgentConfig::vec_to_json(&config.enabled_skills),
+                AgentConfig::vec_to_json(&config.guardrail_rules),
+                AgentConfig::vec_to_json(&config.reports_to),
+                AgentConfig::vec_to_json(&config.manages),
+                config.created_at,
+                config.updated_at,
+            ],
+        )?;
+
+        if let Some(agent_docs) = documents.get(&config.id) {
+            for (doc_type, content) in agent_docs {
+                if !content.trim().is_empty() {
+                    tx.execute(
+                        r#"INSERT OR REPLACE INTO agent_documents (agent_id, document_type, content)
+                           VALUES (?1, ?2, ?3)"#,
+                        rusqlite::params![config.id, doc_type, content],
+                    )?;
+                }
+            }
+        }
+
+        ids.push(config.id.clone());
+    }
+
+    tx.commit()?;
+    Ok(ids)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Agent documents
 // ─────────────────────────────────────────────────────────────────────────────

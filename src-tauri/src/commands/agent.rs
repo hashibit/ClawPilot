@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use tauri::State;
 
 use crate::database::pool::DbPool;
@@ -17,8 +18,32 @@ pub fn get_agent(pool: State<'_, DbPool>, id: String) -> Result<AgentConfig> {
 }
 
 #[tauri::command]
-pub fn create_agent(pool: State<'_, DbPool>, config: AgentConfig) -> Result<String> {
-    agent_service::create_agent(&pool, config)
+pub fn create_agent(
+    pool: State<'_, DbPool>,
+    config: AgentConfig,
+    documents: Option<HashMap<String, String>>,
+) -> Result<String> {
+    let id = agent_service::create_agent(&pool, config.clone())?;
+    if let Some(docs) = documents {
+        for (doc_type, content) in docs {
+            if !content.trim().is_empty() {
+                agent_service::upsert_agent_document(&pool, &id, &doc_type, &content)?;
+            }
+        }
+    }
+    Ok(id)
+}
+
+/// Batch-create multiple agents in a single transaction.
+/// `agents`: list of AgentConfig
+/// `documents`: map of agent_id → (doc_type → content)
+#[tauri::command]
+pub fn batch_create_agents(
+    pool: State<'_, DbPool>,
+    agents: Vec<AgentConfig>,
+    documents: Option<HashMap<String, HashMap<String, String>>>,
+) -> Result<Vec<String>> {
+    agent_service::batch_create_agents(&pool, agents, documents.unwrap_or_default())
 }
 
 #[tauri::command]
