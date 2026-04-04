@@ -89,11 +89,9 @@ function collectOpcData(opcId) {
   const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opcId)
   if (!opc) throw new Error(`OPC not found: ${opcId}`)
 
-  // Get opc_root from office settings if available
-  const office = opc.office_id
-    ? db.prepare('SELECT opc_root FROM offices WHERE id = ?').get(opc.office_id)
-    : null
-  const opcRoot = office?.opc_root || `~/.openclaw/CPOPC/${opc.display_name}`
+  // Get global opc_root from settings
+  const settingsRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('opc_root')
+  const opcRoot = settingsRow?.value || '~/.openclaw/OPC'
 
   const agents = db.prepare('SELECT * FROM agents WHERE opc_id = ? ORDER BY order_index').all(opcId)
   const agentIds = agents.map(a => a.id)
@@ -113,7 +111,7 @@ function collectOpcData(opcId) {
   const tools = db.prepare('SELECT * FROM tools ORDER BY id').all()
   
   // Skills: scan skills/ directory and collect actual files
-  const skillsDir = path.join(WORKSPACE_ROOT, 'skills')
+  const skillsDir = path.join(WORKSPACE_ROOT, 'bundle/skills')
   const skills = []
   
   if (fs.existsSync(skillsDir)) {
@@ -537,7 +535,7 @@ router.post('/build_deploy_package', async (req, res) => {
 
     const data = collectOpcData(opc_id)
     const version = new Date().toISOString()
-    const manifest = { opc_id, version, checksum: '', opc_root: office.opc_root }
+    const manifest = { opc_id, version, checksum: '', opc_root: data.opc_root }
 
     // Generate openclaw.json
     const openclawConfig = generateOpenclawConfig(opc_id)
@@ -570,64 +568,92 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
     tarPack.pipe(gz)
 
     const addFile = (tarPath, content) => {
-      let buf
-      if (Buffer.isBuffer(content)) {
-        buf = content
-      } else if (typeof content === 'string') {
-        buf = Buffer.from(content, 'utf8')
-      } else {
-        buf = Buffer.from(JSON.stringify(content, null, 2), 'utf8')
-      }
-      tarPack.entry({ name: tarPath, size: buf.length }, buf, (err) => {
-        if (err) reject(err)
+      return new Promise((resolve, reject) => {
+        let buf
+        if (Buffer.isBuffer(content)) {
+          buf = content
+        } else if (typeof content === 'string') {
+          buf = Buffer.from(content, 'utf8')
+        } else {
+          buf = Buffer.from(JSON.stringify(content, null, 2), 'utf8')
+        }
+        log.info(`[buildPackage] Adding file: ${tarPath} (${buf.length} bytes)`)
+        tarPack.entry({ name: tarPath, size: buf.length }, buf, (err) => {
+          if (err) reject(err)
+          else resolve()
+        })
       })
     }
 
-    // manifest.json
-    addFile('manifest.json', JSON.stringify(manifest, null, 2))
+    // Build package sequentially to ensure proper ordering
+    (async () => {
+      try {
+        // manifest.json
+        await addFile('manifest.json', JSON.stringify(manifest, null, 2))
 
-    // openclaw.json (with $include references)
-    addFile('openclaw.json', openclawConfig)
+        // openclaw.json (with $include references)
+        await addFile('openclaw.json', openclawConfig)
 
-    // Build workspace directories with agent md files
-    // Structure: OPC/{OPC_NAME}/workspace-{AGENT_NAME}/*.md
-    const opcName = data.opc.display_name
+        // Build workspace directories with agent md files
+        // Structure: {opc_id}/workspace-{AGENT_NAME}/*.md
+        const opcId = data.opc.id
 
-    // Group agent documents by agent_id
-    const docsByAgent = {}
-    for (const doc of data.agent_documents) {
-      if (!docsByAgent[doc.agent_id]) docsByAgent[doc.agent_id] = {}
-      docsByAgent[doc.agent_id][doc.document_type] = doc.content
-    }
+        // Group agent documents by agent_id
+        const docsByAgent = {}
+        for (const doc of data.agent_documents) {
+          if (!docsByAgent[doc.agent_id]) docsByAgent[doc.agent_id] = {}
+          docsByAgent[doc.agent_id][doc.document_type] = doc.content
+        }
 
-    // For each agent, create workspace directory with md files
-    for (const agent of data.agents) {
-      const workspaceName = `workspace-${agent.display_name}`
-      const agentDocs = docsByAgent[agent.id] || {}
+        for (const agent of data.agents) {
+          const workspaceName = `workspace-${agent.display_name}`
+          const agentDocs = docsByAgent[agent.id] || {}
 
-      // Add all md files to workspace
-      for (const [docType, content] of Object.entries(agentDocs)) {
-        const filename = `${docType}.md`
-        addFile(`OPC/${opcName}/${workspaceName}/${filename}`, content)
+          // Add all md files to workspace
+          for (const [docType, content] of Object.entries(agentDocs)) {
+            const filename = `${docType}.md`
+            await addFile(`${opcId}/${workspaceName}/${filename}`, content)
+          }
+
+          // Copy skills to agent's workspace directory (each agent has its own skills)
+          // Skills are copied from bundle/skills/{skillSlug}/ to {opc_id}/workspace-{name}/skills/{skillSlug}/
+          for (const skill of data.skills) {
+            for (const relFile of skill.files) {
+              const filePath = path.join(skill.path, relFile)
+              const content = fs.readFileSync(filePath)
+              await addFile(`${opcId}/${workspaceName}/skills/${skill.slug}/${relFile}`, content)
+            }
+          }
+        }
+
+        // Also add .json5 files for $include references
+        await addFile(`${opcId}/agents.json5`, data.agents)
+        await addFile(`${opcId}/models.json5`, data.model_providers)
+        await addFile(`${opcId}/channels.json5`, data.channels)
+        await addFile(`${opcId}/bindings.json5`, data.bindings)
+
+        // Note: Skills are now copied to each agent's workspace directory above
+        // No shared skills directory at OPC root level
+
+        tarPack.finalize()
+      } catch (err) {
+        log.error(`[buildPackage] Error during packaging: ${err.message}`)
+        reject(err)
       }
-    }
+    })()
 
-    // Also add .json5 files for $include references
-    addFile(`OPC/${opcName}/agents.json5`, data.agents)
-    addFile(`OPC/${opcName}/models.json5`, data.model_providers)
-    addFile(`OPC/${opcName}/channels.json5`, data.channels)
-    addFile(`OPC/${opcName}/bindings.json5`, data.bindings)
-
-    // skills/{slug}/*
-    for (const skill of data.skills) {
-      for (const relFile of skill.files) {
-        const filePath = path.join(skill.path, relFile)
-        const content = fs.readFileSync(filePath)
-        addFile(`skills/${skill.slug}/${relFile}`, content)
-      }
-    }
-
-    tarPack.finalize()
+    // Log package contents after finalize
+    gz.on('end', () => {
+      const totalSize = chunks.reduce((sum, c) => sum + c.length, 0)
+      log.info(`[buildPackage] Package completed: ${totalSize} bytes`)
+      log.info(`[buildPackage] Package structure:`)
+      log.info(`[buildPackage]   - manifest.json`)
+      log.info(`[buildPackage]   - openclaw.json`)
+      log.info(`[buildPackage]   - ${manifest.opc_id}/workspace-*/ (agent workspaces)`)
+      log.info(`[buildPackage]   - ${manifest.opc_id}/skills/ (shared skills)`)
+      log.info(`[buildPackage]   - ${manifest.opc_id}/*.json5 (config files)`)
+      log.info(`[buildPackage] opc_root: ${manifest.opc_root}`)
+    })
   })
 }
 
@@ -722,7 +748,7 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
     // Build package with openclaw.json included
     const data = collectOpcData(opc_id)
     const version = new Date().toISOString()
-    const manifest = { opc_id, version, checksum: '', opc_root: office.opc_root }
+    const manifest = { opc_id, version, checksum: '', opc_root: data.opc_root }
     const openclawConfig = generateOpenclawConfig(opc_id)
 
     const pkgBuf = await buildPackageWithOpenclaw(data, manifest, openclawConfig)
@@ -975,7 +1001,7 @@ router.post('/deploy_to_office', async (req, res) => {
     if (!cached) {
       const data = collectOpcData(opc_id)
       const version = new Date().toISOString()
-      const manifest = { opc_id, version, checksum: '', opc_root: office.opc_root }
+      const manifest = { opc_id, version, checksum: '', opc_root: data.opc_root }
       const openclawConfig = generateOpenclawConfig(opc_id)
       const pkgBuf = await buildPackageWithOpenclaw(data, manifest, openclawConfig)
       const checksum = 'sha256:' + createHash('sha256').update(pkgBuf).digest('hex')
@@ -984,7 +1010,9 @@ router.post('/deploy_to_office', async (req, res) => {
     }
 
     const { buf: pkgBuf, checksum, version } = cached
-    const manifest = { opc_id, version, checksum }
+    // Get opc_root from cached data or re-collect if needed
+    const data = collectOpcData(opc_id)
+    const manifest = { opc_id, version, checksum, opc_root: data.opc_root }
 
     // Create local task record first
     const taskId = randomUUID()

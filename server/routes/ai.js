@@ -399,7 +399,7 @@ router.post('/chat_with_agent', async (req, res) => {
   // Derive the OpenAI-compatible endpoint using the same logic as model.js
   const endpoint = row.is_coding_plan
     ? 'https://coding.dashscope.aliyuncs.com/v1/chat/completions'
-    : `${(row.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')}/chat/completions`
+    : `${(row.base_url || 'https://coding.dashscope.aliyuncs.com/v1').replace(/\/$/, '')}/chat/completions`
 
   log.info(`chat_with_agent: agent=${agent_id} model=${MODEL} msgs=${messages.length}`)
 

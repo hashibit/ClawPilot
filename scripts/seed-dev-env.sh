@@ -32,7 +32,7 @@ INSERT OR IGNORE INTO model_providers_v2 (id, name, api, base_url, api_key, is_e
 VALUES
     ('openai', 'OpenAI', 'openai-completions', 'https://api.openai.com/v1', '', 1, strftime('%s', 'now'), strftime('%s', 'now')),
     ('anthropic', 'Anthropic', 'anthropic-completions', 'https://api.anthropic.com', '', 1, strftime('%s', 'now'), strftime('%s', 'now')),
-    ('bailian', '阿里百炼', 'openai-completions', 'https://dashscope.aliyuncs.com/compatible-mode/v1', '', 1, strftime('%s', 'now'), strftime('%s', 'now')),
+    ('bailian', '阿里百炼', 'openai-completions', 'https://coding.dashscope.aliyuncs.com/v1', '', 1, strftime('%s', 'now'), strftime('%s', 'now')),
     ('volcengine', '火山方舟', 'openai-completions', 'https://ark.cn-beijing.volces.com/api/v3', '', 1, strftime('%s', 'now'), strftime('%s', 'now')),
     ('minimax', 'MiniMax', 'openai-completions', 'https://api.minimax.chat/v1', '', 1, strftime('%s', 'now'), strftime('%s', 'now'));
 

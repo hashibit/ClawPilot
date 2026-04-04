@@ -138,19 +138,19 @@ channels 表
 ### Workspace 路径规范
 
 ```
-~/.openclaw/CPOPC/<opc.display_name>/workspace-<agent.display_name>
+~/.openclaw/OPC/<opc.display_name>/workspace-<agent.display_name>
 ```
 
 示例：
 ```
-~/.openclaw/CPOPC/互联网公司/workspace-产品经理
-~/.openclaw/CPOPC/互联网公司/workspace-UX设计师
-~/.openclaw/CPOPC/手机助手公司/workspace-客服专员
+~/.openclaw/OPC/互联网公司/workspace-产品经理
+~/.openclaw/OPC/互联网公司/workspace-UX设计师
+~/.openclaw/OPC/手机助手公司/workspace-客服专员
 ```
 
 `agents.defaults.workspace` 指向 OPC 根目录：
 ```
-~/.openclaw/CPOPC/<opc.display_name>
+~/.openclaw/OPC/<opc.display_name>
 ```
 
 ### 生成示例
@@ -161,19 +161,19 @@ OPC `互联网公司`，含两个 agent：
 {
   "agents": {
     "defaults": {
-      "workspace": "~/.openclaw/CPOPC/互联网公司",
+      "workspace": "~/.openclaw/OPC/互联网公司",
       "model": { "primary": "bailian/qwen-max" }
     },
     "list": [
       {
         "name": "pm",
-        "workspace": "~/.openclaw/CPOPC/互联网公司/workspace-产品经理",
+        "workspace": "~/.openclaw/OPC/互联网公司/workspace-产品经理",
         "model": { "primary": "bailian/qwen-max" },
         "identity": { "name": "产品经理", "emoji": "PM" }
       },
       {
         "name": "ux",
-        "workspace": "~/.openclaw/CPOPC/互联网公司/workspace-UX设计师",
+        "workspace": "~/.openclaw/OPC/互联网公司/workspace-UX设计师",
         "model": { "primary": "volcengine/doubao-pro" },
         "identity": { "name": "UX设计师", "emoji": "UX" }
       }
@@ -188,7 +188,7 @@ OPC `互联网公司`，含两个 agent：
   "models": {
     "providers": {
       "bailian": {
-        "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "baseUrl": "https://coding.dashscope.aliyuncs.com/v1",
         "apiKey": { "source": "env", "id": "BAILIAN_API_KEY" }
       }
     }

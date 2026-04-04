@@ -1,9 +1,9 @@
 use chrono::Utc;
-use uuid::Uuid;
-use std::io::Write;
-use zip::{ZipWriter, write::FileOptions};
 use std::fs;
+use std::io::Write;
 use std::path::Path;
+use uuid::Uuid;
+use zip::{write::FileOptions, ZipWriter};
 
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
@@ -78,11 +78,7 @@ fn now() -> i64 {
     Utc::now().timestamp()
 }
 
-pub fn start_deployment(
-    pool: &DbPool,
-    opc_id: &str,
-    office_id: &str,
-) -> Result<String> {
+pub fn start_deployment(pool: &DbPool, opc_id: &str, office_id: &str) -> Result<String> {
     let conn = pool.get()?;
 
     // Look up names
@@ -131,7 +127,14 @@ pub fn start_deployment(
     let office_name2 = office_name.clone();
 
     std::thread::spawn(move || {
-        run_stub_deploy(&pool2, &task_id, &opc_id2, &opc_name2, &office_id2, &office_name2);
+        run_stub_deploy(
+            &pool2,
+            &task_id,
+            &opc_id2,
+            &opc_name2,
+            &office_id2,
+            &office_name2,
+        );
     });
 
     Ok(id)
@@ -306,8 +309,7 @@ pub fn build_deploy_package(pool: &DbPool, opc_id: &str) -> Result<serde_json::V
         .map_err(|e| AppError::Validation(format!("创建 ZIP 文件失败：{}", e)))?;
 
     let mut zip = ZipWriter::new(zip_file);
-    let options = FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let options = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     // Add openclaw.json
     zip.start_file("openclaw.json", options)
@@ -352,7 +354,11 @@ fn generate_opc_config(pool: &DbPool, opc_id: &str) -> Result<String> {
     let conn = pool.get()?;
 
     let name: String = conn
-        .query_row("SELECT name FROM opc_config WHERE id = ?1", rusqlite::params![opc_id], |r| r.get(0))
+        .query_row(
+            "SELECT name FROM opc_config WHERE id = ?1",
+            rusqlite::params![opc_id],
+            |r| r.get(0),
+        )
         .map_err(|_| AppError::NotFound(format!("OPC not found: {}", opc_id)))?;
 
     let config = serde_json::json!({
@@ -364,8 +370,7 @@ fn generate_opc_config(pool: &DbPool, opc_id: &str) -> Result<String> {
         "bindings": []
     });
 
-    serde_json::to_string_pretty(&config)
-        .map_err(|e| AppError::Serialization(e).into())
+    serde_json::to_string_pretty(&config).map_err(|e| AppError::Serialization(e).into())
 }
 
 /// Deploy package to office
@@ -397,7 +402,9 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
         )
         .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => AppError::NotFound(format!("OPC not found: {}", opc_id)),
+            rusqlite::Error::QueryReturnedNoRows => {
+                AppError::NotFound(format!("OPC not found: {}", opc_id))
+            }
             other => AppError::Database(other),
         })?;
 
@@ -465,8 +472,10 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
             serde_json::json!({
                 "id": name,
                 "name": name,
-                "workspace": format!("{}/workspace-{}", opc_root, display_name),
-                "model": { "primary": model_str },
+                "workspace": format!("~/.openclaw/OPC/{}/workspace-{}", opc_display_name, display_name),
+                "model": {
+                    "primary": model_str
+                },
                 "identity": {
                     "name": display_name,
                     "emoji": emoji.to_string(),
@@ -481,18 +490,25 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         if channel_type == "FEISHU" {
             if let Some(enc_data) = feishu_config_enc {
                 if let Ok(decrypted) = decrypt(enc_data) {
-                    if let Ok(feishu_config) = serde_json::from_str::<serde_json::Value>(&decrypted) {
+                    if let Ok(feishu_config) = serde_json::from_str::<serde_json::Value>(&decrypted)
+                    {
                         if let Some(app_id) = feishu_config.get("app_id").and_then(|v| v.as_str()) {
-                            let app_secret = feishu_config.get("app_secret").and_then(|v| v.as_str()).unwrap_or("");
-                            channels_section.insert("feishu".to_string(), serde_json::json!({
-                                "enabled": true,
-                                "appId": app_id,
-                                "appSecret": app_secret,
-                                "connectionMode": "websocket",
-                                "domain": "feishu",
-                                "groupPolicy": "open",
-                                "tools": { "perm": true },
-                            }));
+                            let app_secret = feishu_config
+                                .get("app_secret")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+                            channels_section.insert(
+                                "feishu".to_string(),
+                                serde_json::json!({
+                                    "enabled": true,
+                                    "appId": app_id,
+                                    "appSecret": app_secret,
+                                    "connectionMode": "websocket",
+                                    "domain": "feishu",
+                                    "groupPolicy": "open",
+                                    "tools": { "perm": true },
+                                }),
+                            );
                         }
                     }
                 }
@@ -546,13 +562,19 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         providers_section.insert(name.clone(), provider_obj);
     }
 
-    let plugin_allow: Vec<&str> = if channels_section.contains_key("feishu") { vec!["feishu"] } else { vec![] };
+    let plugin_allow: Vec<&str> = if channels_section.contains_key("feishu") {
+        vec!["feishu"]
+    } else {
+        vec![]
+    };
 
     Ok(serde_json::json!({
         "agents": {
             "defaults": {
-                "workspace": opc_root,
-                "model": { "primary": default_model },
+                "workspace": format!("~/.openclaw/OPC/{}", opc_display_name),
+                "model": {
+                    "primary": default_model
+                },
             },
             "list": agents_list,
         },
@@ -593,9 +615,9 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
 mod tests {
     use super::*;
     use crate::database::{migrations, pool::DbPool};
-    use crate::models::opc::OpcConfig;
     use crate::models::office::Office;
-    use crate::services::{opc_service, office_service};
+    use crate::models::opc::OpcConfig;
+    use crate::services::{office_service, opc_service};
     use rusqlite::Connection;
 
     fn setup() -> DbPool {
@@ -665,12 +687,30 @@ mod tests {
 
     #[test]
     fn test_deployment_status_from_str() {
-        assert!(matches!(DeploymentStatus::from_str("PENDING"), DeploymentStatus::Pending));
-        assert!(matches!(DeploymentStatus::from_str("RUNNING"), DeploymentStatus::Running));
-        assert!(matches!(DeploymentStatus::from_str("SUCCESS"), DeploymentStatus::Success));
-        assert!(matches!(DeploymentStatus::from_str("FAILED"), DeploymentStatus::Failed));
-        assert!(matches!(DeploymentStatus::from_str("ROLLBACK"), DeploymentStatus::Rollback));
-        assert!(matches!(DeploymentStatus::from_str("UNKNOWN"), DeploymentStatus::Pending));
+        assert!(matches!(
+            DeploymentStatus::from_str("PENDING"),
+            DeploymentStatus::Pending
+        ));
+        assert!(matches!(
+            DeploymentStatus::from_str("RUNNING"),
+            DeploymentStatus::Running
+        ));
+        assert!(matches!(
+            DeploymentStatus::from_str("SUCCESS"),
+            DeploymentStatus::Success
+        ));
+        assert!(matches!(
+            DeploymentStatus::from_str("FAILED"),
+            DeploymentStatus::Failed
+        ));
+        assert!(matches!(
+            DeploymentStatus::from_str("ROLLBACK"),
+            DeploymentStatus::Rollback
+        ));
+        assert!(matches!(
+            DeploymentStatus::from_str("UNKNOWN"),
+            DeploymentStatus::Pending
+        ));
     }
 
     #[test]

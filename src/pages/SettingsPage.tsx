@@ -3,54 +3,31 @@ import { LANGUAGES, setLanguage, isRtl } from '../i18n'
 import { Icon } from '../components/Icon'
 import { useState, useEffect } from 'react'
 import { call } from '../lib/api'
-import type { Office } from './OfficePage'
-
-function getOffices() {
-  return call<Office[]>('get_offices', {})
-}
-
-function updateOffice(id: string, office: Partial<Office>) {
-  return call<void>('update_office', { id, office })
-}
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation()
   const currentLang = i18n.language
 
-  const [offices, setOffices] = useState<Office[]>([])
-  const [selectedOfficeId, setSelectedOfficeId] = useState<string>('')
-  const [opcRoot, setOpcRoot] = useState('')
+  const [opcRoot, setOpcRoot] = useState('~/.openclaw/OPC')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
 
   useEffect(() => {
-    getOffices().then(list => {
-      setOffices(list)
-      if (list.length > 0) {
-        setSelectedOfficeId(list[0].id)
-        setOpcRoot(list[0].opc_root || '')
-      }
+    // Load opc_root from server
+    call<string>('get_opc_root', {}).then(root => {
+      if (root) setOpcRoot(root)
     }).catch(() => {})
   }, [])
 
-  const handleOfficeChange = (id: string) => {
-    setSelectedOfficeId(id)
-    const office = offices.find(o => o.id === id)
-    if (office) {
-      setOpcRoot(office.opc_root || '')
-    }
-  }
-
   const handleSave = async () => {
-    if (!selectedOfficeId) return
     setSaving(true)
     setSaveMsg('')
     try {
-      await updateOffice(selectedOfficeId, { opc_root: opcRoot })
+      await call('set_opc_root', { opc_root: opcRoot })
       setSaveMsg('✓ 已保存')
       setTimeout(() => setSaveMsg(''), 2000)
     } catch (e: any) {
-      setSaveMsg('保存失败: ' + e.message)
+      setSaveMsg('保存失败：' + e.message)
     }
     setSaving(false)
   }
@@ -93,7 +70,7 @@ export default function SettingsPage() {
                     cursor: 'pointer',
                     textAlign: 'left',
                     transition: 'all 0.15s ease',
-                    direction: 'ltr', // language cards are always LTR
+                    direction: 'ltr',
                   }}
                 >
                   <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{lang.flag}</span>
@@ -119,7 +96,6 @@ export default function SettingsPage() {
             })}
           </div>
 
-          {/* RTL hint */}
           {isRtl(currentLang) && (
             <div style={{
               marginTop: '10px', padding: '8px 12px', borderRadius: '7px',
@@ -159,30 +135,7 @@ export default function SettingsPage() {
             部署目录
           </div>
           <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
-            设置 OPC 部署到远程机器的目标目录（opc_root）
-          </div>
-
-          <div style={{ marginBottom: '12px' }}>
-            <select
-              value={selectedOfficeId}
-              onChange={e => handleOfficeChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '9px',
-                border: '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.04)',
-                color: '#EBEBF5',
-                fontSize: '13px',
-                outline: 'none',
-              }}
-            >
-              {offices.map(office => (
-                <option key={office.id} value={office.id}>
-                  {office.name}
-                </option>
-              ))}
-            </select>
+            OPC 部署根目录，格式：{opc_root}/{opc_id}/workspace-{agent_name}
           </div>
 
           <div style={{

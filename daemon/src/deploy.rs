@@ -264,44 +264,132 @@ pub(crate) fn safe_join_canonical(base: &Path, entry_path: &Path) -> Option<Path
 
 /// Extract tar.gz package to ~/.openclaw/ directory (or custom root)
 /// Extracts all files preserving the directory structure from the package
+///
+/// The tar package contains paths like "{opc_id}/workspace-xxx/..." and "{opc_id}/skills/...".
+///
+/// If custom_root is provided, it's used as the base directory, and opc_id is appended.
+/// Otherwise, defaults to ~/.openclaw/OPC/{opc_id}.
 pub fn extract_package(opc_id: &str, data: &[u8], custom_root: Option<&Path>) -> anyhow::Result<()> {
-    let openclaw_root = custom_root.map(|p| p.to_path_buf()).unwrap_or_else(openclaw_home);
-    let opc_dir = openclaw_root.join("OPC").join(opc_id);
+    // Determine the target OPC directory
+    // If custom_root is provided (e.g., ~/.openclaw/OPC), append opc_id to it
+    // Otherwise, default to ~/.openclaw/OPC/{opc_id}
+    let opc_dir = if let Some(root) = custom_root {
+        root.join(opc_id)
+    } else {
+        openclaw_home().join("OPC").join(opc_id)
+    };
+
+    tracing::info!("解压目标目录：{}", opc_dir.display());
 
     // Create OPC directory
     fs::create_dir_all(&opc_dir)?;
+    tracing::info!("创建目录完成：{}", opc_dir.display());
+    tracing::info!("部署包大小：{} bytes", data.len());
 
     let gz = GzDecoder::new(data);
+    tracing::info!("Gzip 解码器已创建");
+
     let mut archive = Archive::new(gz);
+    tracing::info!("Tar 存档已创建");
 
-    for entry in archive.entries()? {
-        let mut entry = entry?;
-        let path = entry.path()?;
+    tracing::info!("开始解压 tar.gz...");
 
-        // Skip manifest.json and openclaw.json at root - we don't overwrite them
-        // openclaw.json will be handled by merge_into_openclaw_config
-        if path.file_name().map(|n| n == "manifest.json").unwrap_or(false)
-            || path.file_name().map(|n| n == "openclaw.json").unwrap_or(false) {
-            continue;
+    // Collect all entries first to handle potential errors early
+    let entries_result = archive.entries();
+    match entries_result {
+        Ok(entries) => {
+            for (idx, entry_result) in entries.enumerate() {
+                tracing::info!("处理 tar 条目 #{}", idx);
+                let mut entry = match entry_result {
+                    Ok(e) => e,
+                    Err(e) => {
+                        tracing::error!("读取 tar 条目 #{} 失败：{}", idx, e);
+                        return Err(anyhow!("读取 tar 条目 #{} 失败：{}", idx, e));
+                    }
+                };
+                let path = entry.path()?;
+                let path_str = path.to_string_lossy();
+
+                tracing::info!("处理条目 #{}: {}", idx, path_str);
+
+                // Skip manifest.json and openclaw.json at root - we don't overwrite them
+                // openclaw.json will be handled by merge_into_openclaw_config
+                if path.file_name().map(|n| n == "manifest.json").unwrap_or(false)
+                    || path.file_name().map(|n| n == "openclaw.json").unwrap_or(false) {
+                    tracing::debug!("跳过文件：{}", path_str);
+                    continue;
+                }
+
+                // Strip {opc_id}/ prefix from tar paths
+                // The tar package contains paths like "{opc_id}/workspace-xxx/..." and "{opc_id}/skills/..."
+                // We need to remove the first component to get the relative path within the OPC directory
+                let rel_path = path.components().skip(1).collect::<PathBuf>();
+                tracing::debug!("相对路径：{}", rel_path.display());
+
+                // All other files go to OPC directory
+                let dest = match safe_join_canonical(&opc_dir, &rel_path) {
+                    Some(d) => d,
+                    None => {
+                        tracing::warn!("路径穿越检测：{}", rel_path.display());
+                        return Err(anyhow!("Path traversal detected: {}", rel_path.display()));
+                    }
+                };
+
+                if entry.header().entry_type().is_dir() {
+                    tracing::debug!("创建目录：{}", dest.display());
+                    fs::create_dir_all(&dest)?;
+                } else if entry.header().entry_type().is_symlink() {
+                    // Handle symlink
+                    tracing::info!("准备创建 symlink: {}", dest.display());
+
+                    // Ensure parent directory exists
+                    if let Some(parent) = dest.parent() {
+                        tracing::info!("确保父目录存在：{}", parent.display());
+                        fs::create_dir_all(parent)?;
+                    }
+
+                    let mut link_target = Vec::new();
+                    entry.read_to_end(&mut link_target)?;
+                    let link_target_str = String::from_utf8_lossy(&link_target);
+                    let link_target_clean = link_target_str.trim_end_matches('\0').to_string();
+
+                    tracing::info!("Symlink 目标：{}", link_target_clean);
+
+                    // Remove existing symlink if any
+                    if dest.exists() || dest.is_symlink() {
+                        tracing::info!("移除已存在的文件：{}", dest.display());
+                        fs::remove_file(&dest)?;
+                    }
+
+                    #[cfg(unix)]
+                    {
+                        let symlink_result = std::os::unix::fs::symlink(&link_target_clean, &dest);
+                        match symlink_result {
+                            Ok(_) => tracing::info!("Created symlink: {} -> {}", dest.display(), link_target_clean),
+                            Err(e) => {
+                                tracing::error!("创建 symlink 失败：{} -> {} (错误：{})", dest.display(), link_target_clean, e);
+                                return Err(anyhow!("创建 symlink 失败：{}", e));
+                            }
+                        }
+                    }
+                } else {
+                    if let Some(parent) = dest.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    let mut content = Vec::new();
+                    entry.read_to_end(&mut content)?;
+                    tracing::info!("写入文件：{} ({} bytes)", dest.display(), content.len());
+                    fs::write(&dest, content)?;
+                }
+            } // end for loop
+        } // end Ok arm
+        Err(e) => {
+            tracing::error!("无法读取 tar 条目：{}", e);
+            return Err(anyhow!("无法读取 tar 条目：{}", e));
         }
+    } // end match
 
-        // All other files go to OPC directory
-        let dest = safe_join_canonical(&opc_dir, &path)
-            .ok_or_else(|| anyhow!("Path traversal detected: {}", path.display()))?;
-
-        if entry.header().entry_type().is_dir() {
-            fs::create_dir_all(&dest)?;
-        } else {
-            if let Some(parent) = dest.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            let mut content = Vec::new();
-            entry.read_to_end(&mut content)?;
-            fs::write(&dest, content)?;
-        }
-    }
-
-    tracing::info!("解压完成 → {} (OPC dir: {})", openclaw_root.display(), opc_dir.display());
+    tracing::info!("解压完成 → OPC dir: {}", opc_dir.display());
     Ok(())
 }
 
@@ -309,9 +397,18 @@ pub fn extract_package(opc_id: &str, data: &[u8], custom_root: Option<&Path>) ->
 ///
 /// This preserves existing configuration (gateway token, logging, etc.) and only
 /// updates the $include references for agents, models, channels, and bindings.
-pub fn merge_into_openclaw_config(opc_id: &str) -> anyhow::Result<()> {
+///
+/// If opc_root is provided, uses that as the OPC directory.
+/// Otherwise, defaults to ~/.openclaw/OPC/{opc_id}.
+pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyhow::Result<()> {
+    // Determine OPC config path
+    let opc_config_path = if let Some(root) = opc_root {
+        root.join("openclaw.json")
+    } else {
+        openclaw_home().join("OPC").join(opc_id).join("openclaw.json")
+    };
+
     let openclaw_root = openclaw_home();
-    let opc_config_path = openclaw_root.join("OPC").join(opc_id).join("openclaw.json");
     let main_config_path = openclaw_root.join("openclaw.json");
 
     // Read the OPC's config
@@ -386,6 +483,19 @@ pub fn restore_backup(backup_path: &Path, opc_id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Expand tilde (~) to home directory
+fn expand_tilde(path: &str) -> PathBuf {
+    if path.starts_with("~") {
+        let rest = path.trim_start_matches("~");
+        let rest = rest.strip_prefix("/").unwrap_or(rest);
+        dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("/tmp"))
+            .join(rest)
+    } else {
+        PathBuf::from(path)
+    }
+}
+
 /// Full deploy flow (runs in background task)
 pub async fn run_deploy(
     state: AppState,
@@ -395,8 +505,8 @@ pub async fn run_deploy(
     checksum: Option<String>,
     opc_root: Option<String>,  // 自定义部署目录
 ) {
-    // If custom opc_root is provided, use it instead of default ~/.openclaw
-    let custom_root = opc_root.map(PathBuf::from);
+    // If custom opc_root is provided, expand tilde and use it instead of default ~/.openclaw
+    let custom_root = opc_root.map(|s| expand_tilde(&s));
 
     let update = |f: &dyn Fn(&mut TaskState)| {
         if let Some(t) = state.tasks.get(&task_id) {
@@ -496,7 +606,8 @@ pub async fn run_deploy(
 
             match tokio::task::spawn_blocking({
                 let opc_id2 = opc_id.clone();
-                move || merge_into_openclaw_config(&opc_id2)
+                let custom = custom_root.clone();
+                move || merge_into_openclaw_config(&opc_id2, custom.as_deref())
             })
             .await
             {

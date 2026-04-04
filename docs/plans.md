@@ -21,7 +21,7 @@
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| F.1 | `server/routes/deployment.js` — POST `/api/generate_openclaw_config`：从 DB 生成 `openclaw.json`，workspace=`~/.openclaw/CPOPC/<opc.display_name>/workspace-<agent.display_name>` | `agents.list` 数=DB agents 行数，models/channels 字段存在 | Phase 8 Done | cc:完了 |
+| F.1 | `server/routes/deployment.js` — POST `/api/generate_openclaw_config`：从 DB 生成 `openclaw.json`，workspace=`~/.openclaw/OPC/<opc.display_name>/workspace-<agent.display_name>` | `agents.list` 数=DB agents 行数，models/channels 字段存在 | Phase 8 Done | cc:完了 |
 | F.2 | POST `/api/build_deploy_package`：调现有 `buildDeployPackage`，将 openclaw.json 写入包，返回 `{ checksum }` | 解压包含 `manifest.json` + `openclaw.json` + agents md + skills 目录 | F.1 | cc:完了 |
 
 ### Feature G：OpcPage 打通真实 Daemon 部署

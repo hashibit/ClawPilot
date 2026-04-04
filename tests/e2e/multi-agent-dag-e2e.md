@@ -110,19 +110,23 @@ check "VM SSH 连通" "$SSH_RESULT"
 ### 2-1. 创建 OPC
 
 ```bash
+# 注意：API 需要 {"config": {...}} 格式，返回字符串 ID
 OPC=$(curl -s -X POST $SERVER/create_opc \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "dev-team",
-    "display_name": "开发团队",
-    "description": "落地页开发团队 E2E 测试"
+    "config": {
+      "name": "dev-team",
+      "display_name": "开发团队",
+      "description": "落地页开发团队 E2E 测试"
+    }
   }')
-echo $OPC | python3 -m json.tool
-OPC_ID=$(echo $OPC | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+echo "OPC 返回：$OPC"
+# 去除引号获取纯 ID（API 返回的是字符串，不是对象）
+OPC_ID=$(echo $OPC | tr -d '"')
 echo "OPC_ID: $OPC_ID"
 ```
 
-**预期**：返回 OPC 对象，字段包含 `id`、`name`、`display_name`
+**预期**：返回字符串 ID，如 `"opc-1775324112202"`
 
 ### 2-2. 创建模型提供商（百炼）
 
@@ -132,7 +136,7 @@ PROVIDER=$(curl -s -X POST $SERVER/create_provider \
   -d '{
     "name": "bailian",
     "api": "openai-completions",
-    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "base_url": "https://coding.dashscope.aliyuncs.com/v1",
     "api_key": "sk-sp-0f756088f03943b29dc608c1c67a61fa",
     "is_available": true
   }')
@@ -190,7 +194,11 @@ AGENTS_GEN=$(curl -s -X POST $SERVER/ai_generate_agents \
       "测试工程师，负责功能验收和回归测试，性格严谨、善于发现边界问题"
     ]
   }')
-echo "$AGENTS_GEN" | python3 -m json.tool | head -30
+echo "$AGENTS_GEN" | python3 -m json.tool
+
+# 保存 AI 生成的配置到临时文件，供下一步使用
+echo "$AGENTS_GEN" > /tmp/ai_agents.json
+echo "AI 生成的配置已保存到 /tmp/ai_agents.json"
 
 # 解析生成的配置，提取 name 字段用于后续管理关系
 PM_NAME=$(echo "$AGENTS_GEN" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['name'])")
@@ -202,67 +210,97 @@ echo "生成的 agent names: $PM_NAME, $FE_NAME, $BE_NAME, $QA_NAME"
 
 **预期**：返回包含 4 个智能体配置的数组，每个配置包含 display_name、name、job_title、description、personality、soul、identity 等字段
 
+```bash
+# 导出环境变量供 2-5 节使用
+export SERVER="$SERVER"
+export OPC_ID="$OPC_ID"
+```
+
 ### 2-5. 批量保存 Agent 到数据库
 
 ```bash
 # 步骤 2: 将 AI 生成的配置批量保存到数据库
-# 添加 manages/reports_to 关系和 order_index
-AGENTS_RESULT=$(curl -s -X POST $SERVER/batch_create_agents \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"agents\": [
-      {
-        \"id\": \"pm-$OPC_ID\",
-        \"opc_id\": \"$OPC_ID\",
-        \"name\": \"pm\",
-        \"display_name\": \"小龙虾\",
-        \"job_title\": \"产品经理\",
-        \"personality\": \"细致、主动、善于协调\",
-        \"description\": \"负责需求拆解和多 Agent 任务协调的领队\",
-        \"initials\": \"🦞\",
-        \"manages\": [\"frontend\", \"backend\", \"qa\"],
-        \"order_index\": 0
-      },
-      {
-        \"id\": \"fe-$OPC_ID\",
-        \"opc_id\": \"$OPC_ID\",
-        \"name\": \"frontend\",
-        \"display_name\": \"小前\",
-        \"job_title\": \"前端开发工程师\",
-        \"personality\": \"追求极致的 UI 体验\",
-        \"description\": \"负责落地页 HTML/CSS/JS 实现\",
-        \"initials\": \"🎨\",
-        \"reports_to\": [\"pm\"],
-        \"order_index\": 1
-      },
-      {
-        \"id\": \"be-$OPC_ID\",
-        \"opc_id\": \"$OPC_ID\",
-        \"name\": \"backend\",
-        \"display_name\": \"小后\",
-        \"job_title\": \"后端开发工程师\",
-        \"personality\": \"严谨、注重性能和安全\",
-        \"description\": \"负责 API 和服务端逻辑实现\",
-        \"initials\": \"⚙️\",
-        \"reports_to\": [\"pm\"],
-        \"order_index\": 2
-      },
-      {
-        \"id\": \"qa-$OPC_ID\",
-        \"opc_id\": \"$OPC_ID\",
-        \"name\": \"qa\",
-        \"display_name\": \"小测\",
-        \"job_title\": \"测试工程师\",
-        \"personality\": \"严谨、善于发现边界问题\",
-        \"description\": \"负责功能验收和回归测试\",
-        \"initials\": \"🔍\",
-        \"reports_to\": [\"pm\"],
-        \"order_index\": 3
-      }
-    ]
-  }")
-echo "Batch create result: $AGENTS_RESULT"
+# 使用 Python 脚本从 AI 生成结果中提取配置，添加 manages/reports_to 关系和 order_index
+python3 << 'PYTHON_SCRIPT'
+import json
+import subprocess
+import os
 
+OPC_ID = os.environ.get('OPC_ID')
+if not OPC_ID:
+    print("错误：OPC_ID 环境变量未设置")
+    exit(1)
+
+# 读取 AI 生成的配置
+with open('/tmp/ai_agents.json', 'r') as f:
+    agents_gen = json.load(f)
+
+# 定义团队结构：领队 manages 其他人，其他人 reports_to 领队
+team_structure = [
+    {"name": "pm", "display_name": "小龙虾", "initials": "🦞", "manages": ["frontend", "backend", "qa"], "reports_to": []},
+    {"name": "frontend", "display_name": "小前", "initials": "🎨", "manages": [], "reports_to": ["pm"]},
+    {"name": "backend", "display_name": "小后", "initials": "⚙️", "manages": [], "reports_to": ["pm"]},
+    {"name": "qa", "display_name": "小测", "initials": "🔍", "manages": [], "reports_to": ["pm"]},
+]
+
+# 合并 AI 配置和团队结构
+agents_to_save = []
+for i, (ai_config, struct) in enumerate(zip(agents_gen, team_structure)):
+    agent = {
+        "id": f"{struct['name']}-{OPC_ID}",
+        "opc_id": OPC_ID,
+        "name": struct["name"],
+        "display_name": struct["display_name"],
+        "initials": struct["initials"],
+        "job_title": ai_config.get("job_title", struct["name"]),
+        "description": ai_config.get("description", ""),
+        "personality": ai_config.get("personality", ""),
+        # AI 生成的文档字段（soul, identity 等）会被 batch_create_agents 自动保存到 agent_documents 表
+        "soul": ai_config.get("soul", ""),
+        "identity": ai_config.get("identity", ""),
+        "agents": ai_config.get("agents", ""),
+        "user": ai_config.get("user", ""),
+        "memory": ai_config.get("memory", ""),
+        "heartbeat": ai_config.get("heartbeat", ""),
+        "tools": ai_config.get("tools", ""),
+        # 团队关系
+        "manages": struct["manages"],
+        "reports_to": struct["reports_to"],
+        # 工具和技能（从 AI 生成结果中提取）
+        "enabled_tools": ai_config.get("enabled_tools", []),
+        "enabled_skills": ai_config.get("enabled_skills", []),
+        "guardrail_allow": ai_config.get("guardrail_allow", []),
+        "guardrail_deny": ai_config.get("guardrail_deny", []),
+        "order_index": i,
+    }
+    agents_to_save.append(agent)
+
+# 调用 API 保存
+payload = json.dumps({"agents": agents_to_save})
+result = subprocess.run(
+    ["curl", "-s", "-X", "POST", f"{os.environ.get('SERVER')}/batch_create_agents",
+     "-H", "Content-Type: application/json", "-d", payload],
+    capture_output=True, text=True
+)
+print(result.stdout)
+
+# 输出结果
+import sys
+try:
+    data = json.loads(result.stdout)
+    if isinstance(data, list) and len(data) == 4:
+        print(f"成功创建 {len(data)} 个 agents")
+    else:
+        print(f"返回：{data}")
+except:
+    print(f"返回：{result.stdout}")
+PYTHON_SCRIPT
+```
+
+**预期**：
+- `batch_create_agents` 返回创建的 agent ID 数组，如 `["pm-opc-xxx", "frontend-opc-xxx", ...]`
+
+```bash
 # 步骤 3: 设置领队（使用 set_leader）
 curl -s -X POST $SERVER/set_leader \
   -H "Content-Type: application/json" \
@@ -274,8 +312,6 @@ echo "Leader set: pm"
 ```
 
 **预期**：
-- `ai_generate_agents` 返回 4 个智能体配置的数组
-- `batch_create_agents` 返回创建的 agent ID 数组
 - `set_leader` 返回 null
 
 ### 阶段二验证
@@ -492,7 +528,7 @@ FINAL_STATUS=$(curl -s -X POST $SERVER/get_deployment_status \
 
 # 验证 Agent 文档已生成（领队 SOUL.md 含领队段落）
 LEADER_SOUL=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
-  "grep -l 'CLAWPILOT:LEADER_START' ~/.openclaw/CPOPC/开发团队/workspace-小龙虾/SOUL.md 2>/dev/null && echo found || echo not_found")
+  "grep -l 'CLAWPILOT:LEADER_START' ~/.openclaw/OPC/开发团队/workspace-小龙虾/SOUL.md 2>/dev/null && echo found || echo not_found")
 [[ "$LEADER_SOUL" == *"found"* ]] \
   && echo "✅ PASS  领队 SOUL.md 含 CLAWPILOT:LEADER_START" | tee -a $TEST_LOG \
   || echo "❌ FAIL  领队 SOUL.md 缺少领队段落" | tee -a $TEST_LOG
@@ -500,9 +536,9 @@ LEADER_SOUL=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
 # Worker agents 的 SOUL.md 不含领队段落
 WORKER_CLEAN=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
   "grep -rL 'CLAWPILOT:LEADER_START' \
-    ~/.openclaw/CPOPC/开发团队/workspace-小前/SOUL.md \
-    ~/.openclaw/CPOPC/开发团队/workspace-小后/SOUL.md \
-    ~/.openclaw/CPOPC/开发团队/workspace-小测/SOUL.md 2>/dev/null | wc -l")
+    ~/.openclaw/OPC/开发团队/workspace-小前/SOUL.md \
+    ~/.openclaw/OPC/开发团队/workspace-小后/SOUL.md \
+    ~/.openclaw/OPC/开发团队/workspace-小测/SOUL.md 2>/dev/null | wc -l")
 [[ "$WORKER_CLEAN" == "3" ]] \
   && echo "✅ PASS  Worker agents SOUL.md 无领队段落" | tee -a $TEST_LOG \
   || echo "❌ FAIL  有 Worker agent SOUL.md 含领队段落（干净文件数: $WORKER_CLEAN）" | tee -a $TEST_LOG
@@ -510,7 +546,7 @@ WORKER_CLEAN=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
 # AGENTS.md 花名册一致性
 ROSTER_LINES=$(ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP \
   "grep -h '小龙虾\|小前\|小后\|小测' \
-    ~/.openclaw/CPOPC/开发团队/workspace-*/AGENTS.md 2>/dev/null | sort -u | wc -l")
+    ~/.openclaw/OPC/开发团队/workspace-*/AGENTS.md 2>/dev/null | sort -u | wc -l")
 [[ "$ROSTER_LINES" == "4" ]] \
   && echo "✅ PASS  AGENTS.md 花名册一致（4 个唯一行）" | tee -a $TEST_LOG \
   || echo "❌ FAIL  AGENTS.md 花名册不一致（唯一行数: $ROSTER_LINES）" | tee -a $TEST_LOG

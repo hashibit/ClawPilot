@@ -290,9 +290,9 @@ More content`
       // Mock config structure that would be generated
       const config = {
         agents: {
-          defaults: { workspace: '~/.openclaw/CPOPC/开发团队' },
+          defaults: { workspace: '~/.openclaw/OPC/开发团队' },
           list: [
-            { id: 'pm', name: 'pm', workspace: '~/.openclaw/CPOPC/开发团队/workspace-小龙虾' }
+            { id: 'pm', name: 'pm', workspace: '~/.openclaw/OPC/开发团队/workspace-小龙虾' }
           ]
         },
         models: { '$include': './OPC/test-opc/models.json5' },
@@ -324,14 +324,14 @@ More content`
     it('should have correct workspace path format', () => {
       const config = {
         agents: {
-          defaults: { workspace: '~/.openclaw/CPOPC/开发团队' },
+          defaults: { workspace: '~/.openclaw/OPC/开发团队' },
           list: [
-            { id: 'pm', name: 'pm', workspace: '~/.openclaw/CPOPC/开发团队/workspace-小龙虾' }
+            { id: 'pm', name: 'pm', workspace: '~/.openclaw/OPC/开发团队/workspace-小龙虾' }
           ]
         }
       }
 
-      expect(config.agents.defaults.workspace).toContain('CPOPC')
+      expect(config.agents.defaults.workspace).toContain('OPC')
       expect(config.agents.list[0].workspace).toContain('workspace-')
     })
   })

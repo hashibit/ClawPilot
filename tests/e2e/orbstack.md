@@ -52,6 +52,29 @@ SSH="ssh -i ~/.orbstack/ssh/id_ed25519 $USER@$VM_IP"
 SCP="scp -i ~/.orbstack/ssh/id_ed25519"
 ```
 
+### 常见问题
+
+#### VM IP 变化
+VM 重启后 IP 可能会变化，重新获取：
+```bash
+VM_IP=$(orbctl list --format json | python3 -c "import sys,json; [print(m['ipv4'][0]) for m in json.load(sys.stdin) if m['name']=='clawpilot-test']")
+```
+
+#### SSH 认证失败
+如果 VM 重启后 SSH 认证失败，重新注入公钥到 root 用户：
+```bash
+PUBKEY=$(cat ~/.orbstack/ssh/id_ed25519.pub)
+orbctl run -m clawpilot-test -u root "mkdir -p ~/.ssh && echo '$PUBKEY' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+```
+
+#### SSH 连接超时
+如果 SSH 连接超时，先检查 VM 状态并等待完全启动：
+```bash
+orbctl list  # 确认 VM 运行中
+sleep 10     # 等待 VM 完全启动
+ssh -i ~/.orbstack/ssh/id_ed25519 -o ConnectTimeout=5 root@$VM_IP "echo ok"
+```
+
 ---
 
 ## 测试场景

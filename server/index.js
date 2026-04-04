@@ -16,6 +16,7 @@ import { createOfficeRouter } from './routes/office.js'
 import { createProcessRouter } from './routes/process.js'
 import { createToolRouter } from './routes/tool.js'
 import { createSkillRouter, registerBundleSkills } from './routes/skill.js'
+import { createSettingsRouter } from './routes/settings.js'
 
 const log = createLogger('server')
 
@@ -50,6 +51,7 @@ export function createApp(db) {
   app.use('/api', createProcessRouter(db))
   app.use('/api', createToolRouter(db))
   app.use('/api', createSkillRouter(db))
+  app.use('/api', createSettingsRouter(db))
 
   return app
 }
