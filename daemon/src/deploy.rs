@@ -312,11 +312,15 @@ pub fn extract_package(opc_id: &str, data: &[u8], custom_root: Option<&Path>) ->
 
                 tracing::info!("处理条目 #{}: {}", idx, path_str);
 
-                // Skip manifest.json and openclaw.json at root - we don't overwrite them
-                // openclaw.json will be handled by merge_into_openclaw_config
-                if path.file_name().map(|n| n == "manifest.json").unwrap_or(false)
-                    || path.file_name().map(|n| n == "openclaw.json").unwrap_or(false) {
-                    tracing::debug!("跳过文件：{}", path_str);
+                // Skip root-level manifest.json and openclaw.json (single path component).
+                // Nested files like {opc_id}/openclaw.json are allowed through so that
+                // merge_into_openclaw_config can find and apply the OPC-specific config.
+                let is_root_level = path.components().count() == 1;
+                if is_root_level && (
+                    path.file_name().map(|n| n == "manifest.json").unwrap_or(false)
+                    || path.file_name().map(|n| n == "openclaw.json").unwrap_or(false)
+                ) {
+                    tracing::debug!("跳过根级文件：{}", path_str);
                     continue;
                 }
 
@@ -401,9 +405,12 @@ pub fn extract_package(opc_id: &str, data: &[u8], custom_root: Option<&Path>) ->
 /// If opc_root is provided, uses that as the OPC directory.
 /// Otherwise, defaults to ~/.openclaw/OPC/{opc_id}.
 pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyhow::Result<()> {
-    // Determine OPC config path
+    // Determine OPC config path.
+    // When opc_root is provided it is the OPC parent directory (e.g. ~/.openclaw/OPC),
+    // so the per-OPC openclaw.json lives at {opc_root}/{opc_id}/openclaw.json — same
+    // layout that extract_package uses when custom_root is set.
     let opc_config_path = if let Some(root) = opc_root {
-        root.join("openclaw.json")
+        root.join(opc_id).join("openclaw.json")
     } else {
         openclaw_home().join("OPC").join(opc_id).join("openclaw.json")
     };
@@ -437,18 +444,19 @@ pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyh
         tracing::info!("Backed up main config to {}", backup_path.display());
     }
 
-    // Only update these fields with $include references - preserve everything else
+    // Only update agents from the OPC config — preserve everything else.
+    // models/channels/bindings are intentionally NOT merged here because their
+    // format in the OPC config does not match what OpenClaw expects in the main
+    // openclaw.json (model providers use a different schema from the deploy package).
     if let Some(agents) = opc_config.get("agents") {
         main_config["agents"] = agents.clone();
     }
-    if let Some(models) = opc_config.get("models") {
-        main_config["models"] = models.clone();
-    }
-    if let Some(channels) = opc_config.get("channels") {
-        main_config["channels"] = channels.clone();
-    }
-    if let Some(bindings) = opc_config.get("bindings") {
-        main_config["bindings"] = bindings.clone();
+    // Remove any stale models/channels/bindings keys that may have been written
+    // by a previous deployment before this restriction was in place.
+    if let Some(obj) = main_config.as_object_mut() {
+        obj.remove("models");
+        obj.remove("channels");
+        obj.remove("bindings");
     }
 
     // Also update tools, messages, commands, session, gateway, logging, plugins if present

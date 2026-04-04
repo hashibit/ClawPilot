@@ -340,7 +340,10 @@ impl Worker {
             .with_context(|| format!("Failed to parse agent JSON: {}", clean_json))?;
 
         // Extract the actual agent text from openclaw's --json wrapper if present
-        let agent_text = json.get("payloads")
+        // openclaw --json output: { "status": "ok", "result": { "payloads": [{"text":"..."}] } }
+        let agent_text = json.get("result")
+            .and_then(|r| r.get("payloads"))
+            .or_else(|| json.get("payloads"))
             .and_then(|p| p.as_array())
             .and_then(|arr| arr.first())
             .and_then(|first| first.get("text"))
@@ -361,9 +364,11 @@ impl Worker {
             });
 
         match status {
-            "done" => {
+            "done" | "ok" => {
                 // Extract result and artifacts
+                // For openclaw --json output: check "data" then "result" fields
                 let result = effective_json.get("data")
+                    .or_else(|| effective_json.get("result"))
                     .map(|v| serde_json::to_string(v).unwrap_or_default())
                     .or_else(|| agent_text.map(|t| format!("{{\"result\":{:?}}}", t)))
                     .unwrap_or_else(|| "{}".to_string());

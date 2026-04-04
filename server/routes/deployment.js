@@ -404,7 +404,7 @@ function generateOpenclawConfig(opcId) {
   const agentsList = agents.map(agent => ({
     id: agent.name,
     name: agent.name,
-    workspace: `${opcRoot}/workspace-${agent.display_name}`,
+    workspace: `${opcRoot}/${opc.id}/workspace-${agent.display_name}`,
     model: { primary: agent.model ?? `${agent.model_provider ?? 'anthropic'}/${agent.model_name ?? 'claude-opus-4-5'}` },
     identity: {
       name: agent.display_name,
@@ -482,9 +482,6 @@ function generateOpenclawConfig(opcId) {
       defaults: agentsDefaults,
       list: agentsList,
     },
-    models: { "$include": `./OPC/${opc.name}/models.json5` },
-    channels: { "$include": `./OPC/${opc.name}/channels.json5` },
-    bindings: { "$include": `./OPC/${opc.name}/bindings.json5` },
     tools: { profile: 'coding' },
     messages: { ackReactionScope: 'group-mentions' },
     commands: {
@@ -591,12 +588,13 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
         // manifest.json
         await addFile('manifest.json', JSON.stringify(manifest, null, 2))
 
-        // openclaw.json (with $include references)
-        await addFile('openclaw.json', openclawConfig)
+        // openclaw.json (with $include references) — placed under opc_id/ so the
+        // daemon extracts it to ~/.openclaw/OPC/{opc_id}/openclaw.json for merging.
+        const opcId = data.opc.id
+        await addFile(`${opcId}/openclaw.json`, openclawConfig)
 
         // Build workspace directories with agent md files
         // Structure: {opc_id}/workspace-{AGENT_NAME}/*.md
-        const opcId = data.opc.id
 
         // Group agent documents by agent_id
         const docsByAgent = {}
