@@ -57,6 +57,12 @@ export function createApp(db) {
 // ── Production Startup ─────────────────────────────────────
 
 async function main() {
+  // Support --db <path> CLI arg to use a custom database path
+  const dbArgIdx = process.argv.indexOf('--db')
+  if (dbArgIdx !== -1 && process.argv[dbArgIdx + 1]) {
+    process.env.CLAWPILOT_DB_PATH = process.argv[dbArgIdx + 1]
+  }
+
   const { default: db, DB_PATH } = await import('./db.js')
   const { accessLogger } = await import('./logger.js')
 

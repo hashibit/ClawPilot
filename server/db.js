@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-export const DB_PATH = join(__dirname, 'dev.db')
+export const DB_PATH = process.env.CLAWPILOT_DB_PATH || join(__dirname, 'dev.db')
 
 // ── Schema & Migrations ────────────────────────────────────
 
@@ -262,6 +262,7 @@ export function runMigrations(db) {
     "access_auth_type TEXT DEFAULT 'password'",
     'access_user TEXT', 'access_password TEXT', 'ssh_key_path TEXT',
     'initial_openclaw_config TEXT',
+    'opc_root TEXT DEFAULT ~/.openclaw/OPC',  // 可配置的部署目录
   ].forEach(col => safeAddColumn(db, 'offices', col))
 
   // Skills table extended fields

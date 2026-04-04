@@ -13,6 +13,7 @@ use tokio::io::AsyncReadExt;
 use std::process::Stdio;
 use tokio::task::JoinHandle;
 
+use crate::openclaw_client;
 use crate::scheduler::{Db, models::*};
 use crate::utils::extract_json;
 
@@ -86,6 +87,7 @@ impl Worker {
                 "--timeout", &task.timeout_seconds.to_string(),
                 "--json",
             ])
+            .env("PATH", openclaw_client::extended_path())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -252,6 +254,7 @@ impl Worker {
             // Send stop message to ensure agent session is clean
             let _ = Command::new("openclaw")
                 .args(["agent", "--agent", agent_id, "--message", "stop"])
+                .env("PATH", openclaw_client::extended_path())
                 .spawn();
 
             Ok(())

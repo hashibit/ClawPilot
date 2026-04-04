@@ -1,10 +1,59 @@
 import { useTranslation } from 'react-i18next'
 import { LANGUAGES, setLanguage, isRtl } from '../i18n'
 import { Icon } from '../components/Icon'
+import { useState, useEffect } from 'react'
+import { call } from '../lib/api'
+import type { Office } from './OfficePage'
+
+function getOffices() {
+  return call<Office[]>('get_offices', {})
+}
+
+function updateOffice(id: string, office: Partial<Office>) {
+  return call<void>('update_office', { id, office })
+}
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation()
   const currentLang = i18n.language
+
+  const [offices, setOffices] = useState<Office[]>([])
+  const [selectedOfficeId, setSelectedOfficeId] = useState<string>('')
+  const [opcRoot, setOpcRoot] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('')
+
+  useEffect(() => {
+    getOffices().then(list => {
+      setOffices(list)
+      if (list.length > 0) {
+        setSelectedOfficeId(list[0].id)
+        setOpcRoot(list[0].opc_root || '')
+      }
+    }).catch(() => {})
+  }, [])
+
+  const handleOfficeChange = (id: string) => {
+    setSelectedOfficeId(id)
+    const office = offices.find(o => o.id === id)
+    if (office) {
+      setOpcRoot(office.opc_root || '')
+    }
+  }
+
+  const handleSave = async () => {
+    if (!selectedOfficeId) return
+    setSaving(true)
+    setSaveMsg('')
+    try {
+      await updateOffice(selectedOfficeId, { opc_root: opcRoot })
+      setSaveMsg('✓ 已保存')
+      setTimeout(() => setSaveMsg(''), 2000)
+    } catch (e: any) {
+      setSaveMsg('保存失败: ' + e.message)
+    }
+    setSaving(false)
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -102,6 +151,85 @@ export default function SettingsPage() {
             <span style={{ fontSize: '13px', color: '#a78bfa', fontWeight: 500 }}>{t('settings.dark')}</span>
             <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />
           </div>
+        </section>
+
+        {/* Deployment Directory */}
+        <section style={{ marginBottom: '28px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5', marginBottom: '4px' }}>
+            部署目录
+          </div>
+          <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
+            设置 OPC 部署到远程机器的目标目录（opc_root）
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <select
+              value={selectedOfficeId}
+              onChange={e => handleOfficeChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: '9px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.04)',
+                color: '#EBEBF5',
+                fontSize: '13px',
+                outline: 'none',
+              }}
+            >
+              {offices.map(office => (
+                <option key={office.id} value={office.id}>
+                  {office.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+          }}>
+            <input
+              type="text"
+              value={opcRoot}
+              onChange={e => setOpcRoot(e.target.value)}
+              placeholder="~/.openclaw/OPC"
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                borderRadius: '9px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.04)',
+                color: '#EBEBF5',
+                fontSize: '13px',
+                outline: 'none',
+                fontFamily: 'monospace',
+              }}
+            />
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                padding: '10px 16px',
+                borderRadius: '9px',
+                border: 'none',
+                background: saving ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.7)',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: saving ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
+          {saveMsg && (
+            <div style={{
+              marginTop: '8px', fontSize: '12px',
+              color: saveMsg.includes('失败') ? '#ff6b6b' : '#34c759',
+            }}>
+              {saveMsg}
+            </div>
+          )}
         </section>
 
         {/* About */}

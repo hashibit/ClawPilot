@@ -1,6 +1,7 @@
 mod auth;
 mod deploy;
 mod error;
+mod openclaw_client;
 mod routes;
 mod scheduler;
 mod state;
@@ -40,6 +41,11 @@ struct Args {
     /// If not provided, reads from ~/.clawpilot/daemon.key
     #[arg(long)]
     key_file: Option<PathBuf>,
+
+    /// Path to the scheduler SQLite database
+    /// If not provided, uses ~/.clawpilot/scheduler.db
+    #[arg(long)]
+    db_path: Option<PathBuf>,
 }
 
 fn load_api_key(key_file: Option<PathBuf>) -> String {
@@ -115,7 +121,7 @@ async fn main() {
         .join(".clawpilot");
     let _ = fs::create_dir_all(&data_dir);
 
-    let db_path = data_dir.join("scheduler.db");
+    let db_path = args.db_path.unwrap_or_else(|| data_dir.join("scheduler.db"));
     let db = Db::new(&db_path).expect("Failed to initialize scheduler database");
     tracing::info!("Scheduler database initialized at {}", db_path.display());
 

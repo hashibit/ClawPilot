@@ -88,6 +88,7 @@ pub async fn health(State(_state): State<AppState>) -> Json<Value> {
 pub struct Manifest {
     pub opc_id: String,
     pub checksum: Option<String>,
+    pub opc_root: Option<String>,  // 自定义部署目录
 }
 
 pub async fn deploy(
@@ -149,6 +150,7 @@ pub async fn deploy(
     tracing::info!(
         task_id = %task_id,
         opc_id = %manifest.opc_id,
+        opc_root = %manifest.opc_root.as_deref().unwrap_or("default"),
         pkg_bytes = package.len(),
         "deploy task accepted"
     );
@@ -158,10 +160,11 @@ pub async fn deploy(
     let tid = task_id.clone();
     let opc_id = manifest.opc_id.clone();
     let checksum = manifest.checksum.clone();
+    let opc_root = manifest.opc_root.clone();
     let pkg_vec = package.to_vec();
 
     tokio::spawn(async move {
-        run_deploy(state2, tid, opc_id, pkg_vec, checksum).await;
+        run_deploy(state2, tid, opc_id, pkg_vec, checksum, opc_root).await;
     });
 
     Ok(Json(json!({

@@ -157,7 +157,7 @@ export function createModelRouter(db) {
       models.forEach((m, idx) => {
         upsert.run(
           uuidv4(), provider_name, m.model_id, m.display_name ?? m.model_id,
-          m.context_window ?? 0, m.max_tokens ?? 0, m.input_types ?? '["text"]',
+          m.context_window ?? 0, m.max_tokens ?? 0, Array.isArray(m.input_types) ? JSON.stringify(m.input_types) : (m.input_types ?? '["text"]'),
           m.cost_input ?? 0, m.cost_output ?? 0,
           m.supports_vision ? 1 : 0, m.supports_function_calling ? 1 : 0, m.supports_streaming !== false ? 1 : 0,
           m.is_custom ? 1 : 0, idx, n

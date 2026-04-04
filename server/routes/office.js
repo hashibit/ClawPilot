@@ -26,20 +26,46 @@ const stripAnsi = (s) => s
   .replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
 
-async function findDaemonBinary() {
-  try {
-    const { stdout } = await execAsync('which clawpilot-daemon')
-    const p = stdout.trim()
-    if (p && existsSync(p)) return p
-  } catch {}
-  const candidates = [
-    join(__dirname, '..', '..', 'daemon', 'target', 'release', 'clawpilot-daemon'),
-    join(__dirname, '..', '..', 'daemon', 'target', 'debug', 'clawpilot-daemon'),
-  ]
+async function findDaemonBinary({ linux = false, arch = 'aarch64' } = {}) {
+  if (!linux) {
+    try {
+      const { stdout } = await execAsync('which clawpilot-daemon')
+      const p = stdout.trim()
+      if (p && existsSync(p)) return p
+    } catch {}
+  }
+  const base = join(__dirname, '..', '..', 'daemon', 'target')
+  const ARCH_TO_TARGET = {
+    'aarch64': ['aarch64-unknown-linux-gnu', 'aarch64-unknown-linux-musl'],
+    'arm64':   ['aarch64-unknown-linux-gnu', 'aarch64-unknown-linux-musl'],
+    'x86_64':  ['x86_64-unknown-linux-gnu', 'x86_64-unknown-linux-musl'],
+    'x86':     ['i686-unknown-linux-gnu'],
+  }
+  const candidates = linux
+    ? (ARCH_TO_TARGET[arch] ?? ARCH_TO_TARGET['x86_64']).flatMap(triple => [
+        join(base, triple, 'release', 'clawpilot-daemon'),
+        join(base, triple, 'debug', 'clawpilot-daemon'),
+      ])
+    : [
+        join(base, 'release', 'clawpilot-daemon'),
+        join(base, 'debug', 'clawpilot-daemon'),
+      ]
   for (const c of candidates) {
     if (existsSync(resolve(c))) return resolve(c)
   }
   return null
+}
+
+async function probeRemoteArch(sshOpts, target) {
+  try {
+    const { stdout } = await execAsync(`ssh ${sshOpts} "${target}" "uname -m && uname -s"`, { timeout: 10000 })
+    const lines = stdout.trim().split('\n')
+    const arch = lines[0]?.trim() || 'x86_64'
+    const os = lines[1]?.trim() || 'Linux'
+    return { arch, os }
+  } catch {
+    return { arch: 'x86_64', os: 'Linux' }
+  }
 }
 
 async function isDaemonRunning(url) {
@@ -152,7 +178,7 @@ export function createOfficeRouter(db) {
           access_auth_type = ?, access_user = ?, access_password = ?, ssh_key_path = ?,
           phone = ?, receptionist_image = ?,
           ownership = ?, monthly_rent = ?, internet_speed = ?, decoration_grade = ?,
-          description = ?, daemon_url = ?, daemon_api_key = ?, updated_at = ?
+          description = ?, daemon_url = ?, daemon_api_key = ?, opc_root = ?, updated_at = ?
         WHERE id = ?
       `).run(
         office.name,
@@ -164,6 +190,7 @@ export function createOfficeRouter(db) {
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
         office.description ?? null,
         office.daemon_url ?? null, encrypt(office.daemon_api_key ?? null),
+        office.opc_root ?? null,
         now(), id
       )
       res.json(null)
@@ -370,35 +397,57 @@ export function createOfficeRouter(db) {
         const sshOpts = ssh_config_file
           ? `${configFlag} -o StrictHostKeyChecking=no -o ConnectTimeout=10`.trim()
           : `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${ssh_port} ${keyFlag}`.trim()
+        const scpOpts = ssh_config_file
+          ? `${configFlag} -o StrictHostKeyChecking=no -o ConnectTimeout=10`.trim()
+          : `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -P ${ssh_port} ${keyFlag}`.trim()
         const target = `${ssh_user}@${ssh_host}`
         const bareHost = daemon_host || (ssh_host.includes('@') ? ssh_host.split('@').pop() : ssh_host)
         const daemonUrl = `http://${bareHost}:${daemon_port}`
 
-        step('🔍 查找本地 daemon 二进制...')
-        const binPath = await findDaemonBinary()
+        step('🔍 检测远程系统架构...')
+        const { arch: remoteArch, os: remoteOs } = await probeRemoteArch(sshOpts, target)
+        step(`✅ 远程系统: ${remoteOs} ${remoteArch}`)
+
+        step('🔍 查找本地 daemon 二进制（Linux）...')
+        const binPath = await findDaemonBinary({ linux: true, arch: remoteArch })
         if (!binPath) {
-          return res.json({ ok: false, error: '未找到本地 clawpilot-daemon 二进制', logs })
+          return res.json({ ok: false, error: `未找到 ${remoteOs}/${remoteArch} 版 clawpilot-daemon 二进制，请先编译对应目标`, logs })
         }
         step(`✅ 找到: ${binPath}`)
 
         step(`📤 上传到 ${target}...`)
-        await execAsync(`scp ${sshOpts} "${binPath}" "${target}:/tmp/clawpilot-daemon"`)
+        await execAsync(`scp ${scpOpts} "${binPath}" "${target}:/tmp/clawpilot-daemon"`)
         await execAsync(`ssh ${sshOpts} "${target}" "chmod +x /tmp/clawpilot-daemon && sudo mv /tmp/clawpilot-daemon /usr/local/bin/clawpilot-daemon"`)
         step('✅ 二进制已上传')
 
-        step('🛑 停止旧进程...')
-        await execAsync(`ssh ${sshOpts} "${target}" "pkill -f clawpilot-daemon || true"`).catch(() => {})
-
-        step('🚀 启动远程 daemon...')
-        await execAsync(`ssh ${sshOpts} "${target}" "nohup /usr/local/bin/clawpilot-daemon --listen 0.0.0.0:${daemon_port} > /tmp/clawpilot-daemon.log 2>&1 &"`)
+        step('🔧 安装 systemd 用户服务...')
+        const serviceUnit = [
+          '[Unit]',
+          'Description=ClawPilot Deploy Daemon',
+          'After=network.target',
+          '',
+          '[Service]',
+          'Type=simple',
+          `ExecStart=/usr/local/bin/clawpilot-daemon --listen 0.0.0.0:${daemon_port}`,
+          'Restart=on-failure',
+          'RestartSec=5',
+          `Environment="PATH=/home/${ssh_user}/.npm-global/bin:/home/${ssh_user}/.local/bin:/usr/local/bin:/usr/bin:/bin"`,
+          '',
+          '[Install]',
+          'WantedBy=default.target',
+        ].join('\n')
+        // Use base64 to avoid escaping issues
+        const encodedUnit = Buffer.from(serviceUnit).toString('base64')
+        await execAsync(`ssh ${sshOpts} "${target}" "mkdir -p ~/.config/systemd/user && echo '${encodedUnit}' | base64 -d > ~/.config/systemd/user/clawpilot-daemon.service && systemctl --user daemon-reload && systemctl --user enable clawpilot-daemon && systemctl --user start clawpilot-daemon"`)
+        step('✅ systemd 用户服务已启用')
 
         step('⏳ 等待远程 daemon 就绪...')
         let started = false
-        for (let i = 0; i < 12; i++) {
-          await new Promise(r => setTimeout(r, 800))
+        for (let i = 0; i < 15; i++) {
+          await new Promise(r => setTimeout(r, 1000))
           if (await isDaemonRunning(daemonUrl)) { started = true; break }
         }
-        if (!started) return res.json({ ok: false, error: '远程 daemon 启动超时', logs })
+        if (!started) return res.json({ ok: false, error: '远程 daemon 启动超时，请检查 systemctl --user status clawpilot-daemon', logs })
         step('✅ 远程 daemon 已就绪')
 
         const { stdout: keyOut } = await execAsync(`ssh ${sshOpts} "${target}" "cat ~/.clawpilot/daemon.key"`)

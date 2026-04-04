@@ -3,8 +3,8 @@
 //! Handles startup recovery, timeout handling, auto-approval,
 //! agent sync, and periodic DAG sweeping.
 
+use crate::openclaw_client;
 use crate::scheduler::{Db, Worker, DagScheduler, models::*};
-use crate::utils::extract_json;
 
 /// Recovery handles startup recovery and timer-based operations
 #[derive(Clone)]
@@ -167,94 +167,49 @@ impl Recovery {
     pub async fn sync_agents_from_openclaw(&self) {
         tracing::debug!("Syncing agents from OpenClaw...");
 
-        // Call openclaw agents list --json
-        let output = match tokio::process::Command::new("openclaw")
-            .args(["agents", "list", "--json"])
-            .output()
-            .await
-        {
-            Ok(output) => output,
+        // Use openclaw_client to list agents
+        let agents_result = openclaw_client::list_agents().await;
+        let agents_array = match agents_result {
+            Ok(data) => data,
             Err(e) => {
-                tracing::error!("Failed to run openclaw agents list: {}", e);
-                return;
-            }
-        };
-
-        if !output.status.success() {
-            tracing::error!(
-                "openclaw agents list failed: {:?}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            return;
-        }
-
-        let json_str = String::from_utf8_lossy(&output.stdout);
-        let clean_json = match extract_json(&json_str) {
-            Some(j) => j,
-            None => {
-                tracing::error!("Failed to extract JSON from openclaw agents list output");
-                return;
-            }
-        };
-        let agents_data: serde_json::Value = match serde_json::from_str(&clean_json) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::error!("Failed to parse openclaw agents list JSON: {}", e);
+                tracing::error!("Failed to list agents from OpenClaw: {}", e);
                 return;
             }
         };
 
         // Parse agents from the response
-        // openclaw agents list --json returns a direct array [...]
-        // or an object { "agents": [...] }
-        let agents_array = if let Some(arr) = agents_data.as_array() {
-            // Direct array format
-            Some(arr)
-        } else if let Some(arr) = agents_data.get("agents").and_then(|v| v.as_array()) {
-            // Object with agents field
-            Some(arr)
-        } else {
-            None
-        };
+        let mut current_agent_ids = Vec::new();
+        for agent_value in &agents_array {
+            if let Some(agent_obj) = agent_value.as_object() {
+                if let (Some(id), Some(name)) = (
+                    agent_obj.get("id").and_then(|v| v.as_str()),
+                    agent_obj.get("name").and_then(|v| v.as_str()),
+                ) {
+                    // Parse capabilities
+                    let capabilities = agent_obj
+                        .get("capabilities")
+                        .and_then(|v| v.as_array())
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
 
-        let current_agent_ids = if let Some(agents_array) = agents_array {
-            let mut ids = Vec::new();
-            for agent_value in agents_array {
-                if let Some(agent_obj) = agent_value.as_object() {
-                    if let (Some(id), Some(name)) = (
-                        agent_obj.get("id").and_then(|v| v.as_str()),
-                        agent_obj.get("name").and_then(|v| v.as_str()),
-                    ) {
-                        // Parse capabilities
-                        let capabilities = agent_obj
-                            .get("capabilities")
-                            .and_then(|v| v.as_array())
-                            .map(|arr| {
-                                arr.iter()
-                                    .filter_map(|v| v.as_str().map(String::from))
-                                    .collect::<Vec<_>>()
-                            })
-                            .unwrap_or_default();
-
-                        // Create or update agent
-                        let agent_info = AgentInfo::new(
-                            id.to_string(),
-                            name.to_string(),
-                            capabilities,
-                        );
-                        if let Err(e) = self.db.upsert_agent(&agent_info) {
-                            tracing::error!("Failed to upsert agent {}: {}", id, e);
-                        }
-
-                        ids.push(id.to_string());
+                    // Create or update agent
+                    let agent_info = AgentInfo::new(
+                        id.to_string(),
+                        name.to_string(),
+                        capabilities,
+                    );
+                    if let Err(e) = self.db.upsert_agent(&agent_info) {
+                        tracing::error!("Failed to upsert agent {}: {}", id, e);
                     }
+
+                    current_agent_ids.push(id.to_string());
                 }
             }
-            ids
-        } else {
-            tracing::warn!("openclaw agents list response missing 'agents' field");
-            return;
-        };
+        }
 
         // Mark agents that are no longer in the list as offline
         if let Ok(all_agents) = self.db.list_agents() {
@@ -295,14 +250,7 @@ impl Recovery {
 
     /// Check if OpenClaw gateway is online
     async fn check_gateway_health(&self) -> bool {
-        match tokio::process::Command::new("openclaw")
-            .args(["--version"])
-            .output()
-            .await
-        {
-            Ok(output) => output.status.success(),
-            Err(_) => false,
-        }
+        openclaw_client::is_available().await
     }
 }
 

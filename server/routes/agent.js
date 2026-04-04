@@ -232,6 +232,59 @@ export function createAgentRouter(db) {
     }
   })
 
+  // batch_create_agents — create multiple agents in a single transaction
+  router.post('/batch_create_agents', (req, res) => {
+    try {
+      const { agents } = req.body
+      if (!Array.isArray(agents) || agents.length === 0) throw new Error('agents array required')
+      const insert = db.prepare(`
+        INSERT INTO agents
+          (id, opc_id, name, display_name, job_title, personality, description, initials,
+           gradient_start, gradient_end, is_default, order_index, model,
+           enabled_tools, disabled_tools, enabled_skills, guardrail_rules, reports_to, manages,
+           created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      const ids = db.transaction(() => {
+        return agents.map((config, idx) => {
+          insert.run(
+            config.id, config.opc_id, config.name, config.display_name,
+            config.job_title ?? null, config.personality ?? null, config.description ?? null,
+            config.initials ?? null, config.gradient_start ?? null, config.gradient_end ?? null,
+            config.is_default ? 1 : 0, config.order_index ?? idx,
+            config.model ?? null,
+            toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
+            toJsonStr(config.enabled_skills), serializeGuardrail(config),
+            toJsonStr(config.reports_to), toJsonStr(config.manages),
+            config.created_at ?? now(), config.updated_at ?? now()
+          )
+          return config.id
+        })
+      })()
+      writeLog('INFO', `批量创建 ${agents.length} 个 Agent`)
+      res.json(ids)
+    } catch (err) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  // set_leader — designate an agent as the OPC leader (is_default=1)
+  router.post('/set_leader', (req, res) => {
+    try {
+      const { opc_id, agent_id } = req.body
+      if (!opc_id || !agent_id) throw new Error('opc_id and agent_id required')
+      const ts = now()
+      db.transaction(() => {
+        db.prepare('UPDATE agents SET is_default = 0, updated_at = ? WHERE opc_id = ?').run(ts, opc_id)
+        db.prepare('UPDATE agents SET is_default = 1, updated_at = ? WHERE id = ? AND opc_id = ?').run(ts, agent_id, opc_id)
+      })()
+      writeLog('INFO', `Agent ${agent_id} 设为 OPC ${opc_id} 领队`)
+      res.json(null)
+    } catch (err) {
+      res.status(500).json({ error: err.message })
+    }
+  })
+
   return router
 }
 
