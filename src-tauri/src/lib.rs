@@ -49,6 +49,7 @@ pub fn run() {
             commands::agent::get_agent_document,
             commands::agent::update_agent_document,
             commands::agent::set_default_agent,
+            commands::agent::set_leader,
             commands::agent::get_agent_documents,
             // Model
             commands::model::get_providers,

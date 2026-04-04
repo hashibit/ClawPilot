@@ -20,13 +20,17 @@ fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
         internet_speed: row.get(8)?,
         decoration_grade: row.get::<_, Option<String>>(9)?.unwrap_or_else(|| "MEDIUM".into()),
         description: row.get(10)?,
-        daemon_url: row.get(11)?,
-        daemon_api_key: row.get(12)?,
-        opc_root: row.get(13)?,
-        created_at: row.get(14)?,
-        updated_at: row.get(15)?,
-        current_opc_id: row.get(16).ok().flatten(),
-        current_opc_name: row.get(17).ok().flatten(),
+        access_auth_type: row.get(11)?,
+        access_user: row.get(12)?,
+        access_password: row.get(13)?,
+        ssh_key_path: row.get(14)?,
+        daemon_url: row.get(15)?,
+        daemon_api_key: row.get(16)?,
+        opc_root: row.get(17)?,
+        created_at: row.get(18)?,
+        updated_at: row.get(19)?,
+        current_opc_id: row.get(20).ok().flatten(),
+        current_opc_name: row.get(21).ok().flatten(),
     })
 }
 
@@ -41,7 +45,8 @@ pub fn get_offices(pool: &DbPool) -> Result<Vec<Office>> {
     let mut stmt = conn.prepare(
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
-                o.description, o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
+                o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
+                o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
          LEFT JOIN opc_config oc ON oc.office_id = o.id AND oc.is_running = 1
@@ -58,7 +63,8 @@ pub fn get_office(pool: &DbPool, id: &str) -> Result<Office> {
     conn.query_row(
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
-                o.description, o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
+                o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
+                o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
          LEFT JOIN opc_config oc ON oc.office_id = o.id AND oc.is_running = 1
@@ -85,8 +91,9 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
         "INSERT INTO offices
              (id, name, address, access_card, phone, receptionist_image,
               ownership, monthly_rent, internet_speed, decoration_grade,
-              description, daemon_url, daemon_api_key, opc_root, created_at, updated_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)",
+              description, access_auth_type, access_user, access_password, ssh_key_path,
+              daemon_url, daemon_api_key, opc_root, created_at, updated_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)",
         rusqlite::params![
             id,
             office.name,
@@ -99,6 +106,10 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
             office.internet_speed,
             office.decoration_grade,
             office.description,
+            office.access_auth_type,
+            office.access_user,
+            office.access_password,
+            office.ssh_key_path,
             office.daemon_url,
             office.daemon_api_key,
             office.opc_root,
@@ -115,7 +126,9 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
         "UPDATE offices SET
              name=?2, address=?3, access_card=?4, phone=?5, receptionist_image=?6,
              ownership=?7, monthly_rent=?8, internet_speed=?9, decoration_grade=?10,
-             description=?11, daemon_url=?12, daemon_api_key=?13, opc_root=?14, updated_at=?15
+             description=?11, access_auth_type=?12, access_user=?13,
+             access_password=?14, ssh_key_path=?15,
+             daemon_url=?16, daemon_api_key=?17, opc_root=?18, updated_at=?19
          WHERE id=?1",
         rusqlite::params![
             id,
@@ -129,6 +142,10 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
             office.internet_speed,
             office.decoration_grade,
             office.description,
+            office.access_auth_type,
+            office.access_user,
+            office.access_password,
+            office.ssh_key_path,
             office.daemon_url,
             office.daemon_api_key,
             office.opc_root,
@@ -589,6 +606,10 @@ mod tests {
             internet_speed: None,
             decoration_grade: "MEDIUM".to_string(),
             description: None,
+            access_auth_type: None,
+            access_user: None,
+            access_password: None,
+            ssh_key_path: None,
             daemon_url: None,
             daemon_api_key: None,
             opc_root: None,

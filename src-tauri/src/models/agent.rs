@@ -68,6 +68,8 @@ pub struct AgentConfig {
     pub order_index: i32,
     pub model_provider: Option<String>,
     pub model_name: Option<String>,
+    /// 统一模型标识，如 "anthropic/claude-opus-4-5"（优先于 model_provider+model_name）
+    pub model: Option<String>,
     /// 启用的工具 ID 列表，DB 中存 JSON 字符串
     pub enabled_tools: Vec<String>,
     /// 禁用的工具 ID 列表，DB 中存 JSON 字符串
@@ -127,6 +129,7 @@ mod tests {
             order_index: 0,
             model_provider: Some("BAILIAN".to_string()),
             model_name: Some("qwen-max".to_string()),
+            model: Some("bailian/qwen-max".to_string()),
             enabled_tools: vec!["tool-a".to_string(), "tool-b".to_string()],
             disabled_tools: vec![],
             enabled_skills: vec!["skill-x".to_string()],

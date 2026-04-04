@@ -93,6 +93,16 @@ pub fn set_default_agent(
     agent_service::set_default_agent(&pool, &opc_id, &agent_id)
 }
 
+/// Designate an agent as the OPC leader (is_default=1). Alias for set_default_agent.
+#[tauri::command]
+pub fn set_leader(
+    pool: State<'_, DbPool>,
+    opc_id: String,
+    agent_id: String,
+) -> Result<()> {
+    agent_service::set_default_agent(&pool, &opc_id, &agent_id)
+}
+
 /// Get all documents for an agent
 #[tauri::command]
 pub fn get_agent_documents(pool: State<'_, DbPool>, agent_id: String) -> Result<Vec<AgentDocument>> {

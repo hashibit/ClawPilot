@@ -42,6 +42,7 @@ fn row_to_agent(row: &rusqlite::Row<'_>) -> rusqlite::Result<AgentConfig> {
         manages: AgentConfig::json_to_vec(&manages_raw),
         created_at: row.get(20)?,
         updated_at: row.get(21)?,
+        model: row.get(22).ok().flatten(),
     })
 }
 
@@ -56,7 +57,7 @@ const SELECT_AGENT_COLUMNS: &str = r#"
     COALESCE(guardrail_rules, '[]'),
     COALESCE(reports_to, '[]'),
     COALESCE(manages, '[]'),
-    created_at, updated_at
+    created_at, updated_at, model
 "#;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,7 +104,7 @@ pub fn create_agent(pool: &DbPool, config: AgentConfig) -> Result<String> {
             id, opc_id, name, display_name,
             job_title, personality, description, initials,
             gradient_start, gradient_end, is_default, order_index,
-            model_provider, model_name,
+            model_provider, model_name, model,
             enabled_tools, disabled_tools, enabled_skills,
             guardrail_rules, reports_to, manages,
             created_at, updated_at
@@ -111,10 +112,10 @@ pub fn create_agent(pool: &DbPool, config: AgentConfig) -> Result<String> {
             ?1, ?2, ?3, ?4,
             ?5, ?6, ?7, ?8,
             ?9, ?10, ?11, ?12,
-            ?13, ?14,
-            ?15, ?16, ?17,
-            ?18, ?19, ?20,
-            ?21, ?22
+            ?13, ?14, ?15,
+            ?16, ?17, ?18,
+            ?19, ?20, ?21,
+            ?22, ?23
         )"#,
         rusqlite::params![
             config.id,
@@ -131,6 +132,7 @@ pub fn create_agent(pool: &DbPool, config: AgentConfig) -> Result<String> {
             config.order_index,
             config.model_provider,
             config.model_name,
+            config.model,
             AgentConfig::vec_to_json(&config.enabled_tools),
             AgentConfig::vec_to_json(&config.disabled_tools),
             AgentConfig::vec_to_json(&config.enabled_skills),
@@ -162,14 +164,15 @@ pub fn update_agent(pool: &DbPool, id: &str, config: AgentConfig) -> Result<()> 
             order_index = ?11,
             model_provider = ?12,
             model_name = ?13,
-            enabled_tools = ?14,
-            disabled_tools = ?15,
-            enabled_skills = ?16,
-            guardrail_rules = ?17,
-            reports_to = ?18,
-            manages = ?19,
-            updated_at = ?20
-        WHERE id = ?21"#,
+            model = ?14,
+            enabled_tools = ?15,
+            disabled_tools = ?16,
+            enabled_skills = ?17,
+            guardrail_rules = ?18,
+            reports_to = ?19,
+            manages = ?20,
+            updated_at = ?21
+        WHERE id = ?22"#,
         rusqlite::params![
             config.opc_id,
             config.name,
@@ -184,6 +187,7 @@ pub fn update_agent(pool: &DbPool, id: &str, config: AgentConfig) -> Result<()> 
             config.order_index,
             config.model_provider,
             config.model_name,
+            config.model,
             AgentConfig::vec_to_json(&config.enabled_tools),
             AgentConfig::vec_to_json(&config.disabled_tools),
             AgentConfig::vec_to_json(&config.enabled_skills),
@@ -307,7 +311,7 @@ pub fn batch_create_agents(
                 id, opc_id, name, display_name,
                 job_title, personality, description, initials,
                 gradient_start, gradient_end, is_default, order_index,
-                model_provider, model_name,
+                model_provider, model_name, model,
                 enabled_tools, disabled_tools, enabled_skills,
                 guardrail_rules, reports_to, manages,
                 created_at, updated_at
@@ -315,10 +319,10 @@ pub fn batch_create_agents(
                 ?1, ?2, ?3, ?4,
                 ?5, ?6, ?7, ?8,
                 ?9, ?10, ?11, ?12,
-                ?13, ?14,
-                ?15, ?16, ?17,
-                ?18, ?19, ?20,
-                ?21, ?22
+                ?13, ?14, ?15,
+                ?16, ?17, ?18,
+                ?19, ?20, ?21,
+                ?22, ?23
             )"#,
             rusqlite::params![
                 config.id,
@@ -335,6 +339,7 @@ pub fn batch_create_agents(
                 if config.order_index == 0 { idx as i32 } else { config.order_index },
                 config.model_provider,
                 config.model_name,
+                config.model,
                 AgentConfig::vec_to_json(&config.enabled_tools),
                 AgentConfig::vec_to_json(&config.disabled_tools),
                 AgentConfig::vec_to_json(&config.enabled_skills),
@@ -453,6 +458,7 @@ mod tests {
             order_index,
             model_provider: Some("openai".to_string()),
             model_name: Some("gpt-4".to_string()),
+            model: None,
             enabled_tools: vec!["tool-a".to_string()],
             disabled_tools: vec![],
             enabled_skills: vec!["skill-x".to_string()],

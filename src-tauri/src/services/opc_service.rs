@@ -79,7 +79,12 @@ pub fn get_opc(pool: &DbPool, id: &str) -> Result<OpcConfig> {
 /// Inserts a new OPC config, overriding the `id`, `created_at`, and `updated_at`
 /// fields with freshly generated values. Returns the new ID.
 pub fn create_opc(pool: &DbPool, config: OpcConfig) -> Result<String> {
-    let new_id = Uuid::new_v4().to_string();
+    // Respect client-supplied id; fall back to auto-generated UUID (matches server behavior)
+    let new_id = if config.id.is_empty() {
+        format!("opc-{}", Uuid::new_v4().to_string().replace('-', "").chars().take(12).collect::<String>())
+    } else {
+        config.id.clone()
+    };
     let now = Utc::now().timestamp();
     let conn = pool.get()?;
     conn.execute(
@@ -250,6 +255,9 @@ pub fn export_opc(pool: &DbPool, opc_id: &str) -> Result<String> {
 /// unique suffix is appended so the import never fails with a constraint error.
 pub fn import_opc(pool: &DbPool, json: &str) -> Result<String> {
     let mut config: OpcConfig = serde_json::from_str(json)?;
+
+    // Always generate a fresh ID on import to avoid collisions
+    config.id = String::new();
 
     // Ensure the name is unique by appending a short UUID segment when needed.
     let name_taken: bool = {

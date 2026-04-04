@@ -415,13 +415,13 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         })
         .unwrap_or_else(|| format!("~/.openclaw/CPOPC/{}", opc_display_name));
 
-    // Get agents
-    let agents: Vec<(String, String, Option<String>, Option<String>, Option<String>)> = conn
+    // Get agents (model field takes priority over model_provider+model_name)
+    let agents: Vec<(String, String, Option<String>, Option<String>, Option<String>, Option<String>)> = conn
         .prepare(
-            "SELECT name, display_name, model_provider, model_name, initials FROM agents WHERE opc_id = ?1 ORDER BY order_index",
+            "SELECT name, display_name, model_provider, model_name, initials, model FROM agents WHERE opc_id = ?1 ORDER BY order_index",
         )?
         .query_map(rusqlite::params![opc_id], |r| {
-            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
         })?
         .filter_map(|r| r.ok())
         .collect();
@@ -442,25 +442,25 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         .filter_map(|r| r.ok())
         .collect();
 
-    // Default model from first enabled provider
+    // Default model from first enabled provider — use provider name + /default (matches server)
     let default_model = providers
         .first()
-        .map(|(name, api, _, _, _)| {
-            let api_type = api.as_deref().unwrap_or(name.as_str());
-            format!("{}/claude-opus-4-5", api_type)
-        })
-        .unwrap_or_else(|| "anthropic/claude-opus-4-5".to_string());
+        .map(|(name, _, _, _, _)| format!("{}/default", name))
+        .unwrap_or_else(|| "anthropic/default".to_string());
 
     // Build agents members list
     let agents_list: Vec<serde_json::Value> = agents
         .iter()
-        .map(|(name, display_name, model_provider, model_name, initials)| {
-            let model_str = match (model_provider, model_name) {
-                (Some(provider), Some(model)) => format!("{}/{}", provider, model),
-                (Some(provider), None) => format!("{}/default", provider),
-                (None, Some(model)) => model.clone(),
-                (None, None) => default_model.clone(),
-            };
+        .map(|(name, display_name, model_provider, model_name, initials, model)| {
+            // model field takes priority (matches server: agent.model ?? `provider/model_name`)
+            let model_str = model.clone().unwrap_or_else(|| {
+                match (model_provider, model_name) {
+                    (Some(provider), Some(m)) => format!("{}/{}", provider, m),
+                    (Some(provider), None) => format!("{}/default", provider),
+                    (None, Some(m)) => m.clone(),
+                    (None, None) => default_model.clone(),
+                }
+            });
             let emoji = initials.as_deref().and_then(|s| s.chars().next()).unwrap_or('🤖');
             serde_json::json!({
                 "id": name,
@@ -554,7 +554,7 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
                 "workspace": opc_root,
                 "model": { "primary": default_model },
             },
-            "members": agents_list,
+            "list": agents_list,
         },
         "models": { "$include": format!("./OPC/{}/models.json5", opc_name) },
         "channels": { "$include": format!("./OPC/{}/channels.json5", opc_name) },
@@ -586,9 +586,6 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
             "allow": plugin_allow,
             "entries": channels_section,
         },
-        // Inline models data for reference (not written to openclaw.json in server format,
-        // but kept here so callers can preview full model config)
-        "_models_inline": providers_section,
     }))
 }
 
@@ -642,6 +639,10 @@ mod tests {
             internet_speed: None,
             decoration_grade: "MEDIUM".to_string(),
             description: None,
+            access_auth_type: None,
+            access_user: None,
+            access_password: None,
+            ssh_key_path: None,
             daemon_url: None,
             daemon_api_key: None,
             opc_root: None,

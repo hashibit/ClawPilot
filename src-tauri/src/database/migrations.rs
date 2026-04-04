@@ -56,11 +56,17 @@ pub fn run_migrations(pool: &DbPool) -> Result<()> {
     }
 
     if version < 4 {
-        // v3 → v4: opc_root on offices, timestamps on agent_documents
+        // v3 → v4: SSH credential fields + opc_root on offices, timestamps on agent_documents,
+        //          model field on agents
         let alters = [
+            "ALTER TABLE offices ADD COLUMN access_auth_type TEXT",
+            "ALTER TABLE offices ADD COLUMN access_user TEXT",
+            "ALTER TABLE offices ADD COLUMN access_password TEXT",
+            "ALTER TABLE offices ADD COLUMN ssh_key_path TEXT",
             "ALTER TABLE offices ADD COLUMN opc_root TEXT",
             "ALTER TABLE agent_documents ADD COLUMN created_at INTEGER",
             "ALTER TABLE agent_documents ADD COLUMN updated_at INTEGER",
+            "ALTER TABLE agents ADD COLUMN model TEXT",
         ];
         for stmt in &alters {
             let _ = conn.execute_batch(stmt);

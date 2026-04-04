@@ -60,6 +60,7 @@ mod tests {
             order_index: 0,
             model_provider: None,
             model_name: None,
+            model: None,
             enabled_tools: vec![],
             disabled_tools: vec![],
             enabled_skills: vec![],
