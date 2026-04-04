@@ -89,6 +89,12 @@ function collectOpcData(opcId) {
   const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opcId)
   if (!opc) throw new Error(`OPC not found: ${opcId}`)
 
+  // Get opc_root from office settings if available
+  const office = opc.office_id
+    ? db.prepare('SELECT opc_root FROM offices WHERE id = ?').get(opc.office_id)
+    : null
+  const opcRoot = office?.opc_root || `~/.openclaw/CPOPC/${opc.display_name}`
+
   const agents = db.prepare('SELECT * FROM agents WHERE opc_id = ? ORDER BY order_index').all(opcId)
   const agentIds = agents.map(a => a.id)
 
@@ -165,15 +171,16 @@ function collectOpcData(opcId) {
     }
   }
 
-  return { 
-    opc, 
-    agents, 
-    agent_documents: agentDocuments, 
-    channels, 
-    bindings, 
+  return {
+    opc,
+    agents,
+    agent_documents: agentDocuments,
+    channels,
+    bindings,
     model_providers: modelProviders,
     tools,
-    skills
+    skills,
+    opc_root: opcRoot
   }
 }
 
@@ -286,34 +293,12 @@ function regenerateAgentDocuments(opcId) {
   }
 }
 
-/**
- * Build initial SOUL.md for an agent
- */
-function buildInitialSoulMd(agent, opc, isLeader, allAgents) {
-  const reportsTo = agent.reports_to.length > 0
-    ? allAgents.filter(a => agent.reports_to.includes(a.name)).map(a => a.display_name).join('、')
-    : 'Boss（真人）'
-
-  return `# SOUL.md - Your Identity
-
-_你是 ${opc.display_name} 团队的 ${agent.display_name}_
-
-## Your Identity
-
-- **名字:** ${agent.display_name}
-- **职位:** ${agent.job_title || agent.name}
-- **性格:** ${agent.personality || '专业、友好'}
-- **汇报给:** ${reportsTo}
-${isLeader ? `- **你管理:** ${allAgents.filter(a => agent.manages.includes(a.name)).map(a => a.display_name).join('、')}` : ''}
-
-## Your Mission
-
-用你的专业技能帮助团队成功完成任务。保持专注、友好和高效。
-
-`
+function safeJsonArray(val) {
+  if (!val) return []
+  try { const r = JSON.parse(val); return Array.isArray(r) ? r : [] } catch { return [] }
 }
 
-function safeJsonArray(val) {
+function buildAgentsMd(agent, allAgents, opc, rosterRows, reportsTo) {
   return `# AGENTS.md - Your Workspace
 
 _${opc.display_name} 团队成员_
@@ -415,13 +400,13 @@ function removeLeaderSection(soulContent) {
 /** Generate openclaw.json config from OPC data - using $include references */
 function generateOpenclawConfig(opcId) {
   const data = collectOpcData(opcId)
-  const { opc, agents, channels, model_providers: modelProviders } = data
+  const { opc, agents, channels, model_providers: modelProviders, opc_root: opcRoot } = data
 
   // Build agents list
   const agentsList = agents.map(agent => ({
     id: agent.name,
     name: agent.name,
-    workspace: `~/.openclaw/CPOPC/${opc.display_name}/workspace-${agent.display_name}`,
+    workspace: `${opcRoot}/workspace-${agent.display_name}`,
     model: { primary: agent.model ?? `${agent.model_provider ?? 'anthropic'}/${agent.model_name ?? 'claude-opus-4-5'}` },
     identity: {
       name: agent.display_name,
@@ -489,7 +474,7 @@ function generateOpenclawConfig(opcId) {
 
   // Build agents defaults
   const agentsDefaults = {
-    workspace: `~/.openclaw/CPOPC/${opc.display_name}`,
+    workspace: opcRoot,
     model: { primary: defaultModel },
   }
 
