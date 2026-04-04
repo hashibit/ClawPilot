@@ -314,7 +314,7 @@ pub async fn run_deploy(
 ) {
     let update = |f: &dyn Fn(&mut TaskState)| {
         if let Some(t) = state.tasks.get(&task_id) {
-            t.update_blocking(f);
+            t.update(f);
         }
     };
 
@@ -474,7 +474,7 @@ pub async fn run_rollback(
 ) {
     let update = |f: &dyn Fn(&mut TaskState)| {
         if let Some(t) = state.tasks.get(&task_id) {
-            t.update_blocking(f);
+            t.update(f);
         }
     };
 

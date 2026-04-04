@@ -29,6 +29,8 @@ impl DagScheduler {
 
         if ready_tasks.is_empty() {
             tracing::debug!("No ready tasks for plan {}", plan_id);
+            // Still check for plan completion — all tasks may be done
+            self.check_plan_completion(plan_id);
             return;
         }
 

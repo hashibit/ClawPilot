@@ -1,8 +1,7 @@
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize, Serializer};
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::scheduler::{Db, DagScheduler, Worker};
 
@@ -75,7 +74,7 @@ impl Serialize for TaskRecord {
         S: Serializer,
     {
         use serde::ser::SerializeMap;
-        let state = self.inner.blocking_lock();
+        let state = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let mut map = serializer.serialize_map(Some(3))?;
         map.serialize_entry("task_id", &self.task_id)?;
         map.serialize_entry("opc_id", &self.opc_id)?;
@@ -93,27 +92,18 @@ impl TaskRecord {
         }
     }
 
-    /// Update task state atomically (async)
-    pub async fn update<F, R>(&self, f: F) -> R
+    /// Update task state atomically
+    pub fn update<F, R>(&self, f: F) -> R
     where
         F: FnOnce(&mut TaskState) -> R,
     {
-        let mut state = self.inner.lock().await;
-        f(&mut state)
-    }
-
-    /// Update task state atomically (sync, for use in spawn_blocking or non-async contexts)
-    pub fn update_blocking<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce(&mut TaskState) -> R,
-    {
-        let mut state = self.inner.blocking_lock();
+        let mut state = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         f(&mut state)
     }
 
     /// Get a clone of the current state (for reading)
-    pub async fn get_state(&self) -> TaskState {
-        self.inner.lock().await.clone()
+    pub fn get_state(&self) -> TaskState {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 }
 

@@ -10,15 +10,19 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::process::Command;
 use tokio::io::AsyncReadExt;
+use std::process::Stdio;
 use tokio::task::JoinHandle;
 
 use crate::scheduler::{Db, models::*};
+use crate::utils::extract_json;
 
 /// Worker manages task execution via OpenClaw agent processes
 #[derive(Clone)]
 pub struct Worker {
     running_tasks: Arc<DashMap<String, RunningTask>>, // agent_id -> RunningTask
     task_handles: Arc<DashMap<String, JoinHandle<()>>>, // task_id -> handle
+    /// Channel to request DAG sweep for a plan after task completion
+    sweep_tx: Option<Arc<tokio::sync::mpsc::UnboundedSender<String>>>,
 }
 
 impl Worker {
@@ -26,6 +30,16 @@ impl Worker {
         Self {
             running_tasks: Arc::new(DashMap::new()),
             task_handles: Arc::new(DashMap::new()),
+            sweep_tx: None,
+        }
+    }
+
+    /// Create worker with a sweep trigger channel
+    pub fn new_with_sweep(sweep_tx: Arc<tokio::sync::mpsc::UnboundedSender<String>>) -> Self {
+        Self {
+            running_tasks: Arc::new(DashMap::new()),
+            task_handles: Arc::new(DashMap::new()),
+            sweep_tx: Some(sweep_tx),
         }
     }
 
@@ -70,7 +84,10 @@ impl Worker {
                 "--agent", &task.receiver_agent_id,
                 "--message", &context,
                 "--timeout", &task.timeout_seconds.to_string(),
+                "--json",
             ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()
             .context("Failed to spawn openclaw agent")?;
 
@@ -112,6 +129,7 @@ impl Worker {
         let publisher_agent_id = task.publisher_agent_id.clone();
         let running_tasks = self.running_tasks.clone();
         let task_handles = self.task_handles.clone();
+        let sweep_tx_clone = self.sweep_tx.clone();
 
         let handle = tokio::spawn(async move {
             let result = Self::monitor_process(child, task_id.clone(), db_clone.clone()).await;
@@ -155,6 +173,9 @@ impl Worker {
                     let ready_tasks = db_clone.get_ready_tasks(&plan_id);
                     if !ready_tasks.is_empty() {
                         tracing::info!("Task {} completion: {} ready tasks", task_id, ready_tasks.len());
+                    }
+                    if let Some(tx) = &sweep_tx_clone {
+                        let _ = tx.send(plan_id.clone());
                     }
                 }
                 Err(e) => {
@@ -283,37 +304,68 @@ impl Worker {
         }
 
         if !exit_status.success() {
+            let err_snippet = stderr_output.lines().take(5).collect::<Vec<_>>().join(" | ");
             return Err(anyhow::anyhow!(
                 "Process exited with non-zero status: {:?}. stderr: {}",
                 exit_status,
-                stderr_output
+                err_snippet
             ));
         }
 
-        // Parse the output - agent should return JSON in the format:
-        // {"status": "done|failed", "error": "...", "data": {...}}
-        let output_text = stdout_output.trim();
+        // Parse the output.
+        // openclaw --json outputs to stderr: {"payloads":[{"text":"..."}],"meta":{...}}
+        // The agent text should be JSON: {"status":"done|failed","error":"...","data":{...}}
+        // Fallback: treat any non-empty output as success.
+        // Use stderr if stdout is empty (openclaw writes JSON to stderr with --json flag).
+        let stdout_trimmed = stdout_output.trim();
+        let stderr_trimmed = stderr_output.trim();
+        let output_text = if !stdout_trimmed.is_empty() {
+            stdout_trimmed
+        } else {
+            stderr_trimmed
+        };
 
         if output_text.is_empty() {
             return Err(anyhow::anyhow!("Agent returned empty output"));
         }
 
-        // Try to parse as JSON
-        let json: Value = serde_json::from_str(output_text)
-            .with_context(|| format!("Failed to parse agent output as JSON: {}", output_text))?;
+        // Try to parse as JSON (handle mixed text+JSON output from openclaw)
+        let clean_json = extract_json(output_text)
+            .ok_or_else(|| anyhow::anyhow!("No JSON found in agent output: {}",
+                &output_text[..output_text.len().min(200)]))?;
+        let json: Value = serde_json::from_str(&clean_json)
+            .with_context(|| format!("Failed to parse agent JSON: {}", clean_json))?;
 
-        let status = json.get("status")
+        // Extract the actual agent text from openclaw's --json wrapper if present
+        let agent_text = json.get("payloads")
+            .and_then(|p| p.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|first| first.get("text"))
+            .and_then(|t| t.as_str());
+
+        // Try to parse agent text as task result JSON
+        let result_json: Option<Value> = agent_text
+            .and_then(|text| serde_json::from_str(text).ok());
+
+        // Determine the result JSON to use
+        let effective_json = result_json.as_ref().unwrap_or(&json);
+
+        let status = effective_json.get("status")
             .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
+            .unwrap_or_else(|| {
+                // If we have agent text but it's not our protocol format, treat as done
+                if agent_text.is_some() { "done" } else { "unknown" }
+            });
 
         match status {
             "done" => {
                 // Extract result and artifacts
-                let result = json.get("data")
+                let result = effective_json.get("data")
                     .map(|v| serde_json::to_string(v).unwrap_or_default())
+                    .or_else(|| agent_text.map(|t| format!("{{\"result\":{:?}}}", t)))
                     .unwrap_or_else(|| "{}".to_string());
 
-                let output_artifacts: Vec<String> = json.get("output_artifact_ids")
+                let output_artifacts: Vec<String> = effective_json.get("output_artifact_ids")
                     .and_then(|v| v.as_array())
                     .map(|arr| {
                         arr.iter()
@@ -335,7 +387,7 @@ impl Worker {
                 })
             }
             "failed" => {
-                let error = json.get("error")
+                let error = effective_json.get("error")
                     .and_then(|v| v.as_str())
                     .unwrap_or("Unknown error");
 

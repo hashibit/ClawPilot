@@ -10,6 +10,7 @@ mod tests;
 #[cfg(test)]
 mod scheduler_http_tests;
 
+use std::sync::Arc;
 use axum::{
     extract::DefaultBodyLimit,
     middleware,
@@ -123,17 +124,28 @@ async fn main() {
     tracing::info!("Artifact directories initialized");
 
     // Create scheduler components
-    let worker = Worker::new();
+    // Use a channel so the worker can trigger immediate DAG sweeps after task completion
+    let (sweep_tx, mut sweep_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let sweep_tx = Arc::new(sweep_tx);
+    let worker = Worker::new_with_sweep(sweep_tx);
     let dag = DagScheduler::new(db.clone(), worker.clone());
     let recovery = Recovery::new(db.clone(), worker.clone(), dag.clone());
 
     // Create app state with scheduler
-    let state = AppState::new(api_key).with_scheduler(db, worker, dag);
+    let state = AppState::new(api_key).with_scheduler(db, worker, dag.clone());
 
     // Start recovery on startup
     let recovery_clone = recovery.clone();
     tokio::spawn(async move {
         recovery_clone.recover_on_startup().await;
+    });
+
+    // Spawn sweep listener: immediately sweeps a plan when a task completes
+    let dag_sweep = dag.clone();
+    tokio::spawn(async move {
+        while let Some(plan_id) = sweep_rx.recv().await {
+            dag_sweep.sweep(&plan_id);
+        }
     });
 
     // Start internal timer (runs every 60 seconds)

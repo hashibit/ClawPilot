@@ -1009,25 +1009,29 @@ router.post('/deploy_to_office', async (req, res) => {
         })
         if (!statusResp.ok) return
         const statusData = await statusResp.json()
+        const taskStatus = statusData.state?.status ?? statusData.status
 
-        if (statusData.status === 'success') {
+        if (taskStatus === 'success') {
           clearInterval(pollInterval)
+          const logs = statusData.state?.logs ?? statusData.logs ?? []
           db.prepare(`UPDATE deployment_tasks SET status = 'SUCCESS', current_step = 4, completed_at = ?, message = ? WHERE id = ?`)
-            .run(now(), (statusData.logs || []).join('\n'), taskId)
+            .run(now(), logs.join('\n'), taskId)
           db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`)
             .run(now(), opc_id)
           db.prepare(`INSERT INTO office_deployments (id, opc_id, opc_name, office_id, office_name, deployed_at, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)`)
             .run(randomUUID(), opc_id, opc.name, office.id, office.name, now())
           db.prepare(`UPDATE opc_config SET is_running = 1, office_id = ? WHERE id = ?`).run(office.id, opc_id)
           writeLog('INFO', 'deployment', `deploy_to_office SUCCESS: ${opc.name} → ${office.name}`)
-        } else if (statusData.status === 'failed') {
+        } else if (taskStatus === 'failed') {
           clearInterval(pollInterval)
+          const errMsg = statusData.state?.error ?? statusData.error ?? '部署失败'
           db.prepare(`UPDATE deployment_tasks SET status = 'FAILED', message = ?, completed_at = ? WHERE id = ?`)
-            .run(statusData.error || '部署失败', now(), taskId)
-          writeLog('ERROR', 'deployment', `deploy_to_office FAILED: ${statusData.error}`)
+            .run(errMsg, now(), taskId)
+          writeLog('ERROR', 'deployment', `deploy_to_office FAILED: ${errMsg}`)
         } else {
           // In progress
-          const logSnippet = (statusData.logs || []).slice(-5).join('\n')
+          const logs = statusData.state?.logs ?? statusData.logs ?? []
+          const logSnippet = logs.slice(-5).join('\n')
           try {
             db.prepare('UPDATE deployment_tasks SET message = ?, current_step = ? WHERE id = ?')
               .run(logSnippet, 3, taskId)
