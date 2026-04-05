@@ -21,6 +21,12 @@ pub fn sync_skills_from_clawhub(pool: State<'_, DbPool>) -> Result<Vec<SkillInfo
     skill_service::sync_skills_from_clawhub(&pool)
 }
 
+/// Alias for sync_skills_from_clawhub — matches the server endpoint name used by the frontend
+#[tauri::command]
+pub fn sync_skills(pool: State<'_, DbPool>) -> Result<Vec<SkillInfo>> {
+    skill_service::sync_skills_from_clawhub(&pool)
+}
+
 #[tauri::command]
 pub fn create_skill(pool: State<'_, DbPool>, skill: LocalSkillInput) -> Result<i64> {
     skill_service::create_skill(&pool, skill)

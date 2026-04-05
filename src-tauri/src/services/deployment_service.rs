@@ -394,12 +394,12 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
 
     let conn = pool.get()?;
 
-    // Get OPC + associated office (for opc_root)
-    let (opc_name, opc_display_name, office_id): (String, String, Option<String>) = conn
+    // Verify OPC exists (id is the canonical identifier for paths)
+    let _opc_name: String = conn
         .query_row(
-            "SELECT name, display_name, office_id FROM opc_config WHERE id = ?1",
+            "SELECT name FROM opc_config WHERE id = ?1",
             rusqlite::params![opc_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| r.get(0),
         )
         .map_err(|e| match e {
             rusqlite::Error::QueryReturnedNoRows => {
@@ -408,19 +408,14 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
             other => AppError::Database(other),
         })?;
 
-    // Resolve opc_root from office settings, fall back to default
-    let opc_root: String = office_id
-        .as_deref()
-        .and_then(|oid| {
-            conn.query_row(
-                "SELECT opc_root FROM offices WHERE id = ?1",
-                rusqlite::params![oid],
-                |r| r.get::<_, Option<String>>(0),
-            )
-            .ok()
-            .flatten()
-        })
-        .unwrap_or_else(|| format!("~/.openclaw/CPOPC/{}", opc_display_name));
+    // Get global opc_root from settings table (matches server)
+    let opc_root: String = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'opc_root'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .unwrap_or_else(|_| "~/.openclaw/OPC".to_string());
 
     // Get agents (model field takes priority over model_provider+model_name)
     let agents: Vec<(String, String, Option<String>, Option<String>, Option<String>, Option<String>)> = conn
@@ -449,17 +444,25 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         .filter_map(|r| r.ok())
         .collect();
 
-    // Default model from first enabled provider — use provider name + /default (matches server)
+    // Default model: first enabled provider's actual first model from model_info_v2 (matches server)
     let default_model = providers
         .first()
-        .map(|(name, _, _, _, _)| format!("{}/default", name))
-        .unwrap_or_else(|| "anthropic/default".to_string());
+        .and_then(|(provider_name, _, _, _, _)| {
+            conn.query_row(
+                "SELECT model_id FROM model_info_v2 WHERE provider_name = ?1 ORDER BY sort_order LIMIT 1",
+                rusqlite::params![provider_name],
+                |r| r.get::<_, String>(0),
+            )
+            .ok()
+            .map(|model_id| format!("{}/{}", provider_name, model_id))
+        })
+        .unwrap_or_else(|| "anthropic/claude-opus-4-5".to_string());
 
-    // Build agents members list
+    // Build agents list — use opc_id (not display_name) in workspace path (matches server)
     let agents_list: Vec<serde_json::Value> = agents
         .iter()
         .map(|(name, display_name, model_provider, model_name, initials, model)| {
-            // model field takes priority (matches server: agent.model ?? `provider/model_name`)
+            // model field takes priority (matches server: agent.model ?? defaultModel)
             let model_str = model.clone().unwrap_or_else(|| {
                 match (model_provider, model_name) {
                     (Some(provider), Some(m)) => format!("{}/{}", provider, m),
@@ -472,7 +475,7 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
             serde_json::json!({
                 "id": name,
                 "name": name,
-                "workspace": format!("~/.openclaw/OPC/{}/workspace-{}", opc_display_name, display_name),
+                "workspace": format!("{}/{}/workspace-{}", opc_root, opc_id, display_name),
                 "model": {
                     "primary": model_str
                 },
@@ -516,12 +519,12 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
         }
     }
 
-    // Build models section — use actual apiKey string + full models array
+    // Build models section — only include providers with models defined (matches server)
     let mut providers_section = serde_json::Map::new();
     for (name, api, base_url, api_key_enc, _) in &providers {
         let api_key = decrypt(api_key_enc).unwrap_or_default();
         let url = base_url.as_deref().unwrap_or("");
-        let api_type = api.as_deref().unwrap_or(name.as_str());
+        let api_type = api.as_deref().unwrap_or("openai-completions");
 
         // Get models for this provider
         let models: Vec<serde_json::Value> = conn
@@ -551,63 +554,77 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
             })
             .collect();
 
-        let mut provider_obj = serde_json::json!({
-            "api": api_type,
+        // Skip providers with no models (matches server)
+        if models.is_empty() {
+            continue;
+        }
+
+        providers_section.insert(name.clone(), serde_json::json!({
             "baseUrl": url,
             "apiKey": api_key,
-        });
-        if !models.is_empty() {
-            provider_obj["models"] = serde_json::json!(models);
-        }
-        providers_section.insert(name.clone(), provider_obj);
+            "api": api_type,
+            "models": models,
+        }));
     }
 
-    let plugin_allow: Vec<&str> = if channels_section.contains_key("feishu") {
-        vec!["feishu"]
-    } else {
-        vec![]
+    // Build agents section
+    let agents_section = serde_json::json!({
+        "defaults": {
+            "workspace": format!("{}/{}/workspace-default", opc_root, opc_id),
+            "model": { "primary": default_model },
+        },
+        "list": agents_list,
+    });
+
+    let models_section = serde_json::json!({ "providers": providers_section });
+
+    // Build bindings section (matches server format)
+    let bindings_section: Vec<serde_json::Value> = {
+        conn.prepare(
+            "SELECT b.agent_id, a.name as agent_name, b.channel_type, b.channel_id FROM bindings b
+             LEFT JOIN agents a ON a.id = b.agent_id
+             WHERE b.opc_id = ?1 AND b.is_enabled = 1",
+        )
+        .and_then(|mut stmt| {
+            stmt.query_map(rusqlite::params![opc_id], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, Option<String>>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, Option<String>>(3)?,
+                ))
+            })
+            .map(|rows| rows.filter_map(|r| r.ok()).collect::<Vec<_>>())
+        })
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(_, agent_name, channel_type, channel_id)| {
+            serde_json::json!({
+                "agentId": agent_name.unwrap_or_default(),
+                "match": {
+                    "channel": channel_type.to_lowercase(),
+                    "peer": {
+                        "kind": if channel_type == "GROUP" { "group" } else { "direct" },
+                        "id": channel_id.unwrap_or_default(),
+                    }
+                }
+            })
+        })
+        .collect()
     };
 
+    // Return config with _sections for internal use + $include references (matches server)
     Ok(serde_json::json!({
-        "agents": {
-            "defaults": {
-                "workspace": format!("~/.openclaw/OPC/{}", opc_display_name),
-                "model": {
-                    "primary": default_model
-                },
-            },
-            "list": agents_list,
+        "_sections": {
+            "agents": agents_section,
+            "models": models_section,
+            "channels": serde_json::Value::Object(channels_section.clone()),
+            "bindings": bindings_section,
         },
-        "models": { "$include": format!("./OPC/{}/models.json5", opc_name) },
-        "channels": { "$include": format!("./OPC/{}/channels.json5", opc_name) },
-        "bindings": { "$include": format!("./OPC/{}/bindings.json5", opc_name) },
-        "tools": { "profile": "coding" },
-        "messages": { "ackReactionScope": "group-mentions" },
-        "commands": {
-            "native": "auto",
-            "nativeSkills": "auto",
-            "restart": true,
-            "ownerDisplay": "raw",
-        },
-        "session": { "dmScope": "per-channel-peer" },
-        "gateway": {
-            "port": 18789,
-            "mode": "local",
-            "bind": "loopback",
-            "auth": { "mode": "token", "token": "" },
-            "tailscale": { "mode": "off", "resetOnExit": false },
-            "nodes": {
-                "denyCommands": [
-                    "camera.snap", "camera.clip", "screen.record",
-                    "contacts.add", "calendar.add", "reminders.add", "sms.send"
-                ],
-            },
-        },
-        "logging": { "level": "debug" },
-        "plugins": {
-            "allow": plugin_allow,
-            "entries": channels_section,
-        },
+        "agents": { "$include": format!("./{}/agents.json5", opc_id) },
+        "models": { "$include": format!("./{}/models.json5", opc_id) },
+        "channels": { "$include": format!("./{}/channels.json5", opc_id) },
+        "bindings": { "$include": format!("./{}/bindings.json5", opc_id) },
     }))
 }
 

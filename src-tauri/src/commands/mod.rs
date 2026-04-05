@@ -8,6 +8,7 @@ pub mod model;
 pub mod office;
 pub mod opc;
 pub mod process;
+pub mod settings;
 pub mod skill;
 pub mod snapshot;
 pub mod tool;

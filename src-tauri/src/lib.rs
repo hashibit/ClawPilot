@@ -84,6 +84,7 @@ pub fn run() {
             commands::skill::get_bundle_skills_metadata,
             commands::skill::get_skills,
             commands::skill::sync_skills_from_clawhub,
+            commands::skill::sync_skills,
             commands::skill::create_skill,
             commands::skill::delete_skill,
             commands::skill::install_skill,
@@ -130,6 +131,9 @@ pub fn run() {
             commands::process::stop_openclaw,
             commands::process::reload_openclaw,
             commands::process::restart_openclaw,
+            // Settings
+            commands::settings::get_opc_root,
+            commands::settings::set_opc_root,
             // AI
             commands::ai::ai_generate_agent,
             commands::ai::ai_generate_agents,

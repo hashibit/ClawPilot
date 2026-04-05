@@ -370,4 +370,10 @@ CREATE INDEX IF NOT EXISTS idx_log_timestamp ON log_entries(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_log_level ON log_entries(level);
 CREATE INDEX IF NOT EXISTS idx_log_component ON log_entries(component);
 CREATE INDEX IF NOT EXISTS idx_log_agent_id ON log_entries(agent_id);
+
+-- ── Global Settings ──────────────────────────────────────
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
 "#;
