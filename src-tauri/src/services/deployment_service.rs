@@ -219,18 +219,105 @@ pub fn cancel_deployment(pool: &DbPool, id: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn undeploy(pool: &DbPool, opc_id: &str) -> Result<()> {
-    let conn = pool.get()?;
-    let ts = now();
-    conn.execute(
-        "UPDATE office_deployments SET is_active=0, undeployed_at=?1 WHERE opc_id=?2 AND is_active=1",
-        rusqlite::params![ts, opc_id],
-    )?;
-    conn.execute(
-        "UPDATE opc_config SET is_running=0, office_id=NULL WHERE id=?1",
-        rusqlite::params![opc_id],
-    )?;
+pub async fn undeploy(pool: &DbPool, opc_id: &str) -> Result<()> {
+    // Step 1: Query office info before updating DB
+    let office_info: Option<(String, String, String)> = {
+        let conn = pool.get()?;
+        conn.query_row(
+            "SELECT o.daemon_url, o.daemon_api_key, o.initial_openclaw_config
+             FROM offices o
+             JOIN office_deployments od ON od.office_id = o.id
+             WHERE od.opc_id = ?1 AND od.is_active = 1
+             LIMIT 1",
+            rusqlite::params![opc_id],
+            |r| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                    r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                    r.get::<_, Option<String>>(2)?.unwrap_or_default(),
+                ))
+            },
+        )
+        .ok()
+        .filter(|(url, key, _)| !url.is_empty() && !key.is_empty())
+    };
+
+    // Step 2: Update DB
+    {
+        let conn = pool.get()?;
+        let ts = now();
+        conn.execute(
+            "UPDATE office_deployments SET is_active=0, undeployed_at=?1 WHERE opc_id=?2 AND is_active=1",
+            rusqlite::params![ts, opc_id],
+        )?;
+        conn.execute(
+            "UPDATE opc_config SET is_running=0, office_id=NULL WHERE id=?1",
+            rusqlite::params![opc_id],
+        )?;
+    }
+
+    // Step 3: Push reset config to daemon if available (async, best-effort)
+    if let Some((daemon_url, encrypted_key, initial_config)) = office_info {
+        use crate::utils::crypto::decrypt;
+
+        let api_key = decrypt(&encrypted_key).unwrap_or(encrypted_key);
+        let config_content = if initial_config.is_empty() {
+            r#"{"agents":{"defaults":{},"list":[]},"channels":{},"models":{"providers":{}}}"#
+                .to_string()
+        } else {
+            initial_config
+        };
+
+        // Build tar.gz in memory containing manifest.json and openclaw.json
+        let tar_gz_bytes = build_reset_tar_gz(opc_id, &config_content);
+        if let Ok(bytes) = tar_gz_bytes {
+            let url = format!("{}/deploy", daemon_url.trim_end_matches('/'));
+            let client = reqwest::Client::new();
+            let _ = client
+                .post(&url)
+                .header("X-API-Key", &api_key)
+                .header("Content-Type", "application/octet-stream")
+                .body(bytes)
+                .send()
+                .await;
+            // Errors are intentionally ignored — undeploy DB update already succeeded
+        }
+    }
+
     Ok(())
+}
+
+fn build_reset_tar_gz(opc_id: &str, initial_config: &str) -> std::result::Result<Vec<u8>, anyhow::Error> {
+    use flate2::{write::GzEncoder, Compression};
+    use tar::Builder;
+
+    let manifest = serde_json::json!({
+        "opc_id": null,
+        "version": "0.0.0",
+        "checksum": "",
+        "reset": true,
+    });
+    let manifest_bytes = serde_json::to_vec(&manifest)?;
+    let config_bytes = initial_config.as_bytes();
+
+    let buf = Vec::new();
+    let gz = GzEncoder::new(buf, Compression::default());
+    let mut tar = Builder::new(gz);
+
+    let mut header = tar::Header::new_gnu();
+    header.set_size(manifest_bytes.len() as u64);
+    header.set_mode(0o644);
+    header.set_cksum();
+    tar.append_data(&mut header, "manifest.json", manifest_bytes.as_slice())?;
+
+    let mut header2 = tar::Header::new_gnu();
+    header2.set_size(config_bytes.len() as u64);
+    header2.set_mode(0o644);
+    header2.set_cksum();
+    tar.append_data(&mut header2, "openclaw.json", config_bytes)?;
+
+    let gz_writer = tar.into_inner()?;
+    Ok(gz_writer.finish()?)
 }
 
 pub fn get_recent_deployments(
@@ -570,7 +657,7 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
     // Build agents section
     let agents_section = serde_json::json!({
         "defaults": {
-            "workspace": format!("{}/{}/workspace-default", opc_root, opc_id),
+            "workspace": opc_root,
             "model": { "primary": default_model },
         },
         "list": agents_list,
@@ -621,10 +708,10 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
             "channels": serde_json::Value::Object(channels_section.clone()),
             "bindings": bindings_section,
         },
-        "agents": { "$include": format!("./{}/agents.json5", opc_id) },
-        "models": { "$include": format!("./{}/models.json5", opc_id) },
-        "channels": { "$include": format!("./{}/channels.json5", opc_id) },
-        "bindings": { "$include": format!("./{}/bindings.json5", opc_id) },
+        "agents": { "$include": format!("./OPC/{}/agents.json5", opc_id) },
+        "models": { "$include": format!("./OPC/{}/models.json5", opc_id) },
+        "channels": { "$include": format!("./OPC/{}/channels.json5", opc_id) },
+        "bindings": { "$include": format!("./OPC/{}/bindings.json5", opc_id) },
     }))
 }
 
@@ -685,6 +772,7 @@ mod tests {
             daemon_url: None,
             daemon_api_key: None,
             opc_root: None,
+            initial_openclaw_config: None,
             created_at: 0,
             updated_at: 0,
             current_opc_id: None,
@@ -827,8 +915,8 @@ mod tests {
     }
 
     // --- undeploy 测试 ---
-    #[test]
-    fn test_undeploy() {
+    #[tokio::test]
+    async fn test_undeploy() {
         let pool = setup();
 
         let opc_id = opc_service::create_opc(&pool, make_opc("test-opc")).unwrap();
@@ -837,7 +925,7 @@ mod tests {
         let _task_id = start_deployment(&pool, &opc_id, &office_id).unwrap();
         std::thread::sleep(std::time::Duration::from_millis(2500));
 
-        let result = undeploy(&pool, &opc_id);
+        let result = undeploy(&pool, &opc_id).await;
         assert!(result.is_ok());
 
         let opc = opc_service::get_opc(&pool, &opc_id).unwrap();

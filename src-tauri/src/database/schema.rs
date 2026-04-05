@@ -311,6 +311,7 @@ CREATE TABLE IF NOT EXISTS offices (
     access_password TEXT,
     ssh_key_path TEXT,
     opc_root TEXT,
+    initial_openclaw_config TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
