@@ -19,3 +19,4 @@ tests/results/
 tests/e2e/screenshots
 daemon/src-tauri/
 src-tauri/resources/clawpilot-daemon-*
+dev.db

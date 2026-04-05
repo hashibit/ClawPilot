@@ -400,19 +400,7 @@ function generateOpenclawConfig(opcId) {
   const data = collectOpcData(opcId)
   const { opc, agents, channels, model_providers: modelProviders, opc_root: opcRoot } = data
 
-  // Build agents list
-  const agentsList = agents.map(agent => ({
-    id: agent.name,
-    name: agent.name,
-    workspace: `${opcRoot}/${opc.id}/workspace-${agent.display_name}`,
-    model: { primary: agent.model ?? `${agent.model_provider ?? 'anthropic'}/${agent.model_name ?? 'claude-opus-4-5'}` },
-    identity: {
-      name: agent.display_name,
-      emoji: agent.initials || (agent.name ? agent.name[0] : '?'),
-    },
-  }))
-
-  // Default model from first enabled provider's first model
+  // Default model from first enabled provider's first model (must be calculated before agentsList)
   const firstProvider = modelProviders.find(p => p.is_enabled === 1) ?? modelProviders[0]
   let defaultModel = 'anthropic/claude-opus-4-5'
   if (firstProvider) {
@@ -423,6 +411,18 @@ function generateOpenclawConfig(opcId) {
       defaultModel = `${firstProvider.name}/${firstModel.model_id}`
     }
   }
+
+  // Build agents list - use defaultModel as fallback for agent.model
+  const agentsList = agents.map(agent => ({
+    id: agent.name,
+    name: agent.name,
+    workspace: `${opcRoot}/${opc.id}/workspace-${agent.display_name}`,
+    model: { primary: agent.model ?? defaultModel },
+    identity: {
+      name: agent.display_name,
+      emoji: agent.initials || (agent.name ? agent.name[0] : '?'),
+    },
+  }))
 
   // Build channels section
   const channelsSection = {}
