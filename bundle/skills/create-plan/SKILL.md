@@ -1,3 +1,9 @@
+---
+name: create-plan
+description: Use when a complex task requires multiple agents to collaborate. The leader agent uses this skill to decompose tasks into DAG, submit Plan to ClawPilot Daemon for scheduling, and reply to the original user upon completion. Triggers on phrases like "multi-agent task", "coordinate team", "DAG", "create plan", "任务拆解".
+metadata: { "openclaw": { "emoji": "📋" } }
+---
+
 # Create Plan Skill
 
 多智能体任务计划创建技能。领队 Agent 收到复杂任务时，拆解 DAG、提交 Plan 给 daemon 调度执行，并在完成后回复原始用户。
