@@ -170,18 +170,10 @@ mod auth_tests {
         Router,
     };
     use axum_test::TestServer;
-    use std::sync::Arc;
-    use dashmap::DashMap;
     use crate::{auth::require_auth, state::AppState};
 
     fn make_server(api_key: &str) -> TestServer {
-        let state = AppState {
-            api_key: api_key.to_string(),
-            tasks: Arc::new(DashMap::new()),
-            scheduler_db: None,
-            scheduler_worker: None,
-            scheduler_dag: None,
-        };
+        let state = AppState::new(api_key.to_string());
 
         let app: Router = Router::new()
             .route("/protected", get(|| async { "ok" }))
@@ -413,7 +405,7 @@ mod deploy_tests {
         // the safe_join function directly above.  Here we just verify the
         // normal-paths happy path does not raise a traversal error.
         let archive = make_targz(&[("config.json", b"{}")]);
-        let result = extract_package("test-opc-traversal-happy", &archive);
+        let result = extract_package("test-opc-traversal-happy", &archive, None);
         if let Err(ref e) = result {
             let msg = e.to_string().to_lowercase();
             assert!(
@@ -429,7 +421,7 @@ mod deploy_tests {
         // a traversal error. It may fail due to filesystem permissions in CI,
         // but that is a different kind of error.
         let archive = make_targz(&[("config.json", b"{}")]);
-        let result = extract_package("test-opc-valid", &archive);
+        let result = extract_package("test-opc-valid", &archive, None);
         if let Err(ref e) = result {
             let msg = e.to_string().to_lowercase();
             assert!(

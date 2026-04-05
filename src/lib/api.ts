@@ -25,7 +25,7 @@ function toInvokeArgs(args: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(args).map(([k, v]) => [snakeToCamel(k), v]))
 }
 
-async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
+export async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
   if (USE_HTTP) {
     const res = await fetch(`${DEV_BASE}/${cmd}`, {
       method: 'POST',

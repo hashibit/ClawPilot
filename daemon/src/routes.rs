@@ -5,7 +5,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use uuid::Uuid;
 
 use crate::{
@@ -17,20 +17,6 @@ use crate::{
 // Configuration constants
 const MAX_PACKAGE_SIZE: usize = 50 * 1024 * 1024; // 50MB max package size
 const MAX_OPC_ID_LEN: usize = 64;
-
-// Rate limit for health endpoint: requests per second
-const HEALTH_RATE_LIMIT: u64 = 10;
-static HEALTH_REQUESTS: AtomicU64 = AtomicU64::new(0);
-
-// Simple rate limiter: returns false if rate limit exceeded
-fn check_rate_limit(max_per_second: u64) -> bool {
-    let current = HEALTH_REQUESTS.fetch_add(1, Ordering::Relaxed);
-    // Reset counter periodically (every 1000 requests)
-    if current > 1000 {
-        HEALTH_REQUESTS.store(0, Ordering::Relaxed);
-    }
-    current < max_per_second
-}
 
 // Validate opc_id format (alphanumeric, dash, underscore only)
 fn validate_opc_id(opc_id: &str) -> bool {
@@ -68,11 +54,6 @@ pub async fn restart_openclaw() -> Json<Value> {
 // ── GET /health ──────────────────────────────────────────────
 
 pub async fn health(State(_state): State<AppState>) -> Json<Value> {
-    // Rate limit health endpoint
-    if !check_rate_limit(HEALTH_RATE_LIMIT) {
-        return Json(json!({ "status": "rate_limited" }));
-    }
-
     let gw = openclaw_gateway_status();
 
     Json(json!({

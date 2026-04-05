@@ -135,7 +135,7 @@ export default function SettingsPage() {
             部署目录
           </div>
           <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
-            OPC 部署根目录，格式：{opc_root}/{opc_id}/workspace-{agent_name}
+            OPC 部署根目录，格式：{opcRoot}/{'{opc_id}'}/workspace-{'{agent_name}'}
           </div>
 
           <div style={{
