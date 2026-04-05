@@ -412,11 +412,17 @@ function generateOpenclawConfig(opcId) {
     },
   }))
 
-  // Default model from first enabled provider
+  // Default model from first enabled provider's first model
   const firstProvider = modelProviders.find(p => p.is_enabled === 1) ?? modelProviders[0]
-  const defaultModel = firstProvider
-    ? `${firstProvider.name}/default`
-    : 'anthropic/claude-opus-4-5'
+  let defaultModel = 'anthropic/claude-opus-4-5'
+  if (firstProvider) {
+    const firstModel = db.prepare(
+      'SELECT model_id FROM model_info_v2 WHERE provider_name = ? ORDER BY sort_order LIMIT 1'
+    ).get(firstProvider.name)
+    if (firstModel) {
+      defaultModel = `${firstProvider.name}/${firstModel.model_id}`
+    }
+  }
 
   // Build channels section
   const channelsSection = {}
@@ -441,12 +447,15 @@ function generateOpenclawConfig(opcId) {
     } catch (_) { /* ignore parse error */ }
   }
 
-  // Build models section — use actual apiKey string + full models array
+  // Build models section — only include providers that have models defined
   const providersSection = {}
   for (const p of modelProviders.filter(mp => mp.is_enabled === 1)) {
     const models = db.prepare(
       'SELECT * FROM model_info_v2 WHERE provider_name = ? ORDER BY sort_order, model_id'
     ).all(p.name)
+
+    // Only include providers that have models defined
+    if (models.length === 0) continue
 
     const modelsArray = models.map(m => {
       let inputTypes
@@ -465,7 +474,8 @@ function generateOpenclawConfig(opcId) {
     providersSection[p.name] = {
       baseUrl: p.base_url,
       apiKey: p.api_key ?? '',
-      ...(modelsArray.length > 0 ? { models: modelsArray } : {}),
+      api: p.api ?? 'openai-completions',
+      models: modelsArray,
     }
   }
 
@@ -475,18 +485,43 @@ function generateOpenclawConfig(opcId) {
     model: { primary: defaultModel },
   }
 
+  // Build full config sections for json5 files
+  const agentsSection = {
+    defaults: agentsDefaults,
+    list: agentsList,
+  }
+
+  const modelsSection = { providers: providersSection }
+
+  // Build bindings section (OpenClaw format)
+  // Format: [{ agentId: "xxx", match: { channel: "feishu", peer: { kind: "group/direct", id: "xxx" } } }]
+  const bindingsSection = data.bindings
+    .filter(b => b.is_enabled === 1)
+    .map(b => ({
+      agentId: b.agent_name,
+      match: {
+        channel: b.channel_type.toLowerCase(),
+        peer: {
+          kind: b.channel_type === 'GROUP' ? 'group' : 'direct',
+          id: b.channel_id,
+        },
+      },
+    }))
+
   // Return config with $include references - matching local openclaw.json format
+  // The main openclaw.json uses $include to reference separate json5 files
+  // _sections is for internal use to generate the json5 files
   return {
-    agents: {
-      defaults: agentsDefaults,
-      list: agentsList,
-    },
-    ...(Object.keys(providersSection).length > 0 ? {
-      models: { providers: providersSection },
-    } : {}),
-    ...(Object.keys(channelsSection).length > 0 ? {
+    _sections: {
+      agents: agentsSection,
+      models: modelsSection,
       channels: channelsSection,
-    } : {}),
+      bindings: bindingsSection,
+    },
+    agents: { "$include": `./OPC/${opc.id}/agents.json5` },
+    models: { "$include": `./OPC/${opc.id}/models.json5` },
+    channels: { "$include": `./OPC/${opc.id}/channels.json5` },
+    bindings: { "$include": `./OPC/${opc.id}/bindings.json5` },
   }
 }
 
@@ -566,10 +601,10 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
         // manifest.json
         await addFile('manifest.json', JSON.stringify(manifest, null, 2))
 
-        // openclaw.json (with $include references) — placed under opc_id/ so the
-        // daemon extracts it to ~/.openclaw/OPC/{opc_id}/openclaw.json for merging.
+        // Note: We do NOT include opc-xxx/openclaw.json in the tar package.
+        // Instead, daemon will directly update the main ~/.openclaw/openclaw.json
+        // with $include references to the json5 files.
         const opcId = data.opc.id
-        await addFile(`${opcId}/openclaw.json`, openclawConfig)
 
         // Build workspace directories with agent md files
         // Structure: {opc_id}/workspace-{AGENT_NAME}/*.md
@@ -602,11 +637,12 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
           }
         }
 
-        // Also add .json5 files for $include references
-        await addFile(`${opcId}/agents.json5`, data.agents)
-        await addFile(`${opcId}/models.json5`, data.model_providers)
-        await addFile(`${opcId}/channels.json5`, data.channels)
-        await addFile(`${opcId}/bindings.json5`, data.bindings)
+        // Also add .json5 files for $include references - use properly formatted sections
+        const sections = openclawConfig._sections || {}
+        await addFile(`${opcId}/agents.json5`, sections.agents || { defaults: {}, list: [] })
+        await addFile(`${opcId}/models.json5`, sections.models || { providers: {} })
+        await addFile(`${opcId}/channels.json5`, sections.channels || {})
+        await addFile(`${opcId}/bindings.json5`, sections.bindings || [])
 
         // Note: Skills are now copied to each agent's workspace directory above
         // No shared skills directory at OPC root level

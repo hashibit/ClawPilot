@@ -397,36 +397,15 @@ pub fn extract_package(opc_id: &str, data: &[u8], custom_root: Option<&Path>) ->
     Ok(())
 }
 
-/// Merge deployed OPC config into main ~/.openclaw/openclaw.json
+/// Update main ~/.openclaw/openclaw.json with $include references to the OPC's json5 files.
 ///
 /// This preserves existing configuration (gateway token, logging, etc.) and only
 /// updates the $include references for agents, models, channels, and bindings.
 ///
-/// If opc_root is provided, uses that as the OPC directory.
-/// Otherwise, defaults to ~/.openclaw/OPC/{opc_id}.
+/// The OPC directory should contain: agents.json5, models.json5, channels.json5, bindings.json5
 pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyhow::Result<()> {
-    // Determine OPC config path.
-    // When opc_root is provided it is the OPC parent directory (e.g. ~/.openclaw/OPC),
-    // so the per-OPC openclaw.json lives at {opc_root}/{opc_id}/openclaw.json — same
-    // layout that extract_package uses when custom_root is set.
-    let opc_config_path = if let Some(root) = opc_root {
-        root.join(opc_id).join("openclaw.json")
-    } else {
-        openclaw_home().join("OPC").join(opc_id).join("openclaw.json")
-    };
-
     let openclaw_root = openclaw_home();
     let main_config_path = openclaw_root.join("openclaw.json");
-
-    // Read the OPC's config
-    if !opc_config_path.exists() {
-        tracing::warn!("OPC config not found, skipping merge: {}", opc_config_path.display());
-        return Ok(());
-    }
-
-    let opc_config_str = fs::read_to_string(&opc_config_path)?;
-    let opc_config: serde_json::Value = serde_json::from_str(&opc_config_str)
-        .context("failed to parse OPC openclaw.json")?;
 
     // Read existing main config
     let mut main_config: serde_json::Value = if main_config_path.exists() {
@@ -444,47 +423,20 @@ pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyh
         tracing::info!("Backed up main config to {}", backup_path.display());
     }
 
-    // Replace only the 4 OPC-managed keys; preserve everything else
-    // (gateway token, logging, tools, etc. are managed by OpenClaw itself).
+    // Generate $include references for the 4 OPC-managed keys
+    // These point to the json5 files in the OPC directory
+    let include_refs = serde_json::json!({
+        "agents": { "$include": format!("./OPC/{}/agents.json5", opc_id) },
+        "models": { "$include": format!("./OPC/{}/models.json5", opc_id) },
+        "channels": { "$include": format!("./OPC/{}/channels.json5", opc_id) },
+        "bindings": { "$include": format!("./OPC/{}/bindings.json5", opc_id) },
+    });
+
+    // Update main config with $include references
     for field in ["agents", "models", "channels", "bindings"] {
-        if let Some(val) = opc_config.get(field) {
+        if let Some(val) = include_refs.get(field) {
+            tracing::info!("Setting $include for '{}': {:?}", field, val);
             main_config[field] = val.clone();
-        } else if let Some(obj) = main_config.as_object_mut() {
-            obj.remove(field);
-        }
-    }
-
-    // Sync known channel plugins into plugins.allow and plugins.entries.
-    // Only touches the specific channel keys we manage — other user plugins are preserved.
-    const KNOWN_CHANNEL_PLUGINS: &[&str] = &["feishu", "telegram", "discord", "slack"];
-    let channels = main_config.get("channels").cloned().unwrap_or(serde_json::json!({}));
-
-    // Ensure plugins object exists
-    if !main_config.as_object().map_or(false, |o| o.contains_key("plugins")) {
-        main_config["plugins"] = serde_json::json!({ "allow": [], "entries": {} });
-    }
-
-    for &plugin in KNOWN_CHANNEL_PLUGINS {
-        if let Some(channel_cfg) = channels.get(plugin).cloned() {
-            // Add to allow list if not already present
-            let already_allowed = main_config["plugins"]["allow"]
-                .as_array()
-                .map_or(false, |arr| arr.iter().any(|v| v.as_str() == Some(plugin)));
-            if !already_allowed {
-                if let Some(arr) = main_config["plugins"]["allow"].as_array_mut() {
-                    arr.push(serde_json::Value::String(plugin.to_string()));
-                }
-            }
-            // Set entries[plugin] to the channel config
-            main_config["plugins"]["entries"][plugin] = channel_cfg;
-        } else {
-            // Channel removed — clean up allow and entries
-            if let Some(arr) = main_config["plugins"]["allow"].as_array_mut() {
-                arr.retain(|v| v.as_str() != Some(plugin));
-            }
-            if let Some(obj) = main_config["plugins"]["entries"].as_object_mut() {
-                obj.remove(plugin);
-            }
         }
     }
 
@@ -493,9 +445,6 @@ pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyh
         .context("failed to serialize merged config")?;
     fs::write(&main_config_path, output)?;
     tracing::info!("Updated $include references in {}", main_config_path.display());
-
-    // Note: OPC directory is already extracted by extract_package()
-    // and contains .json5 files + workspace directories with md files
 
     tracing::info!("Merged OPC {} $include references", opc_id);
     Ok(())
