@@ -47,7 +47,10 @@ export default function OfficePage() {
     const [deployHistory, setDeployHistory] = useState<OfficeDeployment[]>([])
     const [daemonHealth, setDaemonHealth] = useState<DaemonHealthResult | null>(null)
     const [healthChecking, setHealthChecking] = useState(false)
-    const [installLogs, setInstallLogs] = useState<string[]>([])
+
+    // Install logs with type information for styling
+    type LogEntry = { message: string; type: string; timestamp: number; key?: string; params?: Record<string, unknown> }
+    const [installLogs, setInstallLogs] = useState<LogEntry[]>([])
     const [installStep, setInstallStep] = useState<'idle' | 'checking' | 'openclaw' | 'daemon' | 'done' | 'error'>('idle')
     const [installModalOpen, setInstallModalOpen] = useState(false)
     const installAbortRef = useRef<boolean>(false)
@@ -278,7 +281,11 @@ export default function OfficePage() {
     }
 
     const handleCheckSsh = async () => {
-        const addr = form.address?.trim()
+        // Use form data when editing, selected data when viewing
+        const data = editing ? form : selected
+        if (!data) return
+
+        const addr = data.address?.trim()
         if (!addr || addr === 'localhost') {
             toast('地址必须是 IP 或 IP:端口格式', 'error')
             return
@@ -294,10 +301,10 @@ export default function OfficePage() {
         try {
             const r = await checkSshAuth({
                 address: addr,
-                auth_type: form.access_auth_type ?? 'password',
-                user: form.access_user ?? 'root',
-                password: form.access_password,
-                key_path: form.ssh_key_path,
+                auth_type: data.access_auth_type ?? 'password',
+                user: data.access_user ?? 'root',
+                password: data.access_password,
+                key_path: data.ssh_key_path,
             })
             setSshResult(r)
         } catch (e: any) {
@@ -322,7 +329,10 @@ export default function OfficePage() {
     }
 
     const runInstall = async (saved: Office) => {
-        const lg = (line: string) => setInstallLogs(prev => [...prev, line])
+        // Log helper - adds log entry with type info
+        const lg = (message: string, type: string = 'info') => {
+            setInstallLogs(prev => [...prev, { message, type, timestamp: Date.now() }])
+        }
         const isRemote = !(!saved.address || saved.address === 'localhost')
         const { host: sshHost, port: sshPort } = isRemote ? parseAddress(saved.address!) : { host: '', port: 22 }
         const sshBase = isRemote ? {
@@ -335,21 +345,51 @@ export default function OfficePage() {
         } : {}
         const mode = isRemote ? 'ssh' : 'local'
 
+        // ── SSE connection for real-time install logs ───────────────────
+        const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
+        let sseConnection: EventSource | null = null
+        const connectSSE = () => {
+            lg(String(t('office.install.connecting_sse')), 'banner')
+            sseConnection = new EventSource(`http://localhost:${SERVER_PORT}/api/install_logs/stream/${saved.id}`)
+            sseConnection.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data)
+                    // Support i18n key format: {key, params, type}
+                    if (data.key) {
+                        const translated = String(t(data.key, data.params || {}))
+                        lg(translated, data.type || 'info')
+                    } else if (data.message) {
+                        // Plain message format
+                        lg(data.message, data.type || 'info')
+                    }
+                } catch { /* ignore */ }
+            }
+            sseConnection.onerror = () => {
+                lg('⚠️ 实时日志连接失败，将等待完成后显示日志', 'warning')
+            }
+        }
+        const closeSSE = () => {
+            if (sseConnection) {
+                sseConnection.close()
+                sseConnection = null
+            }
+        }
+
         // Step 0: SSH connectivity check (remote only)
         if (isRemote) {
-            lg(`🔍 检查与 ${saved.address} 的 SSH 连通性…`)
+            lg(`🔍 检查与 ${saved.address} 的 SSH 连通性…`, 'banner')
             try {
                 const r = await checkSshConnection(sshHost, sshPort)
                 setSshResult(r)
                 if (!r.ok) {
-                    lg(`❌ SSH 连通性检查失败：${r.error ?? '无法连通远程主机'}`)
+                    lg(`❌ SSH 连通性检查失败：${r.error ?? '无法连通远程主机'}`, 'error')
                     setInstallStep('error')
                     return
                 }
-                lg(`✅ SSH 连通（延迟 ${r.latency_ms ?? '?'} ms）`)
+                lg(`✅ SSH 连通（延迟 ${r.latency_ms ?? '?'} ms）`, 'success')
             } catch (e) {
                 setSshResult({ ok: false, error: String(e) })
-                lg(`❌ SSH 检测异常：${String(e)}`)
+                lg(`❌ SSH 检测异常：${String(e)}`, 'error')
                 setInstallStep('error')
                 return
             }
@@ -358,22 +398,24 @@ export default function OfficePage() {
 
         // Step 1: install openclaw
         setInstallStep('openclaw')
+        connectSSE() // Connect to SSE for real-time logs
         try {
             lg(t('office.install_openclaw_start'))
             const r1 = await installOpenclaw({ office_id: saved.id, mode, ...sshBase })
-            r1.logs?.forEach(l => lg(l))
+            closeSSE()
+            // SSE already pushed logs in real-time, don't add duplicates
             if (!r1.ok) { lg(`❌ ${r1.error ?? t('office.install_failed')}`); setInstallStep('error'); return }
             lg(t('office.install_openclaw_done'))
-        } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); return }
-        if (installAbortRef.current) { setInstallStep('idle'); return }
+        } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); closeSSE(); return }
+        if (installAbortRef.current) { setInstallStep('idle'); closeSSE(); return }
 
         // Step 2: install daemon
         setInstallStep('daemon')
         try {
             lg(t('office.install_daemon_start'))
             const r2 = await installDaemon({ office_id: saved.id, mode, ...sshBase })
-            r2.logs?.forEach(l => lg(l))
-            if (!r2.ok) { lg(`❌ ${r2.error ?? t('office.install_failed')}`); setInstallStep('error'); return }
+            // SSE already pushed logs in real-time, don't add duplicates
+            if (!r2.ok) { lg(`❌ ${r2.error ?? t('office.install_failed')}`); setInstallStep('error'); closeSSE(); return }
             lg(t('office.install_daemon_done'))
             if (r2.daemon_url && r2.api_key) {
                 handleFormChange('daemon_url', r2.daemon_url)
@@ -383,6 +425,7 @@ export default function OfficePage() {
             }
             setInstallStep('done')
         } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); }
+        closeSSE()
     }
 
     const handleInstallStop = () => {
@@ -498,6 +541,24 @@ export default function OfficePage() {
                                 {(editing || isNewOffice) && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>未保存</span>}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {/* 测试连接按钮 - 只读和编辑模式都可用，仅远程办公室显示 */}
+                                {selected && selected.address && selected.address !== 'localhost' && (
+                                    <>
+                                        <button
+                                            className="tbtn tbtn-ghost"
+                                            onClick={handleCheckSsh}
+                                            disabled={sshChecking}
+                                            style={{ fontSize: '12px' }}
+                                        >
+                                            {sshChecking ? '测试中…' : '测试连接'}
+                                        </button>
+                                        {sshResult && (
+                                            <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
+                                                {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗`}
+                                            </span>
+                                        )}
+                                    </>
+                                )}
                                 {(editing || isNewOffice) ? (
                                     <>
                                         <button className="tbtn tbtn-ghost" onClick={handleCancel}>{t('common.button_cancel')}</button>
@@ -648,20 +709,15 @@ export default function OfficePage() {
                                                     )}
                                                 </div>
                                             </div>
-                                            {/* 测试连接 */}
-                                            <div className="group-row" style={{ gap: '10px' }}>
-                                                <span className="group-label" style={{ minWidth: '40px' }}></span>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <button onClick={handleCheckSsh} disabled={sshChecking || !editing} className="tbtn tbtn-ghost" style={{ fontSize: '12px', opacity: editing ? 1 : 0.5 }}>
-                                                        {sshChecking ? '检测中…' : '测试连接'}
-                                                    </button>
-                                                    {sshResult && (
-                                                        <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
-                                                            {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
-                                                        </span>
-                                                    )}
+                                            {/* SSH 测试结果显示 - 仅失败时显示详细错误 */}
+                                            {sshResult && !sshResult.ok && (
+                                                <div className="group-row" style={{ gap: '10px' }}>
+                                                    <span className="group-label" style={{ minWidth: '40px' }}></span>
+                                                    <span style={{ fontSize: '11px', color: '#f43f5e' }}>
+                                                        ✗ {sshResult.error}
+                                                    </span>
                                                 </div>
-                                            </div>
+                                            )}
                                         </>
                                     )}
                                     <div className="group-row" style={{ gap: '10px' }}>
@@ -746,9 +802,14 @@ export default function OfficePage() {
                                             }
                                         </span>
                                     </div>
-                                    {daemonHealth && !daemonHealth.ok && daemonHealth.error && (
+                                    {daemonHealth && !daemonHealth.ok && daemonHealth.error && !daemonHealth.not_installed && (
                                         <div style={{ padding: '5px 10px', fontSize: '11px', color: '#f87171', background: 'rgba(244,63,94,0.06)', borderTop: '1px solid rgba(244,63,94,0.1)' }}>
                                             {daemonHealth.error}
+                                        </div>
+                                    )}
+                                    {daemonHealth?.not_installed && (
+                                        <div style={{ padding: '5px 10px', fontSize: '11px', color: '#fbbf24', background: 'rgba(251,191,36,0.06)', borderTop: '1px solid rgba(251,191,36,0.1)' }}>
+                                            Daemon 未安装，点击「安装物业」开始安装
                                         </div>
                                     )}
                                 </div>
@@ -893,16 +954,39 @@ export default function OfficePage() {
                         }}>
                             {installLogs.length === 0 ? (
                                 <span style={{ color: 'rgba(235,235,245,0.25)' }}>等待开始…</span>
-                            ) : installLogs.map((line, i) => (
-                                <div key={i} style={{
-                                    color: line.startsWith('❌') ? '#f87171'
-                                        : (line.startsWith('✅') || line.startsWith('🔑') || line.startsWith('💾')) ? '#34d399'
-                                        : line.startsWith('▶') || line.startsWith('🔍') ? '#a78bfa'
-                                        : '#EBEBF5',
-                                }}>
-                                    {line}
-                                </div>
-                            ))}
+                            ) : installLogs.map((entry, i) => {
+                                // Style based on log type
+                                const getLogStyle = (type: string): React.CSSProperties => {
+                                    const base: React.CSSProperties = {}
+                                    switch (type) {
+                                        case 'step':
+                                            return { color: '#60a5fa', fontWeight: 600 }  // Blue, bold
+                                        case 'success':
+                                            return { color: '#34d399' }  // Green
+                                        case 'detail':
+                                            return { color: '#9ca3af', paddingLeft: '12px' }  // Gray, indented
+                                        case 'progress':
+                                            return { color: '#a78bfa', fontWeight: 500 }  // Purple
+                                        case 'error':
+                                            return { color: '#f87171', fontWeight: 500 }  // Red
+                                        case 'warning':
+                                            return { color: '#fbbf24' }  // Yellow
+                                        case 'banner':
+                                            return { color: '#c4b5fd', fontWeight: 600, marginTop: '4px' }  // Light purple, bold
+                                        case 'keyvalue':
+                                            return { color: '#d1d5db' }  // Light gray
+                                        case 'empty':
+                                            return { display: 'none' }
+                                        default:
+                                            return { color: '#EBEBF5' }  // Default white
+                                    }
+                                }
+                                return (
+                                    <div key={i} style={getLogStyle(entry.type)}>
+                                        {entry.message}
+                                    </div>
+                                )
+                            })}
                         </div>
 
                         {/* Footer buttons */}

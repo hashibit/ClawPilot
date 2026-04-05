@@ -8,8 +8,108 @@ import { homedir } from 'os'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
 import { encrypt, decrypt } from '../utils/crypto.js'
+import { execRemote, checkConnection, detectArch, commandExists, readFile, uploadFile } from '../utils/ssh.js'
 
 const log = createLogger('office')
+
+// ── Install SSE Clients ───────────────────────────────────────
+// Map of office_id -> Set of SSE clients
+const installSseClients = new Map()
+
+/**
+ * Analyze a log line and determine its type for styling
+ * @param {string} line - The log line to analyze
+ * @returns {{ type: string, message: string }} - Type and cleaned message
+ */
+function classifyLogLine(line) {
+  const trimmed = line.trim()
+  if (!trimmed) return { type: 'empty', message: '' }
+
+  // Step/Progress markers: [1/3], [2/3], etc.
+  if (/^\[\d+\/\d+\]/.test(trimmed)) {
+    return { type: 'step', message: trimmed }
+  }
+
+  // Success markers: ✓, ✔
+  if (/^[✓✔]/.test(trimmed)) {
+    return { type: 'success', message: trimmed }
+  }
+
+  // Detail lines: · (middle dot)
+  if (/^[·•]/.test(trimmed)) {
+    return { type: 'detail', message: trimmed }
+  }
+
+  // Progress percentage: 50%, 100.0%
+  if (/^\d+\.?\d*%$/.test(trimmed)) {
+    return { type: 'progress', message: trimmed }
+  }
+
+  // Error indicators
+  if (/^[✗✘❌❗⚠]|ERROR|FAIL|error:|failed/i.test(trimmed)) {
+    return { type: 'error', message: trimmed }
+  }
+
+  // Warning indicators
+  if (/^⚠|WARN|warning/i.test(trimmed)) {
+    return { type: 'warning', message: trimmed }
+  }
+
+  // Banner/Title: 🦞, emoji at start
+  if (/^[🦞🎯🚀📦🔧🔍🔑💾📡📥📤🔐✨]/.test(trimmed)) {
+    return { type: 'banner', message: trimmed }
+  }
+
+  // Key-value pairs: "OS: linux", "Install method: npm"
+  if (/^(OS|Install|Requested|Onboarding|Active|Detected|Version|Path|URL|Environment|Executing|Checking):/i.test(trimmed)) {
+    return { type: 'keyvalue', message: trimmed }
+  }
+
+  // Default: info
+  return { type: 'info', message: trimmed }
+}
+
+/**
+ * Broadcast install log to all SSE clients for a specific office
+ * Supports two formats:
+ *   - {key, params, type} - i18n key format, frontend will translate
+ *   - {message, type} - plain message format (for raw output like script stdout)
+ */
+function broadcastInstallLog(officeId, payload) {
+  const clients = installSseClients.get(officeId)
+  if (!clients || clients.size === 0) return
+
+  // Handle both formats
+  let dataToSend
+  if (typeof payload === 'string') {
+    // Legacy string format
+    const classified = classifyLogLine(payload)
+    dataToSend = { message: classified.message, type: classified.type, timestamp: Date.now() }
+  } else if (payload.key) {
+    // i18n key format
+    dataToSend = { key: payload.key, params: payload.params || {}, type: payload.type || 'info', timestamp: Date.now() }
+  } else {
+    // Plain message object
+    const classified = classifyLogLine(payload.message || '')
+    dataToSend = { message: classified.message, type: classified.type, timestamp: Date.now() }
+  }
+
+  const data = `data: ${JSON.stringify(dataToSend)}\n\n`
+  for (const client of clients) {
+    try {
+      client.write(data)
+    } catch (e) {
+      clients.delete(client)
+    }
+  }
+}
+
+/**
+ * Helper to create i18n-key-based log entry
+ */
+function logKey(key, params = {}, type = 'info') {
+  return { key, params, type }
+}
 
 const EMPTY_OPENCLAW_CONFIG = JSON.stringify({
   agents: { defaults: {}, list: [] },
@@ -54,18 +154,6 @@ async function findDaemonBinary({ linux = false, arch = 'aarch64' } = {}) {
     if (existsSync(resolve(c))) return resolve(c)
   }
   return null
-}
-
-async function probeRemoteArch(sshOpts, target) {
-  try {
-    const { stdout } = await execAsync(`ssh ${sshOpts} "${target}" "uname -m && uname -s"`, { timeout: 10000 })
-    const lines = stdout.trim().split('\n')
-    const arch = lines[0]?.trim() || 'x86_64'
-    const os = lines[1]?.trim() || 'Linux'
-    return { arch, os }
-  } catch {
-    return { arch: 'x86_64', os: 'Linux' }
-  }
 }
 
 async function isDaemonRunning(url) {
@@ -240,7 +328,15 @@ export function createOfficeRouter(db) {
       const data = await r.json()
       res.json({ ok: true, ...data })
     } catch (err) {
-      res.json({ ok: false, error: err.message })
+      // Translate common errors to user-friendly messages
+      const msg = err.message || ''
+      if (msg.includes('abort') || msg.includes('timeout') || msg.includes('Timeout')) {
+        res.json({ ok: false, error: '连接超时', not_installed: true })
+      } else if (msg.includes('ECONNREFUSED') || msg.includes('connect')) {
+        res.json({ ok: false, error: '无法连接', not_installed: true })
+      } else {
+        res.json({ ok: false, error: '连接失败' })
+      }
     }
   })
 
@@ -278,41 +374,35 @@ export function createOfficeRouter(db) {
     const host = m[1]
     const port = m[2] ? Number(m[2]) : 22
     const sshUser = user || 'root'
-    // Validate SSH username to prevent command injection
+    // Validate SSH username
     if (!/^[a-zA-Z0-9._-]+$/.test(sshUser)) {
       return res.json({ ok: false, error: 'SSH 用户名格式无效' })
     }
 
+    // Expand key path if needed
+    const expandedKeyPath = key_path ? key_path.replace(/^~/, homedir()) : null
+    if (auth_type === 'ssh_key' && expandedKeyPath && !existsSync(expandedKeyPath)) {
+      return res.json({ ok: false, error: 'SSH 密钥文件不存在' })
+    }
+
     const start = Date.now()
     try {
-      if (auth_type === 'ssh_key') {
-        // Test SSH key auth: expect exit 0 (connected) or exit 1 (auth ok, no shell)
-        const keyPath = key_path ? resolve(key_path.replace(/^~/, homedir())) : null
-        if (!keyPath || !existsSync(keyPath)) {
-          return res.json({ ok: false, error: 'SSH 密钥文件不存在' })
-        }
-        await execAsync(
-          `ssh -i "${keyPath}" -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -p ${port} ${sshUser}@${host} "exit" 2>&1`,
-          { timeout: 8000 }
-        )
-      } else {
-        // Password auth via sshpass
-        if (!password) return res.json({ ok: false, error: '请填写 SSH 密码' })
-        const escaped = password.replace(/'/g, `'\\''`)
-        await execAsync(
-          `sshpass -p '${escaped}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p ${port} ${sshUser}@${host} "exit" 2>&1`,
-          { timeout: 8000 }
-        )
+      const sshOpts = {
+        host,
+        port,
+        user: sshUser,
+        password: auth_type === 'password' ? password : undefined,
+        keyPath: auth_type === 'ssh_key' ? expandedKeyPath : undefined,
+        timeout: 5000,
       }
+      await execRemote(sshOpts, 'exit 0', { timeout: 5000 })
       res.json({ ok: true, latency_ms: Date.now() - start })
     } catch (err) {
-      const msg = String(err.message || err.stderr || err)
-      if (msg.includes('Permission denied') || msg.includes('Authentication failed')) {
+      const msg = err.message || ''
+      if (msg.includes('Authentication') || msg.includes('permission')) {
         res.json({ ok: false, error: '认证失败，请检查用户名和密码/密钥' })
-      } else if (msg.includes('Connection refused') || msg.includes('connect to host')) {
+      } else if (msg.includes('ECONNREFUSED') || msg.includes('connect')) {
         res.json({ ok: false, error: '无法连接到主机，请检查地址和端口' })
-      } else if (msg.includes('sshpass') && msg.includes('not found')) {
-        res.json({ ok: false, error: '服务器缺少 sshpass，请用 SSH 密钥认证' })
       } else {
         res.json({ ok: false, error: msg.split('\n')[0] })
       }
@@ -337,10 +427,25 @@ export function createOfficeRouter(db) {
     const {
       office_id, mode = 'local', daemon_port = 16668,
       ssh_host, ssh_port = 22, ssh_user = 'root', ssh_key_path, ssh_config_file,
+      ssh_password,
       daemon_host,
     } = req.body
     const logs = []
-    const step = (msg) => { logs.push(msg); log.info(`[install_daemon] ${msg}`) }
+    // step function supports both plain message and i18n key format
+    const step = (msgOrKey, params = {}) => {
+      const isKeyFormat = typeof msgOrKey === 'string' && msgOrKey.startsWith('office.install.')
+      let displayMsg, payload
+      if (isKeyFormat) {
+        displayMsg = `[i18n:${msgOrKey}]`
+        payload = { key: msgOrKey, params, type: 'info' }
+      } else {
+        displayMsg = msgOrKey
+        payload = displayMsg
+      }
+      logs.push(displayMsg)
+      log.info(`[install_daemon] ${displayMsg}`)
+      if (office_id) broadcastInstallLog(office_id, payload)
+    }
 
     try {
       if (mode === 'local') {
@@ -376,7 +481,7 @@ export function createOfficeRouter(db) {
           await new Promise(r => setTimeout(r, 700))
           if (await isDaemonRunning(daemonUrl)) { started = true; break }
         }
-        if (!started) return res.json({ ok: false, error: '启动超时，请检查端口是否被占用', logs })
+        if (!started) return res.json({ ok: false, error: 'office.install.timeout_startup', logs })
         step('✅ Daemon 已就绪')
 
         const apiKey = readLocalKey()
@@ -392,20 +497,27 @@ export function createOfficeRouter(db) {
 
       } else if (mode === 'ssh') {
         if (!ssh_host) return res.json({ ok: false, error: '请填写远程主机地址', logs })
-        const keyFlag = ssh_key_path ? `-i "${ssh_key_path}"` : ''
-        const configFlag = ssh_config_file ? `-F "${ssh_config_file}"` : ''
-        const sshOpts = ssh_config_file
-          ? `${configFlag} -o StrictHostKeyChecking=no -o ConnectTimeout=10`.trim()
-          : `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${ssh_port} ${keyFlag}`.trim()
-        const scpOpts = ssh_config_file
-          ? `${configFlag} -o StrictHostKeyChecking=no -o ConnectTimeout=10`.trim()
-          : `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -P ${ssh_port} ${keyFlag}`.trim()
-        const target = `${ssh_user}@${ssh_host}`
-        const bareHost = daemon_host || (ssh_host.includes('@') ? ssh_host.split('@').pop() : ssh_host)
-        const daemonUrl = `http://${bareHost}:${daemon_port}`
+
+        // Build SSH options
+        const sshOpts = {
+          host: ssh_host,
+          port: ssh_port,
+          user: ssh_user || 'root',
+          password: ssh_password || undefined,
+          keyPath: ssh_key_path || undefined,
+        }
+
+        // Log SSH auth method
+        if (ssh_password) {
+          step('office.install.ssh_password_auth')
+        } else if (ssh_key_path) {
+          step('office.install.ssh_key_auth', { keyPath: ssh_key_path })
+        } else {
+          step('office.install.ssh_default_key')
+        }
 
         step('🔍 检测远程系统架构...')
-        const { arch: remoteArch, os: remoteOs } = await probeRemoteArch(sshOpts, target)
+        const { arch: remoteArch, os: remoteOs } = await detectArch(sshOpts)
         step(`✅ 远程系统: ${remoteOs} ${remoteArch}`)
 
         step('🔍 查找本地 daemon 二进制（Linux）...')
@@ -415,10 +527,10 @@ export function createOfficeRouter(db) {
         }
         step(`✅ 找到: ${binPath}`)
 
-        step(`📤 上传到 ${target}...`)
-        await execAsync(`scp ${scpOpts} "${binPath}" "${target}:/tmp/clawpilot-daemon"`)
-        await execAsync(`ssh ${sshOpts} "${target}" "chmod +x /tmp/clawpilot-daemon && sudo mv /tmp/clawpilot-daemon /usr/local/bin/clawpilot-daemon"`)
-        step('✅ 二进制已上传')
+        step('office.install.uploading_daemon')
+        await uploadFile(sshOpts, binPath, '/tmp/clawpilot-daemon')
+        await execRemote(sshOpts, 'chmod +x /tmp/clawpilot-daemon && sudo mv /tmp/clawpilot-daemon /usr/local/bin/clawpilot-daemon')
+        step('office.install.daemon_uploaded')
 
         step('🔧 安装 systemd 用户服务...')
         const serviceUnit = [
@@ -436,22 +548,22 @@ export function createOfficeRouter(db) {
           '[Install]',
           'WantedBy=default.target',
         ].join('\n')
-        // Use base64 to avoid escaping issues
         const encodedUnit = Buffer.from(serviceUnit).toString('base64')
-        await execAsync(`ssh ${sshOpts} "${target}" "mkdir -p ~/.config/systemd/user && echo '${encodedUnit}' | base64 -d > ~/.config/systemd/user/clawpilot-daemon.service && systemctl --user daemon-reload && systemctl --user enable clawpilot-daemon && systemctl --user start clawpilot-daemon"`)
+        await execRemote(sshOpts, `mkdir -p ~/.config/systemd/user && echo '${encodedUnit}' | base64 -d > ~/.config/systemd/user/clawpilot-daemon.service && systemctl --user daemon-reload && systemctl --user enable clawpilot-daemon && systemctl --user start clawpilot-daemon`)
         step('✅ systemd 用户服务已启用')
 
         step('⏳ 等待远程 daemon 就绪...')
+        const bareHost = daemon_host || ssh_host
+        const daemonUrl = `http://${bareHost}:${daemon_port}`
         let started = false
         for (let i = 0; i < 15; i++) {
           await new Promise(r => setTimeout(r, 1000))
           if (await isDaemonRunning(daemonUrl)) { started = true; break }
         }
-        if (!started) return res.json({ ok: false, error: '远程 daemon 启动超时，请检查 systemctl --user status clawpilot-daemon', logs })
+        if (!started) return res.json({ ok: false, error: 'office.install.timeout_remote_startup', logs })
         step('✅ 远程 daemon 已就绪')
 
-        const { stdout: keyOut } = await execAsync(`ssh ${sshOpts} "${target}" "cat ~/.clawpilot/daemon.key"`)
-        const apiKey = keyOut.trim() || null
+        const apiKey = await readFile(sshOpts, '~/.clawpilot/daemon.key').then(s => s.trim()).catch(() => null)
         step('🔑 API Key 已读取')
 
         if (office_id && apiKey) {
@@ -476,21 +588,50 @@ export function createOfficeRouter(db) {
     const {
       office_id, mode = 'local',
       ssh_host, ssh_port = 22, ssh_user = 'root', ssh_key_path, ssh_config_file,
+      ssh_password,
     } = req.body
     const logs = []
-    const lg = (msg) => logs.push(msg)
+    // Log to array AND broadcast to SSE clients in real-time
+    // Supports two formats:
+    //   - lg('message', 'type') - plain message (for raw script output)
+    //   - lg('office.install.key', { params }, 'type') - i18n key with params
+    const lg = (msgOrKey, paramsOrLevel = {}, levelOrUndefined = 'info') => {
+      // Detect format: if first arg starts with 'office.install.', it's an i18n key
+      const isKeyFormat = typeof msgOrKey === 'string' && msgOrKey.startsWith('office.install.')
+      let displayMsg, level, payload
+
+      if (isKeyFormat) {
+        const key = msgOrKey
+        const params = typeof paramsOrLevel === 'object' ? paramsOrLevel : {}
+        level = typeof levelOrUndefined === 'string' ? levelOrUndefined : 'info'
+        // For logs array, we still need a display message - use key as placeholder
+        // Frontend will translate via SSE
+        displayMsg = `[i18n:${key}]`
+        payload = { key, params, type: level }
+      } else {
+        displayMsg = msgOrKey
+        level = typeof paramsOrLevel === 'string' ? paramsOrLevel : 'info'
+        payload = displayMsg
+      }
+
+      logs.push(displayMsg)
+      log.info(`[install_openclaw] ${displayMsg}`)
+      if (office_id) {
+        broadcastInstallLog(office_id, payload)
+      }
+    }
 
     // Helper to install git based on OS
     const installGitLocal = async () => {
       try {
         const { stdout } = await execAsync('which git', { timeout: 5000 })
         if (stdout.trim()) {
-          lg('✅ git 已安装')
+          lg('office.install.git_installed', { path: stdout.trim() })
           return true
         }
       } catch {}
 
-      lg('📥 安装 git...')
+      lg('office.install.installing_git')
       const platform = process.platform
 
       if (platform === 'darwin') {
@@ -499,11 +640,11 @@ export function createOfficeRouter(db) {
           const { stdout: brewCheck } = await execAsync('which brew', { timeout: 5000 })
           if (brewCheck.trim()) {
             await execAsync('brew install git', { timeout: 120000 })
-            lg('✅ git 安装完成 (brew)')
+            lg('office.install.git_installed_pm', { pm: 'brew' })
             return true
           }
         } catch {}
-        lg('⚠️ Homebrew 未安装，请手动安装 git')
+        lg('office.install.homebrew_missing', {}, 'warning')
         return false
       } else if (platform === 'linux') {
         // Linux: try apt, then yum, then dnf
@@ -516,7 +657,7 @@ export function createOfficeRouter(db) {
         for (const cmd of pmCmds) {
           try {
             await execAsync(cmd, { timeout: 120000 })
-            lg('✅ git 安装完成')
+            lg('office.install.git_installed')
             return true
           } catch (err) {
             // Check if it's a password-required error
@@ -525,62 +666,157 @@ export function createOfficeRouter(db) {
             }
           }
         }
-        lg('⚠️ sudo 需要密码或包管理器不可用，请手动安装 git: sudo apt-get install git')
+        lg('office.install.sudo_password_needed', {}, 'warning')
         return false
       }
 
-      lg(`⚠️ 未知平台 ${platform}，请手动安装 git`)
+      lg('office.install.unknown_platform', { platform }, 'warning')
       return false
     }
 
     try {
       if (mode === 'local') {
         // Install git first
+        lg('office.install.checking_git')
         await installGitLocal()
 
+        lg('office.install.checking_openclaw')
         try {
           const { stdout } = await execAsync('which openclaw', { timeout: 5000 })
           if (stdout.trim()) {
-            lg('✅ OpenClaw 已安装，跳过')
+            lg('office.install.openclaw_installed', { path: stdout.trim() })
           } else {
             throw new Error('not found')
           }
         } catch {
-          lg('📥 安装 OpenClaw...')
+          lg('office.install.downloading_script')
+          lg('office.install.script_url')
+          lg('office.install.script_env')
+          lg('office.install.script_time_local')
           try {
-            const { stdout: installOut, stderr: installErr } = await execAsync(
-              'OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fsSL https://openclaw.ai/install.sh | bash"',
-              { shell: true, timeout: 120000 }
-            )
-            if (installOut) lg(stripAnsi(installOut.trim()))
-            if (installErr) lg(stripAnsi(installErr.trim()))
-            lg('✅ 安装脚本执行完毕')
+            // Use spawn to capture real-time output
+            const installCmd = 'curl'
+            const installArgs = [
+              '-f',           // Fail on HTTP errors
+              '-S',           // Show errors
+              '-L',           // Follow redirects
+              '--progress-bar', // Show progress bar
+              'https://openclaw.ai/install.sh'
+            ]
+
+            lg('office.install.executing_curl')
+            const curlOut = await new Promise((resolve, reject) => {
+              const chunks = []
+              const errChunks = []
+              const child = spawn(installCmd, installArgs, { shell: false })
+              child.stdout.on('data', d => chunks.push(d))
+              child.stderr.on('data', d => {
+                const s = stripAnsi(d.toString())
+                // curl progress bar goes to stderr
+                if (s.trim()) errChunks.push(s)
+              })
+              child.on('close', code => {
+                if (code === 0) resolve(Buffer.concat(chunks).toString())
+                else reject(new Error(`curl 失败 (exit ${code}): ${Buffer.concat(errChunks).toString()}`))
+              })
+              child.on('error', reject)
+            })
+            lg('office.install.script_downloaded', { size: curlOut.length })
+
+            lg('office.install.running_script')
+            lg('office.install.script_note')
+            const scriptOut = await new Promise((resolve, reject) => {
+              const chunks = []
+              const errChunks = []
+              const child = spawn('bash', [], {
+                shell: false,
+                env: {
+                  ...process.env,
+                  OPENCLAW_NO_PROMPT: '1',
+                  OPENCLAW_NO_ONBOARD: '1',
+                }
+              })
+              child.stdin.write(curlOut)
+              child.stdin.end()
+              child.stdout.on('data', d => {
+                const s = stripAnsi(d.toString())
+                if (s.trim()) {
+                  // Split multi-line output and add each line
+                  s.trim().split('\n').forEach(line => {
+                    if (line.trim()) lg(`   ${line.trim()}`)
+                  })
+                }
+                chunks.push(d)
+              })
+              child.stderr.on('data', d => {
+                const s = stripAnsi(d.toString())
+                if (s.trim()) {
+                  s.trim().split('\n').forEach(line => {
+                    if (line.trim()) lg(`   [stderr] ${line.trim()}`)
+                  })
+                }
+                errChunks.push(d)
+              })
+              child.on('close', code => {
+                if (code === 0) resolve(Buffer.concat(chunks).toString())
+                else reject(new Error(`安装脚本失败 (exit ${code}): ${Buffer.concat(errChunks).toString()}`))
+              })
+              child.on('error', reject)
+            })
+            lg('office.install.script_done')
           } catch (err) {
-            lg(`❌ 安装失败: ${err.message}`)
+            lg('office.install.script_failed', { error: err.message }, 'error')
             return res.json({ ok: false, error: err.message, logs })
           }
         }
 
-        lg('🔧 注册 OpenClaw 服务...')
+        lg('office.install.registering_service')
+        lg('office.install.running_onboard')
         try {
-          const { stdout: onboardOut } = await execAsync(
-            'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk',
-            { timeout: 60000 }
-          )
-          if (onboardOut) lg(stripAnsi(onboardOut.trim()))
-          lg('✅ 服务注册完成')
+          const onboardOut = await new Promise((resolve, reject) => {
+            const chunks = []
+            const errChunks = []
+            const child = spawn('openclaw', [
+              'onboard',
+              '--non-interactive',
+              '--install-daemon',
+              '--skip-skills',
+              '--skip-health',
+              '--accept-risk'
+            ], { shell: false })
+            child.stdout.on('data', d => {
+              const s = stripAnsi(d.toString())
+              if (s.trim()) s.trim().split('\n').forEach(line => {
+                if (line.trim()) lg(`   ${line.trim()}`)
+              })
+              chunks.push(d)
+            })
+            child.stderr.on('data', d => {
+              const s = stripAnsi(d.toString())
+              if (s.trim()) s.trim().split('\n').forEach(line => {
+                if (line.trim()) lg(`   [stderr] ${line.trim()}`)
+              })
+              errChunks.push(d)
+            })
+            child.on('close', code => {
+              if (code === 0) resolve(Buffer.concat(chunks).toString())
+              else reject(new Error(`onboard 失败 (exit ${code}): ${Buffer.concat(errChunks).toString()}`))
+            })
+            child.on('error', reject)
+          })
+          lg('office.install.service_done')
         } catch (err) {
-          lg(`❌ 服务注册失败: ${err.message}`)
+          lg('office.install.service_failed', { error: err.message }, 'error')
           return res.json({ ok: false, error: err.message, logs })
         }
 
-        lg('🔍 验证安装...')
+        lg('office.install.verifying')
         try {
           const { stdout: ver } = await execAsync('openclaw --version', { timeout: 10000 })
           if (!ver.trim()) throw new Error('openclaw --version 无输出')
-          lg(`✅ OpenClaw 已就绪: ${ver.trim()}`)
+          lg('office.install.openclaw_ready', { version: ver.trim() })
         } catch (err) {
-          lg(`❌ 验证失败: ${err.message}`)
+          lg('office.install.verify_failed', { error: err.message }, 'error')
           return res.json({ ok: false, error: err.message, logs })
         }
 
@@ -590,114 +826,186 @@ export function createOfficeRouter(db) {
       } else if (mode === 'ssh') {
         if (!ssh_host) return res.json({ ok: false, error: '请填写远程主机地址', logs })
 
-        const keyFlag = ssh_key_path ? `-i "${ssh_key_path}"` : ''
-        const configFlag = ssh_config_file ? `-F "${ssh_config_file}"` : ''
-        const sshOpts = ssh_config_file
-          ? `${configFlag} -o StrictHostKeyChecking=no -o ConnectTimeout=10`.trim()
-          : `-o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${ssh_port} ${keyFlag}`.trim()
-        const target = `${ssh_user}@${ssh_host}`
+        // Build SSH options
+        const sshOpts = {
+          host: ssh_host,
+          port: ssh_port,
+          user: ssh_user || 'root',
+          password: ssh_password || undefined,
+          keyPath: ssh_key_path || undefined,
+        }
 
-        const remoteCmd = (cmd) =>
-          `ssh ${sshOpts} ${target} 'export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:$PATH" && ${cmd}'`
+        // Log SSH auth method
+        if (ssh_password) {
+          lg('office.install.ssh_password_auth')
+        } else if (ssh_key_path) {
+          lg('office.install.ssh_key_auth', { keyPath: ssh_key_path })
+        } else {
+          lg('office.install.ssh_default_key')
+        }
+
+        // Helper to run remote command with PATH set
+        const remoteExec = async (cmd, opts = {}) => {
+          const fullCmd = `export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:$PATH" && ${cmd}`
+          return execRemote(sshOpts, fullCmd, opts)
+        }
 
         // ── Install git on remote ─────────────────────────────
-        try {
-          const { stdout } = await execAsync(remoteCmd('which git'), { timeout: 10000 })
-          if (stdout.trim()) {
-            lg('✅ git 已安装')
-          } else {
-            throw new Error('not found')
-          }
-        } catch {
-          lg('📥 安装 git...')
-          // Detect OS and install git accordingly
-          // Use sudo -n to avoid hanging on password prompt
+        lg('office.install.checking_git')
+        const gitCheck = await commandExists(sshOpts, 'git')
+        if (gitCheck.exists) {
+          lg('office.install.git_installed_path', { path: gitCheck.path })
+        } else {
+          lg('office.install.installing_git')
           const installGitRemote = async () => {
-            // Try apt (Debian/Ubuntu)
-            try {
-              await execAsync(remoteCmd('sudo -n apt-get update && sudo -n apt-get install -y git'), { timeout: 120000 })
-              return 'apt'
-            } catch {}
-
-            // Try yum (CentOS/RHEL)
-            try {
-              await execAsync(remoteCmd('sudo -n yum install -y git'), { timeout: 120000 })
-              return 'yum'
-            } catch {}
-
-            // Try dnf (Fedora)
-            try {
-              await execAsync(remoteCmd('sudo -n dnf install -y git'), { timeout: 120000 })
-              return 'dnf'
-            } catch {}
-
-            // Try apk (Alpine) - usually doesn't need sudo
-            try {
-              await execAsync(remoteCmd('sudo -n apk add git 2>/dev/null || apk add git'), { timeout: 60000 })
-              return 'apk'
-            } catch {}
-
-            // Try pacman (Arch)
-            try {
-              await execAsync(remoteCmd('sudo -n pacman -S --noconfirm git'), { timeout: 120000 })
-              return 'pacman'
-            } catch {}
-
+            const pkgManagers = [
+              { name: 'apt', cmd: 'sudo -n apt-get update && sudo -n apt-get install -y git', timeout: 120000 },
+              { name: 'yum', cmd: 'sudo -n yum install -y git', timeout: 120000 },
+              { name: 'dnf', cmd: 'sudo -n dnf install -y git', timeout: 120000 },
+              { name: 'apk', cmd: 'sudo -n apk add git 2>/dev/null || apk add git', timeout: 60000 },
+              { name: 'pacman', cmd: 'sudo -n pacman -S --noconfirm git', timeout: 120000 },
+            ]
+            for (const pm of pkgManagers) {
+              try {
+                await execRemote(sshOpts, pm.cmd, { timeout: pm.timeout })
+                return pm.name
+              } catch { /* try next */ }
+            }
             return null
           }
-
           const pm = await installGitRemote()
           if (pm) {
-            lg(`✅ git 安装完成 (${pm})`)
+            lg('office.install.git_installed_pm', { pm })
           } else {
-            lg('⚠️ sudo 需要密码或包管理器不可用')
+            lg('office.install.sudo_password_needed', {}, 'warning')
             lg('   请手动安装: sudo apt-get install git')
           }
         }
 
-        try {
-          const { stdout } = await execAsync(remoteCmd('which openclaw'), { timeout: 15000 })
-          if (stdout.trim()) {
-            lg('✅ OpenClaw 已安装，跳过')
-          } else {
-            throw new Error('not found')
-          }
-        } catch {
-          lg(`📥 在 ${ssh_host} 安装 OpenClaw...`)
+        lg('office.install.checking_openclaw')
+        const openclawCheck = await commandExists(sshOpts, 'openclaw')
+        if (openclawCheck.exists) {
+          lg('office.install.openclaw_installed', { path: openclawCheck.path })
+        } else {
+          lg('office.install.installing_remote', { host: ssh_host })
+          lg('office.install.script_url')
+          lg('office.install.script_env')
+          lg('office.install.script_time_remote')
+          lg('office.install.executing_remote_script')
+
           try {
-            const { stdout: installOut, stderr: installErr } = await execAsync(
-              `ssh ${sshOpts} ${target} 'OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fsSL https://openclaw.ai/install.sh | bash"'`,
-              { timeout: 300000 }
-            )
-            if (installOut) lg(stripAnsi(installOut.trim()))
-            if (installErr) lg(stripAnsi(installErr.trim()))
-            lg('✅ 安装脚本执行完毕')
+            const installCmd = 'OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fSL --progress-bar https://openclaw.ai/install.sh | bash"'
+
+            // Helper to filter stderr - remove curl progress bar and identify normal installer output
+            const filterStderr = (line) => {
+              const trimmed = line.trim()
+              if (!trimmed) return null
+              // Skip curl progress bar (lines of # and percentage)
+              if (/^#+\s*\d*\.?\d*%?$/.test(trimmed)) return null
+              // Skip empty progress lines
+              if (trimmed === '' || trimmed === '\r') return null
+              // Installer normal output (treat as info, not error)
+              const normalPatterns = [
+                /^✓/, /^·/, /^\[\d+\/\d+\]/, /^🦞/, /^Shell yeah/,
+                /Install plan/, /OS:/, /Install method:/, /Requested version:/,
+                /Onboarding:/, /Preparing environment/, /Installing OpenClaw/,
+                /Node\.js/, /npm/, /Git/, /Active/,
+              ]
+              for (const pattern of normalPatterns) {
+                if (pattern.test(trimmed)) {
+                  return { line: trimmed, isError: false }
+                }
+              }
+              // Everything else is an actual error
+              return { line: trimmed, isError: true }
+            }
+
+            const { exitCode, stdout, stderr } = await execRemote(sshOpts, installCmd, {
+              timeout: 300000,
+              onStdout: (s) => {
+                const clean = stripAnsi(s).trim()
+                if (clean) clean.split('\n').forEach(line => { if (line.trim()) lg(`   ${line.trim()}`) })
+              },
+              onStderr: (s) => {
+                const clean = stripAnsi(s)
+                clean.split('\n').forEach(line => {
+                  const result = filterStderr(line)
+                  if (result === null) return // Skip filtered lines
+                  if (result.isError) {
+                    lg(`   ⚠️ ${result.line}`)
+                  } else {
+                    lg(`   ${result.line}`)
+                  }
+                })
+              },
+            })
+            if (exitCode !== 0) {
+              throw new Error(`安装脚本失败 (exit ${exitCode})`)
+            }
+            lg('office.install.script_done')
           } catch (err) {
-            lg(`❌ 安装失败: ${err.message}`)
+            lg('office.install.script_failed', { error: err.message }, 'error')
             return res.json({ ok: false, error: err.message, logs })
           }
         }
 
-        lg('🔧 注册 OpenClaw 服务...')
+        lg('office.install.registering_service')
+        lg('office.install.running_onboard')
         try {
-          const { stdout: onboardOut } = await execAsync(
-            remoteCmd('openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'),
-            { timeout: 60000 }
-          )
-          if (onboardOut) lg(stripAnsi(onboardOut.trim()))
-          lg('✅ 服务注册完成')
+          const onboardCmd = 'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'
+
+          // Helper to identify error vs normal output
+          const filterStderr = (line) => {
+            const trimmed = line.trim()
+            if (!trimmed) return null
+            // Normal output patterns
+            const normalPatterns = [
+              /^✓/, /^·/, /^\[?\d+\/\d+\]?/, /^Creating/, /^Writing/, /^Generated/,
+              /daemon/, /service/, /config/, /onboard/,
+            ]
+            for (const pattern of normalPatterns) {
+              if (pattern.test(trimmed)) {
+                return { line: trimmed, isError: false }
+              }
+            }
+            return { line: trimmed, isError: true }
+          }
+
+          const { exitCode } = await remoteExec(onboardCmd, {
+            timeout: 60000,
+            onStdout: (s) => {
+              const clean = stripAnsi(s).trim()
+              if (clean) clean.split('\n').forEach(line => { if (line.trim()) lg(`   ${line.trim()}`) })
+            },
+            onStderr: (s) => {
+              const clean = stripAnsi(s)
+              clean.split('\n').forEach(line => {
+                const result = filterStderr(line)
+                if (result === null) return
+                if (result.isError) {
+                  lg(`   ⚠️ ${result.line}`)
+                } else {
+                  lg(`   ${result.line}`)
+                }
+              })
+            },
+          })
+          if (exitCode !== 0) {
+            throw new Error(`onboard 失败 (exit ${exitCode})`)
+          }
+          lg('office.install.service_done')
         } catch (err) {
-          lg(`❌ 服务注册失败: ${err.message}`)
+          lg('office.install.service_failed', { error: err.message }, 'error')
           return res.json({ ok: false, error: err.message, logs })
         }
 
-        lg('🔍 验证安装...')
+        lg('office.install.verifying')
         try {
-          const { stdout: ver } = await execAsync(remoteCmd('openclaw --version'), { timeout: 10000 })
+          const { stdout: ver } = await remoteExec('openclaw --version', { timeout: 10000 })
           if (!ver.trim()) throw new Error('openclaw --version 无输出')
-          lg(`✅ OpenClaw 已就绪: ${ver.trim()}`)
+          lg('office.install.openclaw_ready', { version: ver.trim() })
         } catch (err) {
-          lg(`❌ 验证失败: ${err.message}`)
+          lg('office.install.verify_failed', { error: err.message }, 'error')
           return res.json({ ok: false, error: err.message, logs })
         }
 
@@ -752,30 +1060,22 @@ export function createOfficeRouter(db) {
     const sshUser = office.access_user || 'root'
     if (!/^[a-zA-Z0-9._-]+$/.test(sshUser)) return res.json({ ok: false })
 
-    // Build SSH prefix
-    let sshPrefix
-    if (office.access_auth_type === 'ssh_key' && office.ssh_key_path) {
-      const keyPath = resolve(office.ssh_key_path.replace(/^~/, homedir()))
-      if (!existsSync(keyPath)) return res.json({ ok: false })
-      sshPrefix = `ssh -i "${keyPath}" -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -p ${sshPort}`
-    } else if (office.access_password) {
-      const escaped = office.access_password.replace(/'/g, `'\\''`)
-      sshPrefix = `sshpass -p '${escaped}' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p ${sshPort}`
-    } else {
-      return res.json({ ok: false })  // no credentials, skip silently
+    // Build SSH options
+    const sshOpts = {
+      host,
+      port: sshPort,
+      user: sshUser,
+      password: office.access_auth_type !== 'ssh_key' ? office.access_password : undefined,
+      keyPath: office.access_auth_type === 'ssh_key' ? office.ssh_key_path : undefined,
+      timeout: 5000,
     }
-
-    const target = `${sshUser}@${host}`
 
     try {
       // Probe common daemon ports on the remote host
       let foundPort = null
       for (const port of [16668]) {
         try {
-          const { stdout } = await execAsync(
-            `${sshPrefix} "${target}" "curl -sf http://127.0.0.1:${port}/health > /dev/null 2>&1 && echo ok"`,
-            { timeout: 8000 }
-          )
+          const { stdout } = await execRemote(sshOpts, `curl -sf http://127.0.0.1:${port}/health > /dev/null 2>&1 && echo ok`, { timeout: 8000 })
           if (stdout.trim() === 'ok') { foundPort = port; break }
         } catch { /* port not running */ }
       }
@@ -784,11 +1084,8 @@ export function createOfficeRouter(db) {
       // Read daemon API key from remote
       let apiKey = null
       try {
-        const { stdout: keyOut } = await execAsync(
-          `${sshPrefix} "${target}" "cat ~/.clawpilot/daemon.key 2>/dev/null"`,
-          { timeout: 5000 }
-        )
-        apiKey = keyOut.trim() || null
+        const keyContent = await readFile(sshOpts, '~/.clawpilot/daemon.key')
+        apiKey = keyContent.trim() || null
       } catch { /* no key file */ }
 
       const daemonUrl = `http://${host}:${foundPort}`
@@ -819,6 +1116,34 @@ export function createOfficeRouter(db) {
     } catch (err) {
       return res.json({ ok: false, error: err.message })
     }
+  })
+
+  // ── Install SSE Endpoint ─────────────────────────────────────
+  // GET /api/install_logs/stream/:office_id - SSE endpoint for install progress
+  router.get('/install_logs/stream/:office_id', (req, res) => {
+    const officeId = req.params.office_id
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.write(': connected\n\n')
+
+    if (!installSseClients.has(officeId)) {
+      installSseClients.set(officeId, new Set())
+    }
+    installSseClients.get(officeId).add(res)
+    log.info(`Install SSE client connected for office ${officeId}`)
+
+    req.on('close', () => {
+      const clients = installSseClients.get(officeId)
+      if (clients) {
+        clients.delete(res)
+        if (clients.size === 0) {
+          installSseClients.delete(officeId)
+        }
+      }
+      log.info(`Install SSE client disconnected for office ${officeId}`)
+    })
   })
 
   return router
