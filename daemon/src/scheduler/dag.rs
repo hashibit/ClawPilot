@@ -23,18 +23,23 @@ impl DagScheduler {
     /// 1. Immediately when a task completes
     /// 2. By the internal timer (catch-all for any missed dispatches)
     pub fn sweep(&self, plan_id: &str) {
-        tracing::debug!("Sweeping plan: {}", plan_id);
+        tracing::info!("=== DAG SWEEP === Plan: {}", plan_id);
 
         let ready_tasks = self.db.get_ready_tasks(plan_id);
 
         if ready_tasks.is_empty() {
-            tracing::debug!("No ready tasks for plan {}", plan_id);
+            tracing::info!("No ready tasks for plan {}. Checking plan completion...", plan_id);
             // Still check for plan completion — all tasks may be done
             self.check_plan_completion(plan_id);
             return;
         }
 
-        tracing::info!("Found {} ready tasks for plan {}", ready_tasks.len(), plan_id);
+        tracing::info!(
+            "Found {} ready tasks for plan {}: {:?}",
+            ready_tasks.len(),
+            plan_id,
+            ready_tasks.iter().map(|t| format!("{}→{}", t.id, t.receiver_agent_id)).collect::<Vec<_>>()
+        );
 
         for task in ready_tasks {
             // Check if agent is busy
@@ -119,7 +124,17 @@ impl DagScheduler {
         );
 
         let agent_id = plan.publisher_agent_id.clone();
-        tracing::info!("Notifying publisher agent: {}", agent_id);
+        tracing::info!(
+            "=== NOTIFYING PUBLISHER ===\n\
+             Plan: {}\n\
+             Publisher agent: {}\n\
+             Has failures: {}\n\
+             Message:\n{}",
+            plan.id,
+            agent_id,
+            has_failures,
+            message
+        );
 
         // Fire-and-forget: spawn in a separate thread to avoid blocking the sweep
         std::thread::spawn(move || {
@@ -129,17 +144,27 @@ impl DagScheduler {
 
             match result {
                 Ok(out) if out.status.success() => {
-                    tracing::info!("Publisher agent {} notified successfully", agent_id);
+                    tracing::info!(
+                        "=== PUBLISHER NOTIFICATION SUCCESS ===\n\
+                         Agent: {}\n\
+                         Stdout: {}",
+                        agent_id,
+                        String::from_utf8_lossy(&out.stdout)
+                    );
                 }
                 Ok(out) => {
                     tracing::warn!(
-                        "Publisher agent {} notification exited with error: {}",
+                        "=== PUBLISHER NOTIFICATION FAILED ===\n\
+                         Agent: {}\n\
+                         Exit code: {:?}\n\
+                         Stderr: {}",
                         agent_id,
+                        out.status.code(),
                         String::from_utf8_lossy(&out.stderr)
                     );
                 }
                 Err(e) => {
-                    tracing::error!("Failed to notify publisher agent {}: {}", agent_id, e);
+                    tracing::error!("Failed to spawn openclaw agent for publisher {}: {}", agent_id, e);
                 }
             }
         });

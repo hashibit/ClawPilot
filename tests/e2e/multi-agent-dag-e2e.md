@@ -984,3 +984,127 @@ cd daemon && cargo build --release --target aarch64-unknown-linux-gnu
 **原因**：OpenClaw 的 workspace 路径格式为 `~/.openclaw/OPC/<opc_id>/workspace-<display_name>`，用的是 OPC 的 ID（如 `opc-1775340170838`），不是 OPC 的 name（如 `dev-team`）。
 
 **解决**：验证命令中一律使用 `$OPC_ID` 变量，不硬编码 OPC name。
+
+---
+
+## 日志查看指南
+
+### Daemon 与 OpenClaw 的交互方式
+
+Daemon 执行任务时**启动独立的 `openclaw agent` 进程**，而不是通过 HTTP API 发消息给 gateway：
+
+```
+daemon → spawn: openclaw agent --agent <agent_id> --message "..." --json
+           ↓
+      独立进程运行，stdout/stderr 被 daemon 捕获
+           ↓
+      session 内容写入 ~/.openclaw/agents/<id>/sessions/*.jsonl
+```
+
+因此 **OpenClaw gateway 日志中看不到 daemon 发给 agent 的指令**，这是正常现象。
+
+---
+
+### 日志位置速查表
+
+| 日志位置 | 内容 | 包含 daemon 消息？ |
+|---------|------|------------------|
+| `~/.clawpilot/logs/daemon.YYYY-MM-DD` | Daemon 主日志，含 DAG 调度、任务分发详情 | ✅ **最详细** |
+| `~/.openclaw/logs/gateway.log` | Gateway 服务启动、工具注册、WebSocket | ❌ 不包含 |
+| `/tmp/openclaw/openclaw-YYYY-MM-DD.log` | 全局 JSONL，各子系统日志 | ❌ 独立进程不写这里 |
+| `~/.openclaw/agents/<id>/sessions/*.jsonl` | 每个 agent 的对话历史 | ✅ 包含用户消息和响应 |
+
+---
+
+### 查看 Daemon 详细日志
+
+Daemon 日志包含完整的任务分发信息：
+
+```bash
+# 在 VM 上查看 daemon 日志
+orb run -s -m $VM_NAME "cat ~/.clawpilot/logs/daemon.\$(date +%Y-%m-%d)"
+
+# 查看最近 100 行，关注 DAG 调度
+orb run -s -m $VM_NAME "tail -100 ~/.clawpilot/logs/daemon.\$(date +%Y-%m-%d) \
+  | grep -E 'DAG SWEEP|TASK DISPATCH|TASK COMPLETED|NOTIFYING PUBLISHER'"
+```
+
+**Daemon 日志关键事件：**
+
+```
+=== DAG SWEEP === Plan: landing-page-20260404T1530
+Found 1 ready tasks for plan landing-page-20260404T1530: ["t1→frontend"]
+Started task t1 (type: write_frontend) for agent frontend
+
+=== TASK DISPATCH ===
+Task: t1 (type: write_frontend)
+Agent: frontend
+Plan: landing-page-20260404T1530
+Timeout: 3600s
+Context preview: 你正在执行一个任务...
+
+=== TASK PROCESS EXIT ===
+Task: t1
+Exit status: ExitCode(0)
+Stdout length: 1234 bytes
+
+=== TASK COMPLETED ===
+Task: t1
+Agent: frontend
+Result length: 567 bytes
+Artifacts: ["art-t1-xxx"]
+
+=== NOTIFYING PUBLISHER ===
+Plan: landing-page-20260404T1530
+Publisher agent: pm
+Message: 任务计划 landing-page-20260404T1530 已成功完成...
+```
+
+---
+
+### 查看 Agent Session 日志
+
+每个 agent 的对话历史存储在独立的 JSONL 文件中：
+
+```bash
+# 列出 agent 的 session 文件
+orb run -s -m $VM_NAME "ls -la ~/.openclaw/agents/*/sessions/"
+
+# 查看 frontend agent 的最近对话
+orb run -s -m $VM_NAME "cat ~/.openclaw/agents/frontend/sessions/*.jsonl \
+  | grep '\"type\":\"message\"' | tail -5 | jq '.message.content'"
+```
+
+**Session JSONL 结构：**
+
+```jsonl
+{"type":"session","id":"xxx","timestamp":"..."}
+{"type":"message","id":"xxx","message":{"role":"user","content":[{"type":"text","text":"你正在执行一个任务..."}]}}
+{"type":"message","id":"xxx","message":{"role":"assistant","content":[...]}}
+```
+
+---
+
+### 排查任务执行问题
+
+当任务执行异常时，按以下顺序排查：
+
+1. **检查 Daemon 日志**（最重要）
+   ```bash
+   orb run -s -m $VM_NAME "grep -A5 'TASK DISPATCH' ~/.clawpilot/logs/daemon.\$(date +%Y-%m-%d) | tail -50"
+   ```
+
+2. **检查 Agent Session**
+   ```bash
+   orb run -s -m $VM_NAME "cat ~/.openclaw/agents/frontend/sessions/*.jsonl | jq -c 'select(.type==\"message\")'"
+   ```
+
+3. **检查 Gateway 状态**
+   ```bash
+   orb run -s -m $VM_NAME "openclaw gateway status"
+   ```
+
+4. **检查设备配对状态**
+   ```bash
+   orb run -s -m $VM_NAME "export PATH=\$PATH:~/.npm-global/bin && openclaw devices list"
+   ```

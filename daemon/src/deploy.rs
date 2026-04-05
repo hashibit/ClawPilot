@@ -200,6 +200,28 @@ fn prune_backups(opc_id: &str, keep: usize) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Reset agents sessions by renaming the agents directory.
+/// This forces OpenClaw to regenerate fresh sessions on next start,
+/// ensuring skills are reloaded properly.
+fn reset_agents_sessions() -> anyhow::Result<()> {
+    let openclaw_root = openclaw_home();
+    let agents_dir = openclaw_root.join("agents");
+
+    if !agents_dir.exists() {
+        tracing::info!("agents 目录不存在，无需重置");
+        return Ok(());
+    }
+
+    let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+    let backup_name = format!("agents.bak.{}", timestamp);
+    let backup_path = openclaw_root.join(&backup_name);
+
+    fs::rename(&agents_dir, &backup_path)?;
+    tracing::info!("agents 目录已备份为: {}", backup_path.display());
+
+    Ok(())
+}
+
 /// Resolve a path lexically (without filesystem access) and return None if it
 /// would escape `base` via `..` components or absolute components.
 pub(crate) fn safe_join(base: &Path, entry_path: &Path) -> Option<PathBuf> {
@@ -597,6 +619,22 @@ pub async fn run_deploy(
                 }
                 Err(e) => {
                     update(&|t| t.log(format!("⚠ 合并 panic: {}", e)));
+                }
+            }
+
+            // 3.6 Reset agents sessions for fresh skill loading
+            update(&|t| {
+                t.log("重置 agent sessions...");
+            });
+            match tokio::task::spawn_blocking(move || reset_agents_sessions()).await {
+                Ok(Ok(())) => {
+                    update(&|t| t.log("✓ agent sessions 已重置"));
+                }
+                Ok(Err(e)) => {
+                    update(&|t| t.log(format!("⚠ 重置 sessions 失败（继续部署）: {}", e)));
+                }
+                Err(e) => {
+                    update(&|t| t.log(format!("⚠ 重置 sessions panic: {}", e)));
                 }
             }
         }

@@ -181,10 +181,22 @@ pub async fn approve_plan(
         AppError::Internal(anyhow::anyhow!("Failed to approve plan: {}", e))
     })?;
 
+    tracing::info!("Plan {} status changed to approved", plan_id);
+
     // Mark as executing
     db.set_plan_executing(&plan_id).map_err(|e| {
         AppError::Internal(anyhow::anyhow!("Failed to set plan as executing: {}", e))
     })?;
+
+    tracing::info!("Plan {} status changed to executing, triggering DAG sweep", plan_id);
+
+    // Get ready tasks before sweep for logging
+    let ready_tasks = db.get_ready_tasks(&plan_id);
+    tracing::info!(
+        "Plan {} ready tasks before sweep: {:?}",
+        plan_id,
+        ready_tasks.iter().map(|t| format!("{}→{}", t.id, t.receiver_agent_id)).collect::<Vec<_>>()
+    );
 
     // Trigger sweep to start dispatching tasks
     dag.sweep(&plan_id);

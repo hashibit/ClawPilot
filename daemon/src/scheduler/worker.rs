@@ -76,7 +76,44 @@ impl Worker {
         std::fs::create_dir_all(&artifact_dir)
             .context("Failed to create artifact directory")?;
 
-        tracing::info!("Starting task {} with run_id: {} context length: {}", task.id, run_id, context.len());
+        tracing::info!(
+            "=== TASK DISPATCH ===\n\
+             Task: {} (type: {})\n\
+             Agent: {}\n\
+             Plan: {}\n\
+             Timeout: {}s\n\
+             Run ID: {}\n\
+             Context length: {} bytes\n\
+             Context preview: {}",
+            task.id,
+            task.type_,
+            task.receiver_agent_id,
+            task.plan_id,
+            task.timeout_seconds,
+            run_id,
+            context.len(),
+            if context.len() > 500 {
+                format!("{}...[truncated, {} total chars]", &context[..500], context.len())
+            } else {
+                context.clone()
+            }
+        );
+
+        // Build the CLI arguments for logging
+        let args = [
+            "agent",
+            "--agent", &task.receiver_agent_id,
+            "--message", &context,
+            "--timeout", &task.timeout_seconds.to_string(),
+            "--json",
+        ];
+        tracing::info!(
+            "CLI command: openclaw {}",
+            args.iter()
+                .map(|a| if a.len() > 50 { format!("{}...", &a[..50]) } else { a.to_string() })
+                .collect::<Vec<_>>()
+                .join(" ")
+        );
 
         // Spawn the OpenClaw agent process
         let child = Command::new("openclaw")
@@ -92,6 +129,8 @@ impl Worker {
             .stderr(Stdio::piped())
             .spawn()
             .context("Failed to spawn openclaw agent")?;
+
+        tracing::info!("Process spawned with PID: {:?}", child.id());
 
         // Update task with run_id and status
         db.update_task_run_id(&task.id, &run_id)?;
@@ -143,7 +182,17 @@ impl Worker {
             // Handle completion
             match result {
                 Ok(completion_result) => {
-                    tracing::info!("Task {} completed successfully", task_id);
+                    tracing::info!(
+                        "=== TASK COMPLETED ===\n\
+                         Task: {}\n\
+                         Agent: {}\n\
+                         Result length: {} bytes\n\
+                         Artifacts: {:?}",
+                        task_id,
+                        receiver_agent_id,
+                        completion_result.result.len(),
+                        completion_result.output_artifact_ids
+                    );
 
                     // Mark task as completed in DB
                     if let Err(e) = db_clone.mark_task_completed(
@@ -294,16 +343,33 @@ impl Worker {
         let stdout_output = stdout_handle.await.unwrap_or_default();
         let stderr_output = stderr_handle.await.unwrap_or_default();
 
-        tracing::debug!(
-            "Task {} process exited with status: {:?}",
+        tracing::info!(
+            "=== TASK PROCESS EXIT ===\n\
+             Task: {}\n\
+             Exit status: {:?}\n\
+             Stdout length: {} bytes\n\
+             Stderr length: {} bytes",
             task_id,
-            exit_status
+            exit_status,
+            stdout_output.len(),
+            stderr_output.len()
         );
+
         if !stdout_output.is_empty() {
-            tracing::debug!("Task {} stdout: {}", task_id, stdout_output);
+            let preview = if stdout_output.len() > 500 {
+                format!("{}...[truncated, {} total bytes]", &stdout_output[..500], stdout_output.len())
+            } else {
+                stdout_output.clone()
+            };
+            tracing::info!("Task {} stdout preview:\n{}", task_id, preview);
         }
         if !stderr_output.is_empty() {
-            tracing::debug!("Task {} stderr: {}", task_id, stderr_output);
+            let preview = if stderr_output.len() > 500 {
+                format!("{}...[truncated, {} total bytes]", &stderr_output[..500], stderr_output.len())
+            } else {
+                stderr_output.clone()
+            };
+            tracing::info!("Task {} stderr preview:\n{}", task_id, preview);
         }
 
         if !exit_status.success() {
