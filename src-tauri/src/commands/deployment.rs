@@ -33,8 +33,8 @@ pub fn get_recent_deployments(
 }
 
 #[tauri::command]
-pub fn undeploy(pool: State<'_, DbPool>, opc_id: String) -> Result<()> {
-    deployment_service::undeploy(&pool, &opc_id)
+pub async fn undeploy(pool: State<'_, DbPool>, opc_id: String) -> Result<()> {
+    deployment_service::undeploy(&pool, &opc_id).await
 }
 
 #[tauri::command]

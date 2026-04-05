@@ -27,10 +27,11 @@ fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
         daemon_url: row.get(15)?,
         daemon_api_key: row.get(16)?,
         opc_root: row.get(17)?,
-        created_at: row.get(18)?,
-        updated_at: row.get(19)?,
-        current_opc_id: row.get(20).ok().flatten(),
-        current_opc_name: row.get(21).ok().flatten(),
+        initial_openclaw_config: row.get(18)?,
+        created_at: row.get(19)?,
+        updated_at: row.get(20)?,
+        current_opc_id: row.get(21).ok().flatten(),
+        current_opc_name: row.get(22).ok().flatten(),
     })
 }
 
@@ -46,7 +47,8 @@ pub fn get_offices(pool: &DbPool) -> Result<Vec<Office>> {
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
                 o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
-                o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
+                o.daemon_url, o.daemon_api_key, o.opc_root, o.initial_openclaw_config,
+                o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
          LEFT JOIN opc_config oc ON oc.office_id = o.id AND oc.is_running = 1
@@ -64,7 +66,8 @@ pub fn get_office(pool: &DbPool, id: &str) -> Result<Office> {
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
                 o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
-                o.daemon_url, o.daemon_api_key, o.opc_root, o.created_at, o.updated_at,
+                o.daemon_url, o.daemon_api_key, o.opc_root, o.initial_openclaw_config,
+                o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
          LEFT JOIN opc_config oc ON oc.office_id = o.id AND oc.is_running = 1
@@ -504,9 +507,22 @@ pub fn update_office_daemon_config(pool: &DbPool, office_id: &str, daemon_url: &
 
     let encrypted_key = encrypt(api_key)?;
 
+    // Read existing initial_openclaw_config; if not set, use empty default
+    let existing_config: Option<String> = conn
+        .query_row(
+            "SELECT initial_openclaw_config FROM offices WHERE id = ?1",
+            rusqlite::params![office_id],
+            |r| r.get(0),
+        )
+        .unwrap_or(None);
+
+    let initial_config = existing_config.unwrap_or_else(|| {
+        r#"{"agents":{"defaults":{},"list":[]},"channels":{},"models":{"providers":{}}}"#.to_string()
+    });
+
     conn.execute(
-        "UPDATE offices SET daemon_url = ?2, daemon_api_key = ?3, updated_at = ?4 WHERE id = ?1",
-        rusqlite::params![office_id, daemon_url, encrypted_key, ts],
+        "UPDATE offices SET daemon_url = ?2, daemon_api_key = ?3, initial_openclaw_config = ?4, updated_at = ?5 WHERE id = ?1",
+        rusqlite::params![office_id, daemon_url, encrypted_key, initial_config, ts],
     )?;
 
     Ok(())
@@ -613,6 +629,7 @@ mod tests {
             daemon_url: None,
             daemon_api_key: None,
             opc_root: None,
+            initial_openclaw_config: None,
             created_at: 0,
             updated_at: 0,
             current_opc_id: None,

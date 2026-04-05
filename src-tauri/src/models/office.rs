@@ -20,6 +20,8 @@ pub struct Office {
     pub daemon_url: Option<String>,
     pub daemon_api_key: Option<String>,
     pub opc_root: Option<String>,
+    #[serde(skip_serializing)]
+    pub initial_openclaw_config: Option<String>,
     // Joined from opc_config (read-only)
     pub current_opc_id: Option<String>,
     pub current_opc_name: Option<String>,
