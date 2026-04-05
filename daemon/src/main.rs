@@ -6,6 +6,7 @@ mod routes;
 mod scheduler;
 mod state;
 mod utils;
+mod ws_routes;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -24,7 +25,7 @@ use std::{fs, net::SocketAddr, path::PathBuf, time::Duration};
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use scheduler::{Db, DagScheduler, Worker, Recovery, artifacts};
+use scheduler::{Db, DagScheduler, Worker, Recovery, artifacts, EventStream, event_stream::load_openclaw_token};
 
 // Maximum request body size for deploy endpoint (50MB)
 const MAX_DEPLOY_BODY_SIZE: usize = 50 * 1024 * 1024;
@@ -137,8 +138,24 @@ async fn main() {
     let dag = DagScheduler::new(db.clone(), worker.clone());
     let recovery = Recovery::new(db.clone(), worker.clone(), dag.clone());
 
-    // Create app state with scheduler
-    let state = AppState::new(api_key).with_scheduler(db, worker, dag.clone());
+    // Initialize EventStream for OpenClaw Gateway events
+    let openclaw_token = load_openclaw_token();
+    let event_stream = Arc::new(EventStream::new(
+        "ws://localhost:18789".to_string(),
+        openclaw_token,
+    ));
+    let activity_tx = event_stream.event_sender();
+
+    // Start EventStream in background
+    let event_stream_clone = event_stream.clone();
+    tokio::spawn(async move {
+        event_stream_clone.start().await;
+    });
+
+    // Create app state with scheduler and activity sender
+    let state = AppState::new(api_key)
+        .with_scheduler(db, worker, dag.clone())
+        .with_activity_sender(activity_tx);
 
     // Start recovery on startup
     let recovery_clone = recovery.clone();
@@ -180,9 +197,10 @@ async fn main() {
         ))
         .layer(DefaultBodyLimit::max(MAX_DEPLOY_BODY_SIZE));
 
-    // Unprotected routes (health)
+    // Unprotected routes (health + websocket)
     let app = Router::new()
-        .route("/health", get(routes::health));
+        .route("/health", get(routes::health))
+        .route("/ws/activities", get(ws_routes::ws_activities));
 
     // Add protected deploy routes with auth middleware
     let app = app.merge(protected_deploy);

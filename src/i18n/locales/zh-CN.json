@@ -8,6 +8,7 @@
     "office": "办公室管理",
     "deploy": "一键部署",
     "logs": "运行日志",
+    "activities": "实时活动",
     "templates": "模板市场",
     "cloudSync": "云同步",
     "settings": "设置"
@@ -77,6 +78,18 @@
     "levelSelect": "级别过滤",
     "allLevels": "全部",
     "total": "共 {{count}} 条"
+  },
+  "activities": {
+    "title": "智能体实时活动",
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "noActivity": "暂无智能体活动",
+    "waitingHint": "等待智能体开始工作...",
+    "noRunningOpc": "暂无已部署的公司",
+    "deployHint": "请先部署一个公司",
+    "runningCompanies": "运行中的公司",
+    "agents": "个智能体",
+    "active": "活跃中"
   },
   "settings": {
     "title": "设置",

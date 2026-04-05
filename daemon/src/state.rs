@@ -2,8 +2,9 @@ use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize, Serializer};
 use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
 
-use crate::scheduler::{Db, DagScheduler, Worker};
+use crate::scheduler::{Db, DagScheduler, Worker, ActivityEvent};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -114,6 +115,8 @@ pub struct AppState {
     pub scheduler_db: Option<Db>,
     pub scheduler_worker: Option<Worker>,
     pub scheduler_dag: Option<DagScheduler>,
+    /// Broadcast sender for activity events (daemon -> server)
+    pub activity_tx: Option<broadcast::Sender<ActivityEvent>>,
 }
 
 impl AppState {
@@ -124,6 +127,7 @@ impl AppState {
             scheduler_db: None,
             scheduler_worker: None,
             scheduler_dag: None,
+            activity_tx: None,
         }
     }
 
@@ -136,6 +140,11 @@ impl AppState {
         self.scheduler_db = Some(db);
         self.scheduler_worker = Some(worker);
         self.scheduler_dag = Some(dag);
+        self
+    }
+
+    pub fn with_activity_sender(mut self, tx: broadcast::Sender<ActivityEvent>) -> Self {
+        self.activity_tx = Some(tx);
         self
     }
 }

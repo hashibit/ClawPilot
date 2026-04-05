@@ -148,6 +148,9 @@ export default function Layout() {
           <NavItem to="/logs" label={t('nav.logs')} icon={
             <Icon name="file" size={16} />
           } />
+          <NavItem to="/activities" label={t('nav.activities', 'Activities')} icon={
+            <Icon name="activity" size={16} />
+          } />
 
           {/* Settings */}
           {!collapsed && <div style={{ height: '6px' }} />}

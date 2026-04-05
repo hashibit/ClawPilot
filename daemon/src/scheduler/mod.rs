@@ -11,8 +11,10 @@ pub mod recovery;
 pub mod artifacts;
 pub mod context;
 pub mod routes;
+pub mod event_stream;
 
 pub use db::Db;
 pub use dag::DagScheduler;
 pub use worker::Worker;
 pub use recovery::Recovery;
+pub use event_stream::{EventStream, ActivityEvent, RunRoute};

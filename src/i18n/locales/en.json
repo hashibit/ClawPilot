@@ -8,6 +8,7 @@
     "office": "Office",
     "deploy": "Deploy",
     "logs": "Logs",
+    "activities": "Activities",
     "templates": "Templates",
     "cloudSync": "Cloud Sync",
     "settings": "Settings"
@@ -74,6 +75,18 @@
     "levelSelect": "Level Filter",
     "allLevels": "All",
     "total": "{{count}} entries"
+  },
+  "activities": {
+    "title": "Agent Activities",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "noActivity": "No agent activity yet",
+    "waitingHint": "Waiting for agents to start working...",
+    "noRunningOpc": "No deployed companies",
+    "deployHint": "Deploy a company first to see activities",
+    "runningCompanies": "Running companies",
+    "agents": "agents",
+    "active": "active"
   },
   "settings": {
     "title": "Settings",
