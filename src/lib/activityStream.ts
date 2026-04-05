@@ -1,5 +1,6 @@
 /**
- * Activity Stream - SSE client for real-time agent activities
+ * Activity Stream - SSE (browser dev mode) or WebSocket (Tauri mode) client
+ * for real-time agent activities.
  */
 
 export interface ActivityEvent {
@@ -12,81 +13,138 @@ export interface ActivityEvent {
 
 export type ActivityCallback = (event: ActivityEvent) => void
 
+const IS_TAURI = '__TAURI_INTERNALS__' in window
+const DAEMON_WS_URL = 'ws://127.0.0.1:16668/ws/activities'
+
 let eventSource: EventSource | null = null
+let ws: WebSocket | null = null
 const callbacks = new Set<ActivityCallback>()
 
-/**
- * Connect to the activity SSE stream
- */
-export function connectActivityStream(): void {
+function dispatchEvent(event: ActivityEvent) {
+  callbacks.forEach(cb => cb(event))
+}
+
+// ── SSE (dev mode) ────────────────────────────────────────────────────────────
+
+function connectSSE(): void {
   if (eventSource) return
 
   eventSource = new EventSource('/api/activities/stream')
 
   eventSource.onopen = () => {
-    console.log('[ActivityStream] Connected')
+    console.log('[ActivityStream] SSE connected')
   }
 
   eventSource.onmessage = (e) => {
     try {
-      const event = JSON.parse(e.data) as ActivityEvent
-      callbacks.forEach(cb => cb(event))
+      dispatchEvent(JSON.parse(e.data) as ActivityEvent)
     } catch (err) {
       console.error('[ActivityStream] Parse error:', err)
     }
   }
 
   eventSource.onerror = () => {
-    console.log('[ActivityStream] Connection lost, reconnecting...')
-    // EventSource will auto-reconnect, but we can also manually handle it
     if (eventSource?.readyState === EventSource.CLOSED) {
       setTimeout(() => {
-        disconnectActivityStream()
-        connectActivityStream()
+        disconnectSSE()
+        if (callbacks.size > 0) connectSSE()
       }, 3000)
     }
   }
 }
 
-/**
- * Disconnect from the activity stream
- */
-export function disconnectActivityStream(): void {
+function disconnectSSE(): void {
   if (eventSource) {
     eventSource.close()
     eventSource = null
   }
 }
 
-/**
- * Subscribe to activity events
- */
+// ── WebSocket (Tauri mode) ────────────────────────────────────────────────────
+
+function connectWS(): void {
+  if (ws && ws.readyState !== WebSocket.CLOSED) return
+
+  ws = new WebSocket(DAEMON_WS_URL)
+
+  ws.onopen = () => {
+    console.log('[ActivityStream] WebSocket connected to daemon')
+  }
+
+  ws.onmessage = (e) => {
+    try {
+      dispatchEvent(JSON.parse(e.data) as ActivityEvent)
+    } catch (err) {
+      console.error('[ActivityStream] Parse error:', err)
+    }
+  }
+
+  ws.onclose = () => {
+    ws = null
+    if (callbacks.size > 0) {
+      setTimeout(() => connectWS(), 3000)
+    }
+  }
+
+  ws.onerror = () => {
+    // onclose will fire after onerror; reconnect handled there
+  }
+}
+
+function disconnectWS(): void {
+  if (ws) {
+    ws.close()
+    ws = null
+  }
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+export function connectActivityStream(): void {
+  if (IS_TAURI) {
+    connectWS()
+  } else {
+    connectSSE()
+  }
+}
+
+export function disconnectActivityStream(): void {
+  if (IS_TAURI) {
+    disconnectWS()
+  } else {
+    disconnectSSE()
+  }
+}
+
 export function subscribeToActivities(callback: ActivityCallback): () => void {
   callbacks.add(callback)
 
-  // Auto-connect on first subscriber
   if (callbacks.size === 1) {
     connectActivityStream()
   }
 
-  // Return unsubscribe function
   return () => {
     callbacks.delete(callback)
-    // Auto-disconnect when no subscribers
     if (callbacks.size === 0) {
       disconnectActivityStream()
     }
   }
 }
 
-/**
- * Get connection status
- */
 export function getActivityStreamStatus(): 'connected' | 'connecting' | 'disconnected' {
-  if (!eventSource) return 'disconnected'
-  switch (eventSource.readyState) {
-    case EventSource.OPEN: return 'connected'
-    case EventSource.CONNECTING: return 'connecting'
-    default: return 'disconnected'
+  if (IS_TAURI) {
+    if (!ws) return 'disconnected'
+    switch (ws.readyState) {
+      case WebSocket.OPEN: return 'connected'
+      case WebSocket.CONNECTING: return 'connecting'
+      default: return 'disconnected'
+    }
+  } else {
+    if (!eventSource) return 'disconnected'
+    switch (eventSource.readyState) {
+      case EventSource.OPEN: return 'connected'
+      case EventSource.CONNECTING: return 'connecting'
+      default: return 'disconnected'
+    }
   }
 }
