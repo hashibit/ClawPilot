@@ -626,6 +626,11 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
             await addFile(`${opcId}/${workspaceName}/${filename}`, content)
           }
 
+          // Create memory directory with today's log placeholder
+          const today = new Date().toISOString().split('T')[0]
+          const memoryInit = `# ${today}\n\n今天刚部署，暂无工作日志。\n`
+          await addFile(`${opcId}/${workspaceName}/memory/${today}.md`, memoryInit)
+
           // Copy skills to agent's workspace directory (each agent has its own skills)
           // Skills are copied from bundle/skills/{skillSlug}/ to {opc_id}/workspace-{name}/skills/{skillSlug}/
           for (const skill of data.skills) {
@@ -662,7 +667,8 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
       log.info(`[buildPackage]   - manifest.json`)
       log.info(`[buildPackage]   - openclaw.json`)
       log.info(`[buildPackage]   - ${manifest.opc_id}/workspace-*/ (agent workspaces)`)
-      log.info(`[buildPackage]   - ${manifest.opc_id}/skills/ (shared skills)`)
+      log.info(`[buildPackage]   - ${manifest.opc_id}/workspace-*/memory/ (daily logs)`)
+      log.info(`[buildPackage]   - ${manifest.opc_id}/workspace-*/skills/ (agent skills)`)
       log.info(`[buildPackage]   - ${manifest.opc_id}/*.json5 (config files)`)
       log.info(`[buildPackage] opc_root: ${manifest.opc_root}`)
     })

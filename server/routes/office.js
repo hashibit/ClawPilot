@@ -480,8 +480,64 @@ export function createOfficeRouter(db) {
     const logs = []
     const lg = (msg) => logs.push(msg)
 
+    // Helper to install git based on OS
+    const installGitLocal = async () => {
+      try {
+        const { stdout } = await execAsync('which git', { timeout: 5000 })
+        if (stdout.trim()) {
+          lg('✅ git 已安装')
+          return true
+        }
+      } catch {}
+
+      lg('📥 安装 git...')
+      const platform = process.platform
+
+      if (platform === 'darwin') {
+        // macOS: use homebrew
+        try {
+          const { stdout: brewCheck } = await execAsync('which brew', { timeout: 5000 })
+          if (brewCheck.trim()) {
+            await execAsync('brew install git', { timeout: 120000 })
+            lg('✅ git 安装完成 (brew)')
+            return true
+          }
+        } catch {}
+        lg('⚠️ Homebrew 未安装，请手动安装 git')
+        return false
+      } else if (platform === 'linux') {
+        // Linux: try apt, then yum, then dnf
+        // Use -n flag to avoid hanging on password prompt
+        const pmCmds = [
+          'sudo -n apt-get update && sudo -n apt-get install -y git',
+          'sudo -n yum install -y git',
+          'sudo -n dnf install -y git',
+        ]
+        for (const cmd of pmCmds) {
+          try {
+            await execAsync(cmd, { timeout: 120000 })
+            lg('✅ git 安装完成')
+            return true
+          } catch (err) {
+            // Check if it's a password-required error
+            if (err.message.includes('password') || err.message.includes('sudo')) {
+              continue // Try next package manager
+            }
+          }
+        }
+        lg('⚠️ sudo 需要密码或包管理器不可用，请手动安装 git: sudo apt-get install git')
+        return false
+      }
+
+      lg(`⚠️ 未知平台 ${platform}，请手动安装 git`)
+      return false
+    }
+
     try {
       if (mode === 'local') {
+        // Install git first
+        await installGitLocal()
+
         try {
           const { stdout } = await execAsync('which openclaw', { timeout: 5000 })
           if (stdout.trim()) {
@@ -543,6 +599,61 @@ export function createOfficeRouter(db) {
 
         const remoteCmd = (cmd) =>
           `ssh ${sshOpts} ${target} 'export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:$PATH" && ${cmd}'`
+
+        // ── Install git on remote ─────────────────────────────
+        try {
+          const { stdout } = await execAsync(remoteCmd('which git'), { timeout: 10000 })
+          if (stdout.trim()) {
+            lg('✅ git 已安装')
+          } else {
+            throw new Error('not found')
+          }
+        } catch {
+          lg('📥 安装 git...')
+          // Detect OS and install git accordingly
+          // Use sudo -n to avoid hanging on password prompt
+          const installGitRemote = async () => {
+            // Try apt (Debian/Ubuntu)
+            try {
+              await execAsync(remoteCmd('sudo -n apt-get update && sudo -n apt-get install -y git'), { timeout: 120000 })
+              return 'apt'
+            } catch {}
+
+            // Try yum (CentOS/RHEL)
+            try {
+              await execAsync(remoteCmd('sudo -n yum install -y git'), { timeout: 120000 })
+              return 'yum'
+            } catch {}
+
+            // Try dnf (Fedora)
+            try {
+              await execAsync(remoteCmd('sudo -n dnf install -y git'), { timeout: 120000 })
+              return 'dnf'
+            } catch {}
+
+            // Try apk (Alpine) - usually doesn't need sudo
+            try {
+              await execAsync(remoteCmd('sudo -n apk add git 2>/dev/null || apk add git'), { timeout: 60000 })
+              return 'apk'
+            } catch {}
+
+            // Try pacman (Arch)
+            try {
+              await execAsync(remoteCmd('sudo -n pacman -S --noconfirm git'), { timeout: 120000 })
+              return 'pacman'
+            } catch {}
+
+            return null
+          }
+
+          const pm = await installGitRemote()
+          if (pm) {
+            lg(`✅ git 安装完成 (${pm})`)
+          } else {
+            lg('⚠️ sudo 需要密码或包管理器不可用')
+            lg('   请手动安装: sudo apt-get install git')
+          }
+        }
 
         try {
           const { stdout } = await execAsync(remoteCmd('which openclaw'), { timeout: 15000 })

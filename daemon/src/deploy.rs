@@ -284,6 +284,161 @@ pub(crate) fn safe_join_canonical(base: &Path, entry_path: &Path) -> Option<Path
     }
 }
 
+/// Prepare OPC directory before deployment by preserving user data.
+///
+/// Strategy:
+/// 1. If git is available: commit all changes to preserve user data (recommended)
+/// 2. If git is not available: fallback to cp -r backup
+///
+/// Returns the OPC directory path.
+pub fn prepare_opc_directory(opc_id: &str, custom_root: Option<&Path>) -> anyhow::Result<PathBuf> {
+    let opc_dir = if let Some(root) = custom_root {
+        root.join(opc_id)
+    } else {
+        openclaw_home().join("OPC").join(opc_id)
+    };
+
+    if !opc_dir.exists() {
+        tracing::info!("OPC 目录不存在，跳过准备：{}", opc_dir.display());
+        return Ok(opc_dir);
+    }
+
+    tracing::info!("准备 OPC 目录（保存用户数据）：{}", opc_dir.display());
+
+    // Check if git is available
+    let git_available = std::process::Command::new("git")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if git_available {
+        // Use git to preserve user data
+        tracing::info!("使用 git 保存用户数据");
+        prepare_with_git(&opc_dir)?;
+    } else {
+        // Fallback to cp -r backup
+        tracing::info!("git 不可用，回退到 cp -r 备份");
+        prepare_with_backup(opc_id, &opc_dir, custom_root)?;
+    }
+
+    Ok(opc_dir)
+}
+
+/// Prepare using git (commits all changes)
+fn prepare_with_git(opc_dir: &Path) -> anyhow::Result<()> {
+    let timestamp = Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();
+    let commit_message = format!("chore: auto-commit before deploy at {}", timestamp);
+
+    // Check if git is initialized
+    let git_dir = opc_dir.join(".git");
+    let is_git_repo = git_dir.exists();
+
+    let git_result = if is_git_repo {
+        tracing::debug!("Git 仓库已存在，添加变更...");
+        std::process::Command::new("git")
+            .args(["add", "-A"])
+            .current_dir(opc_dir)
+            .status()
+    } else {
+        tracing::info!("初始化 Git 仓库...");
+        let init_result = std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(opc_dir)
+            .status();
+
+        match init_result {
+            Ok(status) if status.success() => {
+                // Create .gitignore to exclude large/generated files
+                let gitignore = opc_dir.join(".gitignore");
+                let gitignore_content = r#"# OpenClaw generated files
+*.log
+*.tmp
+
+# Node modules (if any)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+"#;
+                let _ = fs::write(&gitignore, gitignore_content);
+                tracing::debug!("已创建 .gitignore");
+
+                // Initial add
+                std::process::Command::new("git")
+                    .args(["add", "-A"])
+                    .current_dir(opc_dir)
+                    .status()
+            }
+            other => other,
+        }
+    };
+
+    // Commit changes
+    match git_result {
+        Ok(status) if status.success() => {
+            let commit_result = std::process::Command::new("git")
+                .args(["commit", "-m", &commit_message, "--allow-empty"])
+                .current_dir(opc_dir)
+                .status();
+
+            match commit_result {
+                Ok(status) if status.success() => {
+                    tracing::info!("✓ Git 提交完成：{}", commit_message);
+                }
+                Ok(status) => {
+                    tracing::debug!("Git commit exited with status: {:?} (可能无变更)", status.code());
+                }
+                Err(e) => {
+                    tracing::warn!("Git commit 执行失败：{}，继续部署", e);
+                }
+            }
+        }
+        Ok(status) => {
+            tracing::warn!("Git add 退出码非零：{:?}，继续部署", status.code());
+        }
+        Err(e) => {
+            tracing::warn!("Git 命令执行失败：{}，继续部署", e);
+        }
+    }
+
+    Ok(())
+}
+
+/// Fallback: backup using cp -r
+fn prepare_with_backup(opc_id: &str, opc_dir: &Path, custom_root: Option<&Path>) -> anyhow::Result<()> {
+    let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ").to_string();
+    let backup_name = format!("{}-bak-{}", opc_id, timestamp);
+    let backup_dir = if let Some(root) = custom_root {
+        root.join(&backup_name)
+    } else {
+        openclaw_home().join("OPC").join(&backup_name)
+    };
+
+    tracing::info!("备份 OPC 目录：{} → {}", opc_dir.display(), backup_dir.display());
+
+    let backup_result = std::process::Command::new("cp")
+        .args(["-r", "-p"])
+        .arg(opc_dir)
+        .arg(&backup_dir)
+        .status();
+
+    match backup_result {
+        Ok(status) if status.success() => {
+            tracing::info!("✓ OPC 目录备份完成：{}", backup_dir.display());
+        }
+        Ok(status) => {
+            tracing::warn!("备份命令退出码非零：{:?}，继续部署", status.code());
+        }
+        Err(e) => {
+            tracing::warn!("备份命令执行失败：{}，继续部署", e);
+        }
+    }
+
+    Ok(())
+}
+
 /// Extract tar.gz package to ~/.openclaw/ directory (or custom root)
 /// Extracts all files preserving the directory structure from the package
 ///
@@ -291,10 +446,12 @@ pub(crate) fn safe_join_canonical(base: &Path, entry_path: &Path) -> Option<Path
 ///
 /// If custom_root is provided, it's used as the base directory, and opc_id is appended.
 /// Otherwise, defaults to ~/.openclaw/OPC/{opc_id}.
+///
+/// **Important**: Call `prepare_opc_directory` before this function to preserve user data.
+/// The extraction only overwrites files present in the tar package - user-created files
+/// (like memory/YYYY-MM-DD.md) are preserved.
 pub fn extract_package(opc_id: &str, data: &[u8], custom_root: Option<&Path>) -> anyhow::Result<()> {
     // Determine the target OPC directory
-    // If custom_root is provided (e.g., ~/.openclaw/OPC), append opc_id to it
-    // Otherwise, default to ~/.openclaw/OPC/{opc_id}
     let opc_dir = if let Some(root) = custom_root {
         root.join(opc_id)
     } else {
@@ -547,7 +704,32 @@ pub async fn run_deploy(
         }
     }
 
-    // 2. Backup current config
+    // 2. Prepare OPC directory (git commit user data)
+    update(&|t| {
+        t.progress = 25;
+        t.current_step = "准备部署目录".to_string();
+        t.log("准备 OPC 目录（保存用户数据）...");
+    });
+
+    match tokio::task::spawn_blocking({
+        let opc_id2 = opc_id.clone();
+        let custom = custom_root.clone();
+        move || prepare_opc_directory(&opc_id2, custom.as_deref())
+    })
+    .await
+    {
+        Ok(Ok(_)) => {
+            update(&|t| t.log("✓ OPC 目录准备完成"));
+        }
+        Ok(Err(e)) => {
+            update(&|t| t.log(format!("⚠ 准备失败（继续部署）: {}", e)));
+        }
+        Err(e) => {
+            update(&|t| t.log(format!("⚠ 准备 panic: {}", e)));
+        }
+    }
+
+    // 3. Backup current config
     update(&|t| {
         t.progress = 30;
         t.current_step = "备份配置".to_string();

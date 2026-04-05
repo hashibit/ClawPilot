@@ -410,6 +410,8 @@ echo "        延迟: $(echo $SSH_CHECK | python3 -c 'import sys,json; print(jso
 
 ### 4-1. 安装 OpenClaw 到 VM
 
+> **注意**：安装 OpenClaw 时会同时安装 git，用于部署时自动保存用户数据。
+
 ```bash
 OC_INSTALL=$(curl -s -X POST $SERVER/install_openclaw \
   -H "Content-Type: application/json" \
@@ -423,6 +425,8 @@ OC_INSTALL=$(curl -s -X POST $SERVER/install_openclaw \
   }")
 echo $OC_INSTALL | python3 -m json.tool
 ```
+
+**预期**：`{"ok": true, "logs": ["✅ git 已安装", "✅ OpenClaw 已就绪: ..."]}`
 
 **预期**：`{"ok": true, "logs": ["✅ OpenClaw 已就绪: ..."]}`
 
@@ -526,6 +530,13 @@ d=json.load(sys.stdin)
 for l in (d.get('logs') or [])[-3:]: print('        ', l)
 " | tee -a $TEST_LOG
 
+# 验证 git 已安装
+GIT_CHECK=$(orb run -s -m $VM_NAME "which git && git --version")
+echo "        git: $GIT_CHECK" | tee -a $TEST_LOG
+[[ "$GIT_CHECK" == *"git version"* ]] \
+  && echo "✅ PASS  git 已安装" | tee -a $TEST_LOG \
+  || echo "❌ FAIL  git 未安装（部署时无法保存用户数据）" | tee -a $TEST_LOG
+
 # Daemon 安装结果
 check "Daemon 安装" "$INSTALL"
 [[ -n "$DAEMON_KEY" ]] && echo "✅ PASS  Daemon API Key 获取成功" | tee -a $TEST_LOG \
@@ -579,6 +590,28 @@ ROSTER_LINES=$(orb run -s -m $VM_NAME \
 [[ "$ROSTER_LINES" == "4" ]] \
   && echo "✅ PASS  AGENTS.md 花名册一致（4 个唯一行）" | tee -a $TEST_LOG \
   || echo "❌ FAIL  AGENTS.md 花名册不一致（唯一行数: $ROSTER_LINES）" | tee -a $TEST_LOG
+
+# 验证 OPC 目录 git 提交
+GIT_REPO=$(orb run -s -m $VM_NAME \
+  "test -d ~/.openclaw/OPC/$OPC_ID/.git && echo 'git-initialized' || echo 'not-git-repo'")
+[[ "$GIT_REPO" == "git-initialized" ]] \
+  && echo "✅ PASS  OPC 目录已用 git 管理" | tee -a $TEST_LOG \
+  || echo "⚠️  WARN  OPC 目录未初始化 git（首次部署时初始化）" | tee -a $TEST_LOG
+
+# 验证 memory 目录已创建
+MEMORY_DIR=$(orb run -s -m $VM_NAME \
+  "ls -d ~/.openclaw/OPC/$OPC_ID/workspace-*/memory 2>/dev/null | wc -l")
+[[ "$MEMORY_DIR" == "4" ]] \
+  && echo "✅ PASS  所有 agent 的 memory 目录已创建（4 个）" | tee -a $TEST_LOG \
+  || echo "❌ FAIL  memory 目录数量异常: $MEMORY_DIR" | tee -a $TEST_LOG
+
+# 验证 memory 目录含当日日志文件
+TODAY=$(date +%Y-%m-%d)
+MEMORY_LOGS=$(orb run -s -m $VM_NAME \
+  "ls ~/.openclaw/OPC/$OPC_ID/workspace-小龙虾/memory/$TODAY.md 2>/dev/null && echo found || echo not_found")
+[[ "$MEMORY_LOGS" == *"found"* ]] \
+  && echo "✅ PASS  memory/$TODAY.md 已创建" | tee -a $TEST_LOG \
+  || echo "❌ FAIL  memory/$TODAY.md 未找到" | tee -a $TEST_LOG
 
 # 验证部署后 openclaw.json 已合并到 ~/.openclaw/openclaw.json
 MAIN_CONFIG_COUNT=$(orb run -s -m $VM_NAME \
@@ -884,6 +917,7 @@ curl -s -X POST $SERVER/delete_office \
 | Office 创建 | office 记录创建成功 | ☐ |
 | SSH 连通性 | `check_ssh_connection` 返回 ok | ☐ |
 | OpenClaw 安装 | `install_openclaw` 返回 ok | ☐ |
+| git 安装 | `which git` 返回路径（部署时保存用户数据用） | ☐ |
 | Daemon 安装 | `install_daemon` 返回 ok，VM 上 `/health` 返回 ok | ☐ |
 | Daemon systemd | `systemctl --user is-active clawpilot-daemon` = active | ☐ |
 | OPC 部署 | 部署任务状态 success | ☐ |
@@ -894,6 +928,8 @@ curl -s -X POST $SERVER/delete_office \
 | 领队 SOUL.md | 含 `CLAWPILOT:LEADER_START` 段落 | ☐ |
 | Worker SOUL.md | 不含领队段落 | ☐ |
 | AGENTS.md 一致 | 四个 agent 的花名册行内容相同 | ☐ |
+| OPC git 管理 | 重新部署时 git 提交保存用户数据 | ☐ |
+| Memory 目录 | 每个 workspace 下有 memory/ 目录和当日日志 | ☐ |
 | Plan 创建 | daemon 可查询到 plan，status=pending_approval | ☐ |
 | Plan 审批 | status 变为 executing | ☐ |
 | DAG 调度 | t1 先 in_progress，t2/t3 pending | ☐ |
@@ -1081,6 +1117,36 @@ orb run -s -m $VM_NAME "cat ~/.openclaw/agents/frontend/sessions/*.jsonl \
 {"type":"session","id":"xxx","timestamp":"..."}
 {"type":"message","id":"xxx","message":{"role":"user","content":[{"type":"text","text":"你正在执行一个任务..."}]}}
 {"type":"message","id":"xxx","message":{"role":"assistant","content":[...]}}
+```
+
+---
+
+### Agent Workspace 文件结构
+
+部署后每个 agent 的 workspace 目录结构如下：
+
+```
+~/.openclaw/OPC/{opc_id}/workspace-{display_name}/
+├── SOUL.md           # 身份定位、核心职责、行为准则
+├── AGENTS.md         # 团队花名册（所有 agent 一致）
+├── USER.md           # 用户信息（Boss 是谁）
+├── IDENTITY.md       # Agent 名称、emoji、角色定义
+├── MEMORY.md         # 长期记忆（重要决策和经验教训）
+├── TOOLS.md          # 工具使用心得（可选）
+├── HEARTBEAT.md      # Heartbeat 检查清单（可选）
+├── memory/           # 每日工作日志目录
+│   └── YYYY-MM-DD.md # 当日日志（部署时自动创建）
+└── skills/           # Workspace 专属技能（如有）
+```
+
+**验证 workspace 结构：**
+
+```bash
+# 列出某 agent 的 workspace 文件
+orb run -s -m $VM_NAME "ls -la ~/.openclaw/OPC/$OPC_ID/workspace-小龙虾/"
+
+# 检查 memory 目录
+orb run -s -m $VM_NAME "ls -la ~/.openclaw/OPC/$OPC_ID/workspace-小龙虾/memory/"
 ```
 
 ---
