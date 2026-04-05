@@ -54,6 +54,38 @@ pub struct GatewayStatus {
     pub rpc_ok: bool,
 }
 
+/// Get OpenClaw version via `openclaw --version`
+/// Returns "2026.3.28" format or None if not found
+pub fn openclaw_version() -> Option<String> {
+    use std::process::Command;
+    use std::env;
+
+    let home = env::var("HOME").unwrap_or_default();
+    let path = env::var("PATH").unwrap_or_default();
+    let path = format!(
+        "{}/.npm-global/bin:{}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}",
+        home, home, path
+    );
+
+    let output = Command::new("openclaw")
+        .args(["--version"])
+        .env("PATH", path)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    // Parse "OpenClaw 2026.3.28 (f9b1079)" -> "2026.3.28"
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parts: Vec<&str> = stdout.trim().split_whitespace().collect();
+    if parts.len() >= 2 && parts[0] == "OpenClaw" {
+        return Some(parts[1].to_string());
+    }
+    None
+}
+
 /// Query gateway status via `openclaw gateway status --json`.
 ///
 /// Relevant fields from the JSON output:

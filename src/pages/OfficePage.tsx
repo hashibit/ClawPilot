@@ -155,6 +155,25 @@ export default function OfficePage() {
     const handleSave = async () => {
         if (!selected) return
         const isLocalhost = form.address === 'localhost'
+
+        // 验证门禁设置（仅远程模式）
+        if (!isLocalhost && form.address) {
+            if (!form.access_user || form.access_user.trim() === '') {
+                toast('远程办公室必须填写用户名', 'error')
+                return
+            }
+            const hasPassword = form.access_password && form.access_password.trim() !== ''
+            const hasSshKey = form.ssh_key_path && form.ssh_key_path.trim() !== ''
+            if (form.access_auth_type === 'password' && !hasPassword) {
+                toast('密码认证模式下必须填写密码', 'error')
+                return
+            }
+            if (form.access_auth_type === 'ssh_key' && !hasSshKey) {
+                toast('SSH 私钥认证模式下必须填写私钥路径', 'error')
+                return
+            }
+        }
+
         if (isLocalhost) {
             const conflict = offices.find(o => o.id !== selected.id && (!o.address || o.address === 'localhost'))
             if (conflict) {
@@ -309,9 +328,10 @@ export default function OfficePage() {
         const sshBase = isRemote ? {
             ssh_host: sshHost,
             ssh_port: sshPort,
+            ssh_user: saved.access_user ?? 'root',
             ...(saved.access_auth_type === 'ssh_key'
                 ? { ssh_key_path: saved.ssh_key_path }
-                : { ssh_user: saved.access_user ?? 'root', ssh_password: saved.access_password }),
+                : { ssh_password: saved.access_password }),
         } : {}
         const mode = isRemote ? 'ssh' : 'local'
 
@@ -597,48 +617,52 @@ export default function OfficePage() {
                                     </div>
                                     {/* 门禁：仅远程模式显示 */}
                                     {addressMode === true && (
-                                        <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start', flexDirection: 'column', padding: '8px 12px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-                                                <span className="group-label">{t('office.label_auth')}</span>
-                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                        <>
+                                            {/* 用户名 */}
+                                            <div className="group-row" style={{ gap: '10px' }}>
+                                                <span className="group-label" style={{ minWidth: '40px' }}>用户名</span>
+                                                <input type="text" value={form.access_user ?? ''} onChange={e => handleFormChange('access_user', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="root" disabled={!editing} />
+                                            </div>
+                                            {/* 认证方式 + 凭证 */}
+                                            <div className="group-row" style={{ gap: '10px', alignItems: 'center' }}>
+                                                <span className="group-label" style={{ minWidth: '40px' }}>认证</span>
+                                                <div style={{ display: 'flex', gap: '6px', flex: 1, alignItems: 'center' }}>
                                                     {(['password', 'ssh_key'] as AccessAuthType[]).map(authType => {
                                                         const active = (form.access_auth_type ?? 'password') === authType
                                                         return (
                                                             <button key={authType} onClick={() => { if (editing) handleFormChange('access_auth_type', authType) }} style={{
-                                                                padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', flexShrink: 0,
+                                                                height: '28px', lineHeight: '28px', padding: '0 12px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default',
                                                                 border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
-                                                                background: active ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)',
-                                                                color: active ? '#c4b5fd' : 'rgba(235,235,245,0.45)',
+                                                                background: active ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)',
+                                                                color: active ? '#a78bfa' : 'rgba(235,235,245,0.5)',
                                                                 fontWeight: active ? 500 : 400,
-                                                                opacity: editing ? 1 : 0.7,
                                                             }}>
-                                                                {authType === 'password' ? t('office.auth_password') : t('office.auth_ssh_key')}
+                                                                {authType === 'password' ? '密码' : 'SSH 私钥'}
                                                             </button>
                                                         )
                                                     })}
+                                                    {(form.access_auth_type ?? 'password') === 'password' ? (
+                                                        <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="登录密码" disabled={!editing} />
+                                                    ) : (
+                                                        <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="~/.ssh/id_ed25519" disabled={!editing} />
+                                                    )}
                                                 </div>
                                             </div>
-                                            {(form.access_auth_type ?? 'password') === 'password' ? (
-                                                <div style={{ display: 'flex', gap: '6px', width: '100%', paddingLeft: '82px' }}>
-                                                    <input type="text" value={form.access_user ?? ''} onChange={e => handleFormChange('access_user', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder={t('office.placeholder_username')} disabled={!editing} />
-                                                    <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder={t('office.placeholder_password')} disabled={!editing} />
+                                            {/* 测试连接 */}
+                                            <div className="group-row" style={{ gap: '10px' }}>
+                                                <span className="group-label" style={{ minWidth: '40px' }}></span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <button onClick={handleCheckSsh} disabled={sshChecking || !editing} className="tbtn tbtn-ghost" style={{ fontSize: '12px', opacity: editing ? 1 : 0.5 }}>
+                                                        {sshChecking ? '检测中…' : '测试连接'}
+                                                    </button>
+                                                    {sshResult && (
+                                                        <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
+                                                            {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            ) : (
-                                                <div style={{ display: 'flex', width: '100%', paddingLeft: '82px' }}>
-                                                    <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder={t('office.placeholder_ssh_key')} disabled={!editing} />
-                                                </div>
-                                            )}
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '82px' }}>
-                                                <button onClick={handleCheckSsh} disabled={sshChecking} className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>
-                                                    {sshChecking ? '检测中…' : '测试连接'}
-                                                </button>
-                                                {sshResult && (
-                                                    <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
-                                                        {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗ ${sshResult.error}`}
-                                                    </span>
-                                                )}
                                             </div>
-                                        </div>
+                                        </>
                                     )}
                                     <div className="group-row" style={{ gap: '10px' }}>
                                         <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_grade')}</span>

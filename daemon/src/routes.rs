@@ -9,7 +9,7 @@ use std::sync::atomic::Ordering;
 use uuid::Uuid;
 
 use crate::{
-    deploy::{openclaw_gateway_status, run_deploy, run_rollback},
+    deploy::{openclaw_gateway_status, openclaw_version, run_deploy, run_rollback},
     error::{AppError, Result},
     state::{AppState, TaskRecord},
 };
@@ -55,11 +55,13 @@ pub async fn restart_openclaw() -> Json<Value> {
 
 pub async fn health(State(_state): State<AppState>) -> Json<Value> {
     let gw = openclaw_gateway_status();
+    let openclaw_ver = openclaw_version();
 
     Json(json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
         "openclaw_status": if gw.is_running { "running" } else { "stopped" },
+        "openclaw_version": openclaw_ver,
     }))
 }
 
