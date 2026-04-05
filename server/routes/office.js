@@ -88,10 +88,12 @@ function broadcastInstallLog(officeId, payload) {
   } else if (payload.key) {
     // i18n key format
     dataToSend = { key: payload.key, params: payload.params || {}, type: payload.type || 'info', timestamp: Date.now() }
+  } else if (payload.message) {
+    // Plain message object - preserve type if provided
+    const classified = classifyLogLine(payload.message)
+    dataToSend = { message: classified.message, type: payload.type || classified.type, timestamp: Date.now() }
   } else {
-    // Plain message object
-    const classified = classifyLogLine(payload.message || '')
-    dataToSend = { message: classified.message, type: classified.type, timestamp: Date.now() }
+    return // Invalid payload
   }
 
   const data = `data: ${JSON.stringify(dataToSend)}\n\n`
@@ -611,7 +613,8 @@ export function createOfficeRouter(db) {
       } else {
         displayMsg = msgOrKey
         level = typeof paramsOrLevel === 'string' ? paramsOrLevel : 'info'
-        payload = displayMsg
+        // Include type in payload so frontend can style it
+        payload = { message: displayMsg, type: level }
       }
 
       logs.push(displayMsg)
@@ -732,18 +735,32 @@ export function createOfficeRouter(db) {
                 shell: false,
                 env: {
                   ...process.env,
+                  NO_PROMPT: '1',
                   OPENCLAW_NO_PROMPT: '1',
                   OPENCLAW_NO_ONBOARD: '1',
                 }
               })
               child.stdin.write(curlOut)
               child.stdin.end()
+
+              // Filter to remove duplicate info that ClawPilot already checked
+              const filterLine = (line) => {
+                const trimmed = line.trim()
+                if (!trimmed) return null
+                // Skip duplicate info - ClawPilot already checked these
+                if (/^✓ Git already installed/.test(trimmed)) return null
+                if (/^✓ Node\.js/.test(trimmed)) return null
+                if (/^· Active Node\.js/.test(trimmed)) return null
+                if (/^· Active npm/.test(trimmed)) return null
+                return trimmed
+              }
+
               child.stdout.on('data', d => {
                 const s = stripAnsi(d.toString())
                 if (s.trim()) {
-                  // Split multi-line output and add each line
                   s.trim().split('\n').forEach(line => {
-                    if (line.trim()) lg(`   ${line.trim()}`)
+                    const filtered = filterLine(line)
+                    if (filtered) lg(`   ${filtered}`)
                   })
                 }
                 chunks.push(d)
@@ -752,7 +769,8 @@ export function createOfficeRouter(db) {
                 const s = stripAnsi(d.toString())
                 if (s.trim()) {
                   s.trim().split('\n').forEach(line => {
-                    if (line.trim()) lg(`   [stderr] ${line.trim()}`)
+                    const filtered = filterLine(line)
+                    if (filtered) lg(`   ${filtered}`)
                   })
                 }
                 errChunks.push(d)
@@ -784,17 +802,29 @@ export function createOfficeRouter(db) {
               '--skip-health',
               '--accept-risk'
             ], { shell: false })
+
+            // Filter to remove noise from onboard output
+            const filterOnboardLine = (line) => {
+              const trimmed = line.trim()
+              if (!trimmed) return null
+              // Skip verbose/less important lines
+              if (/^·/.test(trimmed) && /checking|verifying|found/i.test(trimmed)) return null
+              return trimmed
+            }
+
             child.stdout.on('data', d => {
               const s = stripAnsi(d.toString())
               if (s.trim()) s.trim().split('\n').forEach(line => {
-                if (line.trim()) lg(`   ${line.trim()}`)
+                const filtered = filterOnboardLine(line)
+                if (filtered) lg(`   ${filtered}`)
               })
               chunks.push(d)
             })
             child.stderr.on('data', d => {
               const s = stripAnsi(d.toString())
               if (s.trim()) s.trim().split('\n').forEach(line => {
-                if (line.trim()) lg(`   [stderr] ${line.trim()}`)
+                const filtered = filterOnboardLine(line)
+                if (filtered) lg(`   ${filtered}`)
               })
               errChunks.push(d)
             })
@@ -894,48 +924,96 @@ export function createOfficeRouter(db) {
           lg('office.install.executing_remote_script')
 
           try {
-            const installCmd = 'OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fSL --progress-bar https://openclaw.ai/install.sh | bash"'
+            // Use NO_PROMPT=1 to disable interactive prompts (checked by install script)
+            const installCmd = 'NO_PROMPT=1 OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fSL https://openclaw.ai/install.sh | bash"'
 
-            // Helper to filter stderr - remove curl progress bar and identify normal installer output
+            // Helper to filter and classify stderr output
+            // Show more progress details during installation
             const filterStderr = (line) => {
               const trimmed = line.trim()
               if (!trimmed) return null
-              // Skip curl progress bar (lines of # and percentage)
-              if (/^#+\s*\d*\.?\d*%?$/.test(trimmed)) return null
               // Skip empty progress lines
               if (trimmed === '' || trimmed === '\r') return null
-              // Installer normal output (treat as info, not error)
+
+              // Curl progress bar - show percentage for download progress
+              const progressMatch = trimmed.match(/^(#+)\s*(\d*\.?\d*)%?$/)
+              if (progressMatch) {
+                const pct = progressMatch[2] || ''
+                if (pct && pct !== '100') {
+                  return { line: `📥 下载安装脚本... ${pct}%`, type: 'progress' }
+                }
+                return null // Skip 100% or empty
+              }
+
+              // Skip duplicate info - ClawPilot already checked these
+              if (/^✓ Git already installed/.test(trimmed)) return null
+              if (/^✓ Node\.js/.test(trimmed)) return null
+              if (/^· Active Node\.js/.test(trimmed)) return null
+              if (/^· Active npm/.test(trimmed)) return null
+
+              // IMPORTANT: Always show error/failure messages
+              if (/^!/.test(trimmed)) {
+                return { line: trimmed, type: 'warning' }
+              }
+              if (/failed|error|Error|ERROR/i.test(trimmed)) {
+                return { line: trimmed, type: 'error' }
+              }
+
+              // Git clone progress
+              if (/Cloning into/.test(trimmed)) {
+                return { line: `📥 ${trimmed}`, type: 'info' }
+              }
+              if (/Receiving objects:\s*(\d+)%/.test(trimmed)) {
+                const match = trimmed.match(/Receiving objects:\s*(\d+)%/)
+                return { line: `   下载代码: ${match[1]}%`, type: 'progress' }
+              }
+              if (/Resolving deltas:\s*(\d+)%/.test(trimmed)) {
+                const match = trimmed.match(/Resolving deltas:\s*(\d+)%/)
+                return { line: `   解析提交: ${match[1]}%`, type: 'progress' }
+              }
+
+              // npm install progress
+              if (/npm WARN/.test(trimmed)) {
+                return { line: `   ⚠️ ${trimmed}`, type: 'warning' }
+              }
+              if (/added \d+ packages/.test(trimmed)) {
+                return { line: `   ${trimmed}`, type: 'success' }
+              }
+
+              // Installer normal output
               const normalPatterns = [
                 /^✓/, /^·/, /^\[\d+\/\d+\]/, /^🦞/, /^Shell yeah/,
                 /Install plan/, /OS:/, /Install method:/, /Requested version:/,
                 /Onboarding:/, /Preparing environment/, /Installing OpenClaw/,
-                /Node\.js/, /npm/, /Git/, /Active/,
+                /Command:/, /Installer log:/, /Existing OpenClaw/,
               ]
               for (const pattern of normalPatterns) {
                 if (pattern.test(trimmed)) {
-                  return { line: trimmed, isError: false }
+                  return { line: trimmed, type: 'info' }
                 }
               }
-              // Everything else is an actual error
-              return { line: trimmed, isError: true }
+
+              // Show most other lines - don't hide potential issues
+              if (trimmed.length > 2) {
+                return { line: trimmed, type: 'detail' }
+              }
+              return null
             }
 
             const { exitCode, stdout, stderr } = await execRemote(sshOpts, installCmd, {
               timeout: 300000,
               onStdout: (s) => {
                 const clean = stripAnsi(s).trim()
-                if (clean) clean.split('\n').forEach(line => { if (line.trim()) lg(`   ${line.trim()}`) })
+                if (clean) clean.split('\n').forEach(line => {
+                  if (line.trim()) lg(`   ${line.trim()}`)
+                })
               },
               onStderr: (s) => {
                 const clean = stripAnsi(s)
                 clean.split('\n').forEach(line => {
                   const result = filterStderr(line)
-                  if (result === null) return // Skip filtered lines
-                  if (result.isError) {
-                    lg(`   ⚠️ ${result.line}`)
-                  } else {
-                    lg(`   ${result.line}`)
-                  }
+                  if (result === null) return
+                  lg(`   ${result.line}`, result.type)
                 })
               },
             })
