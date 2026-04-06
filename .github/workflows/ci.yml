@@ -30,6 +30,12 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Create daemon resource placeholders for CI
+        run: |
+          mkdir -p src-tauri/resources
+          touch src-tauri/resources/clawpilot-daemon-macos
+          touch src-tauri/resources/clawpilot-daemon-linux
+
       - name: Run tests
         working-directory: src-tauri
         run: cargo test --lib
