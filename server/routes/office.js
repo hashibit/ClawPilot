@@ -8,7 +8,7 @@ import { homedir } from 'os'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
 import { encrypt, decrypt } from '../utils/crypto.js'
-import { execRemote, checkConnection, detectArch, commandExists, readFile, uploadFile } from '../utils/ssh.js'
+import { sshExecRaw as sshExecRaw, checkConnection, detectArch, commandExists, readFile, uploadFile } from '../utils/ssh.js'
 
 const log = createLogger('office')
 
@@ -397,7 +397,7 @@ export function createOfficeRouter(db) {
         keyPath: auth_type === 'ssh_key' ? expandedKeyPath : undefined,
         timeout: 5000,
       }
-      await execRemote(sshOpts, 'exit 0', { timeout: 5000 })
+      await sshExecRaw(sshOpts, 'exit 0', { timeout: 5000 })
       res.json({ ok: true, latency_ms: Date.now() - start })
     } catch (err) {
       const msg = err.message || ''
@@ -531,7 +531,7 @@ export function createOfficeRouter(db) {
 
         step('office.install.uploading_daemon')
         await uploadFile(sshOpts, binPath, '/tmp/clawpilot-daemon')
-        await execRemote(sshOpts, 'chmod +x /tmp/clawpilot-daemon && sudo mv /tmp/clawpilot-daemon /usr/local/bin/clawpilot-daemon')
+        await sshExecRaw(sshOpts, 'chmod +x /tmp/clawpilot-daemon && sudo mv /tmp/clawpilot-daemon /usr/local/bin/clawpilot-daemon')
         step('office.install.daemon_uploaded')
 
         step('🔧 安装 systemd 用户服务...')
@@ -551,7 +551,7 @@ export function createOfficeRouter(db) {
           'WantedBy=default.target',
         ].join('\n')
         const encodedUnit = Buffer.from(serviceUnit).toString('base64')
-        await execRemote(sshOpts, `mkdir -p ~/.config/systemd/user && echo '${encodedUnit}' | base64 -d > ~/.config/systemd/user/clawpilot-daemon.service && systemctl --user daemon-reload && systemctl --user enable clawpilot-daemon && systemctl --user start clawpilot-daemon`)
+        await sshExecRaw(sshOpts, `mkdir -p ~/.config/systemd/user && echo '${encodedUnit}' | base64 -d > ~/.config/systemd/user/clawpilot-daemon.service && systemctl --user daemon-reload && systemctl --user enable clawpilot-daemon && systemctl --user start clawpilot-daemon`)
         step('✅ systemd 用户服务已启用')
 
         step('⏳ 等待远程 daemon 就绪...')
@@ -854,14 +854,14 @@ export function createOfficeRouter(db) {
         }
 
         // Helper to run remote command with PATH set
-        const remoteExec = async (cmd, opts = {}) => {
+        const sshExec = async (cmd, opts = {}) => {
           const fullCmd = `export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:/usr/local/bin:$PATH" && ${cmd}`
-          return execRemote(sshOpts, fullCmd, opts)
+          return sshExecRaw(sshOpts, fullCmd, opts)
         }
 
         // ── Ensure Node.js on remote (user-level, no sudo) ───────────────────────
         lg('office.install.checking_node')
-        const nodeCheck = await remoteExec('node --version 2>/dev/null || true', { timeout: 5000 })
+        const nodeCheck = await sshExec('node --version 2>/dev/null || true', { timeout: 5000 })
         const nodeVersion = nodeCheck.stdout.trim()
         if (nodeVersion) {
           lg('office.install.node_found', { version: nodeVersion })
@@ -869,7 +869,7 @@ export function createOfficeRouter(db) {
           lg('office.install.node_missing_installing')
           const nodeScriptPath = join(__dirname, '..', '..', 'scripts', 'install-node-user-latest-v22.sh')
           await uploadFile(sshOpts, nodeScriptPath, '/tmp/install-node-user.sh')
-          const { exitCode } = await execRemote(sshOpts, 'bash /tmp/install-node-user.sh', {
+          const { exitCode } = await sshExecRaw(sshOpts, 'bash /tmp/install-node-user.sh', {
             timeout: 120000,
             onStdout: (s) => s.trim().split('\n').forEach(l => l.trim() && lg(`   ${l.trim()}`)),
             onStderr: (s) => s.trim().split('\n').forEach(l => l.trim() && lg(`   ${l.trim()}`)),
@@ -899,7 +899,7 @@ export function createOfficeRouter(db) {
             ]
             for (const pm of pkgManagers) {
               try {
-                await execRemote(sshOpts, pm.cmd, { timeout: pm.timeout })
+                await sshExecRaw(sshOpts, pm.cmd, { timeout: pm.timeout })
                 return pm.name
               } catch { /* try next */ }
             }
@@ -928,11 +928,11 @@ export function createOfficeRouter(db) {
               throw new Error(`安装脚本不存在: ${scriptPath}`)
             }
             // Clean up stale openclaw directories that cause ENOTEMPTY on reinstall
-            await execRemote(sshOpts, 'rm -rf ~/.npm-global/lib/node_modules/openclaw ~/.npm-global/lib/node_modules/.openclaw-*', { timeout: 10000 })
+            await sshExecRaw(sshOpts, 'rm -rf ~/.npm-global/lib/node_modules/openclaw ~/.npm-global/lib/node_modules/.openclaw-*', { timeout: 10000 })
 
             lg('office.install.uploading_script')
             await uploadFile(sshOpts, scriptPath, '/tmp/openclaw-install.sh')
-            await execRemote(sshOpts, 'chmod +x /tmp/openclaw-install.sh')
+            await sshExecRaw(sshOpts, 'chmod +x /tmp/openclaw-install.sh')
             lg('office.install.script_uploaded')
 
             lg('office.install.executing_remote_script')
@@ -1012,7 +1012,7 @@ export function createOfficeRouter(db) {
               return null
             }
 
-            const { exitCode, stdout, stderr } = await remoteExec(installCmd, {
+            const { exitCode, stdout, stderr } = await sshExec(installCmd, {
               timeout: 300000,
               onStdout: (s) => {
                 const clean = stripAnsi(s).trim()
@@ -1061,7 +1061,7 @@ export function createOfficeRouter(db) {
             return { line: trimmed, isError: true }
           }
 
-          const { exitCode } = await remoteExec(onboardCmd, {
+          const { exitCode } = await sshExec(onboardCmd, {
             timeout: 60000,
             onStdout: (s) => {
               const clean = stripAnsi(s).trim()
@@ -1091,7 +1091,7 @@ export function createOfficeRouter(db) {
 
         lg('office.install.verifying')
         try {
-          const { stdout: ver } = await remoteExec('openclaw --version', { timeout: 10000 })
+          const { stdout: ver } = await sshExec('openclaw --version', { timeout: 10000 })
           if (!ver.trim()) throw new Error('openclaw --version 无输出')
           lg('office.install.openclaw_ready', { version: ver.trim() })
         } catch (err) {
@@ -1165,7 +1165,7 @@ export function createOfficeRouter(db) {
       let foundPort = null
       for (const port of [16668]) {
         try {
-          const { stdout } = await execRemote(sshOpts, `curl -sf http://127.0.0.1:${port}/health > /dev/null 2>&1 && echo ok`, { timeout: 8000 })
+          const { stdout } = await sshExecRaw(sshOpts, `curl -sf http://127.0.0.1:${port}/health > /dev/null 2>&1 && echo ok`, { timeout: 8000 })
           if (stdout.trim() === 'ok') { foundPort = port; break }
         } catch { /* port not running */ }
       }
