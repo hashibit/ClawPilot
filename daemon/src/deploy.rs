@@ -668,10 +668,10 @@ pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyh
         }
     }
 
-    // Write merged config
+    // Write merged config (with trailing newline for standard practice)
     let output = serde_json::to_string_pretty(&main_config)
         .context("failed to serialize merged config")?;
-    fs::write(&main_config_path, output)?;
+    fs::write(&main_config_path, format!("{}\n", output))?;
     tracing::info!("Updated $include references in {}", main_config_path.display());
 
     tracing::info!("Merged OPC {} $include references", opc_id);

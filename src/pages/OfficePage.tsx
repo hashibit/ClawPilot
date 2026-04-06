@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDaemon, installOpenclaw, probeLocalDaemon, probeRemoteDaemon, getLocalDaemonVersion } from '../lib/api'
 import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
@@ -26,6 +27,8 @@ const RECEPTIONIST_PRESETS = [
 
 export default function OfficePage() {
     const { t } = useTranslation()
+    const [searchParams] = useSearchParams()
+    const highlightId = searchParams.get('highlight')
 
     const GRADE_LABELS: Record<OfficeGrade, string> = {
         HIGH: t('office.grade_high'),
@@ -71,7 +74,9 @@ export default function OfficePage() {
             const list = await getOffices()
             setOffices(list)
             if (list.length > 0 && !selected) {
-                const first = list[0]
+                // 如果 URL 中有 highlight 参数，优先选择该办公室
+                const target = highlightId ? list.find(o => o.id === highlightId) : null
+                const first = target ?? list[0]
                 setSelected(first); setForm(first)
                 getOfficeDeployments(first.id).then(setDeployHistory).catch(() => setDeployHistory([]))
                 if (first.daemon_url) {

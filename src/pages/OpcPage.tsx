@@ -384,7 +384,7 @@ export default function OpcPage() {
                       {selected.is_running && selected.office_name && (
                         <>
                           <span style={{ color: '#48484A', fontSize: '11px' }}>·</span>
-                          <a href="#/office" style={{ fontSize: '12px', color: '#a78bfa', textDecoration: 'none' }}>
+                          <a href={`#/office?highlight=${selected.office_id}`} style={{ fontSize: '12px', color: '#a78bfa', textDecoration: 'none' }}>
                             {selected.office_name}
                           </a>
                         </>

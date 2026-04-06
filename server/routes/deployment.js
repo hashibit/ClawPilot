@@ -201,7 +201,8 @@ function buildPackage(data, manifest) {
       } else if (typeof content === 'string') {
         buf = Buffer.from(content, 'utf8')
       } else {
-        buf = Buffer.from(JSON.stringify(content, null, 2), 'utf8')
+        // JSON/JSON5 files should end with a newline (standard practice)
+        buf = Buffer.from(JSON.stringify(content, null, 2) + '\n', 'utf8')
       }
       tarPack.entry({ name: tarPath, size: buf.length }, buf, (err) => {
         if (err) reject(err)
@@ -585,7 +586,8 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
         } else if (typeof content === 'string') {
           buf = Buffer.from(content, 'utf8')
         } else {
-          buf = Buffer.from(JSON.stringify(content, null, 2), 'utf8')
+          // JSON/JSON5 files should end with a newline (standard practice)
+          buf = Buffer.from(JSON.stringify(content, null, 2) + '\n', 'utf8')
         }
         log.info(`[buildPackage] Adding file: ${tarPath} (${buf.length} bytes)`)
         tarPack.entry({ name: tarPath, size: buf.length }, buf, (err) => {
@@ -819,18 +821,19 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
       if (!statusResp.ok) continue
 
       const statusData = await statusResp.json()
+      const state = statusData.state || statusData // 兼容两种返回格式
 
       // Save daemon logs to deployment_tasks.message
-      const logSnippet = (statusData.logs || []).slice(-5).join('\n')
+      const logSnippet = (state.logs || []).slice(-5).join('\n')
       try {
         db.prepare('UPDATE deployment_tasks SET message = ?, current_step = ? WHERE id = ?')
-          .run(logSnippet, Math.min(3, Math.floor((statusData.progress || 0) / 34)), taskId)
+          .run(logSnippet, Math.min(3, Math.floor((state.progress || 0) / 34)), taskId)
       } catch (_) {}
 
-      if (statusData.status === 'success') {
+      if (state.status === 'success') {
         mark('SUCCESS', 4, {
           completed_at: now(),
-          message: (statusData.logs || []).join('\n'),
+          message: (state.logs || []).join('\n'),
         })
 
         // Record active deployment
@@ -844,8 +847,8 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
         return
       }
 
-      if (statusData.status === 'failed') {
-        throw new Error(statusData.error || '部署失败')
+      if (state.status === 'failed') {
+        throw new Error(state.error || '部署失败')
       }
     }
 
@@ -899,7 +902,8 @@ function buildResetPackage(initialConfig) {
     tarPack.pipe(gz)
 
     const addFile = (name, content) => {
-      const buf = typeof content === 'string' ? Buffer.from(content, 'utf8') : Buffer.from(JSON.stringify(content, null, 2), 'utf8')
+      // JSON/JSON5 files should end with a newline (standard practice)
+      const buf = typeof content === 'string' ? Buffer.from(content, 'utf8') : Buffer.from(JSON.stringify(content, null, 2) + '\n', 'utf8')
       tarPack.entry({ name, size: buf.length }, buf, err => { if (err) reject(err) })
     }
 
