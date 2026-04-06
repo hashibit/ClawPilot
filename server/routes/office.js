@@ -935,7 +935,7 @@ export function createOfficeRouter(db) {
               throw new Error(`安装脚本不存在: ${scriptPath}`)
             }
             // Clean up stale openclaw directories that cause ENOTEMPTY on reinstall
-            await sshExecRaw(sshOpts, 'rm -rf ~/.npm-global/lib/node_modules/openclaw ~/.npm-global/lib/node_modules/.openclaw-*', { timeout: 10000 })
+            await sshExecRaw(sshOpts, 'rm -rf ~/.npm-global/lib/node_modules/openclaw ~/.npm-global/lib/node_modules/.openclaw-* ~/.local/lib/node_modules/openclaw ~/.local/lib/node_modules/.openclaw-*', { timeout: 10000 })
 
             lg('office.install.uploading_script')
             await uploadFile(sshOpts, scriptPath, '/tmp/openclaw-install.sh')
