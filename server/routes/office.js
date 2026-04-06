@@ -1019,15 +1019,24 @@ export function createOfficeRouter(db) {
               return null
             }
 
+            // Heartbeat: show progress every 30s so user knows npm is still downloading
+            let lastOutputAt = Date.now()
+            const heartbeat = setInterval(() => {
+              const elapsed = Math.round((Date.now() - lastOutputAt) / 1000)
+              if (elapsed >= 30) lg(`   ⏳ 正在下载安装包，请耐心等待… (已等待 ${elapsed}s)`)
+            }, 30000)
+
             const { exitCode, stdout, stderr } = await sshExec(installCmd, {
-              timeout: 300000,
+              timeout: 1800000, // 30 minutes
               onStdout: (s) => {
+                lastOutputAt = Date.now()
                 const clean = stripAnsi(s).trim()
                 if (clean) clean.split('\n').forEach(line => {
                   if (line.trim()) lg(`   ${line.trim()}`)
                 })
               },
               onStderr: (s) => {
+                lastOutputAt = Date.now()
                 const clean = stripAnsi(s)
                 clean.split('\n').forEach(line => {
                   const result = filterStderr(line)
@@ -1036,6 +1045,7 @@ export function createOfficeRouter(db) {
                 })
               },
             })
+            clearInterval(heartbeat)
             if (exitCode !== 0) {
               throw new Error(`安装脚本失败 (exit ${exitCode})`)
             }
