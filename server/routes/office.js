@@ -1012,7 +1012,7 @@ export function createOfficeRouter(db) {
               return null
             }
 
-            const { exitCode, stdout, stderr } = await execRemote(sshOpts, installCmd, {
+            const { exitCode, stdout, stderr } = await remoteExec(installCmd, {
               timeout: 300000,
               onStdout: (s) => {
                 const clean = stripAnsi(s).trim()
