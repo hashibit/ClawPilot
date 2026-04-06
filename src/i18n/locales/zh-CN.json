@@ -599,6 +599,7 @@
     "deploy_now": "立即部署",
     "cancel_deploy": "取消部署",
     "undeploy": "撤销部署",
+    "redeploy": "重新部署",
     "select_opc": "选择子公司",
     "select_office": "选择办公室",
     "placeholder_select_opc": "-- 请选择子公司 --",

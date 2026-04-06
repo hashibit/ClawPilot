@@ -116,6 +116,21 @@ export default function DeployPage() {
     } catch (e) { toast(String(e), 'error') }
   }
 
+  const handleRedeploy = async (opc: OpcConfig) => {
+    if (!opc.office_id || deploying) return
+    setDeploying(true)
+    setCurrentTask(null)
+    try {
+      const taskId = await startDeployment(opc.id, opc.office_id)
+      const task = await getDeploymentStatus(taskId)
+      setCurrentTask(task)
+      pollRef.current = setInterval(() => pollStatus(taskId, opc.id), 2000)
+    } catch (e) {
+      setDeploying(false)
+      toast(String(e), 'error')
+    }
+  }
+
   const taskSteps: string[] = (() => {
     if (!currentTask) return []
     try { return JSON.parse(currentTask.steps) } catch { return [] }
@@ -268,13 +283,23 @@ export default function DeployPage() {
                       🏢 {opc.office_name ?? t('deploy.unknown_office')}
                     </div>
                   </div>
-                  <button
-                    className="tbtn tbtn-ghost"
-                    style={{ fontSize: '11px', color: '#f43f5e' }}
-                    onClick={() => handleUndeploy(opc)}
-                  >
-                    {t('deploy.undeploy')}
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                    <button
+                      className="tbtn tbtn-ghost"
+                      style={{ fontSize: '11px', color: '#8b5cf6' }}
+                      onClick={() => handleRedeploy(opc)}
+                      disabled={deploying}
+                    >
+                      {t('deploy.redeploy')}
+                    </button>
+                    <button
+                      className="tbtn tbtn-ghost"
+                      style={{ fontSize: '11px', color: '#f43f5e' }}
+                      onClick={() => handleUndeploy(opc)}
+                    >
+                      {t('deploy.undeploy')}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

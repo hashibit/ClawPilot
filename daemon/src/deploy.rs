@@ -636,7 +636,7 @@ pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyh
     let main_config_path = openclaw_root.join("openclaw.json");
 
     // Read existing main config
-    let mut main_config: serde_json::Value = if main_config_path.exists() {
+    let existing_config: serde_json::Value = if main_config_path.exists() {
         let main_str = fs::read_to_string(&main_config_path)?;
         serde_json::from_str(&main_str).unwrap_or_else(|_| serde_json::json!({}))
     } else {
@@ -651,26 +651,59 @@ pub fn merge_into_openclaw_config(opc_id: &str, opc_root: Option<&Path>) -> anyh
         tracing::info!("Backed up main config to {}", backup_path.display());
     }
 
-    // Generate $include references for the 4 OPC-managed keys
-    // These point to the json5 files in the OPC directory
-    let include_refs = serde_json::json!({
-        "agents": { "$include": format!("./OPC/{}/agents.json5", opc_id) },
-        "models": { "$include": format!("./OPC/{}/models.json5", opc_id) },
-        "channels": { "$include": format!("./OPC/{}/channels.json5", opc_id) },
-        "bindings": { "$include": format!("./OPC/{}/bindings.json5", opc_id) },
-    });
+    // Build ordered config: $include fields first, then other fields
+    // This ensures agents, bindings, channels, models are grouped together
+    let include_fields = [
+        ("agents", format!("./OPC/{}/agents.json5", opc_id)),
+        ("bindings", format!("./OPC/{}/bindings.json5", opc_id)),
+        ("channels", format!("./OPC/{}/channels.json5", opc_id)),
+        ("models", format!("./OPC/{}/models.json5", opc_id)),
+    ];
 
-    // Update main config with $include references
-    for field in ["agents", "models", "channels", "bindings"] {
-        if let Some(val) = include_refs.get(field) {
-            tracing::info!("Setting $include for '{}': {:?}", field, val);
-            main_config[field] = val.clone();
-        }
+    // Collect non-include fields from existing config
+    let include_keys: std::collections::HashSet<&str> = include_fields.iter().map(|(k, _)| *k).collect();
+    let other_fields: Vec<(&str, &serde_json::Value)> = existing_config
+        .as_object()
+        .map(|obj| {
+            obj.iter()
+                .filter(|(k, _)| !include_keys.contains(k.as_str()))
+                .map(|(k, v)| (k.as_str(), v))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // Build output string manually to control field order
+    let mut lines = vec!["{".to_string()];
+
+    // Add $include fields first (grouped together)
+    for (key, path) in &include_fields {
+        lines.push(format!(r#"  "{}": {{"$include": "{}"}},"#, key, path));
     }
 
-    // Write merged config (with trailing newline for standard practice)
-    let output = serde_json::to_string_pretty(&main_config)
-        .context("failed to serialize merged config")?;
+    // Add other fields
+    for (i, (key, value)) in other_fields.iter().enumerate() {
+        let value_str = serde_json::to_string_pretty(value)?;
+        // Indent each line of the value
+        let indented: String = value_str
+            .lines()
+            .enumerate()
+            .map(|(line_num, line)| {
+                if line_num == 0 {
+                    line.to_string()
+                } else {
+                    format!("  {}", line)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let comma = if i == other_fields.len() - 1 { "" } else { "," };
+        lines.push(format!(r#"  "{}": {}{}"#, key, indented, comma));
+    }
+
+    lines.push("}".to_string());
+    let output = lines.join("\n");
+
     fs::write(&main_config_path, format!("{}\n", output))?;
     tracing::info!("Updated $include references in {}", main_config_path.display());
 

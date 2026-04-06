@@ -583,6 +583,7 @@
     "deploy_now": "Deploy Now",
     "cancel_deploy": "Cancel Deployment",
     "undeploy": "Undeploy",
+    "redeploy": "Redeploy",
     "select_opc": "Select Subsidiary",
     "select_office": "Select Office",
     "placeholder_select_opc": "-- Select Subsidiary --",
