@@ -2,9 +2,10 @@ import { Router } from 'express'
 import { spawn } from 'child_process'
 import { exec as execCb } from 'child_process'
 import { promisify } from 'util'
-import { existsSync, readFileSync, statSync } from 'fs'
+import { existsSync, readFileSync, statSync, mkdirSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { homedir } from 'os'
+import { randomBytes } from 'crypto'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
 import { encrypt, decrypt } from '../utils/crypto.js'
@@ -458,7 +459,15 @@ export function createOfficeRouter(db) {
 
         if (await isDaemonRunning(daemonUrl)) {
           step('✅ Daemon 已在运行')
-          const apiKey = readLocalKey()
+          let apiKey = readLocalKey()
+          if (!apiKey) {
+            // Generate a new API key if not found
+            step('🔑 生成新的 API Key...')
+            apiKey = randomBytes(32).toString('hex')
+            const keyDir = join(homedir(), '.clawpilot')
+            mkdirSync(keyDir, { recursive: true })
+            writeFileSync(join(keyDir, 'daemon.key'), apiKey, 'utf8')
+          }
           if (office_id && apiKey) {
             const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
           const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
@@ -488,8 +497,16 @@ export function createOfficeRouter(db) {
         if (!started) return res.json({ ok: false, error: 'office.install.timeout_startup', logs })
         step('✅ Daemon 已就绪')
 
-        const apiKey = readLocalKey()
-        step('🔑 API Key 已读取')
+        let apiKey = readLocalKey()
+        if (!apiKey) {
+          // Generate a new API key if not found
+          step('🔑 生成新的 API Key...')
+          apiKey = randomBytes(32).toString('hex')
+          const keyDir = join(homedir(), '.clawpilot')
+          mkdirSync(keyDir, { recursive: true })
+          writeFileSync(join(keyDir, 'daemon.key'), apiKey, 'utf8')
+        }
+        step('🔑 API Key 已就绪')
 
         if (office_id && apiKey) {
           db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
@@ -567,8 +584,14 @@ export function createOfficeRouter(db) {
         if (!started) return res.json({ ok: false, error: 'office.install.timeout_remote_startup', logs })
         step('✅ 远程 daemon 已就绪')
 
-        const apiKey = await readFile(sshOpts, '~/.clawpilot/daemon.key').then(s => s.trim()).catch(() => null)
-        step('🔑 API Key 已读取')
+        let apiKey = await readFile(sshOpts, '~/.clawpilot/daemon.key').then(s => s.trim()).catch(() => null)
+        if (!apiKey) {
+          // Generate a new API key if not found
+          step('🔑 生成新的 API Key...')
+          apiKey = randomBytes(32).toString('hex')
+          await sshExecRaw(sshOpts, `mkdir -p ~/.clawpilot && echo '${apiKey}' > ~/.clawpilot/daemon.key`, { timeout: 5000 })
+        }
+        step('🔑 API Key 已就绪')
 
         if (office_id && apiKey) {
           db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
@@ -1056,54 +1079,62 @@ export function createOfficeRouter(db) {
           }
         }
 
-        lg('office.install.registering_service')
-        lg('office.install.running_onboard')
-        try {
-          const onboardCmd = 'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'
+        // Check if already configured (skip onboard to avoid overwriting config)
+        const configCheck = await sshExec('test -f ~/.openclaw/openclaw.json && echo exists || true', { timeout: 5000 })
+        if (configCheck.stdout.trim() === 'exists') {
+          lg('office.install.config_exists')
+          // Ensure daemon service is running
+          await sshExec('openclaw daemon start 2>/dev/null || true', { timeout: 10000 })
+        } else {
+          lg('office.install.registering_service')
+          lg('office.install.running_onboard')
+          try {
+            const onboardCmd = 'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'
 
-          // Helper to identify error vs normal output
-          const filterStderr = (line) => {
-            const trimmed = line.trim()
-            if (!trimmed) return null
-            // Normal output patterns
-            const normalPatterns = [
-              /^✓/, /^·/, /^\[?\d+\/\d+\]?/, /^Creating/, /^Writing/, /^Generated/,
-              /daemon/, /service/, /config/, /onboard/,
-            ]
-            for (const pattern of normalPatterns) {
-              if (pattern.test(trimmed)) {
-                return { line: trimmed, isError: false }
-              }
-            }
-            return { line: trimmed, isError: true }
-          }
-
-          const { exitCode } = await sshExec(onboardCmd, {
-            timeout: 60000,
-            onStdout: (s) => {
-              const clean = stripAnsi(s).trim()
-              if (clean) clean.split('\n').forEach(line => { if (line.trim()) lg(`   ${line.trim()}`) })
-            },
-            onStderr: (s) => {
-              const clean = stripAnsi(s)
-              clean.split('\n').forEach(line => {
-                const result = filterStderr(line)
-                if (result === null) return
-                if (result.isError) {
-                  lg(`   ⚠️ ${result.line}`)
-                } else {
-                  lg(`   ${result.line}`)
+            // Helper to identify error vs normal output
+            const filterStderr = (line) => {
+              const trimmed = line.trim()
+              if (!trimmed) return null
+              // Normal output patterns
+              const normalPatterns = [
+                /^✓/, /^·/, /^\[?\d+\/\d+\]?/, /^Creating/, /^Writing/, /^Generated/,
+                /daemon/, /service/, /config/, /onboard/,
+              ]
+              for (const pattern of normalPatterns) {
+                if (pattern.test(trimmed)) {
+                  return { line: trimmed, isError: false }
                 }
-              })
-            },
-          })
-          if (exitCode !== 0) {
-            throw new Error(`onboard 失败 (exit ${exitCode})`)
+              }
+              return { line: trimmed, isError: true }
+            }
+
+            const { exitCode } = await sshExec(onboardCmd, {
+              timeout: 60000,
+              onStdout: (s) => {
+                const clean = stripAnsi(s).trim()
+                if (clean) clean.split('\n').forEach(line => { if (line.trim()) lg(`   ${line.trim()}`) })
+              },
+              onStderr: (s) => {
+                const clean = stripAnsi(s)
+                clean.split('\n').forEach(line => {
+                  const result = filterStderr(line)
+                  if (result === null) return
+                  if (result.isError) {
+                    lg(`   ⚠️ ${result.line}`)
+                  } else {
+                    lg(`   ${result.line}`)
+                  }
+                })
+              },
+            })
+            if (exitCode !== 0) {
+              throw new Error(`onboard 失败 (exit ${exitCode})`)
+            }
+            lg('office.install.service_done')
+          } catch (err) {
+            lg('office.install.service_failed', { error: err.message }, 'error')
+            return res.json({ ok: false, error: err.message, logs })
           }
-          lg('office.install.service_done')
-        } catch (err) {
-          lg('office.install.service_failed', { error: err.message }, 'error')
-          return res.json({ ok: false, error: err.message, logs })
         }
 
         lg('office.install.verifying')

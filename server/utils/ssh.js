@@ -189,13 +189,26 @@ export async function fileExists(options, path) {
 
 /**
  * Check if a command exists on remote host
+ * Searches in common user-level bin directories that may not be in default PATH
  * @param {SSHOptions} options - SSH connection options
  * @param {string} cmd - Command name
  * @returns {Promise<{exists: boolean, path?: string}>}
  */
 export async function commandExists(options, cmd) {
+  // Common user-level bin paths that may not be in SSH's default PATH
+  const userBinPaths = [
+    '$HOME/.npm-global/bin',
+    '$HOME/.local/bin',
+    '/usr/local/bin',
+  ].join(':')
+
   try {
-    const { stdout, exitCode } = await sshExecRaw(options, `which ${cmd}`, { timeout: 5000 })
+    // Set PATH to include user-level directories before running which
+    const { stdout, exitCode } = await sshExecRaw(
+      options,
+      `export PATH="${userBinPaths}:\$PATH" && which ${cmd}`,
+      { timeout: 5000 }
+    )
     if (exitCode === 0 && stdout.trim()) {
       return { exists: true, path: stdout.trim() }
     }

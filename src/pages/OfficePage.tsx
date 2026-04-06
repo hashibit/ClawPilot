@@ -80,9 +80,16 @@ export default function OfficePage() {
                     silentProbeDaemon(first)
                 }
             } else if (selected) {
-                // refresh selected with latest data (e.g. current_opc_name updated)
+                // refresh selected with latest data (e.g. daemon_url updated after install)
                 const updated = list.find(o => o.id === selected.id)
-                if (updated) setSelected(updated)
+                if (updated) {
+                    setSelected(updated)
+                    setForm(updated)
+                    // Re-check daemon health if daemon_url was just set
+                    if (updated.daemon_url && !selected.daemon_url) {
+                        checkDaemon(updated.daemon_url, updated.daemon_api_key ?? '', { officeId: updated.id })
+                    }
+                }
             }
         } catch (e) { toast(String(e), 'error') }
     }
@@ -423,8 +430,14 @@ export default function OfficePage() {
             if (!r2.ok) { lg(`❌ ${r2.error ?? t('office.install_failed')}`); setInstallStep('error'); closeSSE(); return }
             lg(t('office.install_daemon_done'))
             if (r2.daemon_url && r2.api_key) {
-                handleFormChange('daemon_url', r2.daemon_url)
-                handleFormChange('daemon_api_key', r2.api_key)
+                // Clear health cache to force fresh check
+                healthCacheRef.current.delete(`${saved.id}:${r2.daemon_url}`)
+                // Immediately update selected and form to reflect new daemon info
+                const updatedOffice = { ...saved, daemon_url: r2.daemon_url, daemon_api_key: r2.api_key }
+                setSelected(updatedOffice)
+                setForm(updatedOffice)
+                // Also update offices list entry
+                setOffices(prev => prev.map(o => o.id === saved.id ? updatedOffice : o))
                 loadOffices()
                 checkDaemon(r2.daemon_url, r2.api_key, { officeId: saved.id })
             }
