@@ -214,7 +214,7 @@ export default function DeployPage() {
           <section>
             <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.deploy_progress')}</div>
             <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg,#8b5cf6,#06b6d4)', borderRadius: '2px', transition: 'width 0.4s ease' }}></div>
+              <div style={{ height: '100%', width: `${progressPct}%`, background: '#8b5cf6', borderRadius: '2px', transition: 'width 0.4s ease' }}></div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
               {DEPLOY_STEPS.map((label, i) => {

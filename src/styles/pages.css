@@ -50,12 +50,12 @@
 .tmpl-card:hover { border-color: rgba(139,92,246,0.35); transform: translateY(-1px); }
 .tmpl-banner { height: 72px; display: flex; align-items: flex-end; padding: 10px 12px; }
 .tmpl-banner-title { font-size: 14px; font-weight: 600; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
-.banner-violet { background: linear-gradient(135deg, #7c3aed, #db2777); }
-.banner-blue { background: linear-gradient(135deg, #2563eb, #0891b2); }
-.banner-amber { background: linear-gradient(135deg, #d97706, #dc2626); }
-.banner-green { background: linear-gradient(135deg, #059669, #65a30d); }
-.banner-indigo { background: linear-gradient(135deg, #4338ca, #7c3aed); }
-.banner-rose { background: linear-gradient(135deg, #e11d48, #c026d3); }
+.banner-violet { background: #7c3aed; }
+.banner-blue { background: #2563eb; }
+.banner-amber { background: #d97706; }
+.banner-green { background: #059669; }
+.banner-indigo { background: #4338ca; }
+.banner-rose { background: #e11d48; }
 .tmpl-body { padding: 10px 12px; }
 .tmpl-desc { font-size: 12px; color: rgba(235,235,245,0.5); line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tmpl-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -64,12 +64,12 @@
 .tmpl-footer { display: flex; align-items: center; justify-content: space-between; }
 .tmpl-author { display: flex; align-items: center; gap: 6px; }
 .author-avatar { width: 18px; height: 18px; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; color: #fff; flex-shrink: 0; }
-.av-cyan { background: linear-gradient(135deg, #0891b2, #2563eb); }
-.av-rose { background: linear-gradient(135deg, #e11d48, #db2777); }
-.av-green { background: linear-gradient(135deg, #059669, #0891b2); }
-.av-purple { background: linear-gradient(135deg, #7c3aed, #4338ca); }
-.av-amber { background: linear-gradient(135deg, #d97706, #ca8a04); }
-.av-blue { background: linear-gradient(135deg, #2563eb, #4338ca); }
+.av-cyan { background: #0891b2; }
+.av-rose { background: #e11d48; }
+.av-green { background: #059669; }
+.av-purple { background: #7c3aed; }
+.av-amber { background: #d97706; }
+.av-blue { background: #2563eb; }
 .tbtn-use { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: none; cursor: pointer; background: #8b5cf6; color: #fff; font-family: inherit; font-weight: 500; transition: background 0.1s; }
 .tbtn-use:hover { background: #7c3aed; }
 .cats { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 2px; }

@@ -34,9 +34,9 @@ const API_BADGE_COLORS: Record<ProviderApi, { bg: string; color: string }> = {
 }
 
 const API_AVATAR_GRADIENTS: Record<ProviderApi, string> = {
-  'openai-completions': 'linear-gradient(135deg,#10b981,#34c759)',
-  'anthropic-messages': 'linear-gradient(135deg,#f97316,#f59e0b)',
-  'gemini': 'linear-gradient(135deg,#3b82f6,#8b5cf6)',
+  'openai-completions': '#10b981',
+  'anthropic-messages': '#f97316',
+  'gemini': '#3b82f6',
 }
 
 function ApiBadge({ api }: { api: ProviderApi }) {
