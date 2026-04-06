@@ -715,6 +715,8 @@ export function createOfficeRouter(db) {
                   VERBOSE: '1',
                   OPENCLAW_NO_PROMPT: '1',
                   OPENCLAW_NO_ONBOARD: '1',
+                  NONINTERACTIVE: '1',
+                  CI: '1',
                 }
               })
               child.stdin.write(scriptContent)
@@ -857,6 +859,29 @@ export function createOfficeRouter(db) {
           return execRemote(sshOpts, fullCmd, opts)
         }
 
+        // ── Ensure Node.js on remote (user-level, no sudo) ───────────────────────
+        lg('office.install.checking_node')
+        const nodeCheck = await remoteExec('node --version 2>/dev/null || true', { timeout: 5000 })
+        const nodeVersion = nodeCheck.stdout.trim()
+        if (nodeVersion) {
+          lg('office.install.node_found', { version: nodeVersion })
+        } else {
+          lg('office.install.node_missing_installing')
+          const nodeScriptPath = join(__dirname, '..', '..', 'scripts', 'install-node-user-latest-v22.sh')
+          await uploadFile(sshOpts, nodeScriptPath, '/tmp/install-node-user.sh')
+          const { exitCode } = await execRemote(sshOpts, 'bash /tmp/install-node-user.sh', {
+            timeout: 120000,
+            onStdout: (s) => s.trim().split('\n').forEach(l => l.trim() && lg(`   ${l.trim()}`)),
+            onStderr: (s) => s.trim().split('\n').forEach(l => l.trim() && lg(`   ${l.trim()}`)),
+          })
+          if (exitCode !== 0) {
+            const errMsg = `Node.js 安装失败，请在远程主机手动安装 Node.js v22+`
+            lg('office.install.node_install_failed', {}, 'error')
+            return res.json({ ok: false, error: errMsg, logs })
+          }
+          lg('office.install.node_installed')
+        }
+
         // ── Install git on remote ─────────────────────────────
         lg('office.install.checking_git')
         const gitCheck = await commandExists(sshOpts, 'git')
@@ -909,7 +934,7 @@ export function createOfficeRouter(db) {
 
             lg('office.install.executing_remote_script')
             // Execute the uploaded script with non-interactive flags
-            const installCmd = 'NO_PROMPT=1 VERBOSE=1 OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash /tmp/openclaw-install.sh'
+            const installCmd = 'NO_PROMPT=1 VERBOSE=1 OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 NONINTERACTIVE=1 CI=1 bash /tmp/openclaw-install.sh'
 
             // Helper to filter and classify stderr output
             // Show more progress details during installation
