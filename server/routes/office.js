@@ -398,7 +398,9 @@ export function createOfficeRouter(db) {
         timeout: 5000,
       }
       await sshExecRaw(sshOpts, 'exit 0', { timeout: 5000 })
-      res.json({ ok: true, latency_ms: Date.now() - start })
+      const sudoCheck = await sshExecRaw(sshOpts, 'sudo -n true 2>/dev/null && echo yes || echo no', { timeout: 5000 })
+      const sudo_ok = sudoCheck.stdout.trim() === 'yes'
+      res.json({ ok: true, latency_ms: Date.now() - start, sudo_ok })
     } catch (err) {
       const msg = err.message || ''
       if (msg.includes('Authentication') || msg.includes('permission')) {
@@ -888,8 +890,13 @@ export function createOfficeRouter(db) {
         if (gitCheck.exists) {
           lg('office.install.git_installed_path', { path: gitCheck.path })
         } else {
-          lg('office.install.installing_git')
-          const installGitRemote = async () => {
+          const sudoCheck = await sshExecRaw(sshOpts, 'sudo -n true 2>/dev/null && echo yes || echo no', { timeout: 5000 })
+          const hasSudo = sudoCheck.stdout.trim() === 'yes'
+          if (!hasSudo) {
+            lg('office.install.git_missing_no_sudo', {}, 'warning')
+            lg('   git 未安装且无免密 sudo，请手动安装后重试: sudo apt-get install git')
+          } else {
+            lg('office.install.installing_git')
             const pkgManagers = [
               { name: 'apt', cmd: 'sudo -n apt-get update && sudo -n apt-get install -y git', timeout: 120000 },
               { name: 'yum', cmd: 'sudo -n yum install -y git', timeout: 120000 },
@@ -897,20 +904,20 @@ export function createOfficeRouter(db) {
               { name: 'apk', cmd: 'sudo -n apk add git 2>/dev/null || apk add git', timeout: 60000 },
               { name: 'pacman', cmd: 'sudo -n pacman -S --noconfirm git', timeout: 120000 },
             ]
+            let installed = null
             for (const pm of pkgManagers) {
               try {
                 await sshExecRaw(sshOpts, pm.cmd, { timeout: pm.timeout })
-                return pm.name
+                installed = pm.name
+                break
               } catch { /* try next */ }
             }
-            return null
-          }
-          const pm = await installGitRemote()
-          if (pm) {
-            lg('office.install.git_installed_pm', { pm })
-          } else {
-            lg('office.install.sudo_password_needed', {}, 'warning')
-            lg('   请手动安装: sudo apt-get install git')
+            if (installed) {
+              lg('office.install.git_installed_pm', { pm: installed })
+            } else {
+              lg('office.install.sudo_password_needed', {}, 'warning')
+              lg('   请手动安装: sudo apt-get install git')
+            }
           }
         }
 
