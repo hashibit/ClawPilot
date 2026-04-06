@@ -8,7 +8,7 @@ import { homedir } from 'os'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
 import { encrypt, decrypt } from '../utils/crypto.js'
-import { sshExecRaw as sshExecRaw, checkConnection, detectArch, commandExists, readFile, uploadFile } from '../utils/ssh.js'
+import { sshExecRaw, checkConnection, detectArch, commandExists, readFile, uploadFile } from '../utils/ssh.js'
 
 const log = createLogger('office')
 

@@ -40,7 +40,7 @@ const log = createLogger('ssh')
  * @param {function(string): void} [execOptions.onStderr] - Callback for stderr chunks
  * @returns {Promise<CommandResult>}
  */
-export async function execRemote(options, command, execOptions = {}) {
+export async function sshExecRaw(options, command, execOptions = {}) {
   const { host, port = 22, user, password, keyPath, keyContent, timeout = 10000 } = options
   const { timeout: cmdTimeout = 60000, onStdout, onStderr } = execOptions
 
@@ -146,7 +146,7 @@ export async function execRemote(options, command, execOptions = {}) {
 export async function checkConnection(options) {
   const start = Date.now()
   try {
-    await execRemote(options, 'exit 0', { timeout: 5000 })
+    await sshExecRaw(options, 'exit 0', { timeout: 5000 })
     return { ok: true, latency_ms: Date.now() - start }
   } catch (err) {
     return { ok: false, error: err.message }
@@ -160,7 +160,7 @@ export async function checkConnection(options) {
  */
 export async function detectArch(options) {
   try {
-    const { stdout } = await execRemote(options, 'uname -m && uname -s', { timeout: 10000 })
+    const { stdout } = await sshExecRaw(options, 'uname -m && uname -s', { timeout: 10000 })
     const lines = stdout.trim().split('\n')
     const arch = lines[0]?.trim() || 'x86_64'
     const os = lines[1]?.trim() || 'Linux'
@@ -180,7 +180,7 @@ export async function detectArch(options) {
  */
 export async function fileExists(options, path) {
   try {
-    const { exitCode } = await execRemote(options, `test -f "${path}"`, { timeout: 5000 })
+    const { exitCode } = await sshExecRaw(options, `test -f "${path}"`, { timeout: 5000 })
     return exitCode === 0
   } catch {
     return false
@@ -195,7 +195,7 @@ export async function fileExists(options, path) {
  */
 export async function commandExists(options, cmd) {
   try {
-    const { stdout, exitCode } = await execRemote(options, `which ${cmd}`, { timeout: 5000 })
+    const { stdout, exitCode } = await sshExecRaw(options, `which ${cmd}`, { timeout: 5000 })
     if (exitCode === 0 && stdout.trim()) {
       return { exists: true, path: stdout.trim() }
     }
@@ -212,7 +212,7 @@ export async function commandExists(options, cmd) {
  * @returns {Promise<string>}
  */
 export async function readFile(options, path) {
-  const { stdout, exitCode } = await execRemote(options, `cat "${path}"`, { timeout: 10000 })
+  const { stdout, exitCode } = await sshExecRaw(options, `cat "${path}"`, { timeout: 10000 })
   if (exitCode !== 0) {
     throw new Error(`Failed to read file: ${path}`)
   }
@@ -252,7 +252,7 @@ export async function uploadFile(options, localPath, remotePath) {
       reject(err)
     })
 
-    // Build connection config (same as execRemote)
+    // Build connection config (same as sshExecRaw)
     const connConfig = {
       host,
       port,
@@ -284,7 +284,7 @@ export async function uploadFile(options, localPath, remotePath) {
  * @returns {Promise<{exitCode: number}>}
  */
 export async function execWithCallbacks(options, command, callbacks, timeout = 300000) {
-  return execRemote(options, command, {
+  return sshExecRaw(options, command, {
     timeout,
     onStdout: callbacks.onStdout,
     onStderr: callbacks.onStderr,
@@ -292,7 +292,7 @@ export async function execWithCallbacks(options, command, callbacks, timeout = 3
 }
 
 export default {
-  execRemote,
+  sshExecRaw,
   checkConnection,
   detectArch,
   fileExists,
