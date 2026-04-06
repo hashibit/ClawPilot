@@ -56,7 +56,6 @@ export default function OfficePage() {
     const installAbortRef = useRef<boolean>(false)
     const healthCacheRef = useRef<Map<string, DaemonHealthResult>>(new Map())
     const [sshChecking, setSshChecking] = useState(false)
-    const [sshResult, setSshResult] = useState<{ ok: boolean; latency_ms?: number; error?: string } | null>(null)
     const [latestDaemonVersion, setLatestDaemonVersion] = useState<string | null>(null)
 
     // Derived from form.address: true = remote, false = localhost, null = unset
@@ -107,14 +106,17 @@ export default function OfficePage() {
         setDaemonHealth(null)
         try {
             const result = await checkDaemonHealth(daemonUrl, apiKey)
+            // Only update state if this office is still selected (avoid race condition)
+            if (officeId && selected?.id !== officeId) return
             setDaemonHealth(result)
             if (cacheKey) healthCacheRef.current.set(cacheKey, result)
         } catch (e) {
+            if (officeId && selected?.id !== officeId) return
             setDaemonHealth({ ok: false, error: String(e) })
         } finally {
             setHealthChecking(false)
         }
-    }, [])
+    }, [selected?.id])
 
     const silentProbeDaemon = useCallback(async (office: Office) => {
         if (office.daemon_url) return
@@ -127,6 +129,8 @@ export default function OfficePage() {
             } else {
                 return
             }
+            // Only update state if this office is still selected (avoid race condition)
+            if (selected?.id !== office.id) return
             if (r.ok && r.daemon_url && r.api_key) {
                 const updates = { daemon_url: r.daemon_url, daemon_api_key: r.api_key }
                 setOffices(prev => prev.map(o => o.id === office.id ? { ...o, ...updates } : o))
@@ -135,7 +139,7 @@ export default function OfficePage() {
                 checkDaemon(r.daemon_url, r.api_key, { officeId: office.id })
             }
         } catch { /* silent */ }
-    }, [checkDaemon])
+    }, [checkDaemon, selected?.id])
 
     const handleSelect = useCallback((office: Office) => {
         if (isNewOffice) setIsNewOffice(false)
@@ -297,7 +301,6 @@ export default function OfficePage() {
             return
         }
         setSshChecking(true)
-        setSshResult(null)
         try {
             const r = await checkSshAuth({
                 address: addr,
@@ -306,9 +309,13 @@ export default function OfficePage() {
                 password: data.access_password,
                 key_path: data.ssh_key_path,
             })
-            setSshResult(r)
+            if (r.ok) {
+                toast(`✓ SSH 连接成功（${r.latency_ms ?? '?'} ms）`, 'success')
+            } else {
+                toast(`✗ SSH 连接失败：${r.error ?? '未知错误'}`, 'error')
+            }
         } catch (e: any) {
-            setSshResult({ ok: false, error: e?.message ?? '检测失败' })
+            toast(`✗ SSH 连接失败：${e?.message ?? '检测失败'}`, 'error')
         } finally {
             setSshChecking(false)
         }
@@ -380,7 +387,6 @@ export default function OfficePage() {
             lg(`🔍 检查与 ${saved.address} 的 SSH 连通性…`, 'banner')
             try {
                 const r = await checkSshConnection(sshHost, sshPort)
-                setSshResult(r)
                 if (!r.ok) {
                     lg(`❌ SSH 连通性检查失败：${r.error ?? '无法连通远程主机'}`, 'error')
                     setInstallStep('error')
@@ -388,7 +394,6 @@ export default function OfficePage() {
                 }
                 lg(`✅ SSH 连通（延迟 ${r.latency_ms ?? '?'} ms）`, 'success')
             } catch (e) {
-                setSshResult({ ok: false, error: String(e) })
                 lg(`❌ SSH 检测异常：${String(e)}`, 'error')
                 setInstallStep('error')
                 return
@@ -543,21 +548,14 @@ export default function OfficePage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {/* 测试连接按钮 - 只读和编辑模式都可用，仅远程办公室显示 */}
                                 {selected && selected.address && selected.address !== 'localhost' && (
-                                    <>
-                                        <button
-                                            className="tbtn tbtn-ghost"
-                                            onClick={handleCheckSsh}
-                                            disabled={sshChecking}
-                                            style={{ fontSize: '12px' }}
-                                        >
-                                            {sshChecking ? '测试中…' : '测试连接'}
-                                        </button>
-                                        {sshResult && (
-                                            <span style={{ fontSize: '11px', color: sshResult.ok ? '#34c759' : '#f43f5e' }}>
-                                                {sshResult.ok ? `✓ ${sshResult.latency_ms}ms` : `✗`}
-                                            </span>
-                                        )}
-                                    </>
+                                    <button
+                                        className="tbtn tbtn-ghost"
+                                        onClick={handleCheckSsh}
+                                        disabled={sshChecking}
+                                        style={{ fontSize: '12px' }}
+                                    >
+                                        {sshChecking ? '测试中…' : '测试连接'}
+                                    </button>
                                 )}
                                 {(editing || isNewOffice) ? (
                                     <>
@@ -709,15 +707,6 @@ export default function OfficePage() {
                                                     )}
                                                 </div>
                                             </div>
-                                            {/* SSH 测试结果显示 - 仅失败时显示详细错误 */}
-                                            {sshResult && !sshResult.ok && (
-                                                <div className="group-row" style={{ gap: '10px' }}>
-                                                    <span className="group-label" style={{ minWidth: '40px' }}></span>
-                                                    <span style={{ fontSize: '11px', color: '#f43f5e' }}>
-                                                        ✗ {sshResult.error}
-                                                    </span>
-                                                </div>
-                                            )}
                                         </>
                                     )}
                                     <div className="group-row" style={{ gap: '10px' }}>

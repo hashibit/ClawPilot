@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { spawn } from 'child_process'
 import { exec as execCb } from 'child_process'
 import { promisify } from 'util'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 import { homedir } from 'os'
 import { fileURLToPath } from 'url'
@@ -692,39 +692,15 @@ export function createOfficeRouter(db) {
             throw new Error('not found')
           }
         } catch {
-          lg('office.install.downloading_script')
-          lg('office.install.script_url')
-          lg('office.install.script_env')
-          lg('office.install.script_time_local')
+          lg('office.install.using_bundled_script')
           try {
-            // Use spawn to capture real-time output
-            const installCmd = 'curl'
-            const installArgs = [
-              '-f',           // Fail on HTTP errors
-              '-S',           // Show errors
-              '-L',           // Follow redirects
-              '--progress-bar', // Show progress bar
-              'https://openclaw.ai/install.sh'
-            ]
-
-            lg('office.install.executing_curl')
-            const curlOut = await new Promise((resolve, reject) => {
-              const chunks = []
-              const errChunks = []
-              const child = spawn(installCmd, installArgs, { shell: false })
-              child.stdout.on('data', d => chunks.push(d))
-              child.stderr.on('data', d => {
-                const s = stripAnsi(d.toString())
-                // curl progress bar goes to stderr
-                if (s.trim()) errChunks.push(s)
-              })
-              child.on('close', code => {
-                if (code === 0) resolve(Buffer.concat(chunks).toString())
-                else reject(new Error(`curl 失败 (exit ${code}): ${Buffer.concat(errChunks).toString()}`))
-              })
-              child.on('error', reject)
-            })
-            lg('office.install.script_downloaded', { size: curlOut.length })
+            // Use bundled install script instead of downloading
+            const scriptPath = join(__dirname, '..', '..', 'scripts', 'openclaw-install-20260406-080000.sh')
+            if (!existsSync(scriptPath)) {
+              throw new Error(`安装脚本不存在: ${scriptPath}`)
+            }
+            const scriptContent = readFileSync(scriptPath, 'utf8')
+            lg(`   脚本路径: ${scriptPath}`)
 
             lg('office.install.running_script')
             lg('office.install.script_note')
@@ -736,11 +712,12 @@ export function createOfficeRouter(db) {
                 env: {
                   ...process.env,
                   NO_PROMPT: '1',
+                  VERBOSE: '1',
                   OPENCLAW_NO_PROMPT: '1',
                   OPENCLAW_NO_ONBOARD: '1',
                 }
               })
-              child.stdin.write(curlOut)
+              child.stdin.write(scriptContent)
               child.stdin.end()
 
               // Filter to remove duplicate info that ClawPilot already checked
@@ -918,14 +895,21 @@ export function createOfficeRouter(db) {
           lg('office.install.openclaw_installed', { path: openclawCheck.path })
         } else {
           lg('office.install.installing_remote', { host: ssh_host })
-          lg('office.install.script_url')
-          lg('office.install.script_env')
-          lg('office.install.script_time_remote')
-          lg('office.install.executing_remote_script')
 
           try {
-            // Use NO_PROMPT=1 to disable interactive prompts (checked by install script)
-            const installCmd = 'NO_PROMPT=1 OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash -c "curl -fSL https://openclaw.ai/install.sh | bash"'
+            // Upload bundled install script to remote host
+            const scriptPath = join(__dirname, '..', '..', 'scripts', 'openclaw-install-20260406-080000.sh')
+            if (!existsSync(scriptPath)) {
+              throw new Error(`安装脚本不存在: ${scriptPath}`)
+            }
+            lg('office.install.uploading_script')
+            await uploadFile(sshOpts, scriptPath, '/tmp/openclaw-install.sh')
+            await execRemote(sshOpts, 'chmod +x /tmp/openclaw-install.sh')
+            lg('office.install.script_uploaded')
+
+            lg('office.install.executing_remote_script')
+            // Execute the uploaded script with non-interactive flags
+            const installCmd = 'NO_PROMPT=1 VERBOSE=1 OPENCLAW_NO_PROMPT=1 OPENCLAW_NO_ONBOARD=1 bash /tmp/openclaw-install.sh'
 
             // Helper to filter and classify stderr output
             // Show more progress details during installation
