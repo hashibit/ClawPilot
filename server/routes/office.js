@@ -329,6 +329,7 @@ export function createOfficeRouter(db) {
       })
       if (!r.ok) return res.json({ ok: false, error: `HTTP ${r.status}` })
       const data = await r.json()
+      log.debug('daemon health response:', JSON.stringify(data))
       res.json({ ok: true, ...data })
     } catch (err) {
       // Translate common errors to user-friendly messages

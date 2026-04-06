@@ -67,11 +67,27 @@ pub fn openclaw_version() -> Option<String> {
         home, home, path
     );
 
+    tracing::debug!("openclaw_version: trying with PATH={}", path);
+
     let output = Command::new("openclaw")
         .args(["--version"])
-        .env("PATH", path)
-        .output()
-        .ok()?;
+        .env("PATH", &path)
+        .output();
+
+    match &output {
+        Ok(o) => {
+            tracing::debug!("openclaw_version: exit_code={:?}, stdout={}, stderr={}",
+                o.status.code(),
+                String::from_utf8_lossy(&o.stdout).trim(),
+                String::from_utf8_lossy(&o.stderr).trim()
+            );
+        }
+        Err(e) => {
+            tracing::debug!("openclaw_version: command failed: {}", e);
+        }
+    }
+
+    let output = output.ok()?;
 
     if !output.status.success() {
         return None;
@@ -83,6 +99,7 @@ pub fn openclaw_version() -> Option<String> {
     if parts.len() >= 2 && parts[0] == "OpenClaw" {
         return Some(parts[1].to_string());
     }
+    tracing::debug!("openclaw_version: failed to parse output: {}", stdout.trim());
     None
 }
 
