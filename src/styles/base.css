@@ -178,7 +178,7 @@ input[type="checkbox"].mac-check {
 /* ── Logo Box ─────────────────────────────────────────── */
 .logo-box {
   width: 22px; height: 22px; border-radius: 6px;
-  background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+  background: #8b5cf6;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
