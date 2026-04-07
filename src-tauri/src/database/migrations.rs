@@ -40,8 +40,6 @@ mod tests {
             "opc_config",
             "agents",
             "agent_documents",
-            "model_providers",
-            "model_info",
             "model_providers_v2",
             "model_info_v2",
             "channels",

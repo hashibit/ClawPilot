@@ -101,43 +101,6 @@ CREATE INDEX IF NOT EXISTS idx_agent_documents_type ON agent_documents(document_
 -- 3. 模型配置表
 -- ─────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS model_providers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    provider_type TEXT NOT NULL,
-    api_key TEXT NOT NULL,
-    endpoint TEXT,
-    is_enabled INTEGER DEFAULT 1,
-    is_available INTEGER DEFAULT 0,
-    last_tested INTEGER,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    base_url TEXT NOT NULL DEFAULT '',
-    is_coding_plan INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(provider_type)
-);
-
-CREATE TABLE IF NOT EXISTS model_info (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    display_name TEXT NOT NULL,
-    provider_type TEXT NOT NULL,
-    context_window INTEGER DEFAULT 0,
-    input_price REAL DEFAULT 0.0,
-    output_price REAL DEFAULT 0.0,
-    supported_types TEXT,
-    supports_vision INTEGER DEFAULT 0,
-    supports_function_calling INTEGER DEFAULT 0,
-    supports_streaming INTEGER DEFAULT 0,
-    updated_at INTEGER NOT NULL,
-    FOREIGN KEY (provider_type) REFERENCES model_providers(provider_type)
-);
-
-CREATE INDEX IF NOT EXISTS idx_model_info_provider ON model_info(provider_type);
-
--- ─────────────────────────────────────────────
--- 3b. 模型配置表 V2 (name-keyed, flexible)
--- ─────────────────────────────────────────────
-
 CREATE TABLE IF NOT EXISTS model_providers_v2 (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
