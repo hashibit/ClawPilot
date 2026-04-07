@@ -76,8 +76,12 @@ pub struct AgentConfig {
     pub disabled_tools: Vec<String>,
     /// 启用的 Skill slug 列表，DB 中存 JSON 字符串
     pub enabled_skills: Vec<String>,
-    /// 护栏规则，DB 中存 JSON 字符串
+    /// 护栏允许规则，DB 中存 JSON 字符串（{allow:[],deny:[]} 或旧版 [] 数组）
     pub guardrail_rules: Vec<String>,
+    /// 护栏允许规则（同 guardrail_rules，前端使用）
+    pub guardrail_allow: Vec<String>,
+    /// 护栏禁止规则
+    pub guardrail_deny: Vec<String>,
     /// 汇报给哪些 Agent ID，DB 中存 JSON 字符串
     pub reports_to: Vec<String>,
     /// 管理哪些 Agent ID，DB 中存 JSON 字符串
@@ -105,6 +109,39 @@ impl AgentConfig {
     /// 将 bool 转换为 i64 存储值
     pub fn bool_to_i64(v: bool) -> i64 {
         if v { 1 } else { 0 }
+    }
+
+    /// 从 DB guardrail_rules 字段解析出 (allow, deny)
+    /// 兼容旧格式（plain array）和新格式（{allow:[], deny:[]}）
+    pub fn parse_guardrail(raw: &str) -> (Vec<String>, Vec<String>) {
+        if raw.is_empty() {
+            return (vec![], vec![]);
+        }
+        match serde_json::from_str::<serde_json::Value>(raw) {
+            Ok(serde_json::Value::Array(arr)) => {
+                let allow = arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
+                (allow, vec![])
+            }
+            Ok(serde_json::Value::Object(obj)) => {
+                let allow = obj.get("allow")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                let deny = obj.get("deny")
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                (allow, deny)
+            }
+            _ => (vec![], vec![]),
+        }
+    }
+
+    /// 将 (allow, deny) 序列化为 DB 存储格式 {allow:[], deny:[]}
+    pub fn serialize_guardrail(allow: &[String], deny: &[String]) -> String {
+        serde_json::json!({ "allow": allow, "deny": deny }).to_string()
     }
 }
 
@@ -134,6 +171,8 @@ mod tests {
             disabled_tools: vec![],
             enabled_skills: vec!["skill-x".to_string()],
             guardrail_rules: vec![],
+            guardrail_allow: vec![],
+            guardrail_deny: vec![],
             reports_to: vec!["agent-000".to_string()],
             manages: vec!["agent-002".to_string()],
             created_at: 1700000000,

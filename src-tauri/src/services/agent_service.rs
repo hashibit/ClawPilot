@@ -18,6 +18,7 @@ fn row_to_agent(row: &rusqlite::Row<'_>) -> rusqlite::Result<AgentConfig> {
     let manages_raw: String = row.get(19)?;
 
     let is_default_i64: i64 = row.get(10)?;
+    let (guardrail_allow, guardrail_deny) = AgentConfig::parse_guardrail(&guardrail_rules_raw);
 
     Ok(AgentConfig {
         id: row.get(0)?,
@@ -37,7 +38,9 @@ fn row_to_agent(row: &rusqlite::Row<'_>) -> rusqlite::Result<AgentConfig> {
         enabled_tools: AgentConfig::json_to_vec(&enabled_tools_raw),
         disabled_tools: AgentConfig::json_to_vec(&disabled_tools_raw),
         enabled_skills: AgentConfig::json_to_vec(&enabled_skills_raw),
-        guardrail_rules: AgentConfig::json_to_vec(&guardrail_rules_raw),
+        guardrail_rules: guardrail_allow.clone(),
+        guardrail_allow,
+        guardrail_deny,
         reports_to: AgentConfig::json_to_vec(&reports_to_raw),
         manages: AgentConfig::json_to_vec(&manages_raw),
         created_at: row.get(20)?,
@@ -136,7 +139,7 @@ pub fn create_agent(pool: &DbPool, config: AgentConfig) -> Result<String> {
             AgentConfig::vec_to_json(&config.enabled_tools),
             AgentConfig::vec_to_json(&config.disabled_tools),
             AgentConfig::vec_to_json(&config.enabled_skills),
-            AgentConfig::vec_to_json(&config.guardrail_rules),
+            AgentConfig::serialize_guardrail(&config.guardrail_allow, &config.guardrail_deny),
             AgentConfig::vec_to_json(&config.reports_to),
             AgentConfig::vec_to_json(&config.manages),
             config.created_at,
@@ -191,7 +194,7 @@ pub fn update_agent(pool: &DbPool, id: &str, config: AgentConfig) -> Result<()> 
             AgentConfig::vec_to_json(&config.enabled_tools),
             AgentConfig::vec_to_json(&config.disabled_tools),
             AgentConfig::vec_to_json(&config.enabled_skills),
-            AgentConfig::vec_to_json(&config.guardrail_rules),
+            AgentConfig::serialize_guardrail(&config.guardrail_allow, &config.guardrail_deny),
             AgentConfig::vec_to_json(&config.reports_to),
             AgentConfig::vec_to_json(&config.manages),
             config.updated_at,
@@ -343,7 +346,7 @@ pub fn batch_create_agents(
                 AgentConfig::vec_to_json(&config.enabled_tools),
                 AgentConfig::vec_to_json(&config.disabled_tools),
                 AgentConfig::vec_to_json(&config.enabled_skills),
-                AgentConfig::vec_to_json(&config.guardrail_rules),
+                AgentConfig::serialize_guardrail(&config.guardrail_allow, &config.guardrail_deny),
                 AgentConfig::vec_to_json(&config.reports_to),
                 AgentConfig::vec_to_json(&config.manages),
                 config.created_at,
@@ -463,6 +466,8 @@ mod tests {
             disabled_tools: vec![],
             enabled_skills: vec!["skill-x".to_string()],
             guardrail_rules: vec![],
+            guardrail_allow: vec![],
+            guardrail_deny: vec![],
             reports_to: vec![],
             manages: vec![],
             created_at: 1_700_000_000,

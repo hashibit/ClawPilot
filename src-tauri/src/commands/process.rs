@@ -7,16 +7,23 @@ pub struct ProcessStatusResponse {
     pub is_running: bool,
     pub pid: Option<u32>,
     pub uptime_seconds: Option<u64>,
+    pub probed_at: i64,
+    pub daemon_available: bool,
+    pub daemon_error: Option<String>,
 }
 
 /// Get OpenClaw process status
 #[tauri::command]
 pub fn get_process_status() -> ProcessStatusResponse {
     let info = get_process_info();
+    let is_running = info.state == crate::openclaw::process::ProcessState::Running;
     ProcessStatusResponse {
-        is_running: info.state == crate::openclaw::process::ProcessState::Running,
+        is_running,
         pid: info.pid,
         uptime_seconds: info.uptime_secs,
+        probed_at: chrono::Utc::now().timestamp_millis(),
+        daemon_available: is_running,
+        daemon_error: None,
     }
 }
 

@@ -274,6 +274,9 @@ export interface ProcessStatus {
   is_running: boolean
   pid: number | null
   uptime_seconds: number | null
+  probed_at: number
+  daemon_available: boolean
+  daemon_error?: string
 }
 export const getProcessStatus = () => call<ProcessStatus>('get_process_status')
 export const startOpenclaw = () => call<{ ok: boolean; message: string; pid?: number }>('start_openclaw')

@@ -205,6 +205,8 @@ mod tests {
                 disabled_tools: vec![],
                 enabled_skills: vec![],
                 guardrail_rules: vec![],
+            guardrail_allow: vec![],
+            guardrail_deny: vec![],
                 reports_to: vec![],
                 manages: vec![],
                 created_at: 0,
