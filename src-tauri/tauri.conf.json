@@ -7,7 +7,7 @@
     "frontendDist": "../dist",
     "devUrl": "http://localhost:16666",
     "beforeDevCommand": "",
-    "beforeBuildCommand": "bash -c \"cd '${PROJECT_DIR:-/Users/jiechen/work/code/rust/ClawPilot}' && npx vite build && ./build-daemon.sh\""
+    "beforeBuildCommand": ""
   },
   "app": {
     "windows": [
@@ -43,7 +43,9 @@
     ],
     "resources": [
       "resources/clawpilot-daemon-macos",
-      "resources/clawpilot-daemon-linux"
+      "resources/clawpilot-daemon-linux",
+      "resources/install-node-user-latest-v22.sh",
+      "resources/openclaw-install-20260406-080000.sh"
     ],
     "category": "Productivity",
     "shortDescription": "OpenClaw OPC configuration and deployment manager",

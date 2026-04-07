@@ -1151,7 +1151,7 @@ export default function AgentsPage() {
                                                 <div style={{ fontSize: '12px', color: '#8E8E93' }}>{t('agents.no_skills')}</div>
                                             )}
                                             {enabledSkills.map(slug => {
-                                                const skill = SKILL_REGISTRY.find(s => s.slug === slug)
+                                                const skill = SKILL_REGISTRY.find((s: { slug: string }) => s.slug === slug)
                                                 return (
                                                     <div
                                                         key={slug}

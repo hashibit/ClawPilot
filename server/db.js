@@ -1,9 +1,31 @@
 import Database from 'better-sqlite3'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { homedir } from 'os'
+import { mkdirSync, existsSync } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-export const DB_PATH = process.env.CLAWPILOT_DB_PATH || join(__dirname, 'dev.db')
+
+// Default to ~/.clawpilot/clawpilot.db (same as Tauri app)
+// Falls back to ./dev.db if CLAWPILOT_DB_PATH is not set and home dir is unavailable
+function getDefaultDbPath() {
+  const home = homedir()
+  if (home) {
+    return join(home, '.clawpilot', 'clawpilot.db')
+  }
+  // Fallback for dev environment
+  return join(__dirname, 'dev.db')
+}
+
+export const DB_PATH = process.env.CLAWPILOT_DB_PATH || getDefaultDbPath()
+
+// Ensure parent directory exists before creating the database
+function ensureParentDir(path) {
+  const parent = dirname(path)
+  if (!existsSync(parent)) {
+    mkdirSync(parent, { recursive: true })
+  }
+}
 
 // ── Schema & Migrations ────────────────────────────────────
 
@@ -355,6 +377,7 @@ export function seedBaseData(db) {
 // ── Factory Function ───────────────────────────────────────
 
 export function createDb(path = DB_PATH) {
+  ensureParentDir(path)
   const db = new Database(path)
   db.pragma('foreign_keys = ON')
   db.pragma('journal_mode = WAL')

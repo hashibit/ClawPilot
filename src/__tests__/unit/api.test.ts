@@ -5,21 +5,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createOpc, updateOpc, deleteOpc, getAgents, createAgent } from '../../lib/api'
 
+// Use globalThis for cross-environment compatibility (Node.js + browser)
+const globalFetch = globalThis.fetch
+
 describe('API Client', () => {
-  const originalFetch = global.fetch
+  const originalFetch = globalFetch
 
   beforeEach(() => {
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
   })
 
   afterEach(() => {
-    global.fetch = originalFetch
+    globalThis.fetch = originalFetch
   })
 
   describe('OPC API functions', () => {
     it('createOpc 应发送创建请求', async () => {
       const mockOpcId = 'opc-123'
-      vi.mocked(global.fetch).mockResolvedValueOnce({
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => mockOpcId,
       } as any)
@@ -31,7 +34,7 @@ describe('API Client', () => {
       }
       const result = await createOpc(opcData)
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:16667/api/create_opc', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/create_opc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: opcData }),
@@ -40,7 +43,7 @@ describe('API Client', () => {
     })
 
     it('updateOpc 应发送更新请求', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => 'ok',
       } as any)
@@ -51,7 +54,7 @@ describe('API Client', () => {
       }
       await updateOpc('opc-123', opcData)
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:16667/api/update_opc', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/update_opc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: 'opc-123', config: opcData }),
@@ -59,14 +62,14 @@ describe('API Client', () => {
     })
 
     it('deleteOpc 应发送删除请求', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => 'ok',
       } as any)
 
       await deleteOpc('opc-123')
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:16667/api/delete_opc', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/delete_opc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: 'opc-123' }),
@@ -80,14 +83,14 @@ describe('API Client', () => {
         { id: 'agent-1', display_name: 'Agent 1' },
         { id: 'agent-2', display_name: 'Agent 2' },
       ]
-      vi.mocked(global.fetch).mockResolvedValueOnce({
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAgents,
       } as any)
 
       const result = await getAgents('opc-123')
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:16667/api/get_agents', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/get_agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ opc_id: 'opc-123' }),
@@ -97,7 +100,7 @@ describe('API Client', () => {
 
     it('createAgent 应创建新 Agent', async () => {
       const mockAgentId = 'agent-123'
-      vi.mocked(global.fetch).mockResolvedValueOnce({
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => mockAgentId,
       } as any)
@@ -109,7 +112,7 @@ describe('API Client', () => {
       }
       const result = await createAgent(agentData)
 
-      expect(global.fetch).toHaveBeenCalledWith('http://localhost:16667/api/create_agent', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/create_agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: agentData }),
@@ -120,7 +123,7 @@ describe('API Client', () => {
 
   describe('Error Handling', () => {
     it('应处理网络错误', async () => {
-      vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'))
+      vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error('Network error'))
 
       await expect(getAgents('opc-123'))
         .rejects
@@ -128,7 +131,7 @@ describe('API Client', () => {
     })
 
     it('应处理 API 错误响应', async () => {
-      vi.mocked(global.fetch).mockResolvedValueOnce({
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',

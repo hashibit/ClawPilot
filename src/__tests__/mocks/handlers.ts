@@ -35,14 +35,16 @@ export const handlers = [
   }),
 
   http.post('/api/get_opc', async ({ request }) => {
-    const { id } = await request.json()
+    const body = await request.json() as { id?: string }
+    const { id } = body
     const opc = mockOpcs.find(o => o.id === id)
     return opc ? HttpResponse.json(opc) : HttpResponse.json({ error: 'Not found' }, { status: 404 })
   }),
 
   http.post('/api/create_opc', async ({ request }) => {
-    const { opc } = await request.json()
-    return HttpResponse.json(opc.id)
+    const body = await request.json() as { opc?: { id: string } }
+    const opc = body.opc
+    return HttpResponse.json(opc?.id ?? 'opc-new')
   }),
 
   http.post('/api/update_opc', async () => {
@@ -55,19 +57,22 @@ export const handlers = [
 
   // Agent routes
   http.post('/api/get_agents', async ({ request }) => {
-    const { opc_id } = await request.json()
+    const body = await request.json() as { opc_id?: string }
+    const { opc_id } = body
     const agents = mockAgents.filter(a => a.opc_id === opc_id)
     return HttpResponse.json(agents)
   }),
 
   http.post('/api/get_agent', async ({ request }) => {
-    const { id } = await request.json()
+    const body = await request.json() as { id?: string }
+    const { id } = body
     const agent = mockAgents.find(a => a.id === id)
     return agent ? HttpResponse.json(agent) : HttpResponse.json({ error: 'Not found' }, { status: 404 })
   }),
 
   http.post('/api/create_agent', async ({ request }) => {
-    const { agent } = await request.json()
+    const body = await request.json() as { agent?: object }
+    const { agent } = body
     return HttpResponse.json(`agent-${Date.now()}`)
   }),
 
@@ -81,13 +86,15 @@ export const handlers = [
 
   // Channel routes
   http.post('/api/get_channels', async ({ request }) => {
-    const { opc_id } = await request.json()
+    const body = await request.json() as { opc_id?: string }
+    const { opc_id } = body
     const channels = mockChannels.filter(c => c.opc_id === opc_id)
     return HttpResponse.json(channels)
   }),
 
   http.post('/api/create_channel', async ({ request }) => {
-    const { channel } = await request.json()
+    const body = await request.json() as { channel?: object }
+    const { channel } = body
     return HttpResponse.json({ id: Date.now(), ...channel })
   }),
 
@@ -105,14 +112,16 @@ export const handlers = [
   }),
 
   http.post('/api/get_office', async ({ request }) => {
-    const { id } = await request.json()
+    const body = await request.json() as { id?: string }
+    const { id } = body
     const office = mockOffices.find(o => o.id === id)
     return office ? HttpResponse.json(office) : HttpResponse.json({ error: 'Not found' }, { status: 404 })
   }),
 
   http.post('/api/create_office', async ({ request }) => {
-    const { office } = await request.json()
-    return HttpResponse.json(office.id)
+    const body = await request.json() as { office?: { id: string } }
+    const office = body.office
+    return HttpResponse.json(office?.id ?? 'office-new')
   }),
 
   http.post('/api/update_office', async () => {
@@ -129,7 +138,8 @@ export const handlers = [
   }),
 
   http.post('/api/create_skill', async ({ request }) => {
-    const { skill } = await request.json()
+    const body = await request.json() as { skill?: object }
+    const { skill } = body
     return HttpResponse.json(Date.now())
   }),
 
@@ -143,7 +153,8 @@ export const handlers = [
   }),
 
   http.post('/api/create_tool', async ({ request }) => {
-    const { tool } = await request.json()
+    const body = await request.json() as { tool?: object }
+    const { tool } = body
     return HttpResponse.json(Date.now())
   }),
 

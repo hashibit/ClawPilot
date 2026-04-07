@@ -158,7 +158,6 @@ export default function OfficePage() {
         setSelected(office); setForm(office)
         setEditing(false); setAvatarPickerOpen(false)
         setDaemonHealth(null)
-        setSshResult(null)
         getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
         if (office.daemon_url) {
             checkDaemon(office.daemon_url, office.daemon_api_key ?? '', { officeId: office.id, useCache: true })

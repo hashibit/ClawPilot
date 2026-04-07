@@ -7,7 +7,13 @@
   "scripts": {
     "dev": "bash scripts/dev.sh",
     "stop": "echo 'Stopping ClawPilot services...' && (cat .dev-ports 2>/dev/null | tr ' ' ',' | xargs -I{} lsof -ti:{} | xargs kill -9 2>/dev/null || lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null); echo 'Done'",
-    "build": "tsc && vite build",
+    "build": "make all",
+    "build:frontend": "make frontend",
+    "build:daemon": "make daemon",
+    "build:tauri": "make tauri",
+    "build:release": "make release",
+    "build:cross": "make daemon CROSS=1",
+    "clean": "make clean",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
@@ -18,7 +24,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check": "make check"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",

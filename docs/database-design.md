@@ -2,7 +2,7 @@
 
 ## 数据库文件
 
-- 数据库文件位置：`~/.clawcopilot/clawcopilot.db`
+- 数据库文件位置：`~/.clawpilot/clawpilot.db`
 
 ## 表结构
 

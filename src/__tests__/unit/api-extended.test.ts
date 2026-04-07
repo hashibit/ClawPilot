@@ -17,17 +17,20 @@ import {
   getOpcStats,
 } from '../../lib/api'
 
+// Use globalThis for cross-environment compatibility (Node.js + browser)
+const globalFetch = globalThis.fetch
+
 describe('API Client', () => {
-  const originalFetch = global.fetch
+  const originalFetch = globalFetch
   const mockFetch = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    global.fetch = mockFetch as any
+    globalThis.fetch = mockFetch as any
   })
 
   afterEach(() => {
-    global.fetch = originalFetch
+    globalThis.fetch = originalFetch
   })
 
   describe('OPC API', () => {

@@ -1,10 +1,22 @@
 #!/bin/bash
 # seed-dev-env.sh - Initialize development database with seed data
+#
+# Usage:
+#   ./seed-dev-env.sh              # Use default DB path (~/.clawpilot/clawpilot.db)
+#   ./seed-dev-env.sh /path/to/db  # Use custom DB path
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-DB_PATH="$SCRIPT_DIR/server/dev.db"
+# Default to ~/.clawpilot/clawpilot.db (same as server and Tauri)
+# Can be overridden by first argument or CLAWPILOT_DB_PATH env var
+if [ -n "$1" ]; then
+    DB_PATH="$1"
+elif [ -n "$CLAWPILOT_DB_PATH" ]; then
+    DB_PATH="$CLAWPILOT_DB_PATH"
+else
+    DB_PATH="$HOME/.clawpilot/clawpilot.db"
+fi
 
 echo "=========================================="
 echo "ClawPilot Development Environment Seeder"
@@ -13,8 +25,10 @@ echo ""
 
 # Check if database exists
 if [ ! -f "$DB_PATH" ]; then
-    echo "Error: Database not found at $DB_PATH"
-    echo "Please run 'npm run server:dev' first to initialize the database."
+    echo "Database not found at $DB_PATH"
+    echo "Creating database directory..."
+    mkdir -p "$(dirname "$DB_PATH")"
+    echo "Please run 'npm run server:dev' first to initialize the database schema."
     exit 1
 fi
 
