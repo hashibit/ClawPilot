@@ -842,6 +842,7 @@ mod tests {
             openclaw_pid: Some(12345),
             active_tasks: Some(2),
             error: None,
+            not_installed: Some(false),
         };
 
         let json = serde_json::to_string(&result).unwrap();

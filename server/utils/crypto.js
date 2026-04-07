@@ -32,6 +32,9 @@ const KEY = loadOrCreateKey()
  * Returns a string prefixed with 'enc:' so encrypted and plaintext values
  * are distinguishable, enabling safe migration of existing data.
  * Returns empty string as-is (no point encrypting nothing).
+ *
+ * Format: enc:<nonce_hex>:<tag_hex>:<data_hex>
+ * This format is compatible with the Tauri/Rust implementation.
  */
 export function encrypt(plaintext) {
   if (!plaintext) return plaintext
@@ -44,14 +47,45 @@ export function encrypt(plaintext) {
 
 /**
  * Decrypts a value produced by encrypt().
+ *
+ * Supports two formats:
+ * 1. New format (enc:<nonce_hex>:<tag_hex>:<data_hex>) - from both Node.js and new Tauri
+ * 2. Legacy format (<nonce_b64>:<ciphertext_b64>) - from old Tauri implementation
+ *
+ * @throws {Error} With code 'LEGACY_ENCRYPTION' if the data was encrypted with the old Tauri format
+ *         and cannot be decrypted with the current key. This indicates the data needs to be re-encrypted.
  */
 export function decrypt(value) {
   if (!value) return value
-  const inner = value.startsWith(ENC_PREFIX) ? value.slice(ENC_PREFIX.length) : value
-  const parts = inner.split(':')
-  if (parts.length !== 3) throw new Error(`[crypto] Invalid ciphertext format: ${value.slice(0, 20)}`)
-  const [nonceHex, tagHex, dataHex] = parts
-  const decipher = createDecipheriv(ALGORITHM, KEY, Buffer.from(nonceHex, 'hex'))
-  decipher.setAuthTag(Buffer.from(tagHex, 'hex'))
-  return decipher.update(Buffer.from(dataHex, 'hex')) + decipher.final('utf8')
+
+  // Try new format first: enc:<nonce_hex>:<tag_hex>:<data_hex>
+  if (value.startsWith(ENC_PREFIX)) {
+    const inner = value.slice(ENC_PREFIX.length)
+    const parts = inner.split(':')
+    if (parts.length !== 3) {
+      throw new Error(`[crypto] Invalid ciphertext format: expected 3 parts, got ${parts.length}`)
+    }
+    const [nonceHex, tagHex, dataHex] = parts
+    const nonce = Buffer.from(nonceHex, 'hex')
+    const tag = Buffer.from(tagHex, 'hex')
+    const ciphertext = Buffer.from(dataHex, 'hex')
+
+    const decipher = createDecipheriv(ALGORITHM, KEY, nonce)
+    decipher.setAuthTag(tag)
+    return decipher.update(ciphertext) + decipher.final('utf8')
+  }
+
+  // Legacy format: <nonce_b64>:<ciphertext_b64> (old Tauri implementation)
+  // This data was encrypted with a different key (Tauri's default key)
+  // We can't decrypt it - user needs to re-enter the API key
+  const colonIdx = value.indexOf(':')
+  if (colonIdx === -1) {
+    throw new Error(`[crypto] Invalid ciphertext format: missing ':' separator`)
+  }
+
+  // This is legacy encrypted data that we cannot decrypt with the current key
+  // Throw a special error to indicate this needs re-encryption
+  const err = new Error('[crypto] Legacy encrypted data: API key needs to be re-entered')
+  err.code = 'LEGACY_ENCRYPTION'
+  throw err
 }
