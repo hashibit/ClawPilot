@@ -17,12 +17,9 @@ const USE_HTTP = !('__TAURI_INTERNALS__' in window)
 const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
 const DEV_BASE = `http://localhost:${SERVER_PORT}/api`
 
-function snakeToCamel(s: string): string {
-  return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
-}
-
 function toInvokeArgs(args: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(args).map(([k, v]) => [snakeToCamel(k), v]))
+  // Tauri invoke expects snake_case params matching Rust command signatures
+  return args
 }
 
 export async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {

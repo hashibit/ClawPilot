@@ -169,6 +169,53 @@ pub fn update_provider(pool: &DbPool, id: &str, config: ProviderConfig) -> Resul
     get_provider(pool, id)
 }
 
+/// Partial update for provider (only update provided fields)
+pub fn update_provider_partial(
+    pool: &DbPool,
+    id: &str,
+    name: Option<String>,
+    api: Option<String>,
+    base_url: Option<String>,
+    api_key: Option<String>,
+    is_enabled: Option<bool>,
+) -> Result<ProviderConfig> {
+    let now = now_ts();
+    let conn = pool.get()?;
+
+    // First get current values
+    let current = get_provider(pool, id)?;
+
+    // Merge with new values
+    let new_name = name.unwrap_or(current.name);
+    let new_api = api.unwrap_or(current.api);
+    let new_base_url = base_url.unwrap_or(current.base_url);
+    let new_is_enabled = is_enabled.unwrap_or(current.is_enabled);
+
+    let api_key_enc = match &api_key {
+        Some(k) if !k.is_empty() => crypto::encrypt(k)?,
+        _ => {
+            // Use existing encrypted key if no new key provided
+            let conn2 = pool.get()?;
+            conn2.query_row(
+                "SELECT api_key FROM model_providers_v2 WHERE id = ?1",
+                [id],
+                |row| row.get::<_, String>(0),
+            )?
+        }
+    };
+
+    let rows = conn.execute(
+        "UPDATE model_providers_v2 \
+         SET name=?2, api=?3, base_url=?4, api_key=?5, is_enabled=?6, updated_at=?7 \
+         WHERE id=?1",
+        rusqlite::params![id, new_name, new_api, new_base_url, api_key_enc, b2i(new_is_enabled), now],
+    )?;
+    if rows == 0 {
+        return Err(AppError::NotFound(format!("provider not found: {id}")));
+    }
+    get_provider(pool, id)
+}
+
 pub fn delete_provider(pool: &DbPool, id: &str) -> Result<()> {
     let conn = pool.get()?;
     let rows = conn.execute(

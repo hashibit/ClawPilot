@@ -25,13 +25,41 @@ pub fn get_provider(pool: State<'_, DbPool>, id: String) -> Result<ProviderConfi
 }
 
 #[tauri::command]
-pub fn create_provider(pool: State<'_, DbPool>, config: ProviderConfig) -> Result<ProviderConfig> {
+pub fn create_provider(
+    pool: State<'_, DbPool>,
+    name: String,
+    api: String,
+    base_url: String,
+    api_key: Option<String>,
+    is_available: Option<bool>,
+    last_tested: Option<i64>,
+) -> Result<ProviderConfig> {
+    let config = ProviderConfig {
+        id: uuid::Uuid::new_v4().to_string(),
+        name,
+        api,
+        base_url,
+        api_key,
+        is_enabled: true,
+        is_available: is_available.unwrap_or(false),
+        last_tested,
+        created_at: chrono::Utc::now().timestamp(),
+        updated_at: chrono::Utc::now().timestamp(),
+    };
     model_service::create_provider(&pool, config)
 }
 
 #[tauri::command]
-pub fn update_provider(pool: State<'_, DbPool>, id: String, config: ProviderConfig) -> Result<ProviderConfig> {
-    model_service::update_provider(&pool, &id, config)
+pub fn update_provider(
+    pool: State<'_, DbPool>,
+    id: String,
+    name: Option<String>,
+    api: Option<String>,
+    base_url: Option<String>,
+    api_key: Option<String>,
+    is_enabled: Option<bool>,
+) -> Result<ProviderConfig> {
+    model_service::update_provider_partial(&pool, &id, name, api, base_url, api_key, is_enabled)
 }
 
 #[tauri::command]
