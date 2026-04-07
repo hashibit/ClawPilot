@@ -59,13 +59,13 @@ daemon-local:
 	@if [ "$(UNAME_S)" = "Darwin" ]; then \
 		cp daemon/target/release/clawpilot-daemon src-tauri/resources/clawpilot-daemon-macos; \
 		echo "✅ Daemon: src-tauri/resources/clawpilot-daemon-macos"; \
-		# Create Linux placeholder if not exists or is placeholder \
-		if [ ! -f src-tauri/resources/clawpilot-daemon-linux ] || file src-tauri/resources/clawpilot-daemon-linux | grep -q "shell script"; then \
-			echo '#!/bin/bash\necho "ERROR: Linux daemon placeholder. Run '\''make daemon CROSS=1'\'' to build real binary."\nexit 1' > src-tauri/resources/clawpilot-daemon-linux; \
-			chmod +x src-tauri/resources/clawpilot-daemon-linux; \
-			echo "⚠️  Linux placeholder created (install 'cross' for real binary)"; \
-		fi; \
-	elif [ "$(UNAME_S)" = "Linux" ]; then \
+	fi
+	@if [ "$(UNAME_S)" = "Darwin" ] && [ ! -s src-tauri/resources/clawpilot-daemon-linux ]; then \
+		printf '#!/bin/bash\necho "ERROR: Linux placeholder. Run make daemon CROSS=1"\nexit 1\n' > src-tauri/resources/clawpilot-daemon-linux; \
+		chmod +x src-tauri/resources/clawpilot-daemon-linux; \
+		echo "⚠️  Linux placeholder created"; \
+	fi
+	@if [ "$(UNAME_S)" = "Linux" ]; then \
 		cp daemon/target/release/clawpilot-daemon src-tauri/resources/clawpilot-daemon-linux; \
 		echo "✅ Daemon: src-tauri/resources/clawpilot-daemon-linux"; \
 	fi
