@@ -83,10 +83,10 @@ export function registerBundleSkills(db) {
         INSERT INTO skills (
           name, display_name, description, slug, category,
           is_local, is_installed, install_path,
-          created_at
-        ) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?)
       `).run(
-        name || slug, display_name || slug, description || '', slug, category || 'general', skillDir, now
+        name || slug, display_name || slug, description || '', slug, category || 'general', skillDir, now, now
       )
       registered++
     }
