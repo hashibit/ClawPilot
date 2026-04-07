@@ -841,7 +841,7 @@ mod tests {
             openclaw_status: Some("running".to_string()),
             openclaw_pid: Some(12345),
             active_tasks: Some(2),
-            error: None,
+            ..Default::default()
         };
 
         let json = serde_json::to_string(&result).unwrap();

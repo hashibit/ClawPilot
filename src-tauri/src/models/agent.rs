@@ -53,9 +53,13 @@ pub struct AgentDocument {
 /// Agent 完整配置，对应数据库 agents 表
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
+    #[serde(default)]
     pub id: String,
+    #[serde(default)]
     pub opc_id: String,
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub display_name: String,
     pub job_title: Option<String>,
     pub personality: Option<String>,
@@ -64,30 +68,46 @@ pub struct AgentConfig {
     pub gradient_start: Option<String>,
     pub gradient_end: Option<String>,
     /// 是否默认响应者，DB 中存 0/1
+    #[serde(default)]
     pub is_default: bool,
+    #[serde(default)]
     pub order_index: i32,
     pub model_provider: Option<String>,
     pub model_name: Option<String>,
     /// 统一模型标识，如 "anthropic/claude-opus-4-5"（优先于 model_provider+model_name）
     pub model: Option<String>,
     /// 启用的工具 ID 列表，DB 中存 JSON 字符串
+    #[serde(default)]
     pub enabled_tools: Vec<String>,
     /// 禁用的工具 ID 列表，DB 中存 JSON 字符串
+    #[serde(default)]
     pub disabled_tools: Vec<String>,
     /// 启用的 Skill slug 列表，DB 中存 JSON 字符串
+    #[serde(default)]
     pub enabled_skills: Vec<String>,
     /// 护栏允许规则，DB 中存 JSON 字符串（{allow:[],deny:[]} 或旧版 [] 数组）
+    #[serde(default)]
     pub guardrail_rules: Vec<String>,
     /// 护栏允许规则（同 guardrail_rules，前端使用）
+    #[serde(default)]
     pub guardrail_allow: Vec<String>,
     /// 护栏禁止规则
+    #[serde(default)]
     pub guardrail_deny: Vec<String>,
     /// 汇报给哪些 Agent ID，DB 中存 JSON 字符串
+    #[serde(default)]
     pub reports_to: Vec<String>,
     /// 管理哪些 Agent ID，DB 中存 JSON 字符串
+    #[serde(default)]
     pub manages: Vec<String>,
+    #[serde(default = "default_timestamp")]
     pub created_at: i64,
+    #[serde(default = "default_timestamp")]
     pub updated_at: i64,
+}
+
+fn default_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
 }
 
 impl AgentConfig {

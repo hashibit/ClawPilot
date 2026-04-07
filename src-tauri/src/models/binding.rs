@@ -57,18 +57,32 @@ impl TriggerMode {
 /// 绑定规则，对应数据库 bindings 表
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BindingRule {
+    #[serde(default)]
     pub id: String,
+    #[serde(default)]
     pub opc_id: String,
+    #[serde(default)]
     pub channel_id: String,
+    #[serde(default)]
     pub channel_name: String,
+    /// 必填：频道类型
     pub channel_type: BindingChannelType,
+    #[serde(default)]
     pub agent_id: String,
+    #[serde(default)]
     pub agent_name: String,
+    /// 必填：触发模式
     pub trigger_mode: TriggerMode,
-    /// 是否启用，DB 中存 0/1
+    #[serde(default)]
     pub is_enabled: bool,
+    #[serde(default = "default_timestamp")]
     pub created_at: i64,
+    #[serde(default = "default_timestamp")]
     pub updated_at: i64,
+}
+
+fn default_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
 }
 
 impl BindingRule {

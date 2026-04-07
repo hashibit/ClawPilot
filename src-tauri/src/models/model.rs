@@ -3,15 +3,18 @@ use serde::{Deserialize, Serialize};
 /// Provider 配置，对应数据库 model_providers_v2 表（name-keyed，支持任意提供商）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
+    /// 后端自动生成
     #[serde(default)]
     pub id: String,
-    /// 唯一名称（用户自定义，如 "bailian", "openai-1"）
+    /// 必填：用户自定义名称
     pub name: String,
-    /// API 类型：openai-completions | anthropic-messages | gemini
+    /// 必填：API 类型
     pub api: String,
+    /// 必填：API Base URL
     pub base_url: String,
-    /// API Key（加密存储，返回时已解密）
+    /// 可选：API Key（加密存储）
     pub api_key: Option<String>,
+    /// 后端管理
     #[serde(default)]
     pub is_enabled: bool,
     #[serde(default)]

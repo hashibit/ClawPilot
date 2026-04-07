@@ -3,23 +3,35 @@ use serde::{Deserialize, Serialize};
 /// 技能信息，对应数据库 skills 表
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillInfo {
+    /// 后端自动生成（DB 自增）
+    #[serde(default)]
     pub id: i64,
+    /// 必填：技能名称
     pub name: String,
+    /// 必填：显示名称
     pub display_name: String,
     pub description: Option<String>,
     pub category: Option<String>,
     pub slug: Option<String>,
     pub version: Option<String>,
     pub author: Option<String>,
-    /// 标签列表，DB 中存 JSON 字符串
+    /// 标签列表，默认空数组
+    #[serde(default)]
     pub tags: Vec<String>,
     pub url: Option<String>,
     pub download_url: Option<String>,
+    #[serde(default)]
     pub is_local: bool,
+    #[serde(default)]
     pub is_installed: bool,
     pub install_path: Option<String>,
     pub installed_at: Option<i64>,
+    #[serde(default = "default_timestamp")]
     pub created_at: i64,
+}
+
+fn default_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
 }
 
 impl SkillInfo {

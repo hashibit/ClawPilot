@@ -1,37 +1,58 @@
 use serde::{Deserialize, Serialize};
 
 /// OPC (OpenClaw 团队) 统计数据
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OpcStats {
+    #[serde(default)]
     pub agent_count: i32,
+    #[serde(default)]
     pub channel_count: i32,
+    #[serde(default)]
     pub group_count: i32,
+    #[serde(default)]
     pub dm_count: i32,
+    #[serde(default)]
     pub message_count_today: i64,
+    #[serde(default)]
     pub message_growth: f64,
 }
 
 /// OPC (OpenClaw 团队) 完整配置，对应数据库 opc_config 表
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpcConfig {
+    /// 后端自动生成
+    #[serde(default)]
     pub id: String,
+    /// 必填：团队名称（slug）
     pub name: String,
+    /// 必填：显示名称
     pub display_name: String,
     pub description: Option<String>,
     pub avatar_color: Option<String>,
     pub avatar_initials: Option<String>,
-    /// 是否激活（当前选中），DB 中存储为 0/1 整数
+    /// 后端管理
+    #[serde(default)]
     pub is_active: bool,
-    /// 是否运行中，DB 中存储为 0/1 整数
+    #[serde(default)]
     pub is_running: bool,
+    #[serde(default)]
     pub agent_count: i32,
+    #[serde(default)]
     pub channel_count: i32,
+    #[serde(default)]
     pub message_count_today: i64,
+    #[serde(default)]
     pub message_growth: f64,
     pub office_id: Option<String>,
     pub office_name: Option<String>,
+    #[serde(default = "default_timestamp")]
     pub created_at: i64,
+    #[serde(default = "default_timestamp")]
     pub updated_at: i64,
+}
+
+fn default_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
 }
 
 impl OpcConfig {

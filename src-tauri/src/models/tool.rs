@@ -3,13 +3,23 @@ use serde::{Deserialize, Serialize};
 /// 工具信息，对应数据库 tools 表
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolInfo {
+    /// 后端自动生成（DB 自增）
+    #[serde(default)]
     pub id: i64,
+    /// 必填：工具名称
     pub name: String,
+    /// 必填：显示名称
     pub display_name: String,
     pub description: Option<String>,
     pub category: Option<String>,
+    #[serde(default)]
     pub is_local: bool,
+    #[serde(default = "default_timestamp")]
     pub created_at: i64,
+}
+
+fn default_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
 }
 
 impl ToolInfo {

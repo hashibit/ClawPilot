@@ -33,26 +33,37 @@ impl ChannelType {
 /// 飞书应用配置，存入 channels 表的 feishu_config JSON 列
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeishuConfig {
+    #[serde(default)]
     pub app_id: String,
     /// 应用密钥（加密存储）
+    #[serde(default)]
     pub app_secret: String,
 }
 
 /// 渠道配置，对应数据库 channels 表
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelConfig {
+    #[serde(default)]
     pub id: String,
+    #[serde(default)]
     pub opc_id: String,
+    /// 必填：渠道类型
     pub channel_type: ChannelType,
-    /// 是否启用，DB 中存 0/1
+    #[serde(default)]
     pub is_enabled: bool,
     /// 飞书配置（JSON），仅 channel_type == Feishu 时使用
     pub feishu_config: Option<FeishuConfig>,
-    /// 是否已连接，DB 中存 0/1
+    #[serde(default)]
     pub is_connected: bool,
     pub last_connected: Option<i64>,
+    #[serde(default = "default_timestamp")]
     pub created_at: i64,
+    #[serde(default = "default_timestamp")]
     pub updated_at: i64,
+}
+
+fn default_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
 }
 
 impl ChannelConfig {

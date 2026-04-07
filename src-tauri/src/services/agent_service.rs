@@ -748,7 +748,9 @@ mod tests {
         let mut agent = make_agent("a1", "opc-1", 0);
         agent.enabled_tools = vec!["t1".to_string(), "t2".to_string(), "t3".to_string()];
         agent.disabled_tools = vec!["d1".to_string()];
-        agent.guardrail_rules = vec!["rule-a".to_string(), "rule-b".to_string()];
+        // guardrail_allow 是源字段，guardrail_rules 是读字段
+        agent.guardrail_allow = vec!["rule-a".to_string(), "rule-b".to_string()];
+        agent.guardrail_deny = vec!["deny-x".to_string()];
         agent.reports_to = vec!["boss".to_string()];
         agent.manages = vec!["sub1".to_string(), "sub2".to_string()];
 
@@ -757,7 +759,9 @@ mod tests {
 
         assert_eq!(fetched.enabled_tools, agent.enabled_tools);
         assert_eq!(fetched.disabled_tools, agent.disabled_tools);
-        assert_eq!(fetched.guardrail_rules, agent.guardrail_rules);
+        assert_eq!(fetched.guardrail_allow, agent.guardrail_allow);
+        assert_eq!(fetched.guardrail_deny, agent.guardrail_deny);
+        assert_eq!(fetched.guardrail_rules, agent.guardrail_allow); // rules = allow
         assert_eq!(fetched.reports_to, agent.reports_to);
         assert_eq!(fetched.manages, agent.manages);
     }
