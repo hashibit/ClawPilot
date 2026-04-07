@@ -78,7 +78,6 @@ pub fn run() {
             commands::binding::get_feishu_channels,
             // Tool & Skill
             commands::tool::get_tools,
-            commands::tool::sync_tools_from_clawhub,
             commands::tool::create_tool,
             commands::tool::delete_tool,
             commands::skill::get_bundle_skills_metadata,

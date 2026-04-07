@@ -3,22 +3,23 @@ use serde::{Deserialize, Serialize};
 /// 技能信息，对应数据库 skills 表
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillInfo {
-    pub id: String,
+    pub id: i64,
     pub name: String,
-    pub slug: String,
+    pub display_name: String,
     pub description: Option<String>,
-    pub author: Option<String>,
-    pub size: Option<i32>,
-    pub url: Option<String>,
+    pub category: Option<String>,
+    pub slug: Option<String>,
     pub version: Option<String>,
+    pub author: Option<String>,
     /// 标签列表，DB 中存 JSON 字符串
     pub tags: Vec<String>,
-    pub category: Option<String>,
-    pub downloads: i32,
-    /// 是否为内置技能，DB 中存 0/1
-    pub is_builtin: bool,
-    /// 最后同步时间（Unix 时间戳）
-    pub last_synced: Option<i64>,
+    pub url: Option<String>,
+    pub download_url: Option<String>,
+    pub is_local: bool,
+    pub is_installed: bool,
+    pub install_path: Option<String>,
+    pub installed_at: Option<i64>,
+    pub created_at: i64,
 }
 
 impl SkillInfo {
@@ -48,19 +49,22 @@ mod tests {
     #[test]
     fn test_skill_info_serde_roundtrip() {
         let skill = SkillInfo {
-            id: "summarize-doc".to_string(),
-            name: "Summarize Document".to_string(),
-            slug: "acme/summarize-doc".to_string(),
+            id: 1,
+            name: "summarize-doc".to_string(),
+            display_name: "Summarize Document".to_string(),
             description: Some("Summarizes long documents into bullet points".to_string()),
-            author: Some("acme".to_string()),
-            size: Some(8192),
-            url: Some("https://clawhub.ai/acme/summarize-doc".to_string()),
-            version: Some("2.1.0".to_string()),
-            tags: vec!["nlp".to_string(), "summarization".to_string()],
             category: Some("productivity".to_string()),
-            downloads: 1200,
-            is_builtin: false,
-            last_synced: Some(1700001500),
+            slug: Some("acme/summarize-doc".to_string()),
+            version: Some("2.1.0".to_string()),
+            author: Some("acme".to_string()),
+            tags: vec!["nlp".to_string(), "summarization".to_string()],
+            url: Some("https://clawhub.ai/acme/summarize-doc".to_string()),
+            download_url: None,
+            is_local: false,
+            is_installed: true,
+            install_path: Some("/path/to/skill".to_string()),
+            installed_at: Some(1700001500),
+            created_at: 1700001000,
         };
 
         let json = serde_json::to_string(&skill).expect("serialize failed");
@@ -68,8 +72,8 @@ mod tests {
 
         assert_eq!(decoded.id, skill.id);
         assert_eq!(decoded.tags, skill.tags);
-        assert_eq!(decoded.is_builtin, skill.is_builtin);
-        assert_eq!(decoded.downloads, skill.downloads);
+        assert_eq!(decoded.is_local, skill.is_local);
+        assert_eq!(decoded.is_installed, skill.is_installed);
         assert_eq!(decoded.version, skill.version);
     }
 

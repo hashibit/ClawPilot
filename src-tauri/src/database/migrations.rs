@@ -46,7 +46,6 @@ mod tests {
             "model_info_v2",
             "channels",
             "bindings",
-            "opc_defaults",
             "tools",
             "skills",
             "offices",

@@ -266,6 +266,7 @@ pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealt
             match resp.json::<serde_json::Value>().await {
                 Ok(json) => DaemonHealthResult {
                     ok: true,
+                    not_installed: None,
                     status: json["status"].as_str().map(String::from),
                     version: json["version"].as_str().map(String::from),
                     openclaw_status: json["openclaw_status"].as_str().map(String::from),

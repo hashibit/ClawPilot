@@ -219,62 +219,43 @@ CREATE INDEX IF NOT EXISTS idx_bindings_opc_id ON bindings(opc_id);
 CREATE INDEX IF NOT EXISTS idx_bindings_channel_id ON bindings(channel_id);
 CREATE INDEX IF NOT EXISTS idx_bindings_agent_id ON bindings(agent_id);
 
-CREATE TABLE IF NOT EXISTS opc_defaults (
-    opc_id TEXT PRIMARY KEY,
-    default_agent TEXT,
-    FOREIGN KEY (opc_id) REFERENCES opc_config(id) ON DELETE CASCADE,
-    FOREIGN KEY (default_agent) REFERENCES agents(id) ON DELETE SET NULL
-);
-
 -- ─────────────────────────────────────────────
 -- 6. 工具和技能库表
 -- ─────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS tools (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
     description TEXT,
-    author TEXT,
-    size INTEGER DEFAULT 0,
-    url TEXT,
-    version TEXT,
-    updated_at INTEGER NOT NULL,
-    tags TEXT,
-    category TEXT,
-    downloads INTEGER DEFAULT 0,
-    is_builtin INTEGER DEFAULT 0,
-    last_synced INTEGER
+    category TEXT DEFAULT 'general',
+    is_local INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_tools_category ON tools(category);
-CREATE INDEX IF NOT EXISTS idx_tools_is_builtin ON tools(is_builtin);
 
 CREATE TABLE IF NOT EXISTS skills (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    slug TEXT NOT NULL UNIQUE,
-    description TEXT,
-    author TEXT,
-    size INTEGER DEFAULT 0,
-    url TEXT,
-    version TEXT,
-    updated_at INTEGER NOT NULL,
-    tags TEXT,
-    category TEXT,
-    downloads INTEGER DEFAULT 0,
-    is_builtin INTEGER DEFAULT 0,
-    install_path TEXT,
-    installed_at INTEGER,
-    download_url TEXT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL DEFAULT '',
+    description TEXT,
+    category TEXT DEFAULT 'general',
+    slug TEXT UNIQUE,
+    version TEXT,
+    author TEXT,
+    tags TEXT,
+    url TEXT,
+    download_url TEXT,
     is_local INTEGER NOT NULL DEFAULT 1,
     is_installed INTEGER NOT NULL DEFAULT 0,
+    install_path TEXT,
+    installed_at INTEGER,
+    created_at INTEGER NOT NULL,
     last_synced INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_skills_category ON skills(category);
-CREATE INDEX IF NOT EXISTS idx_skills_is_builtin ON skills(is_builtin);
 
 -- ─────────────────────────────────────────────
 -- 7. 快照和部署表

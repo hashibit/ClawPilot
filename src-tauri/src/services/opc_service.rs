@@ -91,8 +91,8 @@ pub fn create_opc(pool: &DbPool, config: OpcConfig) -> Result<String> {
         "INSERT INTO opc_config
              (id, name, display_name, description, avatar_color, avatar_initials,
               is_active, is_running, agent_count, channel_count,
-              message_count_today, message_growth, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+              message_count_today, message_growth, office_id, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         rusqlite::params![
             new_id,
             config.name,
@@ -106,6 +106,7 @@ pub fn create_opc(pool: &DbPool, config: OpcConfig) -> Result<String> {
             config.channel_count,
             config.message_count_today,
             config.message_growth,
+            config.office_id,
             now,
             now,
         ],
@@ -125,7 +126,8 @@ pub fn update_opc(pool: &DbPool, id: &str, config: OpcConfig) -> Result<()> {
              is_active = ?7, is_running = ?8,
              agent_count = ?9, channel_count = ?10,
              message_count_today = ?11, message_growth = ?12,
-             updated_at = ?13
+             office_id = ?13,
+             updated_at = ?14
          WHERE id = ?1",
         rusqlite::params![
             id,
@@ -140,6 +142,7 @@ pub fn update_opc(pool: &DbPool, id: &str, config: OpcConfig) -> Result<()> {
             config.channel_count,
             config.message_count_today,
             config.message_growth,
+            config.office_id,
             now,
         ],
     )?;

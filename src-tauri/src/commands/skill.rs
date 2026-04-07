@@ -33,7 +33,7 @@ pub fn create_skill(pool: State<'_, DbPool>, skill: LocalSkillInput) -> Result<i
 }
 
 #[tauri::command]
-pub fn delete_skill(pool: State<'_, DbPool>, id: String) -> Result<()> {
+pub fn delete_skill(pool: State<'_, DbPool>, id: i64) -> Result<()> {
     skill_service::delete_skill(&pool, id)
 }
 

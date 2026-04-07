@@ -1,7 +1,6 @@
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
 use crate::models::tool::ToolInfo;
-use uuid::Uuid;
 
 /// Local tool input for create_tool command
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -15,37 +14,23 @@ pub struct LocalToolInput {
 pub fn get_tools(pool: &DbPool) -> Result<Vec<ToolInfo>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, slug, description, author, size, url, version,
-                tags, category, downloads, is_builtin, last_synced
-         FROM tools ORDER BY name",
+        "SELECT id, name, display_name, description, category, is_local, created_at
+         FROM tools ORDER BY created_at DESC",
     )?;
     let rows = stmt
         .query_map([], |row| {
             Ok(ToolInfo {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                slug: row.get(2)?,
+                display_name: row.get(2)?,
                 description: row.get(3)?,
-                author: row.get(4)?,
-                size: row.get(5)?,
-                url: row.get(6)?,
-                version: row.get(7)?,
-                tags: row.get::<_, Option<String>>(8)?
-                    .map(|s| serde_json::from_str(&s).unwrap_or_default())
-                    .unwrap_or_default(),
-                category: row.get(9)?,
-                downloads: row.get(10)?,
-                is_builtin: row.get::<_, i64>(11)? != 0,
-                last_synced: row.get(12)?,
+                category: row.get(4)?,
+                is_local: row.get::<_, i64>(5)? != 0,
+                created_at: row.get(6)?,
             })
         })?
         .collect::<std::result::Result<_, _>>()?;
     Ok(rows)
-}
-
-/// Stub: syncs tools from clawhub.ai (HTTP not implemented yet)
-pub fn sync_tools_from_clawhub(_pool: &DbPool) -> Result<Vec<ToolInfo>> {
-    Ok(vec![])
 }
 
 /// Create a new local tool
@@ -60,17 +45,12 @@ pub fn create_tool(pool: &DbPool, tool: LocalToolInput) -> Result<i64> {
         return Err(AppError::Validation("display_name is required".into()));
     }
 
-    // Generate unique id and slug
-    let id = Uuid::new_v4().to_string();
-    let slug = tool.name.trim().to_lowercase().replace(' ', "-");
-
-    // Check for duplicate name or slug
-    let exists: bool = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM tools WHERE name = ?1 OR slug = ?2)",
-            rusqlite::params![tool.name.trim(), &slug],
-            |row| row.get(0),
-        )?;
+    // Check for duplicate name
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM tools WHERE name = ?1)",
+        rusqlite::params![tool.name.trim()],
+        |row| row.get(0),
+    )?;
 
     if exists {
         return Err(AppError::Validation("工具名称已存在".into()));
@@ -79,29 +59,25 @@ pub fn create_tool(pool: &DbPool, tool: LocalToolInput) -> Result<i64> {
     let ts = chrono::Utc::now().timestamp();
 
     conn.execute(
-        r#"INSERT INTO tools (id, name, slug, description, category, updated_at, is_builtin, last_synced)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)"#,
+        r#"INSERT INTO tools (name, display_name, description, category, is_local, created_at)
+           VALUES (?1, ?2, ?3, ?4, 1, ?5)"#,
         rusqlite::params![
-            id,
             tool.name.trim(),
-            slug,
-            tool.description.as_ref().map(|s| s.trim()).unwrap_or(""),
+            tool.display_name.trim(),
+            tool.description.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()),
             tool.category.as_ref().map(|s| s.trim()).unwrap_or("general"),
-            ts,
             ts,
         ],
     )?;
 
-    // Return the row id (for compatibility with server which returns lastInsertRowid)
-    // Since we're using TEXT id, we return a dummy value
-    Ok(0)
+    Ok(conn.last_insert_rowid())
 }
 
-/// Delete a local tool by id
-pub fn delete_tool(pool: &DbPool, id: String) -> Result<()> {
+/// Delete a local tool by id (only if is_local = 1)
+pub fn delete_tool(pool: &DbPool, id: i64) -> Result<()> {
     let conn = pool.get()?;
     conn.execute(
-        "DELETE FROM tools WHERE id = ?1",
+        "DELETE FROM tools WHERE id = ?1 AND is_local = 1",
         rusqlite::params![id],
     )?;
     Ok(())
@@ -148,6 +124,8 @@ mod tests {
 
         let result = create_tool(&pool, input);
         assert!(result.is_ok());
+        let id = result.unwrap();
+        assert!(id > 0);
     }
 
     #[test]
@@ -219,23 +197,6 @@ mod tests {
         assert_eq!(tools[0].description, Some("Description".to_string()));
     }
 
-    #[test]
-    fn test_create_tool_generates_slug() {
-        let pool = setup();
-
-        let input = LocalToolInput {
-            name: "My Test Tool".to_string(),
-            display_name: "My Test Tool".to_string(),
-            description: None,
-            category: None,
-        };
-
-        create_tool(&pool, input).unwrap();
-
-        let tools = get_tools(&pool).unwrap();
-        assert_eq!(tools[0].slug, "my-test-tool");
-    }
-
     // --- delete_tool 测试 ---
     #[test]
     fn test_delete_tool() {
@@ -248,25 +209,13 @@ mod tests {
             category: None,
         };
 
-        create_tool(&pool, input).unwrap();
-        let tools = get_tools(&pool).unwrap();
-        let tool_id = tools[0].id.clone();
+        let id = create_tool(&pool, input).unwrap();
 
-        let result = delete_tool(&pool, tool_id);
+        let result = delete_tool(&pool, id);
         assert!(result.is_ok());
 
         let tools = get_tools(&pool).unwrap();
         assert!(tools.is_empty());
-    }
-
-    // --- sync_tools_from_clawhub 测试 ---
-    #[test]
-    fn test_sync_tools_from_clawhub_returns_empty() {
-        let pool = setup();
-
-        let result = sync_tools_from_clawhub(&pool);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
     }
 
     // --- LocalToolInput 测试 ---

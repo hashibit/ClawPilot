@@ -1,10 +1,10 @@
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
 use crate::models::skill::SkillInfo;
+use rusqlite::OptionalExtension;
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
-use uuid::Uuid;
 use zip::ZipArchive;
 
 /// Local skill input for create_skill command
@@ -43,29 +43,33 @@ fn get_skills_dir() -> Result<std::path::PathBuf> {
 pub fn get_skills(pool: &DbPool) -> Result<Vec<SkillInfo>> {
     let conn = pool.get()?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, slug, description, author, size, url, version,
-                tags, category, downloads, is_builtin, last_synced
-         FROM skills ORDER BY name",
+        "SELECT id, name, display_name, description, category, slug, version, author,
+                tags, url, download_url, is_local, is_installed, install_path, installed_at, created_at
+         FROM skills ORDER BY is_installed DESC, created_at DESC",
     )?;
     let rows = stmt
         .query_map([], |row| {
             Ok(SkillInfo {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                slug: row.get(2)?,
+                display_name: row.get(2)?,
                 description: row.get(3)?,
-                author: row.get(4)?,
-                size: row.get(5)?,
-                url: row.get(6)?,
-                version: row.get(7)?,
+                category: row.get(4)?,
+                slug: row.get(5)?,
+                version: row.get(6)?,
+                author: row.get(7)?,
                 tags: row
                     .get::<_, Option<String>>(8)?
-                    .map(|s| serde_json::from_str(&s).unwrap_or_default())
+                    .as_deref()
+                    .map(SkillInfo::tags_from_json)
                     .unwrap_or_default(),
-                category: row.get(9)?,
-                downloads: row.get(10)?,
-                is_builtin: row.get::<_, i64>(11)? != 0,
-                last_synced: row.get(12)?,
+                url: row.get(9)?,
+                download_url: row.get(10)?,
+                is_local: row.get::<_, i64>(11)? != 0,
+                is_installed: row.get::<_, i64>(12)? != 0,
+                install_path: row.get(13)?,
+                installed_at: row.get(14)?,
+                created_at: row.get(15)?,
             })
         })?
         .collect::<std::result::Result<_, _>>()?;
@@ -76,15 +80,14 @@ pub fn get_skills(pool: &DbPool) -> Result<Vec<SkillInfo>> {
 /// 从 DB 读取内置技能，构造 { skills: [...] } JSON。
 pub fn get_bundle_skills_metadata(pool: &DbPool) -> Result<serde_json::Value> {
     let conn = pool.get()?;
-    // 查询 DB 中存储的技能，同时读取 display_name 列（由 migration v2 添加）
     let mut stmt = conn.prepare(
-        "SELECT slug, name, COALESCE(NULLIF(display_name, ''), name), description, category, is_builtin \
+        "SELECT slug, name, COALESCE(NULLIF(display_name, ''), name), description, category, is_local \
          FROM skills ORDER BY name",
     )?;
     let skill_list: Vec<serde_json::Value> = stmt
         .query_map([], |row| {
             Ok((
-                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(0)?,
                 row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?,
                 row.get::<_, Option<String>>(3)?,
@@ -93,14 +96,14 @@ pub fn get_bundle_skills_metadata(pool: &DbPool) -> Result<serde_json::Value> {
             ))
         })?
         .filter_map(|r| r.ok())
-        .map(|(slug, name, display_name, description, category, is_builtin)| {
+        .map(|(slug, name, display_name, description, category, is_local)| {
             serde_json::json!({
                 "slug": slug,
                 "name": name,
                 "display_name": display_name,
                 "description": description.unwrap_or_default(),
                 "category": category.unwrap_or_else(|| "general".to_string()),
-                "is_builtin": is_builtin != 0,
+                "is_local": is_local != 0,
             })
         })
         .collect();
@@ -124,14 +127,10 @@ pub fn create_skill(pool: &DbPool, skill: LocalSkillInput) -> Result<i64> {
         return Err(AppError::Validation("display_name is required".into()));
     }
 
-    // Generate unique id and slug
-    let id = Uuid::new_v4().to_string();
-    let slug = skill.name.trim().to_lowercase().replace(' ', "-");
-
-    // Check for duplicate name or slug
+    // Check for duplicate name
     let exists: bool = conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM skills WHERE name = ?1 OR slug = ?2)",
-        rusqlite::params![skill.name.trim(), &slug],
+        "SELECT EXISTS(SELECT 1 FROM skills WHERE name = ?1)",
+        rusqlite::params![skill.name.trim()],
         |row| row.get(0),
     )?;
 
@@ -142,26 +141,27 @@ pub fn create_skill(pool: &DbPool, skill: LocalSkillInput) -> Result<i64> {
     let ts = chrono::Utc::now().timestamp();
 
     conn.execute(
-        r#"INSERT INTO skills (id, name, slug, description, category, updated_at, is_builtin, last_synced)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)"#,
+        r#"INSERT INTO skills (name, display_name, description, category, is_local, is_installed, created_at)
+           VALUES (?1, ?2, ?3, ?4, 1, 0, ?5)"#,
         rusqlite::params![
-            id,
             skill.name.trim(),
-            slug,
-            skill.description.as_ref().map(|s| s.trim()).unwrap_or(""),
+            skill.display_name.trim(),
+            skill.description.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()),
             skill.category.as_ref().map(|s| s.trim()).unwrap_or("general"),
-            ts,
             ts,
         ],
     )?;
 
-    Ok(0)
+    Ok(conn.last_insert_rowid())
 }
 
-/// Delete a local skill by id
-pub fn delete_skill(pool: &DbPool, id: String) -> Result<()> {
+/// Delete a local skill by id (only if is_local = 1)
+pub fn delete_skill(pool: &DbPool, id: i64) -> Result<()> {
     let conn = pool.get()?;
-    conn.execute("DELETE FROM skills WHERE id = ?1", rusqlite::params![id])?;
+    conn.execute(
+        "DELETE FROM skills WHERE id = ?1 AND is_local = 1",
+        rusqlite::params![id],
+    )?;
     Ok(())
 }
 
@@ -250,8 +250,9 @@ pub async fn install_skill(pool: &DbPool, slug: String) -> Result<SkillInstallRe
     }
 
     let ts = chrono::Utc::now().timestamp();
+    let install_path = skill_dir.to_string_lossy().to_string();
 
-    // Check if skill exists
+    // Check if skill exists by slug
     let exists: bool = pool
         .get()?
         .query_row(
@@ -264,17 +265,18 @@ pub async fn install_skill(pool: &DbPool, slug: String) -> Result<SkillInstallRe
     if exists {
         // Update existing skill
         pool.get()?.execute(
-            r#"UPDATE skills SET is_installed = 1, updated_at = ?1, last_synced = ?1 WHERE slug = ?2"#,
-            rusqlite::params![ts, &slug],
-        ).map_err(|e| AppError::Database(e))?;
+            r#"UPDATE skills SET is_installed = 1, install_path = ?1, installed_at = ?2, last_synced = ?3 WHERE slug = ?4"#,
+            rusqlite::params![install_path, ts, ts, &slug],
+        ).map_err(AppError::Database)?;
     } else {
         // Insert new skill
-        let id = Uuid::new_v4().to_string();
         pool.get()?.execute(
-            r#"INSERT INTO skills (id, name, slug, description, category, updated_at, is_builtin, last_synced)
-               VALUES (?1, ?2, ?3, '', 'general', ?4, 0, ?5)"#,
-            rusqlite::params![id, slug, slug, ts, ts],
-        ).map_err(|e| AppError::Database(e))?;
+            r#"INSERT INTO skills (name, display_name, description, slug, category, url, download_url,
+                                   version, author, is_local, is_installed, install_path, installed_at,
+                                   created_at, last_synced)
+               VALUES (?1, ?2, '', ?3, 'general', NULL, NULL, NULL, NULL, 0, 1, ?4, ?5, ?6, ?7)"#,
+            rusqlite::params![slug, slug, slug, install_path, ts, ts, ts],
+        ).map_err(AppError::Database)?;
     }
 
     Ok(SkillInstallResult {
@@ -295,13 +297,38 @@ pub async fn uninstall_skill(pool: &DbPool, slug: String) -> Result<serde_json::
             .map_err(|e| AppError::Validation(format!("删除技能目录失败：{}", e)))?;
     }
 
-    // Remove from database
-    pool.get()?
-        .execute(
-            "DELETE FROM skills WHERE slug = ?1",
+    // Check if skill is local — if local, just clear install info; if remote, delete record
+    let conn = pool.get()?;
+    let is_local: Option<i64> = conn
+        .query_row(
+            "SELECT is_local FROM skills WHERE slug = ?1",
             rusqlite::params![&slug],
+            |row| row.get(0),
         )
-        .map_err(|e| AppError::Database(e))?;
+        .optional()
+        .map_err(AppError::Database)?;
+
+    match is_local {
+        Some(1) => {
+            // Local skill: just clear install state
+            conn.execute(
+                "UPDATE skills SET is_installed = 0, install_path = NULL, installed_at = NULL WHERE slug = ?1",
+                rusqlite::params![&slug],
+            )
+            .map_err(AppError::Database)?;
+        }
+        Some(_) => {
+            // Remote skill: delete the record
+            conn.execute(
+                "DELETE FROM skills WHERE slug = ?1",
+                rusqlite::params![&slug],
+            )
+            .map_err(AppError::Database)?;
+        }
+        None => {
+            // Not found, no action needed
+        }
+    }
 
     Ok(serde_json::json!({ "ok": true }))
 }
@@ -416,37 +443,33 @@ pub fn register_bundle_skills(pool: &DbPool) -> Result<()> {
                     description = ?2,
                     category = ?3,
                     is_installed = 1,
-                    install_path = ?4,
-                    updated_at = ?5
-                   WHERE slug = ?6"#,
+                    install_path = ?4
+                   WHERE slug = ?5"#,
                 rusqlite::params![
                     skill.display_name,
                     skill.description,
                     skill.category,
                     skill_dir.to_string_lossy(),
-                    ts,
                     &skill.slug
                 ],
             )
-            .map_err(|e| AppError::Database(e))?;
+            .map_err(AppError::Database)?;
         } else {
-            let id = Uuid::new_v4().to_string();
             conn.execute(
                 r#"INSERT INTO skills
-                    (id, name, display_name, description, slug, category, is_installed, install_path, created_at, updated_at)
-                   VALUES (?1, ?2, ?3, ?4, ?5, ?6, 1, ?7, ?8, ?9)"#,
+                    (name, display_name, description, slug, category, is_local, is_installed, install_path, created_at)
+                   VALUES (?1, ?2, ?3, ?4, ?5, 0, 1, ?6, ?7)"#,
                 rusqlite::params![
-                    id,
                     skill.name,
                     skill.display_name,
                     skill.description,
                     skill.slug,
                     skill.category,
                     skill_dir.to_string_lossy(),
-                    ts,
                     ts
                 ],
-            ).map_err(|e| AppError::Database(e))?;
+            )
+            .map_err(AppError::Database)?;
             registered += 1;
         }
     }
@@ -457,17 +480,11 @@ pub fn register_bundle_skills(pool: &DbPool) -> Result<()> {
 
 /// Get the bundle skills directory path
 fn get_bundle_skills_dir() -> Result<PathBuf> {
-    // Try to find bundle/skills relative to the executable
     let exe_dir = std::env::current_exe()
         .map_err(|e| AppError::Validation(format!("获取可执行文件路径失败：{}", e)))?
         .parent()
         .map(|p| p.to_path_buf())
         .ok_or_else(|| AppError::Validation("无法获取可执行文件目录".into()))?;
-
-    // Try multiple possible locations:
-    // 1. ../bundle/skills (for development, exe is in target/)
-    // 2. bundle/skills (for production, exe is in app bundle)
-    // 3. Resources/bundle/skills (for macOS app bundle)
 
     let possible_paths = vec![
         exe_dir.parent().map(|p| p.join("bundle/skills")),
@@ -481,7 +498,6 @@ fn get_bundle_skills_dir() -> Result<PathBuf> {
         }
     }
 
-    // Fallback to a default path relative to current directory
     Ok(PathBuf::from("bundle/skills"))
 }
 
@@ -526,6 +542,8 @@ mod tests {
 
         let result = create_skill(&pool, input);
         assert!(result.is_ok());
+        let id = result.unwrap();
+        assert!(id > 0);
     }
 
     #[test]
@@ -600,23 +618,6 @@ mod tests {
         assert_eq!(skills[0].description, Some("Description".to_string()));
     }
 
-    #[test]
-    fn test_create_skill_generates_slug() {
-        let pool = setup();
-
-        let input = LocalSkillInput {
-            name: "My Test Skill".to_string(),
-            display_name: "My Test Skill".to_string(),
-            description: None,
-            category: None,
-        };
-
-        create_skill(&pool, input).unwrap();
-
-        let skills = get_skills(&pool).unwrap();
-        assert_eq!(skills[0].slug, "my-test-skill");
-    }
-
     // --- delete_skill 测试 ---
     #[test]
     fn test_delete_skill() {
@@ -629,11 +630,9 @@ mod tests {
             category: None,
         };
 
-        create_skill(&pool, input).unwrap();
-        let skills = get_skills(&pool).unwrap();
-        let skill_id = skills[0].id.clone();
+        let id = create_skill(&pool, input).unwrap();
 
-        let result = delete_skill(&pool, skill_id);
+        let result = delete_skill(&pool, id);
         assert!(result.is_ok());
 
         let skills = get_skills(&pool).unwrap();
