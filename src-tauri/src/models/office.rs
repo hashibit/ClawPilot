@@ -45,6 +45,7 @@ pub struct OfficeDeployment {
 pub struct DaemonHealthResult {
     pub ok: bool,
     pub error: Option<String>,
+    pub not_installed: Option<bool>,
     pub status: Option<String>,
     pub version: Option<String>,
     pub openclaw_status: Option<String>,

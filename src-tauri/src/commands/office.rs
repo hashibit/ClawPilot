@@ -21,6 +21,7 @@ pub struct SshAuthResult {
     pub ok: bool,
     pub latency_ms: Option<u64>,
     pub error: Option<String>,
+    pub sudo_ok: Option<bool>,
 }
 
 /// Install daemon result
@@ -29,6 +30,9 @@ pub struct InstallDaemonResult {
     pub ok: bool,
     pub logs: Vec<String>,
     pub error: Option<String>,
+    pub daemon_url: Option<String>,
+    pub api_key: Option<String>,
+    pub already_running: Option<bool>,
 }
 
 #[tauri::command]
@@ -126,6 +130,7 @@ pub async fn check_ssh_auth(
                 ok: false,
                 latency_ms: None,
                 error: Some("SSH 密钥路径未提供".into()),
+                sudo_ok: None,
             },
         };
         ssh_service::test_ssh_key(host, port, username, &key_path, 8)
@@ -136,6 +141,7 @@ pub async fn check_ssh_auth(
                 ok: false,
                 latency_ms: None,
                 error: Some("SSH 密码未提供".into()),
+                sudo_ok: None,
             },
         };
         ssh_service::test_ssh_password(host, port, username, &password, 8)
@@ -145,6 +151,7 @@ pub async fn check_ssh_auth(
         ok: result.ok,
         latency_ms: Some(result.latency_ms),
         error: result.error,
+        sudo_ok: None,
     }
 }
 
@@ -201,12 +208,18 @@ pub async fn install_daemon(
                 ok: true,
                 logs: result.logs,
                 error: None,
+                daemon_url: result.daemon_url,
+                api_key: result.api_key,
+                already_running: None,
             })
         }
         Err(e) => Ok(InstallDaemonResult {
             ok: false,
             logs: vec![],
             error: Some(e.to_string()),
+            daemon_url: None,
+            api_key: None,
+            already_running: None,
         }),
     }
 }
@@ -273,6 +286,9 @@ pub async fn install_openclaw(
                     ok: false,
                     logs,
                     error: Some("无法探测远程系统类型".to_string()),
+                    daemon_url: None,
+                    api_key: None,
+                    already_running: None,
                 });
             }
         }
@@ -291,6 +307,9 @@ pub async fn install_openclaw(
                     ok: false,
                     logs,
                     error: Some("不支持的操作系统".to_string()),
+                    daemon_url: None,
+                    api_key: None,
+                    already_running: None,
                 });
             }
         }
@@ -326,6 +345,9 @@ pub async fn install_openclaw(
                     ok: false,
                     logs,
                     error: Some(format!("OpenClaw 安装失败：{}", stderr)),
+                    daemon_url: None,
+                    api_key: None,
+                    already_running: None,
                 });
             }
 
@@ -368,12 +390,18 @@ pub async fn install_openclaw(
                 ok: true,
                 logs,
                 error: None,
+                daemon_url: None,
+                api_key: None,
+                already_running: None,
             })
         }
         Err(e) => Ok(InstallDaemonResult {
             ok: false,
             logs,
             error: Some(format!("执行安装命令失败：{}", e)),
+            daemon_url: None,
+            api_key: None,
+            already_running: None,
         }),
     }
 }

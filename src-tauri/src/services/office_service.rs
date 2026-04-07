@@ -285,11 +285,21 @@ pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealt
             error: Some(format!("HTTP {}", resp.status())),
             ..Default::default()
         },
-        Err(e) => DaemonHealthResult {
-            ok: false,
-            error: Some(e.to_string()),
-            ..Default::default()
-        },
+        Err(e) => {
+            let msg = e.to_string();
+            let not_installed = msg.contains("connection refused")
+                || msg.contains("Connection refused")
+                || msg.contains("timed out")
+                || msg.contains("timeout")
+                || msg.contains("os error 61")
+                || msg.contains("os error 111");
+            DaemonHealthResult {
+                ok: false,
+                error: Some(msg),
+                not_installed: if not_installed { Some(true) } else { None },
+                ..Default::default()
+            }
+        }
     }
 }
 
