@@ -15,10 +15,14 @@ fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
         access_card: row.get(3)?,
         phone: row.get(4)?,
         receptionist_image: row.get(5)?,
-        ownership: row.get::<_, Option<String>>(6)?.unwrap_or_else(|| "RENTED".into()),
+        ownership: row
+            .get::<_, Option<String>>(6)?
+            .unwrap_or_else(|| "RENTED".into()),
         monthly_rent: row.get(7)?,
         internet_speed: row.get(8)?,
-        decoration_grade: row.get::<_, Option<String>>(9)?.unwrap_or_else(|| "MEDIUM".into()),
+        decoration_grade: row
+            .get::<_, Option<String>>(9)?
+            .unwrap_or_else(|| "MEDIUM".into()),
         description: row.get(10)?,
         access_auth_type: row.get(11)?,
         access_user: row.get(12)?,
@@ -256,31 +260,24 @@ pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealt
         }
     };
 
-    match client
-        .get(&url)
-        .bearer_auth(api_key)
-        .send()
-        .await
-    {
-        Ok(resp) if resp.status().is_success() => {
-            match resp.json::<serde_json::Value>().await {
-                Ok(json) => DaemonHealthResult {
-                    ok: true,
-                    not_installed: None,
-                    status: json["status"].as_str().map(String::from),
-                    version: json["version"].as_str().map(String::from),
-                    openclaw_status: json["openclaw_status"].as_str().map(String::from),
-                    openclaw_pid: json["openclaw_pid"].as_u64().map(|v| v as u32),
-                    active_tasks: json["active_tasks"].as_u64(),
-                    error: None,
-                },
-                Err(e) => DaemonHealthResult {
-                    ok: false,
-                    error: Some(e.to_string()),
-                    ..Default::default()
-                },
-            }
-        }
+    match client.get(&url).bearer_auth(api_key).send().await {
+        Ok(resp) if resp.status().is_success() => match resp.json::<serde_json::Value>().await {
+            Ok(json) => DaemonHealthResult {
+                ok: true,
+                not_installed: None,
+                status: json["status"].as_str().map(String::from),
+                version: json["version"].as_str().map(String::from),
+                openclaw_status: json["openclaw_status"].as_str().map(String::from),
+                openclaw_pid: json["openclaw_pid"].as_u64().map(|v| v as u32),
+                active_tasks: json["active_tasks"].as_u64(),
+                error: None,
+            },
+            Err(e) => DaemonHealthResult {
+                ok: false,
+                error: Some(e.to_string()),
+                ..Default::default()
+            },
+        },
         Ok(resp) => DaemonHealthResult {
             ok: false,
             error: Some(format!("HTTP {}", resp.status())),
@@ -347,7 +344,13 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
     let office_data = {
         let conn = match pool.get() {
             Ok(c) => c,
-            Err(_) => return ProbeDaemonResult { ok: false, daemon_url: None, api_key: None },
+            Err(_) => {
+                return ProbeDaemonResult {
+                    ok: false,
+                    daemon_url: None,
+                    api_key: None,
+                }
+            }
         };
 
         // Get office info
@@ -364,7 +367,13 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
 
     let (address, access_user, access_password_enc, ssh_key_path) = match office_data {
         Some(info) => info,
-        None => return ProbeDaemonResult { ok: false, daemon_url: None, api_key: None },
+        None => {
+            return ProbeDaemonResult {
+                ok: false,
+                daemon_url: None,
+                api_key: None,
+            }
+        }
     };
 
     // Parse address - must be IP or IP:port
@@ -411,16 +420,24 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
     } else if let Some(pass_enc) = &access_password_enc {
         if let Ok(pass) = decrypt(pass_enc) {
             let escaped = pass.replace('\'', "'\\''");
-            ssh_prefix = format!("ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p {}", port);
-            ssh_prefix_with_pass = Some(format!(
-                "sshpass -p '{}' {}",
-                escaped, ssh_prefix
-            ));
+            ssh_prefix = format!(
+                "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p {}",
+                port
+            );
+            ssh_prefix_with_pass = Some(format!("sshpass -p '{}' {}", escaped, ssh_prefix));
         } else {
-            return ProbeDaemonResult { ok: false, daemon_url: None, api_key: None };
+            return ProbeDaemonResult {
+                ok: false,
+                daemon_url: None,
+                api_key: None,
+            };
         }
     } else {
-        return ProbeDaemonResult { ok: false, daemon_url: None, api_key: None };
+        return ProbeDaemonResult {
+            ok: false,
+            daemon_url: None,
+            api_key: None,
+        };
     };
 
     let target = format!("{}@{}", ssh_user, host);
@@ -454,7 +471,13 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
 
     let found_port = match found_port {
         Some(p) => p,
-        None => return ProbeDaemonResult { ok: false, daemon_url: None, api_key: None },
+        None => {
+            return ProbeDaemonResult {
+                ok: false,
+                daemon_url: None,
+                api_key: None,
+            }
+        }
     };
 
     // Read daemon API key from remote
@@ -472,7 +495,11 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
         .ok()
         .and_then(|out| {
             let key = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if key.is_empty() { None } else { Some(key) }
+            if key.is_empty() {
+                None
+            } else {
+                Some(key)
+            }
         });
 
     let daemon_url = format!("http://{}:{}", host, found_port);
@@ -501,8 +528,7 @@ pub struct ProbeDaemonResult {
 fn read_local_daemon_key() -> Option<String> {
     use std::fs;
 
-    let key_path = dirs::home_dir()
-        .map(|home| home.join(".clawpilot").join("daemon.key"))?;
+    let key_path = dirs::home_dir().map(|home| home.join(".clawpilot").join("daemon.key"))?;
 
     fs::read_to_string(&key_path)
         .ok()
@@ -510,7 +536,12 @@ fn read_local_daemon_key() -> Option<String> {
 }
 
 /// Update office daemon configuration
-pub fn update_office_daemon_config(pool: &DbPool, office_id: &str, daemon_url: &str, api_key: &str) -> Result<()> {
+pub fn update_office_daemon_config(
+    pool: &DbPool,
+    office_id: &str,
+    daemon_url: &str,
+    api_key: &str,
+) -> Result<()> {
     use crate::utils::crypto::encrypt;
 
     let conn = pool.get()?;
@@ -528,7 +559,8 @@ pub fn update_office_daemon_config(pool: &DbPool, office_id: &str, daemon_url: &
         .unwrap_or(None);
 
     let initial_config = existing_config.unwrap_or_else(|| {
-        r#"{"agents":{"defaults":{},"list":[]},"channels":{},"models":{"providers":{}}}"#.to_string()
+        r#"{"agents":{"defaults":{},"list":[]},"channels":{},"models":{"providers":{}}}"#
+            .to_string()
     });
 
     conn.execute(
@@ -540,7 +572,12 @@ pub fn update_office_daemon_config(pool: &DbPool, office_id: &str, daemon_url: &
 }
 
 /// Update office daemon configuration by office ID (public wrapper)
-pub fn update_office_daemon_config_by_id(pool: &DbPool, office_id: &str, daemon_url: &str, api_key: &str) -> Result<()> {
+pub fn update_office_daemon_config_by_id(
+    pool: &DbPool,
+    office_id: &str,
+    daemon_url: &str,
+    api_key: &str,
+) -> Result<()> {
     update_office_daemon_config(pool, office_id, daemon_url, api_key)
 }
 
@@ -560,21 +597,17 @@ pub async fn get_local_daemon_version() -> Result<Option<String>> {
             if let Some(home) = dirs::home_dir() {
                 home.join(&path[2..]).to_string_lossy().to_string()
             } else {
-                continue
+                continue;
             }
         } else {
             path.to_string()
         };
 
-        let output = Command::new(&expanded)
-            .arg("--version")
-            .output();
+        let output = Command::new(&expanded).arg("--version").output();
 
         if let Ok(out) = output {
             if out.status.success() {
-                let version = String::from_utf8_lossy(&out.stdout)
-                    .trim()
-                    .to_string();
+                let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
                 return Ok(Some(version));
             }
         }

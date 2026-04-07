@@ -8,7 +8,18 @@ const now = () => Math.floor(Date.now() / 1000)
 
 function rowToProvider(row) {
   if (!row) return null
-  return { ...row, is_enabled: row.is_enabled === 1, is_available: row.is_available === 1, api_key: decrypt(row.api_key) }
+  let apiKey
+  try {
+    apiKey = decrypt(row.api_key)
+  } catch (err) {
+    if (err.code === 'LEGACY_ENCRYPTION') {
+      // Legacy data from old Tauri - mark as needing re-encryption
+      apiKey = null
+    } else {
+      throw err
+    }
+  }
+  return { ...row, is_enabled: row.is_enabled === 1, is_available: row.is_available === 1, api_key: apiKey }
 }
 
 function rowToModel(row) {
