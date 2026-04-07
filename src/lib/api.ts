@@ -18,8 +18,16 @@ const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
 const DEV_BASE = `http://localhost:${SERVER_PORT}/api`
 
 function toInvokeArgs(args: Record<string, unknown>): Record<string, unknown> {
-  // Tauri invoke expects snake_case params matching Rust command signatures
-  return args
+  // Tauri 2.0 command parameters use snake_case in Rust but expect camelCase in JS invoke()
+  // However, nested objects (like config: ProviderConfig) should keep their original field names
+  // because serde deserializes them according to the struct definition (snake_case).
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(args)) {
+    // Only convert top-level keys from snake_case to camelCase
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+    result[camelKey] = value
+  }
+  return result
 }
 
 export async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
@@ -75,8 +83,8 @@ export const getAgentDocuments = (agentId: string) =>
 
 // ── Model / Provider ──────────────────────────────────────
 export const getProviders = () => call<ProviderConfig[]>('get_providers', {})
-export const createProvider = (data: Omit<ProviderConfig, 'id' | 'created_at' | 'updated_at'>) =>
-  call<ProviderConfig>('create_provider', data)
+export const createProvider = (config: Omit<ProviderConfig, 'id' | 'created_at' | 'updated_at'>) =>
+  call<ProviderConfig>('create_provider', { config })
 export const updateProvider = (data: Partial<ProviderConfig> & { id: string }) =>
   call<ProviderConfig>('update_provider', data)
 export const deleteProvider = (id: string) => call<null>('delete_provider', { id })

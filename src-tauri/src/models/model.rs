@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Provider 配置，对应数据库 model_providers_v2 表（name-keyed，支持任意提供商）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
+    #[serde(default)]
     pub id: String,
     /// 唯一名称（用户自定义，如 "bailian", "openai-1"）
     pub name: String,
@@ -11,11 +12,19 @@ pub struct ProviderConfig {
     pub base_url: String,
     /// API Key（加密存储，返回时已解密）
     pub api_key: Option<String>,
+    #[serde(default)]
     pub is_enabled: bool,
+    #[serde(default)]
     pub is_available: bool,
     pub last_tested: Option<i64>,
+    #[serde(default = "default_timestamp")]
     pub created_at: i64,
+    #[serde(default = "default_timestamp")]
     pub updated_at: i64,
+}
+
+fn default_timestamp() -> i64 {
+    chrono::Utc::now().timestamp()
 }
 
 impl ProviderConfig {

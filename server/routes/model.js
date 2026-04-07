@@ -62,7 +62,9 @@ export function createModelRouter(db) {
   // POST /create_provider
   router.post('/create_provider', (req, res) => {
     try {
-      const { name, api, base_url, api_key, is_available, last_tested } = req.body
+      // Accept both flat object and { config: {...} } format
+      const body = req.body.config || req.body
+      const { name, api, base_url, api_key, is_available, last_tested } = body
       if (!name || !api || !base_url) return res.status(400).json({ error: 'name, api, base_url required' })
       const id = uuidv4()
       const n = now()
@@ -199,56 +201,33 @@ export function createModelRouter(db) {
       let r
 
       if (api === 'anthropic-messages') {
-        const headers = { 'x-api-key': api_key ?? '', 'anthropic-version': '2023-06-01' }
-        r = await doFetch(`${base}/models`, { headers })
-        // 部分兼容 Anthropic 的 provider 不支持 /models，改用 /messages 探测
-        if (r.status === 404) {
-          r = await doFetch(`${base}/messages`, {
-            method: 'POST',
-            headers: { ...headers, 'content-type': 'application/json' },
-            body: JSON.stringify({ model: '_ping_', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
-          })
-          // 400/422 = 参数错误但服务器可达；401/403 = key 无效；均视为可连通
-          if ([400, 401, 403, 422].includes(r.status)) {
-            const latency_ms = Date.now() - start
-            if (r.status === 401 || r.status === 403) {
-              saveResult(false)
-              return res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: API Key 无效` })
-            }
-            saveResult(true)
-            return res.json({ ok: true, latency_ms })
-          }
-        }
+        const headers = { 'x-api-key': api_key ?? '', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }
+        r = await doFetch(`${base}/messages`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ model: '_ping_', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+        })
       } else if (api === 'gemini') {
         r = await doFetch(`${base}/models?key=${encodeURIComponent(api_key ?? '')}`, {})
       } else {
         // openai-completions compatible
-        const headers = { 'Authorization': `Bearer ${api_key ?? ''}` }
-        r = await doFetch(`${base}/models`, { headers })
-        // 部分 OpenAI 兼容 provider 不支持 /models，改用 /chat/completions 探测
-        if (r.status === 404) {
-          r = await doFetch(`${base}/chat/completions`, {
-            method: 'POST',
-            headers: { ...headers, 'content-type': 'application/json' },
-            body: JSON.stringify({ model: '_ping_', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 }),
-          })
-          if ([400, 401, 403, 422].includes(r.status)) {
-            const latency_ms = Date.now() - start
-            if (r.status === 401 || r.status === 403) {
-              saveResult(false)
-              return res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: API Key 无效` })
-            }
-            saveResult(true)
-            return res.json({ ok: true, latency_ms })
-          }
-        }
+        const headers = { 'Authorization': `Bearer ${api_key ?? ''}`, 'content-type': 'application/json' }
+        r = await doFetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ model: '_ping_', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 }),
+        })
       }
 
       const latency_ms = Date.now() - start
-      if (r.ok) {
+      // 400/422 = 参数错误但服务器可达；401/403 = key 无效
+      if ([200, 400, 422].includes(r.status) || (r.status >= 200 && r.status < 300)) {
         saveResult(true)
         writeLog('INFO', `模型提供商连接测试成功: ${base_url} (${latency_ms}ms)`)
         res.json({ ok: true, latency_ms })
+      } else if (r.status === 401 || r.status === 403) {
+        saveResult(false)
+        res.json({ ok: false, latency_ms, error: `HTTP ${r.status}: API Key 无效` })
       } else {
         saveResult(false)
         const body = await r.text().catch(() => '')

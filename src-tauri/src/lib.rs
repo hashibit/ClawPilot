@@ -13,6 +13,12 @@ use database::{migrations, pool::DbPool};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize logging (only in debug builds)
+    #[cfg(debug_assertions)]
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
     // Initialize DB pool
     let db_path = utils::path::db_path().expect("failed to resolve db path");
     utils::path::ensure_dir(db_path.parent().unwrap()).expect("failed to create app data dir");

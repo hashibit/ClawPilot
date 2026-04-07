@@ -70,7 +70,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
   const { t } = useTranslation()
   const knownByName = knownProviders.find(p => p.suggestName === providerName)
   const knownByUrl = !knownByName && models.length === 0
-    ? knownProviders.find(p => p.matchUrls.some(u => providerBaseUrl.includes(u)))
+    ? knownProviders.find(p => p.matchUrls && p.matchUrls.some(u => providerBaseUrl.includes(u)))
     : null
   const known = knownByName ?? knownByUrl
 
@@ -403,7 +403,7 @@ export default function ProvidersPage() {
     // 先尝试按名称匹配，再尝试按 URL 匹配
     let known = knownProviders.find(p => p.suggestName === selectedProvider.name)
     if (!known) {
-      known = knownProviders.find(p => p.matchUrls.some(u => selectedProvider.base_url.includes(u)))
+      known = knownProviders.find(p => p.matchUrls && p.matchUrls.some(u => selectedProvider.base_url.includes(u)))
     }
     if (!known) return
     try {

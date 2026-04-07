@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 /// test_provider 返回结果
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TestProviderResult {
     pub ok: bool,
     pub latency_ms: u64,
@@ -15,42 +16,43 @@ pub struct TestProviderResult {
 }
 
 #[tauri::command]
-pub fn get_providers(pool: State<'_, DbPool>) -> Result<Vec<ProviderConfig>> {
-    model_service::get_providers(&pool)
+pub async fn get_providers(pool: State<'_, DbPool>) -> Result<Vec<ProviderConfig>> {
+    tracing::info!("get_providers called");
+    let result = model_service::get_providers(&pool);
+    tracing::info!("get_providers returned {} items", result.as_ref().map(|v| v.len()).unwrap_or(0));
+    result
 }
 
 #[tauri::command]
-pub fn get_provider(pool: State<'_, DbPool>, id: String) -> Result<ProviderConfig> {
+pub async fn get_provider(pool: State<'_, DbPool>, id: String) -> Result<ProviderConfig> {
     model_service::get_provider(&pool, &id)
 }
 
 #[tauri::command]
-pub fn create_provider(
+pub async fn create_provider(
     pool: State<'_, DbPool>,
-    name: String,
-    api: String,
-    base_url: String,
-    api_key: Option<String>,
-    is_available: Option<bool>,
-    last_tested: Option<i64>,
+    config: ProviderConfig,
 ) -> Result<ProviderConfig> {
-    let config = ProviderConfig {
+    tracing::info!("create_provider called with name={}, api={}", config.name, config.api);
+    let new_config = ProviderConfig {
         id: uuid::Uuid::new_v4().to_string(),
-        name,
-        api,
-        base_url,
-        api_key,
+        name: config.name,
+        api: config.api,
+        base_url: config.base_url,
+        api_key: config.api_key,
         is_enabled: true,
-        is_available: is_available.unwrap_or(false),
-        last_tested,
+        is_available: config.is_available,
+        last_tested: config.last_tested,
         created_at: chrono::Utc::now().timestamp(),
         updated_at: chrono::Utc::now().timestamp(),
     };
-    model_service::create_provider(&pool, config)
+    let result = model_service::create_provider(&pool, new_config.clone());
+    tracing::info!("create_provider result: {:?}", result.is_ok());
+    result
 }
 
 #[tauri::command]
-pub fn update_provider(
+pub async fn update_provider(
     pool: State<'_, DbPool>,
     id: String,
     name: Option<String>,
@@ -63,17 +65,17 @@ pub fn update_provider(
 }
 
 #[tauri::command]
-pub fn delete_provider(pool: State<'_, DbPool>, id: String) -> Result<()> {
+pub async fn delete_provider(pool: State<'_, DbPool>, id: String) -> Result<()> {
     model_service::delete_provider(&pool, &id)
 }
 
 #[tauri::command]
-pub fn get_models(pool: State<'_, DbPool>, provider_name: Option<String>) -> Result<Vec<ModelInfo>> {
+pub async fn get_models(pool: State<'_, DbPool>, provider_name: Option<String>) -> Result<Vec<ModelInfo>> {
     model_service::get_models(&pool, provider_name.as_deref())
 }
 
 #[tauri::command]
-pub fn set_models(pool: State<'_, DbPool>, provider_name: String, models: Vec<ModelInfo>) -> Result<()> {
+pub async fn set_models(pool: State<'_, DbPool>, provider_name: String, models: Vec<ModelInfo>) -> Result<()> {
     model_service::set_models(&pool, &provider_name, models)
 }
 
@@ -109,36 +111,24 @@ async fn do_test_provider(base_url: &str, api_key: &str, api: &str) -> std::resu
     match api {
         "anthropic-messages" => {
             let r = client
-                .get(format!("{}/models", base))
+                .post(format!("{}/messages", base))
                 .header("x-api-key", api_key)
                 .header("anthropic-version", "2023-06-01")
+                .header("content-type", "application/json")
+                .json(&serde_json::json!({
+                    "model": "_ping_",
+                    "max_tokens": 1,
+                    "messages": [{"role": "user", "content": "hi"}]
+                }))
                 .send()
                 .await
                 .map_err(|e| e.to_string())?;
 
-            if r.status() == 404 {
-                // /models not supported, probe with /messages
-                let r2 = client
-                    .post(format!("{}/messages", base))
-                    .header("x-api-key", api_key)
-                    .header("anthropic-version", "2023-06-01")
-                    .header("content-type", "application/json")
-                    .json(&serde_json::json!({
-                        "model": "_ping_",
-                        "max_tokens": 1,
-                        "messages": [{"role": "user", "content": "hi"}]
-                    }))
-                    .send()
-                    .await
-                    .map_err(|e| e.to_string())?;
-
-                let status = r2.status().as_u16();
-                if status == 401 || status == 403 {
-                    return Err(format!("HTTP {}: API Key 无效", status));
-                }
-                return Ok(());
+            let status = r.status().as_u16();
+            if status == 401 || status == 403 {
+                return Err(format!("HTTP {}: API Key 无效", status));
             }
-            if r.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", r.status())) }
+            Ok(())
         }
         "gemini" => {
             let r = client
@@ -152,33 +142,23 @@ async fn do_test_provider(base_url: &str, api_key: &str, api: &str) -> std::resu
         _ => {
             // openai-completions compatible
             let r = client
-                .get(format!("{}/models", base))
+                .post(format!("{}/chat/completions", base))
                 .header("Authorization", format!("Bearer {}", api_key))
+                .header("content-type", "application/json")
+                .json(&serde_json::json!({
+                    "model": "_ping_",
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "max_tokens": 1
+                }))
                 .send()
                 .await
                 .map_err(|e| e.to_string())?;
 
-            if r.status() == 404 {
-                let r2 = client
-                    .post(format!("{}/chat/completions", base))
-                    .header("Authorization", format!("Bearer {}", api_key))
-                    .header("content-type", "application/json")
-                    .json(&serde_json::json!({
-                        "model": "_ping_",
-                        "messages": [{"role": "user", "content": "hi"}],
-                        "max_tokens": 1
-                    }))
-                    .send()
-                    .await
-                    .map_err(|e| e.to_string())?;
-
-                let status = r2.status().as_u16();
-                if status == 401 || status == 403 {
-                    return Err(format!("HTTP {}: API Key 无效", status));
-                }
-                return Ok(());
+            let status = r.status().as_u16();
+            if status == 401 || status == 403 {
+                return Err(format!("HTTP {}: API Key 无效", status));
             }
-            if r.status().is_success() { Ok(()) } else { Err(format!("HTTP {}", r.status())) }
+            Ok(())
         }
     }
 }
@@ -186,6 +166,7 @@ async fn do_test_provider(base_url: &str, api_key: &str, api: &str) -> std::resu
 // ── Known providers (hardcoded, for auto-detection) ──────────────────────────
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KnownProviderInfo {
     pub suggest_name: String,
     pub api: String,
@@ -194,6 +175,7 @@ pub struct KnownProviderInfo {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KnownModelInfo {
     pub model_id: String,
     pub display_name: String,
@@ -289,7 +271,7 @@ fn known_providers() -> &'static [KnownProviderInfo] {
 }
 
 #[tauri::command]
-pub fn get_known_providers() -> Result<Vec<KnownProviderInfo>> {
+pub async fn get_known_providers() -> Result<Vec<KnownProviderInfo>> {
     Ok(known_providers().to_vec())
 }
 
