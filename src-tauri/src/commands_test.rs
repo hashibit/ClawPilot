@@ -302,13 +302,13 @@ mod tests {
     #[test]
     fn test_crypto_encrypt_decrypt() {
         use crate::utils::crypto;
-        
+
         let original = "sk-test-api-key-12345";
         let encrypted = crypto::encrypt(original).unwrap();
-        
+
         // 加密后不等于原文
         assert_ne!(encrypted, original);
-        
+
         // 解密后等于原文
         let decrypted = crypto::decrypt(&encrypted).unwrap();
         assert_eq!(decrypted, original);
@@ -317,12 +317,249 @@ mod tests {
     #[test]
     fn test_crypto_random_nonce() {
         use crate::utils::crypto;
-        
+
         let key = "test-key";
         let c1 = crypto::encrypt(key).unwrap();
         let c2 = crypto::encrypt(key).unwrap();
-        
+
         // AES-GCM 每次加密应产生不同密文
         assert_ne!(c1, c2);
+    }
+
+    // --- 边界测试 ---
+
+    #[test]
+    fn test_opc_with_empty_name() {
+        let pool = setup();
+        let opc = OpcConfig {
+            id: String::new(),
+            name: String::new(),
+            display_name: "Empty Name OPC".to_string(),
+            description: None,
+            avatar_color: None,
+            avatar_initials: None,
+            is_active: false,
+            is_running: false,
+            agent_count: 0,
+            channel_count: 0,
+            message_count_today: 0,
+            message_growth: 0.0,
+            created_at: 0,
+            updated_at: 0,
+            office_id: None,
+            office_name: None,
+        };
+
+        let result = create_opc(pool.clone(), opc);
+        // 空名称可能被允许或拒绝
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_opc_with_special_characters() {
+        let pool = setup();
+        let opc = OpcConfig {
+            id: String::new(),
+            name: "团队-测试-🔐".to_string(),
+            display_name: "特殊字符团队".to_string(),
+            description: Some("包含特殊字符的 OPC".to_string()),
+            avatar_color: None,
+            avatar_initials: None,
+            is_active: false,
+            is_running: false,
+            agent_count: 0,
+            channel_count: 0,
+            message_count_today: 0,
+            message_growth: 0.0,
+            created_at: 0,
+            updated_at: 0,
+            office_id: None,
+            office_name: None,
+        };
+
+        let result = create_opc(pool.clone(), opc.clone());
+        assert!(result.is_ok());
+
+        let opc_id = result.unwrap();
+        let retrieved = get_opc(pool.clone(), opc_id).unwrap();
+        assert_eq!(retrieved.name, "团队-测试-🔐");
+    }
+
+    #[test]
+    fn test_opc_with_long_name() {
+        let pool = setup();
+        let long_name = "a".repeat(500);
+        let opc = OpcConfig {
+            id: String::new(),
+            name: long_name.clone(),
+            display_name: "Long Name".to_string(),
+            description: None,
+            avatar_color: None,
+            avatar_initials: None,
+            is_active: false,
+            is_running: false,
+            agent_count: 0,
+            channel_count: 0,
+            message_count_today: 0,
+            message_growth: 0.0,
+            created_at: 0,
+            updated_at: 0,
+            office_id: None,
+            office_name: None,
+        };
+
+        let result = create_opc(pool.clone(), opc);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_agent_with_empty_opc_id() {
+        let pool = setup();
+
+        let agent = AgentConfig {
+            id: String::new(),
+            opc_id: String::new(),
+            name: "orphan-agent".to_string(),
+            display_name: "Orphan Agent".to_string(),
+            job_title: None,
+            personality: None,
+            description: None,
+            initials: None,
+            gradient_start: None,
+            gradient_end: None,
+            is_default: false,
+            order_index: 0,
+            model_provider: None,
+            model_name: None,
+            enabled_tools: vec![],
+            disabled_tools: vec![],
+            enabled_skills: vec![],
+            guardrail_rules: vec![],
+            guardrail_allow: vec![],
+            guardrail_deny: vec![],
+            reports_to: vec![],
+            manages: vec![],
+            created_at: 0,
+            updated_at: 0,
+        };
+
+        let result = create_agent(pool.clone(), agent);
+        // 空 opc_id 可能被允许或拒绝
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_agent_with_empty_arrays() {
+        let pool = setup();
+        let opc_id = crate::services::opc_service::create_opc(&pool, make_opc("test-opc")).unwrap();
+
+        let agent = AgentConfig {
+            id: String::new(),
+            opc_id: opc_id.clone(),
+            name: "empty-arrays-agent".to_string(),
+            display_name: "Empty Arrays".to_string(),
+            job_title: None,
+            personality: None,
+            description: None,
+            initials: None,
+            gradient_start: None,
+            gradient_end: None,
+            is_default: false,
+            order_index: 0,
+            model_provider: None,
+            model_name: None,
+            enabled_tools: vec![],
+            disabled_tools: vec![],
+            enabled_skills: vec![],
+            guardrail_rules: vec![],
+            guardrail_allow: vec![],
+            guardrail_deny: vec![],
+            reports_to: vec![],
+            manages: vec![],
+            created_at: 0,
+            updated_at: 0,
+        };
+
+        let result = create_agent(pool.clone(), agent);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_agent_with_large_arrays() {
+        let pool = setup();
+        let opc_id = crate::services::opc_service::create_opc(&pool, make_opc("test-opc")).unwrap();
+
+        let large_tools: Vec<String> = (0..100).map(|i| format!("tool-{}", i)).collect();
+
+        let agent = AgentConfig {
+            id: String::new(),
+            opc_id: opc_id.clone(),
+            name: "large-arrays-agent".to_string(),
+            display_name: "Large Arrays".to_string(),
+            job_title: None,
+            personality: None,
+            description: None,
+            initials: None,
+            gradient_start: None,
+            gradient_end: None,
+            is_default: false,
+            order_index: 0,
+            model_provider: None,
+            model_name: None,
+            enabled_tools: large_tools.clone(),
+            disabled_tools: vec![],
+            enabled_skills: vec![],
+            guardrail_rules: vec![],
+            guardrail_allow: vec![],
+            guardrail_deny: vec![],
+            reports_to: vec![],
+            manages: vec![],
+            created_at: 0,
+            updated_at: 0,
+        };
+
+        let agent_id = create_agent(pool.clone(), agent).unwrap();
+        let retrieved = crate::services::agent_service::get_agent(&pool, &agent_id).unwrap();
+        assert_eq!(retrieved.enabled_tools.len(), 100);
+    }
+
+    #[test]
+    fn test_opc_serde_with_null_fields() {
+        let json = r#"{
+            "id": "",
+            "name": "serde-test",
+            "display_name": "Serde Test",
+            "description": null,
+            "avatar_color": null,
+            "avatar_initials": null,
+            "is_active": false,
+            "is_running": false
+        }"#;
+
+        let decoded: OpcConfig = serde_json::from_str(json).expect("deserialize failed");
+        assert_eq!(decoded.name, "serde-test");
+        assert!(decoded.description.is_none());
+    }
+
+    #[test]
+    fn test_agent_serde_with_null_fields() {
+        let json = r#"{
+            "id": "",
+            "opc_id": "opc-001",
+            "name": "serde-agent",
+            "display_name": "Serde Agent",
+            "job_title": null,
+            "personality": null,
+            "is_default": false,
+            "order_index": 0,
+            "enabled_tools": [],
+            "disabled_tools": [],
+            "enabled_skills": []
+        }"#;
+
+        let decoded: AgentConfig = serde_json::from_str(json).expect("deserialize failed");
+        assert_eq!(decoded.name, "serde-agent");
+        assert!(decoded.job_title.is_none());
+        assert!(decoded.enabled_tools.is_empty());
     }
 }

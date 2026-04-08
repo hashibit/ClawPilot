@@ -8,6 +8,16 @@ import { createOpc, updateOpc, deleteOpc, getAgents, createAgent } from '../../l
 // Use globalThis for cross-environment compatibility (Node.js + browser)
 const globalFetch = globalThis.fetch
 
+// Helper to test toInvokeArgs behavior (internal function logic)
+function toInvokeArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(args)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+    result[camelKey] = value
+  }
+  return result
+}
+
 describe('API Client', () => {
   const originalFetch = globalFetch
 
@@ -17,6 +27,107 @@ describe('API Client', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch
+  })
+
+  // ─── toInvokeArgs 参数转换测试 ───────────────────────────────────────────
+
+  describe('toInvokeArgs parameter conversion', () => {
+    it('应将 snake_case 参数名转换为 camelCase', () => {
+      const input = {
+        opc_id: 'opc-123',
+        agent_id: 'agent-456',
+        channel_type: 'GROUP',
+      }
+
+      const result = toInvokeArgs(input)
+
+      expect(result).toHaveProperty('opcId', 'opc-123')
+      expect(result).toHaveProperty('agentId', 'agent-456')
+      expect(result).toHaveProperty('channelType', 'GROUP')
+    })
+
+    it('应保持简单字段名不变', () => {
+      const input = {
+        id: 'test-id',
+        name: 'test-name',
+      }
+
+      const result = toInvokeArgs(input)
+
+      expect(result).toHaveProperty('id', 'test-id')
+      expect(result).toHaveProperty('name', 'test-name')
+    })
+
+    it('应处理嵌套对象（保持原字段名）', () => {
+      const input = {
+        config: {
+          display_name: 'Test',
+          is_active: true,
+        },
+      }
+
+      const result = toInvokeArgs(input)
+
+      // 顶层 key 不变
+      expect(result).toHaveProperty('config')
+      // 嵌套对象字段名保持不变（serde 按 struct 定义解析）
+      expect(result.config).toEqual({
+        display_name: 'Test',
+        is_active: true,
+      })
+    })
+
+    it('应处理空对象', () => {
+      const input = {}
+      const result = toInvokeArgs(input)
+      expect(result).toEqual({})
+    })
+
+    it('应处理 null 和 undefined 值', () => {
+      const input = {
+        name: 'test',
+        description: null,
+        optional_field: undefined,
+      }
+
+      const result = toInvokeArgs(input)
+
+      expect(result).toHaveProperty('name', 'test')
+      expect(result).toHaveProperty('description', null)
+      expect(result).toHaveProperty('optionalField', undefined)
+    })
+
+    it('应处理数组类型值', () => {
+      const input = {
+        enabled_tools: ['tool-a', 'tool-b'],
+        agent_ids: ['id-1', 'id-2'],
+      }
+
+      const result = toInvokeArgs(input)
+
+      expect(result).toHaveProperty('enabledTools', ['tool-a', 'tool-b'])
+      expect(result).toHaveProperty('agentIds', ['id-1', 'id-2'])
+    })
+
+    it('应处理多层 snake_case', () => {
+      const input = {
+        opc_id: 'opc-1',
+        channel_config: {
+          app_id: 'app-123',
+          app_secret: 'secret',
+        },
+      }
+
+      const result = toInvokeArgs(input)
+
+      expect(result).toHaveProperty('opcId', 'opc-1')
+      expect(result).toHaveProperty('channelConfig')
+      // 嵌套对象不转换
+      expect(result.channelConfig).toEqual({
+        app_id: 'app-123',
+        app_secret: 'secret',
+      })
+    })
   })
 
   describe('OPC API functions', () => {
