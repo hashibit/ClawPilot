@@ -63,6 +63,7 @@ pub struct DaemonHealthResult {
     pub not_installed: Option<bool>,
     pub status: Option<String>,
     pub version: Option<String>,
+    pub openclaw_version: Option<String>,
     pub openclaw_status: Option<String>,
     pub openclaw_pid: Option<u32>,
     pub active_tasks: Option<u64>,

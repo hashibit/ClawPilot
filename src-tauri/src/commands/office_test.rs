@@ -104,6 +104,7 @@ mod tests {
             not_installed: Some(false),
             status: Some("running".to_string()),
             version: Some("1.0.0".to_string()),
+            openclaw_version: Some("0.5.0".to_string()),
             openclaw_status: Some("running".to_string()),
             openclaw_pid: Some(12345),
             active_tasks: Some(5),
@@ -114,6 +115,7 @@ mod tests {
 
         assert!(decoded.ok);
         assert_eq!(decoded.version, Some("1.0.0".to_string()));
+        assert_eq!(decoded.openclaw_version, Some("0.5.0".to_string()));
     }
 
     #[test]

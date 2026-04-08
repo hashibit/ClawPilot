@@ -97,9 +97,9 @@ export interface ModelInfo {
 }
 
 export interface KnownProvider {
-  suggestName: string
+  suggest_name: string
   api: ProviderApi
-  matchUrls: string[]
+  match_urls: string[]
   models: Partial<ModelInfo>[]
 }
 

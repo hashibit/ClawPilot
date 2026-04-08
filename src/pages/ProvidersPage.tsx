@@ -68,9 +68,9 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
   onUpdateModel?: (id: string, field: keyof ModelInfo, value: string | number | boolean) => void
 }) {
   const { t } = useTranslation()
-  const knownByName = knownProviders.find(p => p.suggestName === providerName)
+  const knownByName = knownProviders.find(p => p.suggest_name === providerName)
   const knownByUrl = !knownByName && models.length === 0
-    ? knownProviders.find(p => p.matchUrls && p.matchUrls.some(u => providerBaseUrl.includes(u)))
+    ? knownProviders.find(p => p.match_urls && p.match_urls.some(u => providerBaseUrl.includes(u)))
     : null
   const known = knownByName ?? knownByUrl
 
@@ -110,7 +110,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
       {models.length === 0 && known ? (
         <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '12px', color: '#8E8E93' }}>
-            根据 Base URL 推断为 <span style={{ color: '#EBEBF5' }}>{known.suggestName}</span>，可使用 {known.models.length} 个推荐模型
+            根据 Base URL 推断为 <span style={{ color: '#EBEBF5' }}>{known.suggest_name}</span>，可使用 {known.models.length} 个推荐模型
           </span>
           <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', flexShrink: 0 }} onClick={onReset}>
             应用推荐模型
@@ -401,9 +401,9 @@ export default function ProvidersPage() {
   const handleResetModels = async () => {
     if (!selectedProvider) return
     // 先尝试按名称匹配，再尝试按 URL 匹配
-    let known = knownProviders.find(p => p.suggestName === selectedProvider.name)
+    let known = knownProviders.find(p => p.suggest_name === selectedProvider.name)
     if (!known) {
-      known = knownProviders.find(p => p.matchUrls && p.matchUrls.some(u => selectedProvider.base_url.includes(u)))
+      known = knownProviders.find(p => p.match_urls && p.match_urls.some(u => selectedProvider.base_url.includes(u)))
     }
     if (!known) return
     try {

@@ -299,7 +299,7 @@ describe('Model Routes (v2)', () => {
       expect(Array.isArray(res.body)).toBe(true)
       expect(res.body.length).toBe(7)
 
-      const names = res.body.map(p => p.suggestName)
+      const names = res.body.map(p => p.suggest_name)
       expect(names).toContain('bailian')
       expect(names).toContain('volcengine')
       expect(names).toContain('zai')
@@ -310,9 +310,9 @@ describe('Model Routes (v2)', () => {
 
       // Each entry has required fields
       for (const p of res.body) {
-        expect(typeof p.suggestName).toBe('string')
+        expect(typeof p.suggest_name).toBe('string')
         expect(typeof p.api).toBe('string')
-        expect(Array.isArray(p.matchUrls)).toBe(true)
+        expect(Array.isArray(p.match_urls)).toBe(true)
         expect(Array.isArray(p.models)).toBe(true)
       }
     })

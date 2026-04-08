@@ -62,10 +62,10 @@ export function createModelRouter(db) {
     const match = detectProvider(base_url)
     if (!match) return res.json(null)
     // 检查 name 是否已被占用，如果是，加数字后缀
-    let name = match.suggestName
+    let name = match.suggest_name
     let suffix = 2
     while (db.prepare('SELECT id FROM model_providers_v2 WHERE name = ?').get(name)) {
-      name = `${match.suggestName}-${suffix++}`
+      name = `${match.suggest_name}-${suffix++}`
     }
     res.json({ name, api: match.api, models: match.models })
   })
@@ -254,7 +254,7 @@ export function createModelRouter(db) {
 
   // POST /get_known_providers — 返回注册表（不含 api_key）
   router.post('/get_known_providers', (req, res) => {
-    res.json(KNOWN_PROVIDERS.map(p => ({ suggestName: p.suggestName, api: p.api, matchUrls: p.matchUrls, models: p.models })))
+    res.json(KNOWN_PROVIDERS.map(p => ({ suggest_name: p.suggest_name, api: p.api, match_urls: p.match_urls, models: p.models })))
   })
 
   return router

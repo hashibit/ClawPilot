@@ -7,10 +7,10 @@ const JSON_PATH = resolve(import.meta.dirname, '../bundle/known-providers.json')
 function loadProviders() {
   const raw = readFileSync(JSON_PATH, 'utf8')
   const data = JSON.parse(raw)
-  // Convert camelCase to snake_case for legacy compatibility
+  // Convert camelCase to snake_case for consistency with ModelInfo type
   return data.providers.map(p => ({
-    matchUrls: p.matchUrls,
-    suggestName: p.suggestName,
+    match_urls: p.matchUrls,
+    suggest_name: p.suggestName,
     api: p.api,
     models: p.models.map(m => ({
       model_id: m.modelId,
@@ -27,10 +27,10 @@ export const KNOWN_PROVIDERS = loadProviders()
 
 /**
  * 根据 baseUrl 推断 provider 配置
- * @returns { suggestName, api, models } 或 null
+ * @returns { suggest_name, api, models } 或 null
  */
 export function detectProvider(baseUrl) {
   if (!baseUrl) return null
   const lower = baseUrl.toLowerCase()
-  return KNOWN_PROVIDERS.find(p => p.matchUrls.some(u => lower.includes(u))) ?? null
+  return KNOWN_PROVIDERS.find(p => p.match_urls.some(u => lower.includes(u))) ?? null
 }

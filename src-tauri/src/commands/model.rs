@@ -8,7 +8,6 @@ use std::time::{Duration, Instant};
 
 /// test_provider 返回结果
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct TestProviderResult {
     pub ok: bool,
     pub latency_ms: u64,
@@ -192,8 +191,8 @@ struct ModelJson {
     supports_vision: bool,
 }
 
+/// 用于返回给前端的已知 provider 信息（snake_case 以匹配前端类型）
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct KnownProviderInfo {
     pub suggest_name: String,
     pub api: String,
@@ -201,8 +200,8 @@ pub struct KnownProviderInfo {
     pub models: Vec<KnownModelInfo>,
 }
 
+/// 用于返回给前端的已知模型信息（snake_case 以匹配 ModelInfo 类型）
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct KnownModelInfo {
     pub model_id: String,
     pub display_name: String,
