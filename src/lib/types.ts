@@ -160,9 +160,11 @@ export interface DeploymentTask {
   message?: string
   steps: string  // JSON array of step descriptions
   current_step: number
+  daemon_task_id?: string
   created_at: number
   started_at?: number
   completed_at?: number
+  updated_at?: number
 }
 
 export interface OfficeDeployment {
@@ -210,6 +212,8 @@ export interface Office {
   description?: string
   daemon_url?: string        // Daemon HTTP endpoint
   daemon_api_key?: string    // Daemon API Key (plain text, stored server-side)
+  opc_root?: string          // 可配置的部署目录
+  initial_openclaw_config?: string  // 初始 openclaw.json 配置
   current_opc_id?: string | null
   current_opc_name?: string | null
   created_at: number

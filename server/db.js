@@ -93,33 +93,6 @@ export function applySchema(db) {
         FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE IF NOT EXISTS model_providers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        provider_type TEXT NOT NULL,
-        api_key TEXT NOT NULL DEFAULT '',
-        endpoint TEXT,
-        is_enabled INTEGER DEFAULT 1,
-        is_available INTEGER DEFAULT 0,
-        last_tested INTEGER,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        UNIQUE(provider_type)
-    );
-
-    CREATE TABLE IF NOT EXISTS model_info (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        display_name TEXT NOT NULL,
-        provider_type TEXT NOT NULL,
-        context_window INTEGER DEFAULT 0,
-        input_price REAL DEFAULT 0.0,
-        output_price REAL DEFAULT 0.0,
-        supports_vision INTEGER DEFAULT 0,
-        supports_function_calling INTEGER DEFAULT 0,
-        supports_streaming INTEGER DEFAULT 0,
-        updated_at INTEGER NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS channels (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         opc_id TEXT NOT NULL,
@@ -189,9 +162,9 @@ export function applySchema(db) {
 // Whitelist of valid table names to prevent SQL injection
 const VALID_TABLES = new Set([
   'openclaw_config', 'opc_config', 'agents', 'agent_documents',
-  'model_providers', 'model_providers_v2', 'model_info', 'model_info_v2',
+  'model_providers_v2', 'model_info_v2',
   'channels', 'bindings', 'local_snapshots', 'deployment_tasks',
-  'log_entries', 'tools', 'skills', 'offices', 'office_deployments'
+  'log_entries', 'tools', 'skills', 'offices', 'office_deployments', 'settings'
 ])
 
 function safeAddColumn(db, table, colDef) {
@@ -206,11 +179,6 @@ function safeAddColumn(db, table, colDef) {
 }
 
 export function runMigrations(db) {
-  // Migrations for model_providers - SQLite doesn't support DEFAULT in ALTER TABLE ADD COLUMN
-  ;['base_url TEXT DEFAULT \'\'', 'is_coding_plan INTEGER DEFAULT 0'].forEach(col => {
-    safeAddColumn(db, 'model_providers', col)
-  })
-
   // Tools & Skills tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS tools (
@@ -290,6 +258,7 @@ export function runMigrations(db) {
   // Skills table extended fields
   ;['slug TEXT', 'author TEXT', 'version TEXT', 'url TEXT', 'download_url TEXT',
     'tags TEXT', 'installed_at INTEGER', 'is_installed INTEGER DEFAULT 0', 'install_path TEXT',
+    'updated_at INTEGER', 'last_synced INTEGER',
   ].forEach(col => safeAddColumn(db, 'skills', col))
 
   // Migration: add model field to agents table (replaces model_provider + model_name)
@@ -299,8 +268,7 @@ export function runMigrations(db) {
   safeAddColumn(db, 'agent_documents', 'created_at INTEGER')
   safeAddColumn(db, 'agent_documents', 'updated_at INTEGER')
 
-  // Migration: rebuild model_providers with new schema (name-based, not provider_type-based)
-  // 新表用 _v2 后缀先建，再重命名
+  // New model providers schema (name-based, not provider_type-based)
   db.exec(`
     CREATE TABLE IF NOT EXISTS model_providers_v2 (
       id          TEXT NOT NULL PRIMARY KEY,
@@ -334,6 +302,20 @@ export function runMigrations(db) {
       updated_at                INTEGER NOT NULL,
       UNIQUE(provider_name, model_id),
       FOREIGN KEY (provider_name) REFERENCES model_providers_v2(name) ON DELETE CASCADE
+    );
+  `)
+
+  // Drop legacy tables (migrated to v2)
+  db.exec(`
+    DROP TABLE IF EXISTS model_providers;
+    DROP TABLE IF EXISTS model_info;
+  `)
+
+  // Global settings table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
     );
   `)
 

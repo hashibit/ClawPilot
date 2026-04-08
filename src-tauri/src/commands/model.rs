@@ -163,7 +163,34 @@ async fn do_test_provider(base_url: &str, api_key: &str, api: &str) -> std::resu
     }
 }
 
-// ── Known providers (hardcoded, for auto-detection) ──────────────────────────
+// ── Known providers (loaded from bundle/known-providers.json at compile time) ──────────────────────────
+
+/// JSON source format (camelCase keys)
+#[derive(Debug, Clone, serde::Deserialize)]
+struct ProviderJson {
+    #[serde(rename = "matchUrls")]
+    match_urls: Vec<String>,
+    #[serde(rename = "suggestName")]
+    suggest_name: String,
+    api: String,
+    models: Vec<ModelJson>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct ModelJson {
+    #[serde(rename = "modelId")]
+    model_id: String,
+    #[serde(rename = "displayName")]
+    display_name: String,
+    #[serde(rename = "contextWindow")]
+    context_window: i64,
+    #[serde(rename = "maxTokens")]
+    max_tokens: i64,
+    #[serde(rename = "inputTypes")]
+    input_types: Vec<String>,
+    #[serde(rename = "supportsVision")]
+    supports_vision: bool,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -194,79 +221,27 @@ pub struct SuggestedProvider {
 
 fn known_providers() -> &'static [KnownProviderInfo] {
     use once_cell::sync::Lazy;
-    static KNOWN: Lazy<Vec<KnownProviderInfo>> = Lazy::new(|| vec![
-        KnownProviderInfo {
-            suggest_name: "bailian".to_string(),
-            api: "openai-completions".to_string(),
-            match_urls: vec!["dashscope.aliyuncs.com".to_string(), "coding.dashscope.aliyuncs.com".to_string(), "coding-intl.dashscope.aliyuncs.com".to_string()],
-            models: vec![
-                KnownModelInfo { model_id: "qwen3.5-plus".to_string(), display_name: "Qwen3.5 Plus".to_string(), context_window: 1000000, max_tokens: 65536, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "qwen3-max-2026-01-23".to_string(), display_name: "Qwen3 Max".to_string(), context_window: 262144, max_tokens: 65536, input_types: r#"["text"]"#.to_string(), supports_vision: false },
-                KnownModelInfo { model_id: "qwen3-coder-plus".to_string(), display_name: "Qwen3 Coder Plus".to_string(), context_window: 1000000, max_tokens: 65536, input_types: r#"["text"]"#.to_string(), supports_vision: false },
-                KnownModelInfo { model_id: "kimi-k2.5".to_string(), display_name: "Kimi K2.5".to_string(), context_window: 262144, max_tokens: 32768, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-            ],
-        },
-        KnownProviderInfo {
-            suggest_name: "volcengine".to_string(),
-            api: "openai-completions".to_string(),
-            match_urls: vec!["ark.cn-beijing.volces.com".to_string()],
-            models: vec![
-                KnownModelInfo { model_id: "doubao-seed-code-preview-251028".to_string(), display_name: "Doubao Seed Code Preview".to_string(), context_window: 262144, max_tokens: 32768, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "doubao-seed-1-8-251228".to_string(), display_name: "Doubao Seed 1.8".to_string(), context_window: 262144, max_tokens: 32768, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "deepseek-v3-2-251201".to_string(), display_name: "DeepSeek V3.2".to_string(), context_window: 131072, max_tokens: 16384, input_types: r#"["text"]"#.to_string(), supports_vision: false },
-            ],
-        },
-        KnownProviderInfo {
-            suggest_name: "openai".to_string(),
-            api: "openai-completions".to_string(),
-            match_urls: vec!["api.openai.com".to_string()],
-            models: vec![
-                KnownModelInfo { model_id: "gpt-4o".to_string(), display_name: "GPT-4o".to_string(), context_window: 128000, max_tokens: 16384, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "gpt-4.1".to_string(), display_name: "GPT-4.1".to_string(), context_window: 1047576, max_tokens: 32768, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "gpt-4.1-mini".to_string(), display_name: "GPT-4.1 Mini".to_string(), context_window: 1047576, max_tokens: 32768, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "o3".to_string(), display_name: "o3".to_string(), context_window: 200000, max_tokens: 100000, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "o4-mini".to_string(), display_name: "o4 Mini".to_string(), context_window: 200000, max_tokens: 100000, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-            ],
-        },
-        KnownProviderInfo {
-            suggest_name: "anthropic".to_string(),
-            api: "anthropic-messages".to_string(),
-            match_urls: vec!["api.anthropic.com".to_string()],
-            models: vec![
-                KnownModelInfo { model_id: "claude-opus-4-6".to_string(), display_name: "Claude Opus 4.6".to_string(), context_window: 200000, max_tokens: 32000, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "claude-sonnet-4-6".to_string(), display_name: "Claude Sonnet 4.6".to_string(), context_window: 200000, max_tokens: 64000, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "claude-haiku-4-5".to_string(), display_name: "Claude Haiku 4.5".to_string(), context_window: 200000, max_tokens: 16000, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-            ],
-        },
-        KnownProviderInfo {
-            suggest_name: "gemini".to_string(),
-            api: "gemini".to_string(),
-            match_urls: vec!["generativelanguage.googleapis.com".to_string(), "googleapis.com".to_string()],
-            models: vec![
-                KnownModelInfo { model_id: "gemini-2.5-pro".to_string(), display_name: "Gemini 2.5 Pro".to_string(), context_window: 1048576, max_tokens: 65536, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "gemini-2.5-flash".to_string(), display_name: "Gemini 2.5 Flash".to_string(), context_window: 1048576, max_tokens: 65536, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-                KnownModelInfo { model_id: "gemini-2.0-flash".to_string(), display_name: "Gemini 2.0 Flash".to_string(), context_window: 1048576, max_tokens: 8192, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-            ],
-        },
-        KnownProviderInfo {
-            suggest_name: "minimax".to_string(),
-            api: "anthropic-messages".to_string(),
-            match_urls: vec!["api.minimax.io".to_string(), "api.minimaxi.com".to_string()],
-            models: vec![
-                KnownModelInfo { model_id: "MiniMax-M2.5".to_string(), display_name: "MiniMax M2.5".to_string(), context_window: 200000, max_tokens: 8192, input_types: r#"["text"]"#.to_string(), supports_vision: false },
-                KnownModelInfo { model_id: "MiniMax-M2.7".to_string(), display_name: "MiniMax M2.7".to_string(), context_window: 200000, max_tokens: 8192, input_types: r#"["text"]"#.to_string(), supports_vision: false },
-            ],
-        },
-        KnownProviderInfo {
-            suggest_name: "zai".to_string(),
-            api: "openai-completions".to_string(),
-            match_urls: vec!["open.bigmodel.cn".to_string(), "bigmodel.cn".to_string()],
-            models: vec![
-                KnownModelInfo { model_id: "glm-5".to_string(), display_name: "GLM-5".to_string(), context_window: 198656, max_tokens: 32768, input_types: r#"["text"]"#.to_string(), supports_vision: false },
-                KnownModelInfo { model_id: "glm-4.7".to_string(), display_name: "GLM-4.7".to_string(), context_window: 198656, max_tokens: 16384, input_types: r#"["text","image"]"#.to_string(), supports_vision: true },
-            ],
-        },
-    ]);
+    static KNOWN: Lazy<Vec<KnownProviderInfo>> = Lazy::new(|| {
+        // Read from OUT_DIR (copied by build.rs from bundle/known-providers.json)
+        let raw = include_str!(concat!(env!("OUT_DIR"), "/known-providers.json"));
+        let data: serde_json::Value = serde_json::from_str(raw)
+            .expect("Failed to parse known-providers.json");
+        let providers: Vec<ProviderJson> = serde_json::from_value(data["providers"].clone())
+            .expect("Failed to parse providers array");
+        providers.into_iter().map(|p| KnownProviderInfo {
+            suggest_name: p.suggest_name,
+            api: p.api,
+            match_urls: p.match_urls,
+            models: p.models.into_iter().map(|m| KnownModelInfo {
+                model_id: m.model_id,
+                display_name: m.display_name,
+                context_window: m.context_window,
+                max_tokens: m.max_tokens,
+                input_types: serde_json::to_string(&m.input_types).unwrap_or_else(|_| r#"["text"]"#.to_string()),
+                supports_vision: m.supports_vision,
+            }).collect(),
+        }).collect()
+    });
     &KNOWN
 }
 

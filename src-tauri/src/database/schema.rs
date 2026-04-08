@@ -215,6 +215,7 @@ CREATE TABLE IF NOT EXISTS skills (
     install_path TEXT,
     installed_at INTEGER,
     created_at INTEGER NOT NULL,
+    updated_at INTEGER,
     last_synced INTEGER
 );
 

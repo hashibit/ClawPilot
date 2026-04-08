@@ -114,52 +114,49 @@ CREATE INDEX idx_agent_documents_type ON agent_documents(document_type);
 
 ### 3. 模型配置表
 
-#### `model_providers`
-模型提供商配置表
+#### `model_providers_v2`
+模型提供商配置表（基于 name 的新设计）
 
 ```sql
-CREATE TABLE model_providers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    provider_type TEXT NOT NULL,        -- BAILIAN/VOLCENGINE/MINIMAX
-    api_key TEXT NOT NULL,               -- API Key (加密存储)
-    endpoint TEXT,                       -- API 端点
-    is_enabled INTEGER DEFAULT 1,        -- 是否启用 (0/1)
-    is_available INTEGER DEFAULT 0,      -- 是否可用 (0/1)
-    last_tested INTEGER,                 -- 最后测试时间戳
+CREATE TABLE model_providers_v2 (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    api TEXT NOT NULL DEFAULT 'openai-completions',
+    base_url TEXT NOT NULL DEFAULT '',
+    api_key TEXT NOT NULL DEFAULT '',
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    is_available INTEGER NOT NULL DEFAULT 0,
+    last_tested INTEGER,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-
-    UNIQUE(provider_type)
+    updated_at INTEGER NOT NULL
 );
 ```
 
-#### `model_info`
+#### `model_info_v2`
 模型信息表
 
 ```sql
-CREATE TABLE model_info (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,          -- 模型名称
-    display_name TEXT NOT NULL,         -- 显示名称
-    provider_type TEXT NOT NULL,        -- 提供商类型
-
-    -- 能力信息
-    context_window INTEGER DEFAULT 0,   -- 上下文窗口大小
-    input_price REAL DEFAULT 0.0,       -- 输入价格 (元/千tokens)
-    output_price REAL DEFAULT 0.0,      -- 输出价格 (元/千tokens)
-    supported_types TEXT,               -- JSON 数组：支持的输入类型
-
-    -- 模型特性
-    supports_vision INTEGER DEFAULT 0,  -- 是否支持视觉 (0/1)
-    supports_function_calling INTEGER DEFAULT 0,  -- 是否支持函数调用 (0/1)
-    supports_streaming INTEGER DEFAULT 0,  -- 是否支持流式输出 (0/1)
-
+CREATE TABLE model_info_v2 (
+    id TEXT PRIMARY KEY,
+    provider_name TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    context_window INTEGER NOT NULL DEFAULT 0,
+    max_tokens INTEGER NOT NULL DEFAULT 0,
+    input_types TEXT NOT NULL DEFAULT '["text"]',
+    cost_input REAL NOT NULL DEFAULT 0,
+    cost_output REAL NOT NULL DEFAULT 0,
+    supports_vision INTEGER NOT NULL DEFAULT 0,
+    supports_function_calling INTEGER NOT NULL DEFAULT 0,
+    supports_streaming INTEGER NOT NULL DEFAULT 1,
+    is_custom INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL,
-
-    FOREIGN KEY (provider_type) REFERENCES model_providers(provider_type)
+    UNIQUE(provider_name, model_id),
+    FOREIGN KEY (provider_name) REFERENCES model_providers_v2(name) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_model_info_provider ON model_info(provider_type);
+CREATE INDEX idx_model_info_provider ON model_info_v2(provider_name);
 ```
 
 ### 4. 渠道配置表
