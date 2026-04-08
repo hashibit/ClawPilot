@@ -385,22 +385,38 @@ fn get_bundle_skills_metadata_path() -> Result<PathBuf> {
         .map(|p| p.to_path_buf())
         .ok_or_else(|| AppError::Validation("无法获取可执行文件目录".into()))?;
 
+    // Development mode: exe is at src-tauri/target/debug/clawpilot
+    // Production mode (macOS app): exe is at ClawPilot.app/MacOS/clawpilot
+    // Production mode (release): exe is at release/clawpilot
     let possible_paths = vec![
+        // Development: project root (exe_dir.parent().parent().parent())
         exe_dir
             .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
             .map(|p| p.join("bundle/bundled-skills-metadata.json")),
-        Some(exe_dir.join("bundle/bundled-skills-metadata.json")),
+        // Production macOS app bundle: Resources directory
         exe_dir
             .parent()
             .map(|p| p.join("Resources/bundle/bundled-skills-metadata.json")),
+        // Production: sibling bundle directory
+        exe_dir
+            .parent()
+            .map(|p| p.join("bundle/bundled-skills-metadata.json")),
+        // Fallback: exe_dir level
+        Some(exe_dir.join("bundle/bundled-skills-metadata.json")),
+        // Current working directory
+        std::env::current_dir().ok().map(|p| p.join("bundle/bundled-skills-metadata.json")),
     ];
 
     for path in possible_paths.into_iter().flatten() {
         if path.exists() {
+            tracing::debug!("Found bundle skills metadata at: {:?}", path);
             return Ok(path);
         }
     }
 
+    tracing::warn!("Bundle skills metadata file not found, tried multiple paths");
     Ok(PathBuf::from("bundle/bundled-skills-metadata.json"))
 }
 
@@ -486,18 +502,36 @@ fn get_bundle_skills_dir() -> Result<PathBuf> {
         .map(|p| p.to_path_buf())
         .ok_or_else(|| AppError::Validation("无法获取可执行文件目录".into()))?;
 
+    // Same logic as get_bundle_skills_metadata_path
     let possible_paths = vec![
-        exe_dir.parent().map(|p| p.join("bundle/skills")),
+        // Development: project root
+        exe_dir
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.parent())
+            .map(|p| p.join("bundle/skills")),
+        // Production macOS app bundle: Resources directory
+        exe_dir
+            .parent()
+            .map(|p| p.join("Resources/bundle/skills")),
+        // Production: sibling bundle directory
+        exe_dir
+            .parent()
+            .map(|p| p.join("bundle/skills")),
+        // Fallback: exe_dir level
         Some(exe_dir.join("bundle/skills")),
-        exe_dir.parent().map(|p| p.join("Resources/bundle/skills")),
+        // Current working directory
+        std::env::current_dir().ok().map(|p| p.join("bundle/skills")),
     ];
 
     for path in possible_paths.into_iter().flatten() {
         if path.exists() {
+            tracing::debug!("Found bundle skills directory at: {:?}", path);
             return Ok(path);
         }
     }
 
+    tracing::warn!("Bundle skills directory not found, tried multiple paths");
     Ok(PathBuf::from("bundle/skills"))
 }
 
