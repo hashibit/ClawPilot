@@ -1,0 +1,1288 @@
+syntax = "proto3";
+
+package clawpilot.server;
+
+// =============================================================================
+// ClawPilot Server Service API 定义
+// =============================================================================
+// 本文件定义了 ClawPilot Node.js Server 的所有 HTTP API 接口
+// 用于规范 Server 和 Tauri 后端的接口一致性
+//
+// 接口约定：
+// - 所有接口使用 POST 方法（除 SSE 端点外）
+// - 请求体为 JSON，响应体为 JSON
+// - 错误响应格式：{ "error": "错误消息" }
+// - 时间戳均为 Unix 时间戳（秒）
+
+import "clawpilot.proto";
+
+// =============================================================================
+// OPC Service - 团队配置管理
+// =============================================================================
+
+service OpcService {
+  // 获取所有 OPC 列表
+  rpc GetAllOpcs(GetAllOpcsRequest) returns (GetAllOpcsResponse);
+
+  // 获取单个 OPC 详情
+  rpc GetOpc(GetOpcRequest) returns (OPCConfig);
+
+  // 创建 OPC
+  rpc CreateOpc(CreateOpcRequest) returns (CreateOpcResponse);
+
+  // 更新 OPC
+  rpc UpdateOpc(UpdateOpcRequest) returns (EmptyResponse);
+
+  // 删除 OPC
+  rpc DeleteOpc(DeleteOpcRequest) returns (EmptyResponse);
+
+  // 设置当前激活的 OPC
+  rpc SetCurrentOpc(SetCurrentOpcRequest) returns (SetCurrentOpcResponse);
+
+  // 获取当前激活的 OPC
+  rpc GetCurrentOpc(EmptyRequest) returns (OPCConfig);
+
+  // 获取 OPC 统计信息
+  rpc GetOpcStats(GetOpcStatsRequest) returns (GetOpcStatsResponse);
+
+  // 更新 OPC 统计信息（重新计算 agent/channel 数量）
+  rpc UpdateOpcStats(UpdateOpcStatsRequest) returns (EmptyResponse);
+
+  // 导出 OPC 为 JSON
+  rpc ExportOpc(ExportOpcRequest) returns (ExportOpcResponse);
+
+  // 从 JSON 导入 OPC
+  rpc ImportOpc(ImportOpcRequest) returns (ImportOpcResponse);
+}
+
+message GetAllOpcsRequest {}
+
+message GetAllOpcsResponse {
+  repeated OPCConfig opcs = 1;
+}
+
+message GetOpcRequest {
+  string id = 1;
+}
+
+message CreateOpcRequest {
+  OPCConfig config = 1;
+}
+
+message CreateOpcResponse {
+  string id = 1;
+}
+
+message UpdateOpcRequest {
+  string id = 1;
+  OPCConfig config = 2;
+}
+
+message DeleteOpcRequest {
+  string id = 1;
+}
+
+message SetCurrentOpcRequest {
+  string id = 1;
+}
+
+message SetCurrentOpcResponse {
+  bool ok = 1;
+}
+
+message GetOpcStatsRequest {
+  string opc_id = 1;
+}
+
+message GetOpcStatsResponse {
+  int32 agent_count = 1;
+  int32 channel_count = 2;
+  int32 group_count = 3;
+  int32 dm_count = 4;
+  int64 message_count_today = 5;
+  double message_growth = 6;
+}
+
+message UpdateOpcStatsRequest {
+  string id = 1;
+}
+
+message ExportOpcRequest {
+  string opc_id = 1;
+}
+
+message ExportOpcResponse {
+  string json = 1;  // JSON 序列化的 OPC 数据
+}
+
+message ImportOpcRequest {
+  string json = 1;
+}
+
+message ImportOpcResponse {
+  string id = 1;  // 导入的 OPC ID
+}
+
+// =============================================================================
+// Agent Service - 智能体管理
+// =============================================================================
+
+service AgentService {
+  // 获取 OPC 下的所有 Agent
+  rpc GetAgents(GetAgentsRequest) returns (GetAgentsResponse);
+
+  // 获取单个 Agent 详情
+  rpc GetAgent(GetAgentRequest) returns (AgentConfig);
+
+  // 创建 Agent（可包含文档）
+  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse);
+
+  // 更新 Agent
+  rpc UpdateAgent(UpdateAgentRequest) returns (EmptyResponse);
+
+  // 删除 Agent
+  rpc DeleteAgent(DeleteAgentRequest) returns (EmptyResponse);
+
+  // 重新排序 Agent
+  rpc ReorderAgents(ReorderAgentsRequest) returns (EmptyResponse);
+
+  // 设置默认 Agent
+  rpc SetDefaultAgent(SetDefaultAgentRequest) returns (EmptyResponse);
+
+  // 获取 Agent 的所有文档
+  rpc GetAgentDocuments(GetAgentDocumentsRequest) returns (GetAgentDocumentsResponse);
+
+  // 获取 Agent 的单个文档
+  rpc GetAgentDocument(GetAgentDocumentRequest) returns (GetAgentDocumentResponse);
+
+  // 更新 Agent 文档
+  rpc UpdateAgentDocument(UpdateAgentDocumentRequest) returns (EmptyResponse);
+
+  // 批量创建 Agent（可包含文档）
+  rpc BatchCreateAgents(BatchCreateAgentsRequest) returns (BatchCreateAgentsResponse);
+
+  // 设置领队 Agent
+  rpc SetLeader(SetLeaderRequest) returns (EmptyResponse);
+}
+
+message GetAgentsRequest {
+  string opc_id = 1;
+}
+
+message GetAgentsResponse {
+  repeated AgentConfig agents = 1;
+}
+
+message GetAgentRequest {
+  string id = 1;
+}
+
+message CreateAgentRequest {
+  AgentConfig config = 1;
+  map<string, string> documents = 2;  // document_type -> content
+}
+
+message CreateAgentResponse {
+  string id = 1;
+}
+
+message UpdateAgentRequest {
+  string id = 1;
+  AgentConfig config = 2;
+}
+
+message DeleteAgentRequest {
+  string id = 1;
+}
+
+message ReorderAgentsRequest {
+  string opc_id = 1;
+  repeated string agent_ids = 2;
+}
+
+message SetDefaultAgentRequest {
+  string opc_id = 1;
+  string agent_id = 2;
+}
+
+message GetAgentDocumentsRequest {
+  string agent_id = 1;
+}
+
+message GetAgentDocumentsResponse {
+  repeated AgentDocument documents = 1;
+}
+
+message AgentDocument {
+  string document_type = 1;
+  string content = 2;
+}
+
+message GetAgentDocumentRequest {
+  string agent_id = 1;
+  string doc_type = 2;
+}
+
+message GetAgentDocumentResponse {
+  string content = 1;
+}
+
+message UpdateAgentDocumentRequest {
+  string agent_id = 1;
+  string doc_type = 2;
+  string content = 3;
+}
+
+message BatchCreateAgentsRequest {
+  repeated AgentConfig agents = 1;
+  map<string, AgentDocuments> documents = 2;  // agent_id -> documents
+}
+
+message BatchCreateAgentsResponse {
+  repeated string ids = 1;
+}
+
+message SetLeaderRequest {
+  string opc_id = 1;
+  string agent_id = 2;
+}
+
+// =============================================================================
+// Model Service - 模型提供商管理
+// =============================================================================
+
+service ModelService {
+  // 获取所有模型提供商
+  rpc GetProviders(EmptyRequest) returns (GetProvidersResponse);
+
+  // 根据 baseUrl 推断提供商配置
+  rpc SuggestProvider(SuggestProviderRequest) returns (SuggestProviderResponse);
+
+  // 创建提供商
+  rpc CreateProvider(CreateProviderRequest) returns (ProviderInfo);
+
+  // 更新提供商
+  rpc UpdateProvider(UpdateProviderRequest) returns (ProviderInfo);
+
+  // 删除提供商
+  rpc DeleteProvider(DeleteProviderRequest) returns (EmptyResponse);
+
+  // 获取提供商的模型列表
+  rpc GetModels(GetModelsRequest) returns (GetModelsResponse);
+
+  // 设置提供商的模型列表（覆盖写）
+  rpc SetModels(SetModelsRequest) returns (GetModelsResponse);
+
+  // 测试提供商连接
+  rpc TestProvider(TestProviderRequest) returns (TestProviderResponse);
+
+  // 获取已知提供商列表
+  rpc GetKnownProviders(EmptyRequest) returns (GetKnownProvidersResponse);
+}
+
+message ProviderInfo {
+  string id = 1;
+  string name = 2;
+  string api = 3;           // anthropic-messages | openai-completions | gemini
+  string base_url = 4;
+  string api_key = 5;       // 解密后的 API Key
+  bool is_enabled = 6;
+  bool is_available = 7;
+  int64 last_tested = 8;
+  int64 created_at = 9;
+  int64 updated_at = 10;
+}
+
+message GetProvidersResponse {
+  repeated ProviderInfo providers = 1;
+}
+
+message SuggestProviderRequest {
+  string base_url = 1;
+}
+
+message SuggestProviderResponse {
+  string name = 1;
+  string api = 2;
+  repeated ModelSpec models = 3;
+}
+
+message ModelSpec {
+  string model_id = 1;
+  string display_name = 2;
+  int32 context_window = 3;
+  int32 max_tokens = 4;
+  repeated string input_types = 5;
+  double cost_input = 6;
+  double cost_output = 7;
+  bool supports_vision = 8;
+  bool supports_function_calling = 9;
+  bool supports_streaming = 10;
+}
+
+message CreateProviderRequest {
+  string name = 1;
+  string api = 2;
+  string base_url = 3;
+  string api_key = 4;
+  bool is_available = 5;
+  int64 last_tested = 6;
+}
+
+message UpdateProviderRequest {
+  string id = 1;
+  string name = 2;
+  string api = 3;
+  string base_url = 4;
+  string api_key = 5;
+  bool is_enabled = 6;
+}
+
+message DeleteProviderRequest {
+  string id = 1;
+}
+
+message GetModelsRequest {
+  string provider_name = 1;  // 可选，不填则返回所有模型
+}
+
+message GetModelsResponse {
+  repeated ModelSpec models = 1;
+}
+
+message SetModelsRequest {
+  string provider_name = 1;
+  repeated ModelSpec models = 2;
+}
+
+message TestProviderRequest {
+  string base_url = 1;
+  string api_key = 2;
+  string api = 3;
+  string provider_id = 4;  // 可选，用于更新测试结果
+}
+
+message TestProviderResponse {
+  bool ok = 1;
+  int32 latency_ms = 2;
+  string error = 3;
+}
+
+message KnownProvider {
+  string suggest_name = 1;
+  string api = 2;
+  repeated string match_urls = 3;
+  repeated ModelSpec models = 4;
+}
+
+message GetKnownProvidersResponse {
+  repeated KnownProvider providers = 1;
+}
+
+// =============================================================================
+// Channel Service - 渠道管理
+// =============================================================================
+
+service ChannelService {
+  // 获取 OPC 下的所有渠道
+  rpc GetChannels(GetChannelsRequest) returns (GetChannelsResponse);
+
+  // 获取单个渠道详情
+  rpc GetChannel(GetChannelRequest) returns (ChannelInfo);
+
+  // 创建或更新渠道
+  rpc UpsertChannel(UpsertChannelRequest) returns (UpsertChannelResponse);
+
+  // 删除渠道
+  rpc DeleteChannel(DeleteChannelRequest) returns (EmptyResponse);
+
+  // 测试飞书连接
+  rpc TestFeishuConnection(TestFeishuConnectionRequest) returns (TestFeishuConnectionResponse);
+}
+
+message ChannelInfo {
+  string id = 1;
+  string opc_id = 2;
+  string channel_type = 3;  // FEISHU | DINGTALK | SLACK
+  bool is_enabled = 4;
+  FeishuConfig feishu_config = 5;
+  DingtalkConfig dingtalk_config = 6;
+  SlackConfig slack_config = 7;
+  bool is_connected = 8;
+  int64 last_connected = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+message FeishuConfig {
+  string app_id = 1;
+  string app_secret = 2;
+}
+
+message DingtalkConfig {
+  string app_key = 1;
+  string app_secret = 2;
+}
+
+message SlackConfig {
+  string bot_token = 1;
+  string app_id = 2;
+}
+
+message GetChannelsRequest {
+  string opc_id = 1;
+}
+
+message GetChannelsResponse {
+  repeated ChannelInfo channels = 1;
+}
+
+message GetChannelRequest {
+  string id = 1;
+}
+
+message UpsertChannelRequest {
+  ChannelInfo config = 1;
+}
+
+message UpsertChannelResponse {
+  string id = 1;
+}
+
+message DeleteChannelRequest {
+  string id = 1;
+}
+
+message TestFeishuConnectionRequest {
+  string app_id = 1;
+  string app_secret = 2;
+}
+
+message TestFeishuConnectionResponse {
+  bool ok = 1;
+}
+
+// =============================================================================
+// Binding Service - 绑定管理
+// =============================================================================
+
+service BindingService {
+  // 获取 OPC 下的所有绑定
+  rpc GetBindings(GetBindingsRequest) returns (GetBindingsResponse);
+
+  // 获取单个绑定详情
+  rpc GetBinding(GetBindingRequest) returns (BindingInfo);
+
+  // 创建绑定
+  rpc CreateBinding(CreateBindingRequest) returns (CreateBindingResponse);
+
+  // 更新绑定
+  rpc UpdateBinding(UpdateBindingRequest) returns (EmptyResponse);
+
+  // 删除绑定
+  rpc DeleteBinding(DeleteBindingRequest) returns (EmptyResponse);
+
+  // 切换绑定启用状态
+  rpc ToggleBinding(ToggleBindingRequest) returns (EmptyResponse);
+
+  // 获取飞书频道列表（预留）
+  rpc GetFeishuChannels(EmptyRequest) returns (GetFeishuChannelsResponse);
+}
+
+message BindingInfo {
+  string id = 1;
+  string opc_id = 2;
+  string channel_id = 3;
+  string channel_name = 4;
+  string channel_type = 5;  // GROUP | DM
+  string agent_id = 6;
+  string agent_name = 7;
+  string trigger_mode = 8;  // MENTION | ALL
+  bool is_enabled = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+message GetBindingsRequest {
+  string opc_id = 1;
+}
+
+message GetBindingsResponse {
+  repeated BindingInfo bindings = 1;
+}
+
+message GetBindingRequest {
+  string id = 1;
+}
+
+message CreateBindingRequest {
+  BindingInfo binding = 1;
+}
+
+message CreateBindingResponse {
+  string id = 1;
+}
+
+message UpdateBindingRequest {
+  string id = 1;
+  BindingInfo binding = 2;
+}
+
+message DeleteBindingRequest {
+  string id = 1;
+}
+
+message ToggleBindingRequest {
+  string id = 1;
+  bool is_enabled = 2;
+}
+
+message GetFeishuChannelsResponse {
+  repeated FeishuChannel channels = 1;
+}
+
+// =============================================================================
+// Deployment Service - 部署管理
+// =============================================================================
+
+service DeploymentService {
+  // 生成 OpenClaw 配置
+  rpc GenerateOpenclawConfig(GenerateOpenclawConfigRequest) returns (GenerateOpenclawConfigResponse);
+
+  // 构建部署包
+  rpc BuildDeployPackage(BuildDeployPackageRequest) returns (BuildDeployPackageResponse);
+
+  // 启动部署
+  rpc StartDeployment(StartDeploymentRequest) returns (StartDeploymentResponse);
+
+  // 获取部署状态
+  rpc GetDeploymentStatus(GetDeploymentStatusRequest) returns (DeploymentTask);
+
+  // 取消部署
+  rpc CancelDeployment(CancelDeploymentRequest) returns (EmptyResponse);
+
+  // 取消部署（解除部署）
+  rpc Undeploy(UndeployRequest) returns (EmptyResponse);
+
+  // 获取最近的部署记录
+  rpc GetRecentDeployments(GetRecentDeploymentsRequest) returns (GetRecentDeploymentsResponse);
+
+  // 获取办公室的部署历史
+  rpc GetOfficeDeployments(GetOfficeDeploymentsRequest) returns (GetOfficeDeploymentsResponse);
+
+  // 部署到办公室
+  rpc DeployToOffice(DeployToOfficeRequest) returns (DeployToOfficeResponse);
+}
+
+message GenerateOpenclawConfigRequest {
+  string opc_id = 1;
+}
+
+message GenerateOpenclawConfigResponse {
+  string agents_include = 1;
+  string models_include = 2;
+  string channels_include = 3;
+  string bindings_include = 4;
+  map<string, string> _sections = 5;  // JSON 序列化的配置节
+}
+
+message BuildDeployPackageRequest {
+  string opc_id = 1;
+}
+
+message BuildDeployPackageResponse {
+  bool ok = 1;
+  string checksum = 2;
+  int32 size = 3;
+}
+
+message StartDeploymentRequest {
+  string opc_id = 1;
+  string office_id = 2;
+}
+
+message StartDeploymentResponse {
+  string task_id = 1;
+}
+
+message DeploymentTask {
+  string id = 1;
+  string opc_id = 2;
+  string office_id = 3;
+  string opc_name = 4;
+  string status = 5;  // PENDING | RUNNING | SUCCESS | FAILED
+  string message = 6;
+  repeated string steps = 7;
+  int32 current_step = 8;
+  string daemon_task_id = 9;
+  int64 created_at = 10;
+  int64 started_at = 11;
+  int64 completed_at = 12;
+  int64 updated_at = 13;
+}
+
+message GetDeploymentStatusRequest {
+  string task_id = 1;
+}
+
+message CancelDeploymentRequest {
+  string task_id = 1;
+}
+
+message UndeployRequest {
+  string opc_id = 1;
+}
+
+message GetRecentDeploymentsRequest {
+  string opc_id = 1;
+  string opc_name = 2;
+  int32 limit = 3;
+}
+
+message GetRecentDeploymentsResponse {
+  repeated DeploymentTask tasks = 1;
+}
+
+message GetOfficeDeploymentsRequest {
+  string office_id = 1;
+  int32 limit = 2;
+}
+
+message OfficeDeployment {
+  string id = 1;
+  string opc_id = 2;
+  string opc_name = 3;
+  string office_id = 4;
+  string office_name = 5;
+  int64 deployed_at = 6;
+  int64 undeployed_at = 7;
+  bool is_active = 8;
+}
+
+message GetOfficeDeploymentsResponse {
+  repeated OfficeDeployment deployments = 1;
+}
+
+message DeployToOfficeRequest {
+  string opc_id = 1;
+  string office_id = 2;
+}
+
+message DeployToOfficeResponse {
+  bool ok = 1;
+  string task_id = 2;
+  string error = 3;
+}
+
+// =============================================================================
+// Log Service - 日志管理
+// =============================================================================
+
+service LogService {
+  // 获取日志列表
+  rpc GetLogs(GetLogsRequest) returns (GetLogsResponse);
+
+  // 写入日志
+  rpc WriteLog(WriteLogRequest) returns (WriteLogResponse);
+}
+
+message GetLogsRequest {
+  string level = 1;       // INFO | WARN | ERROR | DEBUG
+  string component = 2;   // 可选：组件过滤
+  int32 limit = 3;        // 默认 200
+}
+
+message LogEntry {
+  int64 timestamp = 1;
+  string level = 2;
+  string component = 3;
+  string message = 4;
+  string agent_id = 5;
+  string channel = 6;
+}
+
+message GetLogsResponse {
+  repeated LogEntry entries = 1;
+}
+
+message WriteLogRequest {
+  string level = 1;
+  string component = 2;
+  string message = 3;
+  string agent_id = 4;
+  string channel = 5;
+}
+
+message WriteLogResponse {
+  int64 id = 1;  // 插入的行 ID
+}
+
+// =============================================================================
+// Snapshot Service - 快照管理
+// =============================================================================
+
+service SnapshotService {
+  // 创建快照
+  rpc CreateSnapshot(CreateSnapshotRequest) returns (CreateSnapshotResponse);
+
+  // 获取快照列表
+  rpc GetSnapshots(GetSnapshotsRequest) returns (GetSnapshotsResponse);
+
+  // 获取快照详情
+  rpc GetSnapshot(GetSnapshotRequest) returns (SnapshotInfo);
+
+  // 恢复快照
+  rpc RestoreSnapshot(RestoreSnapshotRequest) returns (RestoreSnapshotResponse);
+
+  // 删除快照
+  rpc DeleteSnapshot(DeleteSnapshotRequest) returns (EmptyResponse);
+}
+
+message CreateSnapshotRequest {
+  string opc_id = 1;
+  string label = 2;
+  bool is_auto = 3;
+}
+
+message CreateSnapshotResponse {
+  string id = 1;
+}
+
+message GetSnapshotsRequest {
+  string opc_id = 1;
+}
+
+message SnapshotSummary {
+  int32 agent_count = 1;
+  int32 channel_count = 2;
+  int32 binding_count = 3;
+  int32 doc_count = 4;
+}
+
+message SnapshotInfo {
+  string id = 1;
+  string label = 2;
+  string opc_name = 3;
+  bool is_auto = 4;
+  int64 created_at = 5;
+  string config_data = 6;  // JSON 序列化
+  SnapshotSummary summary = 7;
+}
+
+message GetSnapshotsResponse {
+  repeated SnapshotInfo snapshots = 1;
+}
+
+message GetSnapshotRequest {
+  string id = 1;
+}
+
+message RestoreSnapshotRequest {
+  string id = 1;
+}
+
+message RestoreSnapshotResponse {
+  string opc_id = 1;
+}
+
+message DeleteSnapshotRequest {
+  string id = 1;
+}
+
+// =============================================================================
+// AI Service - AI 生成服务
+// =============================================================================
+
+service AiService {
+  // AI 生成单个 Agent
+  rpc AiGenerateAgent(AiGenerateAgentRequest) returns (AiGeneratedAgent);
+
+  // AI 批量生成 Agent
+  rpc AiGenerateAgents(AiGenerateAgentsRequest) returns (AiGenerateAgentsResponse);
+
+  // 与 Agent 对话
+  rpc ChatWithAgent(ChatWithAgentRequest) returns (ChatWithAgentResponse);
+}
+
+message AiGenerateAgentRequest {
+  string prompt = 1;
+}
+
+message AiGeneratedAgent {
+  string display_name = 1;
+  string name = 2;
+  string job_title = 3;
+  string description = 4;
+  string personality = 5;
+  repeated string guardrail_allow = 6;
+  repeated string guardrail_deny = 7;
+  repeated string enabled_tools = 8;
+  repeated string enabled_skills = 9;
+  string soul = 10;
+  string identity = 11;
+  string agents = 12;
+  string user = 13;
+  string memory = 14;
+  string heartbeat = 15;
+  string tools = 16;
+}
+
+message AiGenerateAgentsRequest {
+  repeated string prompts = 1;
+  string prompt = 2;  // 或者单行分隔的多行 prompt
+}
+
+message AiGenerateAgentsResponse {
+  repeated AiGeneratedAgent agents = 1;
+}
+
+message ChatWithAgentRequest {
+  string agent_id = 1;
+  repeated ChatMessage messages = 2;
+  string soul_override = 3;  // 可选：直接提供 SOUL 内容（未保存状态）
+}
+
+message ChatMessage {
+  string role = 1;  // user | assistant
+  string content = 2;
+}
+
+message ChatWithAgentResponse {
+  string reply = 1;
+}
+
+// =============================================================================
+// Office Service - 办公室管理
+// =============================================================================
+
+service OfficeService {
+  // 获取所有办公室
+  rpc GetOffices(EmptyRequest) returns (GetOfficesResponse);
+
+  // 获取单个办公室详情
+  rpc GetOffice(GetOfficeRequest) returns (Office);
+
+  // 创建办公室
+  rpc CreateOffice(CreateOfficeRequest) returns (CreateOfficeResponse);
+
+  // 更新办公室
+  rpc UpdateOffice(UpdateOfficeRequest) returns (EmptyResponse);
+
+  // 删除办公室
+  rpc DeleteOffice(DeleteOfficeRequest) returns (EmptyResponse);
+
+  // 分配 OPC 到办公室
+  rpc AssignOffice(AssignOfficeRequest) returns (EmptyResponse);
+
+  // 检查 Daemon 健康状态
+  rpc CheckDaemonHealth(CheckDaemonHealthRequest) returns (CheckDaemonHealthResponse);
+
+  // 检查 SSH 连接
+  rpc CheckSshConnection(CheckSshConnectionRequest) returns (CheckSshConnectionResponse);
+
+  // 检查 SSH 认证
+  rpc CheckSshAuth(CheckSshAuthRequest) returns (CheckSshAuthResponse);
+
+  // 获取 OPC 关联的办公室
+  rpc GetOpcOffice(GetOpcOfficeRequest) returns (Office);
+
+  // 安装 Daemon
+  rpc InstallDaemon(InstallDaemonRequest) returns (InstallDaemonResponse);
+
+  // 安装 OpenClaw
+  rpc InstallOpenclaw(InstallOpenclawRequest) returns (InstallOpenclawResponse);
+
+  // 探测本地 Daemon
+  rpc ProbeLocalDaemon(ProbeLocalDaemonRequest) returns (ProbeDaemonResponse);
+
+  // 探测远程 Daemon
+  rpc ProbeRemoteDaemon(ProbeRemoteDaemonRequest) returns (ProbeDaemonResponse);
+
+  // 获取本地 Daemon 版本
+  rpc GetLocalDaemonVersion(EmptyRequest) returns (GetLocalDaemonVersionResponse);
+}
+
+message GetOfficesResponse {
+  repeated Office offices = 1;
+}
+
+message GetOfficeRequest {
+  string id = 1;
+}
+
+message CreateOfficeRequest {
+  Office office = 1;
+}
+
+message CreateOfficeResponse {
+  string id = 1;
+}
+
+message UpdateOfficeRequest {
+  string id = 1;
+  Office office = 2;
+}
+
+message DeleteOfficeRequest {
+  string id = 1;
+}
+
+message AssignOfficeRequest {
+  string opc_id = 1;
+  string office_id = 2;
+}
+
+message CheckDaemonHealthRequest {
+  string daemon_url = 1;
+  string daemon_api_key = 2;
+}
+
+message CheckDaemonHealthResponse {
+  bool ok = 1;
+  string error = 2;
+  bool not_installed = 3;
+  string openclaw_status = 4;
+  int32 openclaw_pid = 5;
+}
+
+message CheckSshConnectionRequest {
+  string host = 1;
+  int32 port = 2;
+}
+
+message CheckSshConnectionResponse {
+  bool ok = 1;
+  string error = 2;
+  int32 latency_ms = 3;
+}
+
+message CheckSshAuthRequest {
+  string address = 1;      // IP 或 IP:端口
+  string auth_type = 2;    // password | ssh_key
+  string user = 3;
+  string password = 4;
+  string key_path = 5;
+}
+
+message CheckSshAuthResponse {
+  bool ok = 1;
+  string error = 2;
+  int32 latency_ms = 3;
+  bool sudo_ok = 4;
+}
+
+message GetOpcOfficeRequest {
+  string opc_id = 1;
+}
+
+message InstallDaemonRequest {
+  string office_id = 1;
+  string mode = 2;         // local | ssh
+  int32 daemon_port = 3;
+  string ssh_host = 4;
+  int32 ssh_port = 5;
+  string ssh_user = 6;
+  string ssh_key_path = 7;
+  string ssh_password = 8;
+  string daemon_host = 9;
+}
+
+message InstallDaemonResponse {
+  bool ok = 1;
+  string error = 2;
+  string daemon_url = 3;
+  string api_key = 4;
+  repeated string logs = 5;
+  bool already_running = 6;
+}
+
+message InstallOpenclawRequest {
+  string office_id = 1;
+  string mode = 2;         // local | ssh
+  string ssh_host = 3;
+  int32 ssh_port = 4;
+  string ssh_user = 5;
+  string ssh_key_path = 6;
+  string ssh_password = 7;
+}
+
+message InstallOpenclawResponse {
+  bool ok = 1;
+  string error = 2;
+  repeated string logs = 3;
+}
+
+message ProbeLocalDaemonRequest {
+  string office_id = 1;
+}
+
+message ProbeRemoteDaemonRequest {
+  string office_id = 1;
+}
+
+message ProbeDaemonResponse {
+  bool ok = 1;
+  string daemon_url = 2;
+  string api_key = 3;
+}
+
+message GetLocalDaemonVersionResponse {
+  bool ok = 1;
+  string version = 2;
+  string error = 3;
+}
+
+// =============================================================================
+// Process Service - 进程管理
+// =============================================================================
+
+service ProcessService {
+  // 获取进程状态
+  rpc GetProcessStatus(EmptyRequest) returns (ProcessStatus);
+
+  // 启动 OpenClaw
+  rpc StartOpenclaw(EmptyRequest) returns (ProcessActionResponse);
+
+  // 停止 OpenClaw
+  rpc StopOpenclaw(EmptyRequest) returns (ProcessActionResponse);
+
+  // 重载 OpenClaw
+  rpc ReloadOpenclaw(EmptyRequest) returns (ProcessActionResponse);
+
+  // 重启 OpenClaw
+  rpc RestartOpenclaw(EmptyRequest) returns (ProcessActionResponse);
+}
+
+message ProcessStatus {
+  bool is_running = 1;
+  int32 pid = 2;
+  int32 uptime_seconds = 3;
+  int64 probed_at = 4;
+  bool daemon_available = 5;
+  string daemon_error = 6;
+}
+
+message ProcessActionResponse {
+  bool ok = 1;
+  string message = 2;
+}
+
+// =============================================================================
+// Tool Service - 工具管理
+// =============================================================================
+
+service ToolService {
+  // 获取所有工具
+  rpc GetTools(EmptyRequest) returns (GetToolsResponse);
+
+  // 创建工具
+  rpc CreateTool(CreateToolRequest) returns (CreateToolResponse);
+
+  // 删除工具
+  rpc DeleteTool(DeleteToolRequest) returns (DeleteToolResponse);
+}
+
+message ToolInfo {
+  int32 id = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string category = 5;
+  bool is_local = 6;
+  int64 created_at = 7;
+}
+
+message GetToolsResponse {
+  repeated ToolInfo tools = 1;
+}
+
+message CreateToolRequest {
+  ToolInfo tool = 1;
+}
+
+message CreateToolResponse {
+  int32 id = 1;
+}
+
+message DeleteToolRequest {
+  int32 id = 1;
+}
+
+message DeleteToolResponse {
+  bool ok = 1;
+}
+
+// =============================================================================
+// Skill Service - 技能管理
+// =============================================================================
+
+service SkillService {
+  // 获取 Bundle 技能元数据
+  rpc GetBundleSkillsMetadata(EmptyRequest) returns (BundleSkillsMetadata);
+
+  // 获取所有技能
+  rpc GetSkills(EmptyRequest) returns (GetSkillsResponse);
+
+  // 创建技能
+  rpc CreateSkill(CreateSkillRequest) returns (CreateSkillResponse);
+
+  // 删除技能
+  rpc DeleteSkill(DeleteSkillRequest) returns (DeleteSkillResponse);
+
+  // 同步技能（从 ClawHub）
+  rpc SyncSkills(EmptyRequest) returns (SyncSkillsResponse);
+
+  // 安装技能
+  rpc InstallSkill(InstallSkillRequest) returns (SkillInfo);
+
+  // 卸载技能
+  rpc UninstallSkill(UninstallSkillRequest) returns (UninstallSkillResponse);
+
+  // 搜索技能
+  rpc SearchSkills(SearchSkillsRequest) returns (SearchSkillsResponse);
+}
+
+message BundleSkillsMetadata {
+  repeated SkillSpec skills = 1;
+}
+
+message SkillSpec {
+  string slug = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string category = 5;
+}
+
+message SkillInfo {
+  int32 id = 1;
+  string name = 2;
+  string display_name = 3;
+  string description = 4;
+  string slug = 5;
+  string version = 6;
+  string author = 7;
+  string category = 8;
+  repeated string tags = 9;
+  string url = 10;
+  string download_url = 11;
+  bool is_local = 12;
+  bool is_installed = 13;
+  string install_path = 14;
+  int64 installed_at = 15;
+  int64 created_at = 16;
+  int64 updated_at = 17;
+}
+
+message GetSkillsResponse {
+  repeated SkillInfo skills = 1;
+}
+
+message CreateSkillRequest {
+  SkillInfo skill = 1;
+}
+
+message CreateSkillResponse {
+  int32 id = 1;
+}
+
+message DeleteSkillRequest {
+  int32 id = 1;
+}
+
+message DeleteSkillResponse {
+  bool ok = 1;
+}
+
+message SyncSkillsResponse {
+  bool ok = 1;
+  int32 count = 2;
+}
+
+message InstallSkillRequest {
+  string slug = 1;
+}
+
+message UninstallSkillRequest {
+  string slug = 1;
+}
+
+message UninstallSkillResponse {
+  bool ok = 1;
+}
+
+message SearchSkillsRequest {
+  string q = 1;
+  string source = 2;  // clawhub | lightmake
+  int32 limit = 3;
+}
+
+message SearchResultSkill {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  int32 downloads = 4;
+  int32 stars = 5;
+  string ownerName = 6;
+  string version = 7;
+  double score = 8;
+}
+
+message SearchSkillsResponse {
+  repeated SearchResultSkill skills = 1;
+}
+
+// =============================================================================
+// Settings Service - 设置管理
+// =============================================================================
+
+service SettingsService {
+  // 获取 OPC 根目录
+  rpc GetOpcRoot(EmptyRequest) returns (GetOpcRootResponse);
+
+  // 设置 OPC 根目录
+  rpc SetOpcRoot(SetOpcRootRequest) returns (SetOpcRootResponse);
+}
+
+message GetOpcRootResponse {
+  string opc_root = 1;
+}
+
+message SetOpcRootRequest {
+  string opc_root = 1;
+}
+
+message SetOpcRootResponse {
+  bool ok = 1;
+}
+
+// =============================================================================
+// Activities Service - 活动流（SSE）
+// =============================================================================
+
+// Activities 使用 SSE (Server-Sent Events)，不使用 RPC
+// 端点：
+// - GET /api/activities/stream - SSE 流
+// - GET /api/activities/status - 连接状态
+
+message ActivitiesStatus {
+  bool daemon_connected = 1;
+  int32 sse_clients = 2;
+}
+
+// =============================================================================
+// Health Check
+// =============================================================================
+
+message HealthCheckResponse {
+  bool ok = 1;
+  string db = 2;  // "ok" 或错误消息
+}
+
+// =============================================================================
+// 通用消息
+// =============================================================================
+
+message EmptyRequest {}
+
+message EmptyResponse {}

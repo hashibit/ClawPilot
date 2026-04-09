@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{State, Emitter};
 
 use crate::database::pool::DbPool;
 use crate::error::Result;
@@ -6,6 +6,14 @@ use crate::models::office::{DaemonHealthResult, Office, OfficeDeployment};
 use crate::services::office_service;
 use crate::services::ssh_service;
 use crate::services::daemon_install_service;
+
+/// Install log payload for Tauri events
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct InstallLogPayload {
+    pub office_id: String,
+    pub message: String,
+    pub log_type: String,
+}
 
 /// SSH connection check result
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -91,11 +99,17 @@ pub async fn check_daemon_health(
     office_service::check_daemon_health(&daemon_url, &daemon_api_key).await
 }
 
-/// Check SSH connection (TCP probe to host:port)
+/// Check SSH connection using system ssh command
 #[tauri::command]
-pub async fn check_ssh_connection(host: String, port: Option<u16>) -> SshConnectionResult {
+pub async fn check_ssh_connection(
+    host: String,
+    port: Option<u16>,
+    user: Option<String>,
+    key_path: Option<String>,
+) -> SshConnectionResult {
     let port = port.unwrap_or(22);
-    let result = ssh_service::test_tcp_connection(&host, port, 5);
+    let username = user.as_deref().unwrap_or("root");
+    let result = ssh_service::test_ssh_connection(&host, port, username, key_path.as_deref(), 5);
     SshConnectionResult {
         ok: result.ok,
         latency_ms: Some(result.latency_ms),
@@ -227,9 +241,9 @@ pub async fn install_daemon(
 /// Install OpenClaw on local or remote server
 #[tauri::command(async)]
 pub async fn install_openclaw(
+    app: tauri::AppHandle,
     _pool: State<'_, DbPool>,
-    _office_id: String,
-    _opc_id: String,
+    office_id: String,
     mode: Option<String>,
     ssh_host: Option<String>,
     ssh_port: Option<u16>,
@@ -237,6 +251,8 @@ pub async fn install_openclaw(
     ssh_key_path: Option<String>,
     _ssh_password: Option<String>,
 ) -> Result<InstallDaemonResult> {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
     let is_remote = mode.as_deref() == Some("ssh");
 
     // Build SSH prefix if remote
@@ -263,7 +279,15 @@ pub async fn install_openclaw(
     };
 
     let mut logs = Vec::new();
-    let mut lg = |line: &str| logs.push(line.to_string());
+    let mut lg = |line: &str| {
+        logs.push(line.to_string());
+        // 实时发送到前端
+        let _ = app.emit("install-log", &InstallLogPayload {
+            office_id: office_id.clone(),
+            message: line.to_string(),
+            log_type: "info".to_string(),
+        });
+    };
 
     lg("🔍 探测操作系统类型...");
 
@@ -328,82 +352,100 @@ pub async fn install_openclaw(
         "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk".to_string()
     };
 
-    let output = tokio::process::Command::new("sh")
+    // Use spawn() + Stdio::piped() for streaming output
+    let mut child = tokio::process::Command::new("sh")
         .arg("-c")
         .arg(&install_cmd)
-        .output()
-        .await;
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
 
-    match output {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            let stderr = String::from_utf8_lossy(&out.stderr);
+    // Stream stdout line by line
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut line = String::new();
 
-            if !out.status.success() {
-                lg(&format!("❌ 安装失败：{}", stderr));
-                return Ok(InstallDaemonResult {
-                    ok: false,
-                    logs,
-                    error: Some(format!("OpenClaw 安装失败：{}", stderr)),
-                    daemon_url: None,
-                    api_key: None,
-                    already_running: None,
-                });
-            }
-
-            lg("✅ OpenClaw 安装完成");
-            lg(&format!("📋 安装日志:\n{}", stdout));
-
-            // Register daemon service using openclaw onboard
-            lg("⚙️  注册 OpenClaw 系统服务...");
-
-            let onboard_cmd = if is_remote {
-                format!(
-                    "{} {} 'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'",
-                    ssh_prefix.as_ref().unwrap(),
-                    ssh_target.as_ref().unwrap()
-                )
-            } else {
-                "openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk".to_string()
-            };
-
-            let onboard_output = tokio::process::Command::new("sh")
-                .arg("-c")
-                .arg(&onboard_cmd)
-                .output()
-                .await;
-
-            match onboard_output {
-                Ok(out) => {
-                    if !out.status.success() {
-                        lg("⚠️  服务注册失败（可选步骤，可手动执行）");
-                    } else {
-                        lg("✅ OpenClaw 系统服务已注册");
-                    }
-                }
-                Err(e) => {
-                    lg(&format!("⚠️  服务注册异常：{}", e));
-                }
-            }
-
-            Ok(InstallDaemonResult {
-                ok: true,
-                logs,
-                error: None,
-                daemon_url: None,
-                api_key: None,
-                already_running: None,
-            })
+    while stdout.read_line(&mut line).await? > 0 {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            lg(trimmed);
         }
-        Err(e) => Ok(InstallDaemonResult {
+        line.clear();
+    }
+
+    // Also read stderr
+    let mut stderr = BufReader::new(child.stderr.take().unwrap());
+    line.clear();
+    while stderr.read_line(&mut line).await? > 0 {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            lg(&format!("❌ {}", trimmed));
+        }
+        line.clear();
+    }
+
+    let status = child.wait().await?;
+
+    if !status.success() {
+        lg("❌ 安装失败");
+        return Ok(InstallDaemonResult {
             ok: false,
             logs,
-            error: Some(format!("执行安装命令失败：{}", e)),
+            error: Some("OpenClaw 安装失败".to_string()),
             daemon_url: None,
             api_key: None,
             already_running: None,
-        }),
+        });
     }
+
+    lg("✅ OpenClaw 安装完成");
+
+    // Register daemon service using openclaw onboard
+    lg("⚙️  注册 OpenClaw 系统服务...");
+
+    let onboard_cmd = if is_remote {
+        format!(
+            "{} {} 'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'",
+            ssh_prefix.as_ref().unwrap(),
+            ssh_target.as_ref().unwrap()
+        )
+    } else {
+        "openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk".to_string()
+    };
+
+    // Stream onboard output
+    let mut onboard_child = tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(&onboard_cmd)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+
+    let mut onboard_stdout = BufReader::new(onboard_child.stdout.take().unwrap());
+    line.clear();
+    while onboard_stdout.read_line(&mut line).await? > 0 {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            lg(trimmed);
+        }
+        line.clear();
+    }
+
+    let onboard_status = onboard_child.wait().await?;
+
+    if !onboard_status.success() {
+        lg("⚠️  服务注册失败（可选步骤，可手动执行）");
+    } else {
+        lg("✅ OpenClaw 系统服务已注册");
+    }
+
+    Ok(InstallDaemonResult {
+        ok: true,
+        logs,
+        error: None,
+        daemon_url: None,
+        api_key: None,
+        already_running: None,
+    })
 }
 
 /// Probe local daemon for running daemon on common ports

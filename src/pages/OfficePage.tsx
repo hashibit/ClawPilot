@@ -6,6 +6,9 @@ import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment, AccessAuthType } from '../lib/types'
 
+// Check if running in Tauri environment
+const IS_TAURI = '__TAURI_INTERNALS__' in window
+
 function fmtDate(ts: number) {
     return new Date(ts * 1000).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
@@ -363,33 +366,64 @@ export default function OfficePage() {
         } : {}
         const mode = isRemote ? 'ssh' : 'local'
 
-        // ── SSE connection for real-time install logs ───────────────────
+        // ── Real-time install logs (SSE for Server, Event for Tauri) ───────────────────
         const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
         let sseConnection: EventSource | null = null
+        let tauriEventCleanup: (() => void) | null = null
+
         const connectSSE = () => {
             lg(String(t('office.install.connecting_sse')), 'banner')
-            sseConnection = new EventSource(`http://localhost:${SERVER_PORT}/api/install_logs/stream/${saved.id}`)
-            sseConnection.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data)
-                    // Support i18n key format: {key, params, type}
-                    if (data.key) {
-                        const translated = String(t(data.key, data.params || {}))
-                        lg(translated, data.type || 'info')
-                    } else if (data.message) {
-                        // Plain message format
-                        lg(data.message, data.type || 'info')
-                    }
-                } catch { /* ignore */ }
-            }
-            sseConnection.onerror = () => {
-                lg('⚠️ 实时日志连接失败，将等待完成后显示日志', 'warning')
+
+            if (IS_TAURI) {
+                // Tauri mode: listen to install-log events
+                lg('📡 监听 Tauri 安装日志事件...', 'info')
+                // Dynamic import to avoid breaking non-Tauri builds
+                import('@tauri-apps/api/event').then(({ listen }) => {
+                    listen<string>('install-log', (event) => {
+                        try {
+                            const payload = JSON.parse(event.payload)
+                            if (payload.message) {
+                                lg(payload.message, payload.log_type || 'info')
+                            }
+                        } catch {
+                            lg(event.payload, 'info')
+                        }
+                    }).then(cleanup => {
+                        tauriEventCleanup = cleanup
+                    })
+                }).catch(err => {
+                    console.error('Failed to listen to install-log event:', err)
+                })
+            } else {
+                // Server mode: SSE connection
+                sseConnection = new EventSource(`http://localhost:${SERVER_PORT}/api/install_logs/stream/${saved.id}`)
+                sseConnection.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data)
+                        // Support i18n key format: {key, params, type}
+                        if (data.key) {
+                            const translated = String(t(data.key, data.params || {}))
+                            lg(translated, data.type || 'info')
+                        } else if (data.message) {
+                            // Plain message format
+                            lg(data.message, data.type || 'info')
+                        }
+                    } catch { /* ignore */ }
+                }
+                sseConnection.onerror = () => {
+                    lg('⚠️ 实时日志连接失败，将等待完成后显示日志', 'warning')
+                }
             }
         }
+
         const closeSSE = () => {
             if (sseConnection) {
                 sseConnection.close()
                 sseConnection = null
+            }
+            if (tauriEventCleanup) {
+                tauriEventCleanup()
+                tauriEventCleanup = null
             }
         }
 
@@ -397,7 +431,8 @@ export default function OfficePage() {
         if (isRemote) {
             lg(`🔍 检查与 ${saved.address} 的 SSH 连通性…`, 'banner')
             try {
-                const r = await checkSshConnection(sshHost, sshPort)
+                const keyPath = saved.access_auth_type === 'ssh_key' ? saved.ssh_key_path : undefined;
+                const r = await checkSshConnection(sshHost, sshPort, saved.access_user ?? 'root', keyPath)
                 if (!r.ok) {
                     lg(`❌ SSH 连通性检查失败：${r.error ?? '无法连通远程主机'}`, 'error')
                     setInstallStep('error')

@@ -29,6 +29,10 @@ message OPCConfig {
   // 统计数据（从 OpenClaw 日志计算）
   OPCStats stats = 11;              // 统计信息
 
+  // 关联的办公室
+  string office_id = 12;            // 关联的办公室 ID
+  string office_name = 13;          // 关联的办公室名称
+
   repeated AgentConfig agents = 20; // Agent 列表
   ModelsConfig models = 21;         // 模型配置
   ChannelsConfig channels = 22;     // 渠道配置
@@ -113,7 +117,7 @@ message SkillInfo {
   string author = 6;                // 作者
   bool is_local = 7;                // 是否为本地技能（非 ClawHub）
   int64 installed_at = 8;           // 安装时间
-  
+
   // 技能文件清单（部署时需要打包）
   repeated string files = 9;        // 文件列表（如 ["SKILL.md", "index.js"]）
 }
@@ -133,20 +137,6 @@ message SkillMetadata {
 // =============================================================================
 // Agent 配置
 // =============================================================================
-
-// 护栏规则
-message GuardrailRule {
-  string id = 1;                    // 规则 ID
-  string content = 2;               // 规则内容
-  GuardrailType type = 3;          // 规则类型（允许/禁止）
-  int64 created_at = 4;
-}
-
-enum GuardrailType {
-  GUARDRAIL_UNKNOWN = 0;
-  GUARDRAIL_ALLOW = 1;             // 允许
-  GUARDRAIL_DENY = 2;              // 禁止
-}
 
 // Agent 配置
 message AgentConfig {
@@ -170,18 +160,18 @@ message AgentConfig {
   repeated string disabled_tools = 22;   // 禁用的工具 ID（用于全局排除特定工具）
 
   // 护栏规则
-  repeated GuardrailRule guardrail_rules = 23; // 护栏规则列表
+  repeated string guardrail_allow = 23;  // 允许自主执行的操作
+  repeated string guardrail_deny = 24;   // 禁止或须请示的操作
 
-  // 模型配置
-  string model_provider = 30;       // 模型提供商
-  string model_name = 31;           // 模型名称
+  // 模型配置（格式：provider/model_id）
+  string model = 25;                // 模型标识
 
   // 技能配置
-  repeated string enabled_skills = 32; // 启用的技能 slug 列表（引用本地 skills/ 目录）
+  repeated string enabled_skills = 26; // 启用的技能 slug 列表（引用本地 skills/ 目录）
 
   // 汇报关系
-  repeated string reports_to = 40;  // 汇报给哪些 Agent
-  repeated string manages = 41;     // 管理哪些 Agent
+  repeated string reports_to = 27;  // 汇报给哪些 Agent
+  repeated string manages = 28;     // 管理哪些 Agent
 
   // 元数据
   int64 created_at = 50;
@@ -203,49 +193,52 @@ message AgentDocuments {
 // Provider 和模型配置
 // =============================================================================
 
-// Provider 类型
-enum ProviderType {
-  PROVIDER_UNKNOWN = 0;
-  PROVIDER_BAILIAN = 1;     // 阿里百炼
-  PROVIDER_VOLCENGINE = 2;  // 火山方舟
-  PROVIDER_MINIMAX = 3;     // MiniMax
+// Provider API 类型
+enum ProviderApiType {
+  API_UNKNOWN = 0;
+  API_OPENAI_COMPLETIONS = 1;   // OpenAI 兼容 API
+  API_ANTHROPIC_MESSAGES = 2;   // Anthropic Messages API
+  API_GEMINI = 3;               // Google Gemini API
 }
 
 // Provider 配置
 message ProviderConfig {
-  ProviderType type = 1;           // Provider 类型
-  string api_key = 2;              // API Key (加密存储)
-  string endpoint = 3;             // API 端点
-  bool is_enabled = 4;             // 是否启用
-  int64 last_tested = 5;           // 最后测试时间
-  bool is_available = 6;           // 是否可用
+  string id = 1;                    // Provider ID (UUID)
+  string name = 2;                  // Provider 名称（如 bailian, openai, anthropic）
+  string api = 3;                   // API 类型（openai-completions, anthropic-messages, gemini）
+  string base_url = 4;              // API 基础 URL
+  string api_key = 5;               // API Key (加密存储)
+  bool is_enabled = 6;              // 是否启用
+  bool is_available = 7;            // 是否可用（上次测试结果）
+  int64 last_tested = 8;            // 最后测试时间
+  int64 created_at = 9;             // 创建时间
+  int64 updated_at = 10;            // 更新时间
 }
 
 // 模型信息
 message ModelInfo {
-  string name = 1;                 // 模型名称
-  string display_name = 2;         // 显示名称
-  ProviderType provider = 3;       // 提供商
-
-  // 能力信息
-  int32 context_window = 10;       // 上下文窗口大小
-  double input_price = 11;         // 输入价格 (元/千tokens)
-  double output_price = 12;        // 输出价格 (元/千tokens)
-  repeated string supported_types = 13; // 支持的输入类型
-
-  // 模型特性
-  bool supports_vision = 20;       // 是否支持视觉
-  bool supports_function_calling = 21; // 是否支持函数调用
-  bool supports_streaming = 22;    // 是否支持流式输出
-
-  int64 updated_at = 30;
+  string id = 1;                    // 模型 ID (UUID)
+  string provider_name = 2;         // 所属提供商名称
+  string model_id = 3;              // 模型标识（如 gpt-4o, claude-3-opus）
+  string display_name = 4;          // 显示名称
+  int32 context_window = 5;         // 上下文窗口大小
+  int32 max_tokens = 6;             // 最大输出 tokens
+  string input_types = 7;           // 支持的输入类型（JSON 数组字符串）
+  double cost_input = 8;            // 输入价格
+  double cost_output = 9;           // 输出价格
+  bool supports_vision = 10;        // 是否支持视觉
+  bool supports_function_calling = 11; // 是否支持函数调用
+  bool supports_streaming = 12;     // 是否支持流式输出
+  bool is_custom = 13;              // 是否为自定义模型
+  int32 sort_order = 14;            // 排序顺序
+  int64 updated_at = 15;            // 更新时间
 }
 
 // 模型配置
 message ModelsConfig {
-  string default_provider = 1;     // 默认 Provider
-  repeated ProviderConfig providers = 10; // Provider 列表
-  repeated ModelInfo models = 11;  // 可用模型列表
+  string default_provider = 1;     // 默认 Provider 名称
+  repeated ProviderConfig providers = 2; // Provider 列表
+  repeated ModelInfo models = 3;   // 可用模型列表
 }
 
 // =============================================================================
@@ -256,14 +249,28 @@ message ModelsConfig {
 enum ChannelType {
   CHANNEL_UNKNOWN = 0;
   CHANNEL_FEISHU = 1;       // 飞书
-  CHANNEL_DINGTALK = 2;     // 钉钉 (预留)
-  CHANNEL_WECHAT = 3;       // 微信 (预留)
+  CHANNEL_DINGTALK = 2;     // 钉钉
+  CHANNEL_SLACK = 3;        // Slack
+  CHANNEL_WECHAT = 4;       // 微信 (预留)
 }
 
 // 飞书配置
 message FeishuConfig {
   string app_id = 1;              // 应用 ID
-  string app_secret = 2;         // 应用密钥 (加密)
+  string app_secret = 2;          // 应用密钥 (加密)
+}
+
+// 钉钉配置
+message DingtalkConfig {
+  string app_key = 1;             // 应用 Key
+  string app_secret = 2;          // 应用密钥 (加密)
+}
+
+// Slack 配置
+message SlackConfig {
+  string bot_token = 1;           // Bot Token
+  string app_id = 2;              // 应用 ID
+  string signing_secret = 3;      // 签名密钥
 }
 
 // 渠道配置
@@ -272,6 +279,8 @@ message ChannelConfig {
   bool is_enabled = 2;           // 是否启用
   oneof config {
     FeishuConfig feishu = 10;    // 飞书配置
+    DingtalkConfig dingtalk = 11; // 钉钉配置
+    SlackConfig slack = 12;      // Slack 配置
   }
 }
 
@@ -284,15 +293,7 @@ message ChannelsConfig {
 // 绑定配置
 // =============================================================================
 
-// 飞书频道信息
-message FeishuChannel {
-  string id = 1;                    // 频道 ID
-  string name = 2;                  // 频道名称
-  FeishuChannelType type = 3;      // 频道类型
-  int32 member_count = 4;          // 成员数量（群组）
-  string avatar_color = 5;         // 头像颜色（用于UI）
-}
-
+// 频道类型
 enum FeishuChannelType {
   CHANNEL_GROUP = 0;               // 群聊
   CHANNEL_DM = 1;                  // 私聊

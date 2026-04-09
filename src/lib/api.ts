@@ -202,8 +202,8 @@ export const probeRemoteDaemon = (office_id: string) =>
 export const getLocalDaemonVersion = () =>
   call<{ ok: boolean; version?: string; error?: string }>('get_local_daemon_version', {})
 
-export const checkSshConnection = (host: string, port = 22) =>
-  call<{ ok: boolean; latency_ms?: number; error?: string }>('check_ssh_connection', { host, port })
+export const checkSshConnection = (host: string, port = 22, user?: string, key_path?: string) =>
+  call<{ ok: boolean; latency_ms?: number; error?: string }>('check_ssh_connection', { host, port, user, key_path })
 
 export const checkSshAuth = (params: {
   address: string
