@@ -68,7 +68,7 @@ pub enum AppError {
 
 ### 阶段一：前端 + Server 开发测试
 - 日常开发与功能测试使用 **`src/`（React 前端）+ `server/`（Express/Node.js）** 组合
-- 前端通过 `call()` 函数以 HTTP 请求访问 `http://localhost:3001/api/<cmd>`
+- 前端通过 `call()` 函数以 HTTP 请求访问 `http://localhost:16667/api/<cmd>`
 - 后端用 SQLite（better-sqlite3）存储数据，inline `try { db.exec('ALTER TABLE...') } catch {}` 做增量迁移
 - 路由文件放 `server/routes/`，每个模块对应一个路由文件
 
@@ -82,6 +82,9 @@ pub enum AppError {
 - **`proto/` 目录下的 `.proto` 文件是数据模型的唯一事实标准**
 - 所有数据结构（TypeScript 类型、Rust 结构体、SQLite 表结构）必须与 `proto/` 保持一致
 - 新增或修改字段时，先改 `.proto`，再同步到其他层
+- 前后端交互的所有接口，都必须跟 `proto/server-service.proto` 对齐，如果要调整前后端交互，必须先修改 proto 再修改代码
+- 在 Tauri 集成时，将 server 同步给 tauri 命令时，必须参考 proto 的参数定义来做
+- 在检查 Tauri 是否和 server 一致时，先校验 tauri 命令是否跟 proto 一致，包括命令名、参数名、参数类型、参数数量等等
 
 ## 开发环境启动方式
 
