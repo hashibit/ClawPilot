@@ -41,46 +41,35 @@ mod tests {
         (pool, opc_id)
     }
 
-    fn make_config_data() -> String {
-        serde_json::json!({
-            "agents": [],
-            "channels": [],
-            "bindings": []
-        }).to_string()
-    }
-
     // ─── Service 层测试 ───────────────────────────────────────────
 
     #[test]
     fn test_create_and_get_snapshot() {
-        let (pool, opc_name) = setup_with_opc();
-        let config_data = make_config_data();
+        let (pool, opc_id) = setup_with_opc();
 
-        let id = snapshot_service::create_snapshot(&pool, &opc_name, "Test Snapshot", &config_data, false).unwrap();
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "Test Snapshot", false).unwrap();
         assert!(!id.is_empty());
 
-        let snapshots = snapshot_service::get_snapshots(&pool, &opc_name).unwrap();
+        let snapshots = snapshot_service::get_snapshots(&pool, &opc_id).unwrap();
         assert!(snapshots.iter().any(|s| s.id == id));
     }
 
     #[test]
     fn test_get_snapshot_by_id() {
-        let (pool, opc_name) = setup_with_opc();
-        let config_data = make_config_data();
+        let (pool, opc_id) = setup_with_opc();
 
-        let id = snapshot_service::create_snapshot(&pool, &opc_name, "Single Snapshot", &config_data, false).unwrap();
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "Single Snapshot", false).unwrap();
 
         let snapshot = snapshot_service::get_snapshot(&pool, &id).unwrap();
         assert_eq!(snapshot.label, "Single Snapshot");
-        assert_eq!(snapshot.opc_name, opc_name);
+        assert_eq!(snapshot.opc_name, "test-opc");
     }
 
     #[test]
     fn test_create_auto_snapshot() {
-        let (pool, opc_name) = setup_with_opc();
-        let config_data = make_config_data();
+        let (pool, opc_id) = setup_with_opc();
 
-        let id = snapshot_service::create_snapshot(&pool, &opc_name, "Auto Snapshot", &config_data, true).unwrap();
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "Auto Snapshot", true).unwrap();
 
         let snapshot = snapshot_service::get_snapshot(&pool, &id).unwrap();
         assert!(snapshot.is_auto);
@@ -88,10 +77,9 @@ mod tests {
 
     #[test]
     fn test_delete_snapshot() {
-        let (pool, opc_name) = setup_with_opc();
-        let config_data = make_config_data();
+        let (pool, opc_id) = setup_with_opc();
 
-        let id = snapshot_service::create_snapshot(&pool, &opc_name, "To Delete", &config_data, false).unwrap();
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "To Delete", false).unwrap();
 
         snapshot_service::delete_snapshot(&pool, &id).unwrap();
 
@@ -115,22 +103,21 @@ mod tests {
 
     #[test]
     fn test_get_snapshots_empty_for_opc() {
-        let (pool, opc_name) = setup_with_opc();
+        let (pool, opc_id) = setup_with_opc();
 
-        let snapshots = snapshot_service::get_snapshots(&pool, &opc_name).unwrap();
+        let snapshots = snapshot_service::get_snapshots(&pool, &opc_id).unwrap();
         assert!(snapshots.is_empty());
     }
 
     #[test]
     fn test_multiple_snapshots_for_opc() {
-        let (pool, opc_name) = setup_with_opc();
-        let config_data = make_config_data();
+        let (pool, opc_id) = setup_with_opc();
 
-        snapshot_service::create_snapshot(&pool, &opc_name, "Snap 1", &config_data, false).unwrap();
-        snapshot_service::create_snapshot(&pool, &opc_name, "Snap 2", &config_data, true).unwrap();
-        snapshot_service::create_snapshot(&pool, &opc_name, "Snap 3", &config_data, false).unwrap();
+        snapshot_service::create_snapshot(&pool, &opc_id, "Snap 1", false).unwrap();
+        snapshot_service::create_snapshot(&pool, &opc_id, "Snap 2", true).unwrap();
+        snapshot_service::create_snapshot(&pool, &opc_id, "Snap 3", false).unwrap();
 
-        let snapshots = snapshot_service::get_snapshots(&pool, &opc_name).unwrap();
+        let snapshots = snapshot_service::get_snapshots(&pool, &opc_id).unwrap();
         assert_eq!(snapshots.len(), 3);
     }
 
@@ -138,43 +125,38 @@ mod tests {
 
     #[test]
     fn test_snapshot_with_empty_label() {
-        let (pool, opc_name) = setup_with_opc();
-        let config_data = make_config_data();
+        let (pool, opc_id) = setup_with_opc();
 
-        let id = snapshot_service::create_snapshot(&pool, &opc_name, "", &config_data, false).unwrap();
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "", false).unwrap();
         let snapshot = snapshot_service::get_snapshot(&pool, &id).unwrap();
         assert!(snapshot.label.is_empty());
     }
 
     #[test]
-    fn test_snapshot_with_large_config_data() {
-        let (pool, opc_name) = setup_with_opc();
-        let large_config = "x".repeat(100000);
+    fn test_snapshot_config_data_is_generated() {
+        let (pool, opc_id) = setup_with_opc();
 
-        let id = snapshot_service::create_snapshot(&pool, &opc_name, "Large Config", &large_config, false).unwrap();
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "Generated Config", false).unwrap();
         let snapshot = snapshot_service::get_snapshot(&pool, &id).unwrap();
-        assert!(snapshot.config_data.len() > 90000);
+
+        // config_data should be generated JSON
+        let parsed: serde_json::Value = serde_json::from_str(&snapshot.config_data).unwrap();
+        assert!(parsed["agents"].is_array());
+        assert!(parsed["channels"].is_array());
+        assert!(parsed["bindings"].is_array());
     }
 
     #[test]
-    fn test_snapshot_with_json_config() {
-        let (pool, opc_name) = setup_with_opc();
-        let json_config = serde_json::json!({
-            "agents": [
-                {"id": "agent-1", "name": "Alice"},
-                {"id": "agent-2", "name": "Bob"}
-            ],
-            "channels": [
-                {"id": "ch-1", "type": "FEISHU"}
-            ]
-        }).to_string();
+    fn test_snapshot_summary() {
+        let (pool, opc_id) = setup_with_opc();
 
-        let id = snapshot_service::create_snapshot(&pool, &opc_name, "JSON Config", &json_config, false).unwrap();
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "With Summary", false).unwrap();
         let snapshot = snapshot_service::get_snapshot(&pool, &id).unwrap();
 
-        // 验证可以解析回 JSON
-        let parsed: serde_json::Value = serde_json::from_str(&snapshot.config_data).unwrap();
-        assert_eq!(parsed["agents"].as_array().unwrap().len(), 2);
+        // Summary should be calculated
+        assert_eq!(snapshot.summary.agent_count, 0);
+        assert_eq!(snapshot.summary.channel_count, 0);
+        assert_eq!(snapshot.summary.binding_count, 0);
     }
 
     #[test]
@@ -219,10 +201,8 @@ mod tests {
             office_name: None,
         }).unwrap();
 
-        let config_data = make_config_data();
-
-        snapshot_service::create_snapshot(&pool, &opc_a, "Snap A", &config_data, false).unwrap();
-        snapshot_service::create_snapshot(&pool, &opc_b, "Snap B", &config_data, false).unwrap();
+        snapshot_service::create_snapshot(&pool, &opc_a, "Snap A", false).unwrap();
+        snapshot_service::create_snapshot(&pool, &opc_b, "Snap B", false).unwrap();
 
         let snaps_a = snapshot_service::get_snapshots(&pool, &opc_a).unwrap();
         let snaps_b = snapshot_service::get_snapshots(&pool, &opc_b).unwrap();
@@ -231,5 +211,23 @@ mod tests {
         assert_eq!(snaps_b.len(), 1);
         assert_eq!(snaps_a[0].label, "Snap A");
         assert_eq!(snaps_b[0].label, "Snap B");
+    }
+
+    #[test]
+    fn test_restore_snapshot_returns_opc_id() {
+        let (pool, opc_id) = setup_with_opc();
+
+        let id = snapshot_service::create_snapshot(&pool, &opc_id, "To Restore", false).unwrap();
+        let response = snapshot_service::restore_snapshot(&pool, &id).unwrap();
+
+        assert_eq!(response.opc_id, opc_id);
+    }
+
+    #[test]
+    fn test_create_snapshot_nonexistent_opc() {
+        let pool = setup();
+
+        let result = snapshot_service::create_snapshot(&pool, "nonexistent-opc-id", "Test", false);
+        assert!(matches!(result, Err(AppError::NotFound(_))));
     }
 }

@@ -11,18 +11,25 @@ pub fn get_channels(pool: State<'_, DbPool>, opc_id: String) -> Result<Vec<Chann
 }
 
 #[tauri::command]
-pub fn get_channel(pool: State<'_, DbPool>, id: i64) -> Result<ChannelConfig> {
-    channel_service::get_channel(&pool, id)
+pub fn get_channel(pool: State<'_, DbPool>, id: String) -> Result<ChannelConfig> {
+    let id_i64: i64 = id.parse().map_err(|_| {
+        crate::error::AppError::Validation(format!("invalid channel id: {}", id))
+    })?;
+    channel_service::get_channel(&pool, id_i64)
 }
 
 #[tauri::command]
-pub fn upsert_channel(pool: State<'_, DbPool>, config: ChannelConfig) -> Result<i64> {
-    channel_service::upsert_channel(&pool, config)
+pub fn upsert_channel(pool: State<'_, DbPool>, config: ChannelConfig) -> Result<String> {
+    let id = channel_service::upsert_channel(&pool, config)?;
+    Ok(id.to_string())
 }
 
 #[tauri::command]
-pub fn delete_channel(pool: State<'_, DbPool>, id: i64) -> Result<()> {
-    channel_service::delete_channel(&pool, id)
+pub fn delete_channel(pool: State<'_, DbPool>, id: String) -> Result<()> {
+    let id_i64: i64 = id.parse().map_err(|_| {
+        crate::error::AppError::Validation(format!("invalid channel id: {}", id))
+    })?;
+    channel_service::delete_channel(&pool, id_i64)
 }
 
 #[tauri::command]
