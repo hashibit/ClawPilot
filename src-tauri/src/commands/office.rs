@@ -15,6 +15,14 @@ pub struct InstallLogPayload {
     pub log_type: String,
 }
 
+/// Remove ANSI color codes from a string (e.g., `\x1b[38;2;0;229;204m` -> empty)
+fn strip_ansi_codes(s: &str) -> String {
+    // ANSI escape sequences: ESC[ ... m or ESC[ ... K etc.
+    // Pattern: \x1b\[ [0-9;?]* [A-Za-z]
+    let re = regex::Regex::new(r"\x1b\[[0-9;?]*[A-Za-z]").unwrap();
+    re.replace_all(s, "").into_owned()
+}
+
 /// SSH connection check result
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SshConnectionResult {
@@ -200,7 +208,7 @@ pub async fn install_daemon(
         };
 
         let prefix = format!(
-            "ssh {}-o StrictHostKeyChecking=no -o BatchMode=no -o ConnectTimeout=10 -p {}",
+            "ssh {}-t -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
             key_arg, port
         );
 
@@ -268,7 +276,7 @@ pub async fn install_openclaw(
         };
 
         let prefix = format!(
-            "ssh {}-o StrictHostKeyChecking=no -o BatchMode=no -o ConnectTimeout=10 -p {}",
+            "ssh {}-t -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
             key_arg, port
         );
 
@@ -280,11 +288,13 @@ pub async fn install_openclaw(
 
     let mut logs = Vec::new();
     let mut lg = |line: &str| {
-        logs.push(line.to_string());
+        // Strip ANSI color codes for clean UI display
+        let clean_line = strip_ansi_codes(line);
+        logs.push(clean_line.clone());
         // 实时发送到前端
         let _ = app.emit("install-log", &InstallLogPayload {
             office_id: office_id.clone(),
-            message: line.to_string(),
+            message: clean_line,
             log_type: "info".to_string(),
         });
     };
@@ -339,65 +349,94 @@ pub async fn install_openclaw(
         }
     };
 
-    // Install OpenClaw using official install script
-    lg("📥 下载并执行 OpenClaw 安装脚本...");
+    // Step 1: Check if OpenClaw is already installed
+    lg("🔍 检查 OpenClaw 是否已安装...");
 
-    let install_cmd = if is_remote {
+    let check_cmd = if is_remote {
         format!(
-            "{} {} 'curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk'",
+            "{} {} 'which openclaw && openclaw --version'",
             ssh_prefix.as_ref().unwrap(),
             ssh_target.as_ref().unwrap()
         )
     } else {
-        "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk".to_string()
+        "which openclaw && openclaw --version".to_string()
     };
 
-    // Use spawn() + Stdio::piped() for streaming output
-    let mut child = tokio::process::Command::new("sh")
+    let check_output = tokio::process::Command::new("sh")
         .arg("-c")
-        .arg(&install_cmd)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()?;
+        .arg(&check_cmd)
+        .output()
+        .await?;
 
-    // Stream stdout line by line
-    let mut stdout = BufReader::new(child.stdout.take().unwrap());
-    let mut line = String::new();
+    let openclaw_installed = check_output.status.success();
+    if openclaw_installed {
+        let version_info = String::from_utf8_lossy(&check_output.stdout).trim().to_string();
+        lg(&format!("✅ OpenClaw 已安装：{}", version_info.lines().last().unwrap_or("")));
+    } else {
+        lg("⚠️ OpenClaw 未安装，将执行安装...");
+    }
 
-    while stdout.read_line(&mut line).await? > 0 {
-        let trimmed = line.trim();
-        if !trimmed.is_empty() {
-            lg(trimmed);
+    // Step 2: Install OpenClaw only if not already installed
+    let mut line = String::new();  // Reused for all streaming reads
+    if !openclaw_installed {
+        lg("📥 下载并执行 OpenClaw 安装脚本...");
+
+        let install_cmd = if is_remote {
+            format!(
+                "{} {} 'curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk'",
+                ssh_prefix.as_ref().unwrap(),
+                ssh_target.as_ref().unwrap()
+            )
+        } else {
+            "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk".to_string()
+        };
+
+        // Use spawn() + Stdio::piped() for streaming output
+        let mut child = tokio::process::Command::new("sh")
+            .arg("-c")
+            .arg(&install_cmd)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()?;
+
+        // Stream stdout line by line
+        let mut stdout = BufReader::new(child.stdout.take().unwrap());
+
+        while stdout.read_line(&mut line).await? > 0 {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                lg(trimmed);
+            }
+            line.clear();
         }
-        line.clear();
-    }
 
-    // Also read stderr
-    let mut stderr = BufReader::new(child.stderr.take().unwrap());
-    line.clear();
-    while stderr.read_line(&mut line).await? > 0 {
-        let trimmed = line.trim();
-        if !trimmed.is_empty() {
-            lg(&format!("❌ {}", trimmed));
+        // Also read stderr
+        let mut stderr = BufReader::new(child.stderr.take().unwrap());
+        line.clear();
+        while stderr.read_line(&mut line).await? > 0 {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                lg(&format!("❌ {}", trimmed));
+            }
+            line.clear();
         }
-        line.clear();
+
+        let status = child.wait().await?;
+
+        if !status.success() {
+            lg("❌ 安装失败");
+            return Ok(InstallDaemonResult {
+                ok: false,
+                logs,
+                error: Some("OpenClaw 安装失败".to_string()),
+                daemon_url: None,
+                api_key: None,
+                already_running: None,
+            });
+        }
+
+        lg("✅ OpenClaw 安装完成");
     }
-
-    let status = child.wait().await?;
-
-    if !status.success() {
-        lg("❌ 安装失败");
-        return Ok(InstallDaemonResult {
-            ok: false,
-            logs,
-            error: Some("OpenClaw 安装失败".to_string()),
-            daemon_url: None,
-            api_key: None,
-            already_running: None,
-        });
-    }
-
-    lg("✅ OpenClaw 安装完成");
 
     // Register daemon service using openclaw onboard
     lg("⚙️  注册 OpenClaw 系统服务...");

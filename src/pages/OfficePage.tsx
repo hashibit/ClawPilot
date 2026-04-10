@@ -380,13 +380,12 @@ export default function OfficePage() {
                 // Dynamic import to avoid breaking non-Tauri builds
                 import('@tauri-apps/api/event').then(({ listen }) => {
                     listen<string>('install-log', (event) => {
-                        try {
-                            const payload = JSON.parse(event.payload)
-                            if (payload.message) {
-                                lg(payload.message, payload.log_type || 'info')
-                            }
-                        } catch {
-                            lg(event.payload, 'info')
+                        // Tauri emit may send payload as object or serialized string
+                        const payload = typeof event.payload === 'string'
+                            ? JSON.parse(event.payload)
+                            : event.payload as { office_id?: string; message?: string; log_type?: string }
+                        if (payload.message) {
+                            lg(payload.message, payload.log_type || 'info')
                         }
                     }).then(cleanup => {
                         tauriEventCleanup = cleanup
