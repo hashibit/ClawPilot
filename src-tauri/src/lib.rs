@@ -114,7 +114,7 @@ pub fn run() {
             commands::office::check_ssh_connection,
             commands::office::check_ssh_auth,
             commands::office::install_daemon,
-            commands::office::install_openclaw,
+            commands::office::install_decoration,
             commands::office::probe_local_daemon,
             commands::office::probe_remote_daemon,
             commands::office::get_local_daemon_version,

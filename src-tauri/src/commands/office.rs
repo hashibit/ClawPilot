@@ -300,9 +300,9 @@ fn normalize_arch(arch: &str) -> &str {
     }
 }
 
-/// Install OpenClaw on target machine via daemon API (auto-installs daemon first if needed)
+/// Install decoration on target machine via daemon API (auto-installs daemon first if needed)
 #[tauri::command(async)]
-pub async fn install_openclaw(
+pub async fn install_decoration(
     app: tauri::AppHandle,
     pool: State<'_, DbPool>,
     office_id: String,
