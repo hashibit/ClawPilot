@@ -80,9 +80,11 @@ export function createChannelRouter(db) {
       const dingtalkStr = toEncryptedJsonStr(config.dingtalk_config)
       const slackStr = toEncryptedJsonStr(config.slack_config)
 
-      const hasId = config.id && String(config.id) !== '0'
+      // 只有正整数 id 才走 UPDATE，字符串 id 或 0 走 INSERT
+      const numId = Number(config.id)
+      const hasValidNumericId = config.id && !isNaN(numId) && numId > 0 && String(numId) === String(config.id)
 
-      if (hasId) {
+      if (hasValidNumericId) {
         db.prepare(`
           UPDATE channels SET
             opc_id = ?, channel_type = ?, is_enabled = ?,
@@ -94,10 +96,10 @@ export function createChannelRouter(db) {
           config.is_enabled ? 1 : 0,
           feishuStr, dingtalkStr, slackStr,
           config.is_connected ? 1 : 0, config.last_connected ?? null,
-          now(), Number(config.id)
+          now(), numId
         )
-        writeLog('INFO', `渠道已更新: ${config.channel_type} (${config.id})`)
-        res.json(Number(config.id))
+        writeLog('INFO', `渠道已更新: ${config.channel_type} (${numId})`)
+        res.json(numId)
       } else {
         const result = db.prepare(`
           INSERT INTO channels

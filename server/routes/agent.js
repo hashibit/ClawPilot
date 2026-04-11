@@ -130,10 +130,19 @@ export function createAgentRouter(db) {
     }
   })
 
-  // update_agent
+  // update_agent — 部分更新，只更新传入的字段
   router.post('/update_agent', (req, res) => {
     try {
       const { id, config } = req.body
+
+      // 先读取现有记录，避免 NOT NULL 约束冲突
+      const existing = db.prepare('SELECT * FROM agents WHERE id = ?').get(id)
+      if (!existing) throw new Error(`Not found: ${id}`)
+
+      // 合并传入的字段，只更新有值的字段
+      const finalName = config.name ?? existing.name
+      const finalDisplayName = config.display_name ?? existing.display_name
+
       db.prepare(`
         UPDATE agents SET
           name = ?, display_name = ?, job_title = ?, personality = ?, description = ?,
@@ -143,14 +152,24 @@ export function createAgentRouter(db) {
           guardrail_rules = ?, reports_to = ?, manages = ?, updated_at = ?
         WHERE id = ?
       `).run(
-        config.name, config.display_name,
-        config.job_title ?? null, config.personality ?? null, config.description ?? null,
-        config.initials ?? null, config.gradient_start ?? null, config.gradient_end ?? null,
-        config.is_default ? 1 : 0, config.order_index ?? 0,
-        config.model ?? null,
-        toJsonStr(config.enabled_tools), toJsonStr(config.disabled_tools),
-        toJsonStr(config.enabled_skills), serializeGuardrail(config),
-        toJsonStr(config.reports_to), toJsonStr(config.manages),
+        finalName, finalDisplayName,
+        config.job_title ?? existing.job_title,
+        config.personality ?? existing.personality,
+        config.description ?? existing.description,
+        config.initials ?? existing.initials,
+        config.gradient_start ?? existing.gradient_start,
+        config.gradient_end ?? existing.gradient_end,
+        config.is_default !== undefined ? (config.is_default ? 1 : 0) : existing.is_default,
+        config.order_index ?? existing.order_index,
+        config.model ?? existing.model,
+        toJsonStr(config.enabled_tools ?? JSON.parse(existing.enabled_tools || '[]')),
+        toJsonStr(config.disabled_tools ?? JSON.parse(existing.disabled_tools || '[]')),
+        toJsonStr(config.enabled_skills ?? JSON.parse(existing.enabled_skills || '[]')),
+        config.guardrail_allow !== undefined || config.guardrail_deny !== undefined
+          ? serializeGuardrail(config)
+          : existing.guardrail_rules,
+        toJsonStr(config.reports_to ?? JSON.parse(existing.reports_to || '[]')),
+        toJsonStr(config.manages ?? JSON.parse(existing.manages || '[]')),
         now(), id
       )
       res.json(null)

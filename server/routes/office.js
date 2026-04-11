@@ -305,10 +305,35 @@ export function createOfficeRouter(db) {
     }
   })
 
-  // update_office
+  // update_office — 部分更新，只更新传入的字段
   router.post('/update_office', (req, res) => {
     try {
       const { id, office } = req.body
+      if (!id) return res.status(400).json({ error: 'id required' })
+      if (!office) return res.status(400).json({ error: 'office object required' })
+
+      // 先读取现有记录，避免 NOT NULL 约束冲突
+      const existing = db.prepare('SELECT * FROM offices WHERE id = ?').get(id)
+      if (!existing) return res.status(404).json({ error: 'Office not found' })
+
+      // 合并传入的字段，只更新有值的字段
+      const finalName = office.name ?? existing.name
+      const finalAddress = office.address ?? existing.address
+      const finalAccessAuthType = office.access_auth_type ?? existing.access_auth_type ?? 'password'
+      const finalAccessUser = office.access_user ?? existing.access_user
+      const finalAccessPassword = office.access_password !== undefined ? encrypt(office.access_password ?? null) : existing.access_password
+      const finalSshKeyPath = office.ssh_key_path ?? existing.ssh_key_path
+      const finalPhone = office.phone ?? existing.phone
+      const finalReceptionistImage = office.receptionist_image ?? existing.receptionist_image
+      const finalOwnership = office.ownership ?? existing.ownership ?? 'RENTED'
+      const finalMonthlyRent = office.monthly_rent ?? existing.monthly_rent
+      const finalInternetSpeed = office.internet_speed ?? existing.internet_speed
+      const finalDecorationGrade = office.decoration_grade ?? existing.decoration_grade ?? 'MEDIUM'
+      const finalDescription = office.description ?? existing.description
+      const finalDaemonUrl = office.daemon_url ?? existing.daemon_url
+      const finalDaemonApiKey = office.daemon_api_key !== undefined ? encrypt(office.daemon_api_key ?? null) : existing.daemon_api_key
+      const finalOpcRoot = office.opc_root ?? existing.opc_root
+
       db.prepare(`
         UPDATE offices SET
           name = ?, address = ?,
@@ -318,16 +343,12 @@ export function createOfficeRouter(db) {
           description = ?, daemon_url = ?, daemon_api_key = ?, opc_root = ?, updated_at = ?
         WHERE id = ?
       `).run(
-        office.name,
-        office.address ?? null,
-        office.access_auth_type ?? 'password', office.access_user ?? null,
-        encrypt(office.access_password ?? null), office.ssh_key_path ?? null,
-        office.phone ?? null, office.receptionist_image ?? null,
-        office.ownership ?? 'RENTED', office.monthly_rent ?? null,
-        office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
-        office.description ?? null,
-        office.daemon_url ?? null, encrypt(office.daemon_api_key ?? null),
-        office.opc_root ?? null,
+        finalName, finalAddress,
+        finalAccessAuthType, finalAccessUser, finalAccessPassword, finalSshKeyPath,
+        finalPhone, finalReceptionistImage,
+        finalOwnership, finalMonthlyRent, finalInternetSpeed, finalDecorationGrade,
+        finalDescription,
+        finalDaemonUrl, finalDaemonApiKey, finalOpcRoot,
         now(), id
       )
       res.json(null)

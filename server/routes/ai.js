@@ -163,13 +163,43 @@ router.post('/ai_generate_agent', async (req, res) => {
 
   log.debug(`ai_generate_agent: raw response (${rawText.length} chars): ${rawText.slice(0, 120)}`)
 
+  // JSON 安全解析 + 重试机制
+  function safeParseJson(text, retries = 2) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        // 先尝试提取 markdown 代码块中的 JSON
+        const match = text.match(/```(?:json)?\s*([\s\S]*?)```/m)
+        const jsonStr = match ? match[1] : text.trim()
+        return JSON.parse(jsonStr)
+      } catch (parseErr) {
+        if (attempt < retries) {
+          // 尝试清洗控制字符：替换字面换行、制表符等为转义序列
+          log.warn(`ai_generate_agent: JSON parse attempt ${attempt + 1} failed, trying cleanup...`)
+          try {
+            const match = text.match(/```(?:json)?\s*([\s\S]*?)```/m)
+            let jsonStr = match ? match[1] : text.trim()
+            // 转义字面控制字符
+            jsonStr = jsonStr
+              .replace(/\n/g, '\\n')
+              .replace(/\r/g, '\\r')
+              .replace(/\t/g, '\\t')
+              // 清理其他控制字符（除了已转义的）
+              .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+            text = jsonStr  // 直接保存清洗后的 JSON 字符串供下次解析
+          } catch {}
+        } else {
+          throw parseErr
+        }
+      }
+    }
+    throw new Error('JSON parse failed after retries')
+  }
+
   let parsed
   try {
-    const match = rawText.match(/```(?:json)?\s*([\s\S]*?)```/m)
-    const jsonStr = match ? match[1] : rawText.trim()
-    parsed = JSON.parse(jsonStr)
-  } catch {
-    log.error(`ai_generate_agent: JSON parse failed, raw: ${rawText.slice(0, 300)}`)
+    parsed = safeParseJson(rawText)
+  } catch (parseErr) {
+    log.error(`ai_generate_agent: JSON parse failed after retries, raw: ${rawText.slice(0, 300)}`)
     return res.status(502).json({ error: `AI 返回格式错误，无法解析 JSON:\n${rawText.slice(0, 300)}` })
   }
 

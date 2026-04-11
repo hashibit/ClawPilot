@@ -1074,7 +1074,8 @@ router.post('/get_office_deployments', (req, res) => {
     const rows = db.prepare(`
       SELECT * FROM office_deployments WHERE office_id = ? ORDER BY deployed_at DESC LIMIT ?
     `).all(office_id, limit)
-    res.json(rows)
+    // 返回格式对齐 proto: GetOfficeDeploymentsResponse { deployments: [...] }
+    res.json({ deployments: rows })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

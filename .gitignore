@@ -12,7 +12,13 @@ dev.db-shm
 dev.db-wal
 tests/reports/
 tests/results/
-.claude
+
+**/.claude/logs
+**/.claude/memory
+**/.claude/sessions
+**/.claude/skills
+**/.claude/state
+
 .dev-pids
 .dev-ports
 .bundle/

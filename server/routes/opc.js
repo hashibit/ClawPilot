@@ -196,7 +196,8 @@ export function createOpcRouter(db) {
       const channelCount = db.prepare('SELECT COUNT(*) as cnt FROM channels WHERE opc_id = ?').get(id).cnt
       db.prepare('UPDATE opc_config SET agent_count = ?, channel_count = ?, updated_at = ? WHERE id = ?')
         .run(agentCount, channelCount, now(), id)
-      res.json(null)
+      // 补充返回值 { ok: true, stats: {...} }
+      res.json({ ok: true, stats: { agent_count: agentCount, channel_count: channelCount } })
     } catch (err) {
       res.status(500).json({ error: err.message })
     }

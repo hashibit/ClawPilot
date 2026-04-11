@@ -92,18 +92,30 @@ export function createModelRouter(db) {
     }
   })
 
-  // POST /update_provider
+  // POST /update_provider — 部分更新，只更新传入的字段
   router.post('/update_provider', (req, res) => {
     try {
       const { id, name, api, base_url, api_key, is_enabled } = req.body
       if (!id) return res.status(400).json({ error: 'id required' })
+
+      // 先读取现有记录，避免 NOT NULL 约束冲突
+      const existing = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
+      if (!existing) return res.status(404).json({ error: 'Not found' })
+
+      // 合并传入的字段，只更新有值的字段
+      const finalName = name ?? existing.name
+      const finalApi = api ?? existing.api
+      const finalBaseUrl = base_url ?? existing.base_url
+      const finalApiKey = api_key !== undefined ? encrypt(api_key ?? '') : existing.api_key
+      const finalIsEnabled = is_enabled !== undefined ? (is_enabled ? 1 : 0) : existing.is_enabled
+
       db.prepare(`
         UPDATE model_providers_v2
         SET name=?, api=?, base_url=?, api_key=?, is_enabled=?, updated_at=?
         WHERE id=?
-      `).run(name, api, base_url, encrypt(api_key ?? ''), is_enabled ? 1 : 0, now(), id)
+      `).run(finalName, finalApi, finalBaseUrl, finalApiKey, finalIsEnabled, now(), id)
+
       const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
-      if (!row) return res.status(404).json({ error: 'Not found' })
       res.json(rowToProvider(row))
     } catch (err) {
       if (err.message.includes('UNIQUE')) return res.status(409).json({ error: `Provider name "${req.body.name}" already exists` })
