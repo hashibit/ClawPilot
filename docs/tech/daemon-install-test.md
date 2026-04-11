@@ -415,3 +415,139 @@ lsof -i :16668
 # 尝试其他端口
 clawpilot-daemon --listen 127.0.0.1:16669
 ```
+
+---
+
+## 测试用例 4: 安装物业完整流程（Server 模式 + 远程 SSH）
+
+**测试日期**: 2026-04-11
+**测试目标**: 验证通过 ClawPilot Server (`http://localhost:16667`) 对远程 Linux 办公室执行完整安装物业流程（daemon + OpenClaw 离线包）
+
+### 环境
+
+| 项目 | 值 |
+|------|-----|
+| 办公室 IP | `192.168.139.237` |
+| 平台 / 架构 | Linux arm64 (Ubuntu 25.10) |
+| SSH 认证 | ssh_key（`~/.orbstack/ssh/id_ed25519`） |
+| SSH 用户 | `jiechen` |
+| daemon 端口 | `16668` |
+| OpenClaw 版本 | `2026.4.9` |
+
+### 测试步骤
+
+#### Step 1: 启动 Server
+
+```bash
+npm run server:dev
+```
+
+#### Step 2: 检查 SSH 连通性
+
+```bash
+curl -s -X POST http://localhost:16667/api/check_ssh_auth \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "address": "192.168.139.237",
+    "auth_type": "ssh_key",
+    "user": "jiechen",
+    "key_path": "~/.orbstack/ssh/id_ed25519"
+  }'
+```
+
+**预期响应**:
+```json
+{"ok":true,"latency_ms":374,"sudo_ok":true,"platform":"linux","arch":"arm64"}
+```
+
+#### Step 3: 执行安装物业
+
+```bash
+curl -s -X POST http://localhost:16667/api/install_openclaw \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "office_id": "<办公室 ID>",
+    "mode": "ssh",
+    "ssh_host": "192.168.139.237",
+    "ssh_port": 22,
+    "ssh_user": "jiechen",
+    "ssh_key_path": "~/.orbstack/ssh/id_ed25519"
+  }'
+```
+
+**预期关键日志**:
+```
+📡 连接 daemon...
+   最新版本: 2026.4.9
+   平台: linux, 架构: arm64        ← 必须是 arm64，不能是 x64
+📦 Daemon 未配置，先安装 daemon...
+✅ 找到: .../daemon/target/aarch64-unknown-linux-gnu/release/clawpilot-daemon
+✅ 系统服务已注册
+📤 提交安装任务到 daemon...
+✅ 使用已缓存包 / 下载离线包...
+✅ SHA256 校验通过
+✅ 解压完成: ~/.clawpilot/openclaw-pkgs/openclaw-2026.4.9
+✅ ~/.clawpilot/openclaw-current -> openclaw-2026.4.9
+✅ 系统服务已注册
+✅ OpenClaw 已就绪: OpenClaw 2026.4.9 (...)
+```
+
+**预期最终响应**:
+```json
+{"ok":true,"version":"2026.4.9","logs":[...]}
+```
+
+#### Step 4: 验证远端状态
+
+```bash
+ssh jiechen@192.168.139.237 '
+  systemctl --user status clawpilot-daemon | head -5
+  systemctl --user status openclaw-gateway | head -5
+  ls -la ~/.clawpilot/openclaw-current
+  ls ~/.clawpilot/openclaw-pkgs/
+'
+```
+
+**预期**:
+- `clawpilot-daemon.service` 和 `openclaw-gateway.service` 均 `active (running)`
+- `~/.clawpilot/openclaw-current` 是指向 `~/.clawpilot/openclaw-pkgs/openclaw-2026.4.9` 的符号链接
+- `~/.clawpilot/openclaw-pkgs/` 包含 tar.gz、.sha256、`openclaw-2026.4.9/` 三项
+
+### 实测结果（2026-04-11）
+
+| 步骤 | 结果 |
+|------|------|
+| SSH 连通 + sudo 权限 | ✅ `latency_ms: 374, sudo_ok: true` |
+| daemon 自动安装（SSH 模式） | ✅ systemd 用户服务启动 |
+| Health 返回 platform/arch | ✅ `{"platform":"linux","arch":"arm64"}` |
+| 离线包下载（约 494MB） | ✅ 从 GitHub Releases 下载 |
+| SHA256 校验 | ✅ 通过 |
+| 解压到 `~/.clawpilot/openclaw-pkgs/openclaw-2026.4.9` | ✅ |
+| symlink `~/.clawpilot/openclaw-current` | ✅ |
+| onboard 注册 openclaw-gateway.service | ✅ `active (running)` |
+| 安装验证 | ✅ `OpenClaw 2026.4.9 (0512059)` |
+| **整体结果** | ✅ `{"ok":true,"version":"2026.4.9"}` |
+
+### 测试中发现并修复的 Bug
+
+| # | 问题 | 影响 | 修复 |
+|---|------|------|------|
+| 1 | `readFile()` 用 `cat "${path}"` 双引号不展开 `~` | daemon key 读取失败 → 生成新 key → API key 不匹配 → Unauthorized | `server/utils/ssh.js`: `~/ → $HOME/` |
+| 2 | aarch64 binary 过旧，`/health` 不含 `platform`/`arch` 字段 | 默认 `linux/x64`，下载错误架构包 | 重新编译 daemon |
+| 3 | `extract_tarball` 未清理已有目录，重试时解压失败 | 第二次安装报错 `failed to unpack` | `daemon/src/install.rs`: 解压前先 `remove_dir_all` |
+| 4 | `check_openclaw_installed` 用 `which openclaw` | onboard 不将 openclaw 加入 PATH → 验证失败 | 改为走 `~/.clawpilot/openclaw-current/nodejs/bin/node` |
+
+### 目录结构（安装完成后）
+
+```
+~/.clawpilot/
+├── daemon.key                        # daemon API Key
+├── openclaw-current -> openclaw-pkgs/openclaw-2026.4.9   # symlink
+└── openclaw-pkgs/
+    ├── openclaw-pkgs-v2026.4.9-linux-arm64.tar.gz        # 离线包缓存
+    ├── openclaw-pkgs-v2026.4.9-linux-arm64.tar.gz.sha256
+    └── openclaw-2026.4.9/            # 解压后安装目录
+        ├── nodejs/
+        ├── node_modules/
+        └── package.json
+```

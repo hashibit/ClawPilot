@@ -225,7 +225,9 @@ export async function commandExists(options, cmd) {
  * @returns {Promise<string>}
  */
 export async function readFile(options, path) {
-  const { stdout, exitCode } = await sshExecRaw(options, `cat "${path}"`, { timeout: 10000 })
+  // Use $HOME instead of ~ since bash does not expand ~ inside double quotes
+  const remotePath = path.replace(/^~\//, '$HOME/')
+  const { stdout, exitCode } = await sshExecRaw(options, `cat "${remotePath}"`, { timeout: 10000 })
   if (exitCode !== 0) {
     throw new Error(`Failed to read file: ${path}`)
   }

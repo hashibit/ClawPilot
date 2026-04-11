@@ -30,34 +30,43 @@ fn extended_path() -> String {
     )
 }
 
-/// Get install dir for a version
+/// Get install dir for a version: ~/.clawpilot/openclaw-pkgs/openclaw-{version}
 fn install_dir(version: &str) -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
-    home.join(format!("openclaw-v{}", version))
+    home.join(".clawpilot")
+        .join("openclaw-pkgs")
+        .join(format!("openclaw-{}", version))
 }
 
-/// Get symlink path
+/// Get symlink path: ~/.clawpilot/openclaw-current
 fn symlink_path() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
-    home.join(".openclaw").join("current")
+    home.join(".clawpilot").join("openclaw-current")
 }
 
 /// Check if openclaw is already installed with the requested version
 fn check_openclaw_installed(version: &str) -> Option<String> {
-    let output = Command::new("openclaw")
-        .args(["--version"])
-        .env("PATH", extended_path())
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
+    // Use node + openclaw via the current symlink (openclaw is not added to PATH by onboard)
+    let symlink = symlink_path(); // ~/.openclaw/current
+    let node_bin = symlink.join("nodejs").join("bin").join("node");
+    let openclaw_bin = symlink.join("node_modules").join(".bin").join("openclaw");
+
+    if node_bin.exists() && openclaw_bin.exists() {
+        let output = Command::new(&node_bin)
+            .arg(&openclaw_bin)
+            .args(["--version"])
+            .env("PATH", extended_path())
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if ver.contains(version) {
+            return Some(ver);
+        }
     }
-    let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if ver.contains(version) {
-        Some(ver)
-    } else {
-        None
-    }
+    None
 }
 
 /// Download a file using reqwest, streaming to disk
@@ -124,6 +133,10 @@ fn verify_file_sha256(sha256_path: &Path) -> anyhow::Result<()> {
 
 /// Extract tar.gz to target directory
 fn extract_tarball(tar_path: &Path, dest: &Path) -> anyhow::Result<()> {
+    // Remove partially extracted directory to ensure clean extraction
+    if dest.exists() {
+        fs::remove_dir_all(dest)?;
+    }
     fs::create_dir_all(dest)?;
     let file = File::open(tar_path)?;
     let decoder = GzDecoder::new(file);
@@ -366,7 +379,7 @@ pub async fn run_install_openclaw(state: AppState, task_id: String, req: Install
         });
     } else {
         update(&|t| {
-            t.log(&format!("✅ ~/.openclaw/current -> openclaw-v{}", req.version));
+            t.log(&format!("✅ ~/.clawpilot/openclaw-current -> openclaw-{}", req.version));
         });
     }
 
