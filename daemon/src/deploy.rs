@@ -735,13 +735,62 @@ fn expand_tilde(path: &str) -> PathBuf {
     }
 }
 
+/// Expand tilde (~) in workspace paths within agents.json5.
+/// The server generates workspace paths like `~/.openclaw/OPC/...` which
+/// may not be expanded by OpenClaw. This post-processing ensures they work.
+pub fn fix_workspace_tilde_in_agents_json5(
+    opc_id: &str,
+    custom_root: Option<&Path>,
+) -> anyhow::Result<()> {
+    use std::fs;
+
+    let opc_dir = if let Some(root) = custom_root {
+        root.join(opc_id)
+    } else {
+        let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+        home.join(".openclaw/OPC").join(opc_id)
+    };
+
+    let agents_json5_path = opc_dir.join("agents.json5");
+    if !agents_json5_path.exists() {
+        tracing::debug!("agents.json5 not found at {}, skipping tilde expansion", agents_json5_path.display());
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(&agents_json5_path)?;
+
+    // Expand tilde in all "workspace" string values
+    let mut json: serde_json::Value = serde_json::from_str(&content)?;
+
+    // Expand workspace in list[].workspace
+    if let Some(list) = json.get_mut("list").and_then(|v| v.as_array_mut()) {
+        for agent in list {
+            if let Some(ws) = agent.get_mut("workspace").and_then(|v| v.as_str()) {
+                let expanded = expand_tilde(ws);
+                *agent.get_mut("workspace").unwrap() = serde_json::Value::String(expanded.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // Expand workspace in defaults.workspace
+    if let Some(ws) = json.get_mut("defaults").and_then(|d| d.get_mut("workspace")).and_then(|v| v.as_str()) {
+        let expanded = expand_tilde(ws);
+        json["defaults"]["workspace"] = serde_json::Value::String(expanded.to_string_lossy().to_string());
+    }
+
+    let new_content = serde_json::to_string_pretty(&json)?;
+    fs::write(&agents_json5_path, new_content)?;
+    tracing::info!("Expanded tilde paths in agents.json5");
+    Ok(())
+}
+
 /// Full deploy flow (runs in background task)
 pub async fn run_deploy(
     state: AppState,
     task_id: String,
     opc_id: String,
     package_bytes: Vec<u8>,
-    checksum: Option<String>,
+    checksum: String,
     opc_root: Option<String>,  // 自定义部署目录
 ) {
     // If custom opc_root is provided, expand tilde and use it instead of default ~/.openclaw
@@ -765,26 +814,23 @@ pub async fn run_deploy(
         update(&|t| t.log(format!("使用自定义部署目录: {}", root.display())));
     }
 
-    // 1. Verify checksum
-    if let Some(ref cs) = checksum {
-        if !cs.is_empty() {
-            update(&|t| {
-                t.progress = 10;
-                t.current_step = "验证完整性".to_string();
-                t.log("验证部署包完整性...");
-            });
-            if !verify_checksum(&package_bytes, cs) {
-                update(&|t| {
-                    t.status = TaskStatus::Failed;
-                    t.error = Some("Checksum 验证失败，部署包可能已损坏".to_string());
-                    t.log("✗ Checksum 验证失败");
-                    t.completed_at = Some(Utc::now());
-                });
-                return;
-            }
-            update(&|t| t.log("✓ Checksum 验证通过"));
-        }
+    // 1. Verify checksum (guaranteed non-empty by routes.rs validation)
+    update(&|t| {
+        t.progress = 10;
+        t.current_step = "验证完整性".to_string();
+        t.log("验证部署包完整性...");
+    });
+    let checksum_str = checksum.as_ref();
+    if !verify_checksum(&package_bytes, checksum_str) {
+        update(&|t| {
+            t.status = TaskStatus::Failed;
+            t.error = Some("Checksum 验证失败，部署包可能已损坏".to_string());
+            t.log("✗ Checksum 验证失败");
+            t.completed_at = Some(Utc::now());
+        });
+        return;
     }
+    update(&|t| t.log("✓ Checksum 验证通过"));
 
     // 2. Prepare OPC directory (git commit user data)
     update(&|t| {
@@ -886,6 +932,31 @@ pub async fn run_deploy(
                 }
             }
 
+            // 3.55 Expand tilde (~) in agents.json5 workspace paths
+            update(&|t| {
+                t.progress = 75;
+                t.current_step = "展开路径".to_string();
+                t.log("展开 agents.json5 中的 ~ 路径...");
+            });
+
+            match tokio::task::spawn_blocking({
+                let opc_id2 = opc_id.clone();
+                let custom = custom_root.clone();
+                move || fix_workspace_tilde_in_agents_json5(&opc_id2, custom.as_deref())
+            })
+            .await
+            {
+                Ok(Ok(())) => {
+                    update(&|t| t.log("✓ 路径展开完成"));
+                }
+                Ok(Err(e)) => {
+                    update(&|t| t.log(format!("⚠ 路径展开失败: {}", e)));
+                }
+                Err(e) => {
+                    update(&|t| t.log(format!("⚠ 路径展开 panic: {}", e)));
+                }
+            }
+
             // 3.6 Reset agents sessions for fresh skill loading
             update(&|t| {
                 t.log("重置 agent sessions...");
@@ -950,12 +1021,19 @@ pub async fn run_deploy(
     update(&|t| {
         t.progress = 90;
         t.current_step = "健康检查".to_string();
-        t.log("检查 OpenClaw 进程状态...");
+        t.log("检查 OpenClaw 进程和 RPC 状态...");
     });
 
     let running = is_openclaw_running();
+    let gw = openclaw_gateway_status();
+
     if running {
-        update(&|t| t.log("✓ OpenClaw 运行正常"));
+        update(&|t| t.log("✓ OpenClaw 进程存活"));
+        if gw.rpc_ok {
+            update(&|t| t.log("✓ OpenClaw RPC 响应正常（新配置已加载）"));
+        } else {
+            update(&|t| t.log("⚠ OpenClaw RPC 无响应（可能仍在重载配置中，建议手动检查）"));
+        }
     } else {
         update(&|t| t.log("⚠ OpenClaw 进程未检测到（可能已停止或 PID 文件缺失）"));
     }

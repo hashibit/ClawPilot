@@ -131,11 +131,14 @@ pub async fn deploy(
         return Err(AppError::BadRequest("无效的 opc_id 格式".into()));
     }
 
-    // Validate checksum format if provided
-    if let Some(ref cs) = manifest.checksum {
-        if !cs.is_empty() && !validate_checksum(cs) {
-            return Err(AppError::BadRequest("无效的 checksum 格式 (应为 sha256:<64 位 hex>)".into()));
-        }
+    // Validate checksum format - required for security
+    let checksum_str = manifest.checksum.as_ref()
+        .ok_or_else(|| AppError::BadRequest("缺少 checksum (必须提供 sha256 校验值)".into()))?;
+    if checksum_str.is_empty() {
+        return Err(AppError::BadRequest("checksum 不能为空".into()));
+    }
+    if !validate_checksum(checksum_str) {
+        return Err(AppError::BadRequest("无效的 checksum 格式 (应为 sha256:<64 位 hex>)".into()));
     }
 
     let task_id = format!("deploy-{}", Uuid::new_v4());
@@ -154,7 +157,7 @@ pub async fn deploy(
     let state2 = state.clone();
     let tid = task_id.clone();
     let opc_id = manifest.opc_id.clone();
-    let checksum = manifest.checksum.clone();
+    let checksum = checksum_str.clone();
     let opc_root = manifest.opc_root.clone();
     let pkg_vec = package.to_vec();
 

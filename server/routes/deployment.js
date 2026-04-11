@@ -240,55 +240,6 @@ function collectOpcData(opcId) {
   }
 }
 
-/** Build a tar.gz Buffer containing the deployment package */
-function buildPackage(data, manifest) {
-  return new Promise((resolve, reject) => {
-    const tarPack = pack()
-    const chunks = []
-
-    const gz = zlib.createGzip()
-    gz.on('data', chunk => chunks.push(chunk))
-    gz.on('end', () => resolve(Buffer.concat(chunks)))
-    gz.on('error', reject)
-    tarPack.pipe(gz)
-
-    const addFile = (tarPath, content) => {
-      let buf
-      if (Buffer.isBuffer(content)) {
-        buf = content
-      } else if (typeof content === 'string') {
-        buf = Buffer.from(content, 'utf8')
-      } else {
-        // JSON/JSON5 files should end with a newline (standard practice)
-        buf = Buffer.from(JSON.stringify(content, null, 2) + '\n', 'utf8')
-      }
-      tarPack.entry({ name: tarPath, size: buf.length }, buf, (err) => {
-        if (err) reject(err)
-      })
-    }
-
-    // manifest.json
-    addFile('manifest.json', JSON.stringify(manifest, null, 2))
-
-    // agents/{id}/*.md (legacy, not used with $include)
-    for (const doc of data.agent_documents) {
-      const filename = `${doc.document_type}.md`
-      addFile(`agents/${doc.agent_id}/${filename}`, doc.content)
-    }
-
-    // skills/{slug}/* (actual skill files, including subdirectories)
-    for (const skill of data.skills) {
-      for (const relFile of skill.files) {
-        const filePath = path.join(skill.path, relFile)
-        const content = fs.readFileSync(filePath)
-        addFile(`skills/${skill.slug}/${relFile}`, content)
-      }
-    }
-
-    tarPack.finalize()
-  })
-}
-
 /**
  * Deploy 前统一重新生成所有 agent 的 AGENTS.md 和 SOUL.md 领队段落。
  *
@@ -554,12 +505,14 @@ function generateOpenclawConfig(opcId) {
 
   // Build bindings section (OpenClaw format)
   // Format: [{ agentId: "xxx", match: { channel: "feishu", peer: { kind: "group/direct", id: "xxx" } } }]
+  // Note: match.channel is the platform identifier, NOT the peer type.
+  // Currently only feishu is supported; bindings.channel_platform should be added to the DB long-term.
   const bindingsSection = data.bindings
     .filter(b => b.is_enabled === 1)
     .map(b => ({
       agentId: b.agent_name,
       match: {
-        channel: b.channel_type.toLowerCase(),
+        channel: 'feishu',
         peer: {
           kind: b.channel_type === 'GROUP' ? 'group' : 'direct',
           id: b.channel_id,
@@ -693,7 +646,10 @@ function buildPackageWithOpenclaw(data, manifest, openclawConfig) {
 
           // Copy skills to agent's workspace directory (each agent has its own skills)
           // Skills are copied from bundle/skills/{skillSlug}/ to {opc_id}/workspace-{name}/skills/{skillSlug}/
-          for (const skill of data.skills) {
+          // Only copy skills that are enabled for this agent
+          const enabledSkillSlugs = new Set(agent.enabled_skills || [])
+          const agentSkills = data.skills.filter(s => enabledSkillSlugs.has(s.slug))
+          for (const skill of agentSkills) {
             for (const relFile of skill.files) {
               const filePath = path.join(skill.path, relFile)
               const content = fs.readFileSync(filePath)
@@ -829,6 +785,10 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
     // Build package with openclaw.json included
     const data = collectOpcData(opc_id)
     const version = new Date().toISOString()
+    // Note: checksum is set to '' here because the tar package must be built first
+    // before we can compute its SHA256. The checksum in the tar package's manifest.json
+    // will remain empty — the actual checksum is computed after packaging and passed
+    // to the daemon via the multipart form's manifest field for verification.
     const manifest = { opc_id, version, checksum: '', opc_root: data.opc_root }
     const openclawConfig = generateOpenclawConfig(opc_id)
 
