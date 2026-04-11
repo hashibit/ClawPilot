@@ -1,7 +1,7 @@
 use tauri::{State, Emitter};
 
 use crate::database::pool::DbPool;
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use crate::models::office::{DaemonHealthResult, Office, OfficeDeployment};
 use crate::services::office_service;
 use crate::services::ssh_service;
@@ -38,6 +38,8 @@ pub struct SshAuthResult {
     pub latency_ms: Option<u64>,
     pub error: Option<String>,
     pub sudo_ok: Option<bool>,
+    pub platform: Option<String>,
+    pub arch: Option<String>,
 }
 
 /// Install daemon result
@@ -145,6 +147,9 @@ pub async fn check_ssh_auth(
 
     let username = user.as_deref().unwrap_or("root");
 
+    // Save key_path for later platform detection
+    let ssh_key = key_path.clone();
+
     let result = if auth_type == "ssh_key" {
         let key_path = match key_path {
             Some(p) => p,
@@ -153,6 +158,8 @@ pub async fn check_ssh_auth(
                 latency_ms: None,
                 error: Some("SSH 密钥路径未提供".into()),
                 sudo_ok: None,
+                platform: None,
+                arch: None,
             },
         };
         ssh_service::test_ssh_key(host, port, username, &key_path, 8)
@@ -164,9 +171,36 @@ pub async fn check_ssh_auth(
                 latency_ms: None,
                 error: Some("SSH 密码未提供".into()),
                 sudo_ok: None,
+                platform: None,
+                arch: None,
             },
         };
         ssh_service::test_ssh_password(host, port, username, &password, 8)
+    };
+
+    if !result.ok {
+        return SshAuthResult {
+            ok: false,
+            latency_ms: Some(result.latency_ms),
+            error: result.error,
+            sudo_ok: None,
+            platform: None,
+            arch: None,
+        };
+    }
+
+    // Detect platform and architecture on remote machine
+    let key_path_ref = ssh_key.as_deref();
+    let (platform, arch) = match (
+        ssh_service::run_ssh_command(host, port, username, key_path_ref, "uname -s", 5),
+        ssh_service::run_ssh_command(host, port, username, key_path_ref, "uname -m", 5),
+    ) {
+        (Ok(os), Ok(raw_arch)) => {
+            let platform = if os == "Darwin" { "darwin" } else { "linux" };
+            let arch = if raw_arch == "aarch64" || raw_arch == "arm64" { "arm64" } else { "x64" };
+            (Some(platform.to_string()), Some(arch.to_string()))
+        }
+        _ => (None, None),
     };
 
     SshAuthResult {
@@ -174,6 +208,8 @@ pub async fn check_ssh_auth(
         latency_ms: Some(result.latency_ms),
         error: result.error,
         sudo_ok: None,
+        platform,
+        arch,
     }
 }
 
@@ -246,11 +282,29 @@ pub async fn install_daemon(
     }
 }
 
-/// Install OpenClaw on local or remote server
+/// Build offline package download URL
+fn build_offline_package_url(version: &str, platform: &str, arch: &str) -> String {
+    let ext = if platform == "windows" { "zip" } else { "tar.gz" };
+    format!(
+        "https://github.com/hashibit/openclaw-pkgs/releases/download/v{}/openclaw-pkgs-v{}-{}-{}.{}",
+        version, version, platform, arch, ext
+    )
+}
+
+/// Normalize architecture string (aarch64 -> arm64)
+fn normalize_arch(arch: &str) -> &str {
+    if arch == "arm64" || arch == "aarch64" {
+        "arm64"
+    } else {
+        "x64"
+    }
+}
+
+/// Install OpenClaw on target machine via daemon API (auto-installs daemon first if needed)
 #[tauri::command(async)]
 pub async fn install_openclaw(
     app: tauri::AppHandle,
-    _pool: State<'_, DbPool>,
+    pool: State<'_, DbPool>,
     office_id: String,
     mode: Option<String>,
     ssh_host: Option<String>,
@@ -258,40 +312,17 @@ pub async fn install_openclaw(
     ssh_user: Option<String>,
     ssh_key_path: Option<String>,
     _ssh_password: Option<String>,
+    _version: Option<String>,
+    _platform: Option<String>,
+    _arch: Option<String>,
 ) -> Result<InstallDaemonResult> {
-    use tokio::io::{AsyncBufReadExt, BufReader};
-
-    let is_remote = mode.as_deref() == Some("ssh");
-
-    // Build SSH prefix if remote
-    let (ssh_prefix, ssh_target) = if is_remote {
-        let host = ssh_host.unwrap_or_default();
-        let port = ssh_port.unwrap_or(22);
-        let user = ssh_user.as_deref().unwrap_or("root");
-
-        let key_arg = if let Some(ref key_path) = ssh_key_path {
-            format!("-i \"{}\" ", key_path)
-        } else {
-            String::new()
-        };
-
-        let prefix = format!(
-            "ssh {}-t -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
-            key_arg, port
-        );
-
-        let target = format!("{}@{}", user, host);
-        (Some(prefix), Some(target))
-    } else {
-        (None, None)
-    };
+    use crate::services::office_service::get_office;
+    use crate::utils::crypto::decrypt;
 
     let mut logs = Vec::new();
     let mut lg = |line: &str| {
-        // Strip ANSI color codes for clean UI display
         let clean_line = strip_ansi_codes(line);
         logs.push(clean_line.clone());
-        // 实时发送到前端
         let _ = app.emit("install-log", &InstallLogPayload {
             office_id: office_id.clone(),
             message: clean_line,
@@ -299,192 +330,255 @@ pub async fn install_openclaw(
         });
     };
 
-    lg("🔍 探测操作系统类型...");
+    // Get latest version from GitHub releases
+    lg("🔍 获取最新版本号...");
+    let client = reqwest::Client::new();
+    let release_resp = client
+        .get("https://api.github.com/repos/hashibit/openclaw-pkgs/releases/latest")
+        .header("User-Agent", "ClawPilot")
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("GitHub API 请求失败: {}", e)))?;
+    let release: serde_json::Value = release_resp
+        .json()
+        .await
+        .map_err(|e| AppError::Internal(format!("解析 GitHub API 响应失败: {}", e)))?;
 
-    // Detect OS type
-    let _os_type = if is_remote {
-        match daemon_install_service::OsType::detect_remote(
-            ssh_prefix.as_ref().unwrap(),
-            ssh_target.as_ref().unwrap(),
-        ) {
-            Ok(os) => {
-                lg(&format!("✅ 检测到 {}", match os {
-                    daemon_install_service::OsType::MacOS => "macOS",
-                    daemon_install_service::OsType::Linux => "Linux",
-                }));
-                os
-            }
-            Err(e) => {
-                lg(&format!("❌ 无法探测系统类型：{}", e));
-                return Ok(InstallDaemonResult {
-                    ok: false,
-                    logs,
-                    error: Some("无法探测远程系统类型".to_string()),
-                    daemon_url: None,
-                    api_key: None,
-                    already_running: None,
-                });
-            }
-        }
-    } else {
-        match daemon_install_service::OsType::detect() {
-            Ok(os) => {
-                lg(&format!("✅ 检测到 {}", match os {
-                    daemon_install_service::OsType::MacOS => "macOS",
-                    daemon_install_service::OsType::Linux => "Linux",
-                }));
-                os
-            }
-            Err(e) => {
-                lg(&format!("❌ 不支持的操作系统：{}", e));
-                return Ok(InstallDaemonResult {
-                    ok: false,
-                    logs,
-                    error: Some("不支持的操作系统".to_string()),
-                    daemon_url: None,
-                    api_key: None,
-                    already_running: None,
-                });
-            }
-        }
-    };
+    let version = release.get("tag_name")
+        .and_then(|v| v.as_str())
+        .map(|v| v.trim_start_matches('v').to_string())
+        .unwrap_or_default();
 
-    // Step 1: Check if OpenClaw is already installed
-    lg("🔍 检查 OpenClaw 是否已安装...");
-
-    let check_cmd = if is_remote {
-        format!(
-            "{} {} 'which openclaw && openclaw --version'",
-            ssh_prefix.as_ref().unwrap(),
-            ssh_target.as_ref().unwrap()
-        )
-    } else {
-        "which openclaw && openclaw --version".to_string()
-    };
-
-    let check_output = tokio::process::Command::new("sh")
-        .arg("-c")
-        .arg(&check_cmd)
-        .output()
-        .await?;
-
-    let openclaw_installed = check_output.status.success();
-    if openclaw_installed {
-        let version_info = String::from_utf8_lossy(&check_output.stdout).trim().to_string();
-        lg(&format!("✅ OpenClaw 已安装：{}", version_info.lines().last().unwrap_or("")));
-    } else {
-        lg("⚠️ OpenClaw 未安装，将执行安装...");
+    if version.is_empty() {
+        return Ok(InstallDaemonResult {
+            ok: false,
+            logs,
+            error: Some("无法获取最新版本号".to_string()),
+            daemon_url: None,
+            api_key: None,
+            already_running: None,
+        });
     }
+    lg(&format!("   最新版本: {}", version));
 
-    // Step 2: Install OpenClaw only if not already installed
-    let mut line = String::new();  // Reused for all streaming reads
-    if !openclaw_installed {
-        lg("📥 下载并执行 OpenClaw 安装脚本...");
+    // Get office from DB
+    let mut office = get_office(&pool, &office_id)
+        .map_err(|e| AppError::Internal(format!("获取 office 信息失败: {}", e)))?;
 
-        let install_cmd = if is_remote {
-            format!(
-                "{} {} 'curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk'",
-                ssh_prefix.as_ref().unwrap(),
-                ssh_target.as_ref().unwrap()
-            )
+    // If daemon not installed, install it first
+    let (daemon_url, decrypted_key) = if office.daemon_url.is_some() {
+        let daemon_url = office.daemon_url.unwrap();
+        let api_key = office.daemon_api_key
+            .ok_or_else(|| AppError::NotFound("Daemon API Key 不存在".to_string()))?;
+        let decrypted = decrypt(&api_key).unwrap_or(api_key.clone());
+        (daemon_url, decrypted)
+    } else {
+        lg("📦 Daemon 未配置，先安装 daemon...");
+
+        let port = 16668u16;
+        let is_remote = mode.as_deref() == Some("ssh");
+        let (ssh_prefix, ssh_target) = if is_remote {
+            let host = ssh_host.unwrap_or_default();
+            let port_val = ssh_port.unwrap_or(22);
+            let user = ssh_user.as_deref().unwrap_or("root");
+            let key_arg = if let Some(ref key_path) = ssh_key_path {
+                format!("-i \"{}\" ", key_path)
+            } else {
+                String::new()
+            };
+            let prefix = format!(
+                "ssh {}-t -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
+                key_arg, port_val
+            );
+            (Some(prefix), Some(format!("{}@{}", user, host)))
         } else {
-            "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --non-interactive --skip-skills --skip-health --accept-risk".to_string()
+            (None, None)
         };
 
-        // Use spawn() + Stdio::piped() for streaming output
-        let mut child = tokio::process::Command::new("sh")
-            .arg("-c")
-            .arg(&install_cmd)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()?;
+        let install_result = daemon_install_service::install_daemon(port, ssh_prefix.as_deref(), ssh_target.as_deref())
+            .map_err(|e| AppError::Internal(format!("daemon 安装失败: {}", e)))?;
 
-        // Stream stdout line by line
-        let mut stdout = BufReader::new(child.stdout.take().unwrap());
-
-        while stdout.read_line(&mut line).await? > 0 {
-            let trimmed = line.trim();
-            if !trimmed.is_empty() {
-                lg(trimmed);
-            }
-            line.clear();
-        }
-
-        // Also read stderr
-        let mut stderr = BufReader::new(child.stderr.take().unwrap());
-        line.clear();
-        while stderr.read_line(&mut line).await? > 0 {
-            let trimmed = line.trim();
-            if !trimmed.is_empty() {
-                lg(&format!("❌ {}", trimmed));
-            }
-            line.clear();
-        }
-
-        let status = child.wait().await?;
-
-        if !status.success() {
-            lg("❌ 安装失败");
+        if !install_result.ok {
             return Ok(InstallDaemonResult {
                 ok: false,
                 logs,
-                error: Some("OpenClaw 安装失败".to_string()),
+                error: Some("daemon 安装失败".to_string()),
                 daemon_url: None,
                 api_key: None,
                 already_running: None,
             });
         }
 
-        lg("✅ OpenClaw 安装完成");
-    }
+        let daemon_url = install_result.daemon_url
+            .ok_or_else(|| AppError::Internal("daemon 安装成功但未返回 URL".to_string()))?;
+        let api_key = install_result.api_key
+            .ok_or_else(|| AppError::Internal("daemon 安装成功但未返回 API Key".to_string()))?;
 
-    // Register daemon service using openclaw onboard
-    lg("⚙️  注册 OpenClaw 系统服务...");
+        // Forward daemon install logs
+        for log_line in &install_result.logs {
+            lg(log_line);
+        }
 
-    let onboard_cmd = if is_remote {
-        format!(
-            "{} {} 'openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk'",
-            ssh_prefix.as_ref().unwrap(),
-            ssh_target.as_ref().unwrap()
-        )
-    } else {
-        "openclaw onboard --non-interactive --install-daemon --skip-skills --skip-health --accept-risk".to_string()
+        // Save daemon config to office
+        let _ = office_service::update_office_daemon_config_by_id(&pool, &office_id, &daemon_url, &api_key);
+        office.daemon_url = Some(daemon_url.clone());
+        office.daemon_api_key = Some(crate::utils::crypto::encrypt(&api_key).unwrap_or(api_key.clone()));
+        let decrypted = decrypt(&api_key).unwrap_or(api_key);
+
+        lg("✅ Daemon 安装完成，继续安装 OpenClaw...");
+        (daemon_url, decrypted)
     };
 
-    // Stream onboard output
-    let mut onboard_child = tokio::process::Command::new("sh")
-        .arg("-c")
-        .arg(&onboard_cmd)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()?;
+    lg(&format!("📡 连接 daemon: {}", daemon_url));
 
-    let mut onboard_stdout = BufReader::new(onboard_child.stdout.take().unwrap());
-    line.clear();
-    while onboard_stdout.read_line(&mut line).await? > 0 {
-        let trimmed = line.trim();
-        if !trimmed.is_empty() {
-            lg(trimmed);
+    let daemon_client = reqwest::Client::new();
+
+    // Query daemon for target platform/arch
+    lg("🔍 获取目标平台信息...");
+
+    let health_resp = daemon_client
+        .get(format!("{}/health", daemon_url.trim_end_matches('/')))
+        .bearer_auth(&decrypted_key)
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("daemon health 请求失败: {}", e)))?;
+
+    if !health_resp.status().is_success() {
+        return Ok(InstallDaemonResult {
+            ok: false,
+            logs,
+            error: Some("daemon health 检查失败".to_string()),
+            daemon_url: None,
+            api_key: None,
+            already_running: None,
+        });
+    }
+
+    let health_data: serde_json::Value = health_resp.json().await
+        .map_err(|e| AppError::Internal(format!("解析 daemon health 响应失败: {}", e)))?;
+
+    let platform = health_data.get("platform")
+        .and_then(|v| v.as_str())
+        .unwrap_or("linux")
+        .to_string();
+    let arch = health_data.get("arch")
+        .and_then(|v| v.as_str())
+        .unwrap_or("x64")
+        .to_string();
+    lg(&format!("   平台: {}, 架构: {}", platform, arch));
+
+    let download_url = build_offline_package_url(&version, &platform, &arch);
+    let sha256_url = format!("{}.sha256", download_url);
+
+    // Submit install task to daemon
+    let install_req = serde_json::json!({
+        "version": version,
+        "platform": platform,
+        "arch": arch,
+        "download_url": download_url,
+        "sha256_url": sha256_url,
+    });
+
+    let resp = daemon_client
+        .post(format!("{}/install_openclaw", daemon_url.trim_end_matches('/')))
+        .bearer_auth(&decrypted_key)
+        .json(&install_req)
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(format!("daemon 请求失败: {}", e)))?;
+
+    if !resp.status().is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Ok(InstallDaemonResult {
+            ok: false,
+            logs,
+            error: Some(format!("daemon 返回错误: {}", body)),
+            daemon_url: None,
+            api_key: None,
+            already_running: None,
+        });
+    }
+
+    let task_resp: serde_json::Value = resp.json().await
+        .map_err(|e| AppError::Internal(format!("解析 daemon 响应失败: {}", e)))?;
+    let task_id = task_resp["task_id"].as_str()
+        .ok_or_else(|| AppError::Internal("daemon 未返回 task_id".to_string()))?
+        .to_string();
+
+    lg(&format!("📋 安装任务已提交: {}", task_id));
+
+    // Poll for completion and forward logs
+    let mut log_offset: usize = 0;
+    loop {
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+
+        let status_resp = daemon_client
+            .get(format!("{}/install_openclaw/{}", daemon_url.trim_end_matches('/'), task_id))
+            .bearer_auth(&decrypted_key)
+            .send()
+            .await;
+
+        match status_resp {
+            Ok(resp) if resp.status().is_success() => {
+                let task_state: serde_json::Value = resp.json().await
+                    .map_err(|e| AppError::Internal(format!("解析任务状态失败: {}", e)))?;
+
+                let state = &task_state["state"];
+                let status = state["status"].as_str().unwrap_or("unknown");
+                let progress = state["progress"].as_u64().unwrap_or(0);
+                let current_step = state["current_step"].as_str().unwrap_or("");
+
+                // Forward new logs by tracking offset
+                if let Some(logs_arr) = state["logs"].as_array() {
+                    for log_entry in &logs_arr[log_offset..] {
+                        if let Some(log_str) = log_entry.as_str() {
+                            lg(log_str);
+                        }
+                    }
+                    log_offset = logs_arr.len();
+                }
+
+                lg(&format!("   [{}%] {}", progress, current_step));
+
+                if status == "success" {
+                    return Ok(InstallDaemonResult {
+                        ok: true,
+                        logs,
+                        error: None,
+                        daemon_url: None,
+                        api_key: None,
+                        already_running: None,
+                    });
+                } else if status == "failed" {
+                    let error_msg = state["error"].as_str().unwrap_or("未知错误").to_string();
+                    return Ok(InstallDaemonResult {
+                        ok: false,
+                        logs,
+                        error: Some(error_msg),
+                        daemon_url: None,
+                        api_key: None,
+                        already_running: None,
+                    });
+                }
+                // Continue polling for "running" or "pending"
+            }
+            Ok(resp) => {
+                let body = resp.text().await.unwrap_or_default();
+                return Ok(InstallDaemonResult {
+                    ok: false,
+                    logs,
+                    error: Some(format!("daemon 查询失败: {}", body)),
+                    daemon_url: None,
+                    api_key: None,
+                    already_running: None,
+                });
+            }
+            Err(e) => {
+                lg(&format!("⚠️  连接 daemon 超时: {}", e));
+                // Continue polling, daemon might be busy
+            }
         }
-        line.clear();
     }
-
-    let onboard_status = onboard_child.wait().await?;
-
-    if !onboard_status.success() {
-        lg("⚠️  服务注册失败（可选步骤，可手动执行）");
-    } else {
-        lg("✅ OpenClaw 系统服务已注册");
-    }
-
-    Ok(InstallDaemonResult {
-        ok: true,
-        logs,
-        error: None,
-        daemon_url: None,
-        api_key: None,
-        already_running: None,
-    })
 }
 
 /// Probe local daemon for running daemon on common ports
@@ -509,4 +603,88 @@ pub async fn probe_remote_daemon(
 #[tauri::command]
 pub async fn get_local_daemon_version() -> Result<Option<String>> {
     office_service::get_local_daemon_version().await
+}
+
+// ── Unit Tests ─────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_offline_package_url_linux_x64() {
+        let url = build_offline_package_url("2026.4.9", "linux", "x64");
+        assert_eq!(
+            url,
+            "https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-linux-x64.tar.gz"
+        );
+    }
+
+    #[test]
+    fn test_build_offline_package_url_linux_arm64() {
+        let url = build_offline_package_url("2026.4.9", "linux", "arm64");
+        assert_eq!(
+            url,
+            "https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-linux-arm64.tar.gz"
+        );
+    }
+
+    #[test]
+    fn test_build_offline_package_url_darwin_arm64() {
+        let url = build_offline_package_url("2026.4.9", "darwin", "arm64");
+        assert_eq!(
+            url,
+            "https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-darwin-arm64.tar.gz"
+        );
+    }
+
+    #[test]
+    fn test_build_offline_package_url_windows_x64() {
+        let url = build_offline_package_url("2026.4.9", "windows", "x64");
+        assert_eq!(
+            url,
+            "https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-windows-x64.zip"
+        );
+    }
+
+    #[test]
+    fn test_build_offline_package_url_windows_arm64() {
+        let url = build_offline_package_url("2026.4.9", "windows", "arm64");
+        assert_eq!(
+            url,
+            "https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-windows-arm64.zip"
+        );
+    }
+
+    #[test]
+    fn test_build_offline_package_url_contains_version() {
+        let url = build_offline_package_url("2026.5.0", "linux", "x64");
+        assert!(url.contains("v2026.5.0"));
+        assert!(url.contains("openclaw-pkgs-v2026.5.0"));
+    }
+
+    #[test]
+    fn test_normalize_arch_arm64() {
+        assert_eq!(normalize_arch("arm64"), "arm64");
+    }
+
+    #[test]
+    fn test_normalize_arch_aarch64() {
+        assert_eq!(normalize_arch("aarch64"), "arm64");
+    }
+
+    #[test]
+    fn test_normalize_arch_x64() {
+        assert_eq!(normalize_arch("x64"), "x64");
+    }
+
+    #[test]
+    fn test_normalize_arch_x86_64() {
+        assert_eq!(normalize_arch("x86_64"), "x64");
+    }
+
+    #[test]
+    fn test_normalize_arch_other_returns_x64() {
+        assert_eq!(normalize_arch("ia32"), "x64");
+    }
 }

@@ -1,6 +1,7 @@
 mod auth;
 mod deploy;
 mod error;
+mod install;
 mod openclaw_client;
 mod routes;
 mod scheduler;
@@ -185,12 +186,15 @@ async fn main() {
         }
     });
 
-    // Authenticated routes for deploy (existing)
+    // Authenticated routes for deploy and install (existing)
     let protected_deploy = Router::new()
         .route("/restart_openclaw", post(routes::restart_openclaw))
         .route("/deploy", post(routes::deploy))
         .route("/deploy/:task_id", get(routes::deploy_status))
         .route("/rollback", post(routes::rollback))
+        .route("/install_openclaw", post(routes::install_openclaw))
+        .route("/install_openclaw/:task_id", get(routes::install_status))
+        .route("/install_openclaw/:task_id/sse", get(routes::install_sse))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             auth::require_auth,

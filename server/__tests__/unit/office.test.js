@@ -2,6 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import request from 'supertest'
 import { createTestDb, makeOffice } from '../helpers/db.js'
 import { createTestApp } from '../helpers/app.js'
+import {
+  detectPlatformArch,
+  buildOfflinePackageUrl,
+  parseSha256Content,
+  normalizeArch
+} from '../../routes/office.js'
 
 describe('Office Routes', () => {
   let db, app
@@ -95,6 +101,110 @@ describe('Office Routes', () => {
       expect(res.status).toBe(200)
       expect(res.body.ok).toBe(false)
       expect(res.body.error).toContain('未配置')
+    })
+  })
+})
+
+// ── OpenClaw Offline Package Helper Tests ─────────────────────────────────────
+
+describe('OpenClaw Offline Package Helpers', () => {
+  describe('detectPlatformArch', () => {
+    it('返回正确的平台和架构', () => {
+      const { platform, arch } = detectPlatformArch()
+      // 验证返回值是有效值
+      expect(['darwin', 'linux', 'windows']).toContain(platform)
+      expect(['x64', 'arm64']).toContain(arch)
+    })
+  })
+
+  describe('buildOfflinePackageUrl', () => {
+    it('为 Linux x64 生成正确的 URL', () => {
+      const url = buildOfflinePackageUrl('2026.4.9', 'linux', 'x64')
+      expect(url).toBe(
+        'https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-linux-x64.tar.gz'
+      )
+    })
+
+    it('为 Linux arm64 生成正确的 URL', () => {
+      const url = buildOfflinePackageUrl('2026.4.9', 'linux', 'arm64')
+      expect(url).toBe(
+        'https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-linux-arm64.tar.gz'
+      )
+    })
+
+    it('为 macOS arm64 生成正确的 URL', () => {
+      const url = buildOfflinePackageUrl('2026.4.9', 'darwin', 'arm64')
+      expect(url).toBe(
+        'https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-darwin-arm64.tar.gz'
+      )
+    })
+
+    it('为 Windows x64 生成正确的 URL（使用 .zip 扩展名）', () => {
+      const url = buildOfflinePackageUrl('2026.4.9', 'windows', 'x64')
+      expect(url).toBe(
+        'https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-windows-x64.zip'
+      )
+    })
+
+    it('为 Windows arm64 生成正确的 URL', () => {
+      const url = buildOfflinePackageUrl('2026.4.9', 'windows', 'arm64')
+      expect(url).toBe(
+        'https://github.com/hashibit/openclaw-pkgs/releases/download/v2026.4.9/openclaw-pkgs-v2026.4.9-windows-arm64.zip'
+      )
+    })
+
+    it('包含版本号', () => {
+      const url = buildOfflinePackageUrl('2026.5.0', 'linux', 'x64')
+      expect(url).toContain('v2026.5.0')
+      expect(url).toContain('openclaw-pkgs-v2026.5.0')
+    })
+  })
+
+  describe('parseSha256Content', () => {
+    it('解析标准格式（hash + 文件名）', () => {
+      const content = '3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254  openclaw-pkgs.tar.gz'
+      const hash = parseSha256Content(content)
+      expect(hash).toBe('3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254')
+    })
+
+    it('解析纯 hash 格式', () => {
+      const content = '3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254'
+      const hash = parseSha256Content(content)
+      expect(hash).toBe('3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254')
+    })
+
+    it('处理前导空格', () => {
+      const content = '   3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254'
+      const hash = parseSha256Content(content)
+      expect(hash).toBe('3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254')
+    })
+
+    it('处理后导空格', () => {
+      const content = '3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254   \n'
+      const hash = parseSha256Content(content)
+      expect(hash).toBe('3ea217398a2d7d2f62b65893dad9ba0963459047b0bfc3b78b7f6fd874ba7254')
+    })
+  })
+
+  describe('normalizeArch', () => {
+    it('arm64 返回 arm64', () => {
+      expect(normalizeArch('arm64')).toBe('arm64')
+    })
+
+    it('aarch64 返回 arm64', () => {
+      expect(normalizeArch('aarch64')).toBe('arm64')
+    })
+
+    it('x64 返回 x64', () => {
+      expect(normalizeArch('x64')).toBe('x64')
+    })
+
+    it('x86_64 返回 x64', () => {
+      expect(normalizeArch('x86_64')).toBe('x64')
+    })
+
+    it('其他值返回 x64', () => {
+      expect(normalizeArch('ia32')).toBe('x64')
     })
   })
 })

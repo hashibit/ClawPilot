@@ -1,17 +1,20 @@
 use axum::{
     body::Bytes,
     extract::{Multipart, Path, State},
+    response::sse::{Event, Sse},
     Json,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 use uuid::Uuid;
 
 use crate::{
     deploy::{openclaw_gateway_status, openclaw_version, run_deploy, run_rollback},
     error::{AppError, Result},
-    state::{AppState, TaskRecord},
+    install::{run_install_openclaw, InstallRequest},
+    state::{AppState, TaskRecord, TaskStatus},
 };
 
 // Configuration constants
@@ -57,9 +60,18 @@ pub async fn health(State(_state): State<AppState>) -> Json<Value> {
     let gw = openclaw_gateway_status();
     let openclaw_ver = openclaw_version();
 
+    let platform = if cfg!(target_os = "macos") { "darwin" }
+                   else if cfg!(target_os = "windows") { "windows" }
+                   else { "linux" };
+    let arch = if cfg!(target_arch = "aarch64") { "arm64" }
+               else if cfg!(target_arch = "x86_64") { "x64" }
+               else { std::env::consts::ARCH };
+
     Json(json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
+        "platform": platform,
+        "arch": arch,
         "openclaw_status": if gw.is_running { "running" } else { "stopped" },
         "openclaw_version": openclaw_ver,
     }))
@@ -208,4 +220,103 @@ pub async fn rollback(
         "status": "accepted",
         "message": "回滚任务已接受",
     })))
+}
+
+// ── POST /install_openclaw ──────────────────────────────────
+
+pub async fn install_openclaw(
+    State(state): State<AppState>,
+    Json(req): Json<InstallRequest>,
+) -> Json<Value> {
+    let task_id = format!("install-{}", Uuid::new_v4());
+    let record = TaskRecord::new(task_id.clone(), "openclaw-install".to_string());
+    state.tasks.insert(task_id.clone(), record);
+
+    tracing::info!(
+        task_id = %task_id,
+        version = %req.version,
+        platform = %req.platform,
+        arch = %req.arch,
+        "install_openclaw task accepted"
+    );
+
+    let state2 = state.clone();
+    let tid = task_id.clone();
+    tokio::spawn(async move {
+        run_install_openclaw(state2, tid, req).await;
+    });
+
+    Json(json!({
+        "task_id": task_id,
+        "status": "accepted",
+        "message": "安装任务已接受",
+    }))
+}
+
+// ── GET /install_openclaw/:task_id ─────────────────────────
+
+pub async fn install_status(
+    State(state): State<AppState>,
+    Path(task_id): Path<String>,
+) -> Result<Json<Value>> {
+    let task = state
+        .tasks
+        .get(&task_id)
+        .ok_or_else(|| AppError::NotFound(format!("任务不存在: {}", task_id)))?;
+
+    Ok(Json(serde_json::to_value(&*task)?))
+}
+
+// ── GET /install_openclaw/:task_id/sse ─────────────────────
+
+pub async fn install_sse(
+    State(state): State<AppState>,
+    Path(task_id): Path<String>,
+) -> Result<Sse<impl futures_core::Stream<Item = std::result::Result<Event, std::convert::Infallible>>>> {
+    if !state.tasks.contains_key(&task_id) {
+        return Err(AppError::NotFound(format!("任务不存在: {}", task_id)));
+    }
+
+    let stream = async_stream::stream! {
+        let state = state.clone();
+        let mut last_count: usize = 0;
+
+        // Send existing logs
+        if let Some(task) = state.tasks.get(&task_id) {
+            let logs = task.get_state().logs;
+            for (i, log_line) in logs.iter().enumerate() {
+                last_count = i + 1;
+                yield Ok(Event::default().data(log_line.clone()));
+            }
+        }
+
+        // Poll for new logs until task is complete
+        loop {
+            tokio::time::sleep(Duration::from_millis(200)).await;
+
+            if let Some(task) = state.tasks.get(&task_id) {
+                let task_state = task.get_state();
+                let new_logs = &task_state.logs[last_count..];
+                for log_line in new_logs {
+                    last_count += 1;
+                    yield Ok(Event::default().data(log_line.clone()));
+                }
+
+                // Stop streaming if task is complete
+                if matches!(task_state.status, TaskStatus::Success | TaskStatus::Failed) {
+                    yield Ok(Event::default().data("[DONE]"));
+                    break;
+                }
+            } else {
+                yield Ok(Event::default().data("[TASK_NOT_FOUND]"));
+                break;
+            }
+        }
+    };
+
+    Ok(Sse::new(stream).keep_alive(
+        axum::response::sse::KeepAlive::new()
+            .interval(Duration::from_secs(15))
+            .text("ping"),
+    ))
 }

@@ -30,6 +30,32 @@ pub struct AuthTestResult {
     pub message: Option<String>,
 }
 
+/// Run an SSH command and return stdout
+pub fn run_ssh_command(host: &str, port: u16, username: &str, key_path: Option<&str>, cmd: &str, timeout_secs: u64) -> Result<String, String> {
+    let mut ssh = format!(
+        "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout={timeout_secs} -o LogLevel=ERROR -p {port}"
+    );
+    if let Some(key) = key_path {
+        let expanded = expand_tilde(key);
+        ssh.push_str(&format!(" -i \"{expanded}\""));
+    }
+    ssh.push_str(&format!(" {username}@{host}"));
+
+    let full_cmd = format!("{ssh} {cmd}");
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(&full_cmd)
+        .output()
+        .map_err(|e| format!("执行 SSH 命令失败：{e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!("命令执行失败：{stderr}"));
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
 /// Expand ~ in path to home directory
 fn expand_tilde(path: &str) -> String {
     if path.starts_with("~/") || path == "~" {

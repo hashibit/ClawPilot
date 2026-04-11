@@ -270,6 +270,8 @@ pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealt
                 openclaw_version: json["openclaw_version"].as_str().map(String::from),
                 openclaw_status: json["openclaw_status"].as_str().map(String::from),
                 openclaw_pid: json["openclaw_pid"].as_u64().map(|v| v as u32),
+                platform: json["platform"].as_str().map(String::from),
+                arch: json["arch"].as_str().map(String::from),
                 active_tasks: json["active_tasks"].as_u64(),
                 error: None,
             },

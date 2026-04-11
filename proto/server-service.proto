@@ -943,6 +943,9 @@ message CheckDaemonHealthResponse {
   bool not_installed = 3;
   string openclaw_status = 4;
   int32 openclaw_pid = 5;
+  string platform = 6;
+  string arch = 7;
+  string openclaw_version = 8;
 }
 
 message CheckSshConnectionRequest {
@@ -969,6 +972,8 @@ message CheckSshAuthResponse {
   string error = 2;
   int32 latency_ms = 3;
   bool sudo_ok = 4;
+  string platform = 5;
+  string arch = 6;
 }
 
 message GetOpcOfficeRequest {
@@ -1004,6 +1009,9 @@ message InstallOpenclawRequest {
   string ssh_user = 5;
   string ssh_key_path = 6;
   string ssh_password = 7;
+  string version = 8;
+  string platform = 9;
+  string arch = 10;
 }
 
 message InstallOpenclawResponse {

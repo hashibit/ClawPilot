@@ -107,6 +107,8 @@ mod tests {
             openclaw_version: Some("0.5.0".to_string()),
             openclaw_status: Some("running".to_string()),
             openclaw_pid: Some(12345),
+            platform: Some("darwin".to_string()),
+            arch: Some("arm64".to_string()),
             active_tasks: Some(5),
         };
 
