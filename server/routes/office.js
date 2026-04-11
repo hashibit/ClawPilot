@@ -485,7 +485,7 @@ export function createOfficeRouter(db) {
   })
 
 // ── Daemon Install Helper ─────────────────────────────────────────
-// Shared logic for installing daemon, used by both install_daemon and install_openclaw
+// Shared logic for installing daemon, used by both install_daemon and install_decoration
 async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ssh_port, ssh_user, ssh_key_path, ssh_password, daemon_host }, step, writeLog) {
   const logs = []
   const nowUnix = () => Math.floor(Date.now() / 1000)
@@ -673,8 +673,8 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
     }
   })
 
-  // install_openclaw — auto-install daemon first if needed, then install openclaw via daemon API
-  router.post('/install_openclaw', async (req, res) => {
+  // install_decoration — auto-install daemon first if needed, then install openclaw via daemon API
+  router.post('/install_decoration', async (req, res) => {
     const {
       office_id,
       mode = 'local', daemon_port = 16668,
@@ -700,7 +700,7 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
       }
 
       logs.push(displayMsg)
-      log.info(`[install_openclaw] ${displayMsg}`)
+      log.info(`[install_decoration] ${displayMsg}`)
       if (office_id) {
         broadcastInstallLog(office_id, payload)
       }
@@ -815,7 +815,7 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
 
           if (status === 'success') {
             writeLog('INFO', `openclaw 安装完成: ${version}`)
-            return res.json({ ok: true, logs, version })
+            return res.json({ ok: true, logs, version, daemon_url: daemonUrl, api_key: apiKey })
           } else if (status === 'failed') {
             const errorMsg = state.error || '未知错误'
             return res.json({ ok: false, error: errorMsg, logs })
@@ -828,7 +828,7 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
       return res.json({ ok: false, error: '安装超时', logs })
     } catch (err) {
       lg(`❌ ${err.message}`)
-      writeLog('ERROR', `install_openclaw 失败: ${err.message}`)
+      writeLog('ERROR', `install_decoration 失败: ${err.message}`)
       res.json({ ok: false, error: err.message, logs })
     }
   })

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
-import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDaemon, installOpenclaw, probeLocalDaemon, probeRemoteDaemon, getLocalDaemonVersion } from '../lib/api'
+import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDecoration, probeLocalDaemon, probeRemoteDaemon, getLocalDaemonVersion } from '../lib/api'
 import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { Office, OfficeGrade, OfficeDeployment, AccessAuthType } from '../lib/types'
@@ -446,42 +446,30 @@ export default function OfficePage() {
             if (installAbortRef.current) { setInstallStep('idle'); return }
         }
 
-        // Step 1: install openclaw
+        // install_decoration: install daemon → connect → install openclaw (all in one)
         setInstallStep('openclaw')
         connectSSE() // Connect to SSE for real-time logs
         try {
-            lg(t('office.install_openclaw_start'))
-            const r1 = await installOpenclaw({ office_id: saved.id, mode, ...sshBase })
+            lg(t('office.install_decoration_start'))
+            const r = await installDecoration({ office_id: saved.id, mode, ...sshBase })
             closeSSE()
             // SSE already pushed logs in real-time, don't add duplicates
-            if (!r1.ok) { lg(`❌ ${r1.error ?? t('office.install_failed')}`); setInstallStep('error'); return }
-            lg(t('office.install_openclaw_done'))
-        } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); closeSSE(); return }
-        if (installAbortRef.current) { setInstallStep('idle'); closeSSE(); return }
+            if (!r.ok) { lg(`❌ ${r.error ?? t('office.install_failed')}`); setInstallStep('error'); return }
+            lg(t('office.install_decoration_done'))
 
-        // Step 2: install daemon
-        setInstallStep('daemon')
-        try {
-            lg(t('office.install_daemon_start'))
-            const r2 = await installDaemon({ office_id: saved.id, mode, ...sshBase })
-            // SSE already pushed logs in real-time, don't add duplicates
-            if (!r2.ok) { lg(`❌ ${r2.error ?? t('office.install_failed')}`); setInstallStep('error'); closeSSE(); return }
-            lg(t('office.install_daemon_done'))
-            if (r2.daemon_url && r2.api_key) {
-                // Clear health cache to force fresh check
-                healthCacheRef.current.delete(`${saved.id}:${r2.daemon_url}`)
-                // Immediately update selected and form to reflect new daemon info
-                const updatedOffice = { ...saved, daemon_url: r2.daemon_url, daemon_api_key: r2.api_key }
+            // Update daemon config in UI
+            if (r.daemon_url && r.api_key) {
+                healthCacheRef.current.delete(`${saved.id}:${r.daemon_url}`)
+                const updatedOffice = { ...saved, daemon_url: r.daemon_url, daemon_api_key: r.api_key }
                 setSelected(updatedOffice)
                 setForm(updatedOffice)
-                // Also update offices list entry
                 setOffices(prev => prev.map(o => o.id === saved.id ? updatedOffice : o))
                 loadOffices()
-                checkDaemon(r2.daemon_url, r2.api_key, { officeId: saved.id })
+                checkDaemon(r.daemon_url, r.api_key, { officeId: saved.id })
             }
             setInstallStep('done')
-        } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); }
-        closeSSE()
+        } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); closeSSE(); return }
+        if (installAbortRef.current) { setInstallStep('idle'); closeSSE(); return }
     }
 
     const handleInstallStop = () => {

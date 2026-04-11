@@ -248,7 +248,7 @@ export const deployToOffice = (opc_id: string, office_id: string) =>
 export const buildDeployPackage = (opc_id: string) =>
   call<{ ok: boolean; checksum?: string; size?: number }>('build_deploy_package', { opc_id })
 
-export interface InstallOpenclawParams {
+export interface InstallDecorationParams {
   office_id?: string
   mode: 'local' | 'ssh'
   ssh_host?: string
@@ -257,8 +257,8 @@ export interface InstallOpenclawParams {
   ssh_key_path?: string
   ssh_password?: string
 }
-export const installOpenclaw = (params: InstallOpenclawParams) =>
-  call<{ ok: boolean; logs: string[]; error?: string }>('install_openclaw', params as unknown as Record<string, unknown>)
+export const installDecoration = (params: InstallDecorationParams) =>
+  call<{ ok: boolean; logs: string[]; error?: string; version?: string; daemon_url?: string; api_key?: string }>('install_decoration', params as unknown as Record<string, unknown>)
 
 // ── Snapshot ──────────────────────────────────────────────
 // create_snapshot: server assembles the payload from opc_id — no config_data needed
