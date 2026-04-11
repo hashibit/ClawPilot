@@ -290,7 +290,7 @@ export function createOfficeRouter(db) {
         office.id, office.name,
         office.address ?? null,
         office.access_auth_type ?? 'password', office.access_user ?? null,
-        encrypt(office.access_password ?? null), office.ssh_key_path ?? null,
+        encrypt(office.access_password ?? null), office.ssh_key_path?.trim() ?? null,
         office.phone ?? null, office.receptionist_image ?? null,
         office.ownership ?? 'RENTED', office.monthly_rent ?? null,
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
@@ -322,7 +322,7 @@ export function createOfficeRouter(db) {
       const finalAccessAuthType = office.access_auth_type ?? existing.access_auth_type ?? 'password'
       const finalAccessUser = office.access_user ?? existing.access_user
       const finalAccessPassword = office.access_password !== undefined ? encrypt(office.access_password ?? null) : existing.access_password
-      const finalSshKeyPath = office.ssh_key_path ?? existing.ssh_key_path
+      const finalSshKeyPath = office.ssh_key_path?.trim() ?? existing.ssh_key_path
       const finalPhone = office.phone ?? existing.phone
       const finalReceptionistImage = office.receptionist_image ?? existing.receptionist_image
       const finalOwnership = office.ownership ?? existing.ownership ?? 'RENTED'
