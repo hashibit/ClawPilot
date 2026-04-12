@@ -4,6 +4,9 @@ use std::fs;
 
 use crate::error::{AppError, Result};
 
+/// GitHub release repo for downloading daemon binaries
+const RELEASE_REPO: &str = "hashibit/clawpilot-releases";
+
 /// Daemon 安装结果
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DaemonInstallResult {
@@ -200,6 +203,128 @@ fn copy_daemon_from_bundle(dest_path: &PathBuf, os: OsType, arch: Arch) -> Resul
     ))
 }
 
+/// 判断是否在开发模式（未打包的 Tauri 环境）
+fn is_dev_mode() -> bool {
+    // In dev mode, CARGO_MANIFEST_DIR is set at compile time and the exe is in target/debug
+    let current_exe = match std::env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return false,
+    };
+    let exe_str = current_exe.to_string_lossy();
+    // Dev mode: running from target/debug or via cargo
+    exe_str.contains("target/debug") || exe_str.contains("target/release/clawpilot")
+}
+
+/// 获取 daemon 缓存目录 (~/.clawpilot/bin/cache/)
+fn get_daemon_cache_dir() -> Result<PathBuf> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| AppError::NotFound("home 目录不存在".to_string()))?;
+    let cache_dir = home.join(".clawpilot").join("bin").join("cache");
+    fs::create_dir_all(&cache_dir)?;
+    Ok(cache_dir)
+}
+
+/// 从 GitHub Releases 下载 daemon binary 到本地缓存
+///
+/// 下载路径: ~/.clawpilot/bin/cache/clawpilot-daemon-{os}-{arch}
+/// Release asset 命名: clawpilot-daemon-v{version}-{os}-{arch}
+fn download_daemon_from_release(dest_path: &PathBuf, os: OsType, arch: Arch) -> Result<()> {
+    let os_suffix = os.resource_suffix();
+    let arch_suffix = arch.resource_suffix();
+
+    // 1. Query latest release tag from GitHub API
+    tracing::info!("查询 {} 最新 release...", RELEASE_REPO);
+    let tag_output = Command::new("gh")
+        .args(["release", "view", "--repo", RELEASE_REPO, "--json", "tagName", "-q", ".tagName"])
+        .output()
+        .map_err(|e| AppError::Internal(format!("gh CLI 不可用: {}", e)))?;
+
+    if !tag_output.status.success() {
+        return Err(AppError::Internal(format!(
+            "获取最新 release 失败: {}",
+            String::from_utf8_lossy(&tag_output.stderr)
+        )));
+    }
+
+    let tag = String::from_utf8_lossy(&tag_output.stdout).trim().to_string();
+    if tag.is_empty() {
+        return Err(AppError::NotFound("GitHub release 不存在，请先发布".to_string()));
+    }
+
+    // 2. Build asset name pattern: clawpilot-daemon-v*-{os}-{arch}
+    let asset_pattern = format!("clawpilot-daemon-*-{}-{}", os_suffix, arch_suffix);
+
+    // 3. Download via gh release download
+    let cache_dir = get_daemon_cache_dir()?;
+    tracing::info!("从 release {} 下载 daemon ({}-{})...", tag, os_suffix, arch_suffix);
+
+    let dl_output = Command::new("gh")
+        .args([
+            "release", "download", &tag,
+            "--repo", RELEASE_REPO,
+            "--pattern", &asset_pattern,
+            "--dir", &cache_dir.to_string_lossy(),
+            "--clobber",
+        ])
+        .output()
+        .map_err(|e| AppError::Internal(format!("gh release download 失败: {}", e)))?;
+
+    if !dl_output.status.success() {
+        return Err(AppError::Internal(format!(
+            "下载 daemon binary 失败: {}",
+            String::from_utf8_lossy(&dl_output.stderr)
+        )));
+    }
+
+    // 4. Find the downloaded file (clawpilot-daemon-v{version}-{os}-{arch})
+    let prefix = format!("clawpilot-daemon-");
+    let suffix = format!("-{}-{}", os_suffix, arch_suffix);
+    let mut found = None;
+    for entry in fs::read_dir(&cache_dir)?.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with(&prefix) && name.ends_with(&suffix) {
+            found = Some(entry.path());
+            break;
+        }
+    }
+
+    let downloaded_path = found.ok_or_else(|| {
+        AppError::NotFound(format!(
+            "下载完成但未找到匹配文件: {}-{}", os_suffix, arch_suffix
+        ))
+    })?;
+
+    // 5. Copy to dest and make executable
+    fs::copy(&downloaded_path, dest_path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(dest_path)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(dest_path, perms)?;
+    }
+
+    tracing::info!("daemon binary 已下载到 {}", dest_path.display());
+    Ok(())
+}
+
+/// 获取 daemon binary：先从 bundle 复制，失败则从 GitHub Releases 下载
+fn resolve_daemon_binary(dest_path: &PathBuf, os: OsType, arch: Arch) -> Result<()> {
+    // Dev mode: only try bundle/local resources
+    if is_dev_mode() {
+        return copy_daemon_from_bundle(dest_path, os, arch);
+    }
+
+    // Production: try bundle first, then download
+    match copy_daemon_from_bundle(dest_path, os, arch) {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            tracing::info!("bundle 中未找到 daemon，尝试从 GitHub Releases 下载...");
+            download_daemon_from_release(dest_path, os, arch)
+        }
+    }
+}
+
 /// 从 SSH 前缀字符串中提取 `-i "key_path"` 选项（用于 SCP 命令）
 fn extract_ssh_key_arg(ssh_prefix: &str) -> String {
     if let Some(start) = ssh_prefix.find("-i \"") {
@@ -242,7 +367,7 @@ pub fn install_daemon_binary(
         let temp_path = std::env::temp_dir().join("clawpilot-daemon-temp");
 
         // 从 Tauri bundle 中提取对应架构的 binary
-        copy_daemon_from_bundle(&temp_path, target_os, target_arch)?;
+        resolve_daemon_binary(&temp_path, target_os, target_arch)?;
 
         // SCP 到远程（从 ssh_prefix 提取 key 和 port，确保与 SSH 命令一致）
         let user = tgt.split('@').next().unwrap_or("root");
@@ -287,8 +412,8 @@ pub fn install_daemon_binary(
 
         Ok(remote_bin_path.to_string())
     } else {
-        // 本地安装：从 bundle 复制
-        copy_daemon_from_bundle(&daemon_path, target_os, target_arch)?;
+        // 本地安装：从 bundle 复制，或从 GitHub Releases 下载
+        resolve_daemon_binary(&daemon_path, target_os, target_arch)?;
         Ok(daemon_path.display().to_string())
     }
 }

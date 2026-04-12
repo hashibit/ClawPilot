@@ -175,14 +175,52 @@ export function normalizeArch(arch) {
   return 'x64'
 }
 
-async function findDaemonBinary({ linux = false, arch = 'aarch64' } = {}) {
-  if (!linux) {
-    try {
-      const { stdout } = await execAsync('which clawpilot-daemon')
-      const p = stdout.trim()
-      if (p && existsSync(p)) return p
-    } catch {}
+const RELEASE_REPO = 'hashibit/clawpilot-releases'
+
+/**
+ * Download daemon binary from GitHub Releases to local cache
+ * @param {string} os - 'macos' or 'linux'
+ * @param {string} arch - 'x64' or 'arm64'
+ * @returns {Promise<string|null>} - Path to downloaded binary, or null on failure
+ */
+async function downloadDaemonFromRelease(os, arch) {
+  const cacheDir = join(homedir(), '.clawpilot', 'bin', 'cache')
+  mkdirSync(cacheDir, { recursive: true })
+
+  try {
+    // Get latest release tag
+    const { stdout: tag } = await execAsync(
+      `gh release view --repo ${RELEASE_REPO} --json tagName -q .tagName`
+    )
+    const trimmedTag = tag.trim()
+    if (!trimmedTag) return null
+
+    // Download matching asset
+    const pattern = `clawpilot-daemon-*-${os}-${arch}`
+    await execAsync(
+      `gh release download "${trimmedTag}" --repo ${RELEASE_REPO} --pattern "${pattern}" --dir "${cacheDir}" --clobber`
+    )
+
+    // Find the downloaded file
+    const { readdirSync } = await import('fs')
+    const files = readdirSync(cacheDir)
+    const match = files.find(f => f.startsWith('clawpilot-daemon-') && f.endsWith(`-${os}-${arch}`))
+    if (!match) return null
+
+    const binPath = join(cacheDir, match)
+    await execAsync(`chmod +x "${binPath}"`)
+    log.info(`daemon binary downloaded: ${binPath}`)
+    return binPath
+  } catch (err) {
+    log.warn(`Failed to download daemon from release: ${err.message}`)
+    return null
   }
+}
+
+/**
+ * Find daemon binary from local build outputs (dev mode)
+ */
+function findDaemonBinaryLocal({ linux = false, arch = 'aarch64' } = {}) {
   const base = join(__dirname, '..', '..', 'daemon', 'target')
   const ARCH_TO_TARGET = {
     'aarch64': ['aarch64-unknown-linux-gnu', 'aarch64-unknown-linux-musl'],
@@ -199,10 +237,52 @@ async function findDaemonBinary({ linux = false, arch = 'aarch64' } = {}) {
         join(base, 'release', 'clawpilot-daemon'),
         join(base, 'debug', 'clawpilot-daemon'),
       ]
+
+  // Also check resources folder (dev bundled binaries)
+  const resourcesDir = join(__dirname, '..', '..', 'src-tauri', 'resources')
+  const normalizedArch = normalizeArch(arch)
+  const osName = linux ? 'linux' : (process.platform === 'darwin' ? 'macos' : 'linux')
+  candidates.push(join(resourcesDir, `clawpilot-daemon-${osName}-${normalizedArch}`))
+
   for (const c of candidates) {
     if (existsSync(resolve(c))) return resolve(c)
   }
   return null
+}
+
+/**
+ * Find daemon binary: local build first, then GitHub Releases download
+ * @param {{ linux?: boolean, arch?: string, os?: string }} opts
+ * @returns {Promise<string|null>}
+ */
+async function findDaemonBinary({ linux = false, arch = 'aarch64', os = '' } = {}) {
+  // Check PATH first (non-linux = local daemon)
+  if (!linux) {
+    try {
+      const { stdout } = await execAsync('which clawpilot-daemon')
+      const p = stdout.trim()
+      if (p && existsSync(p)) return p
+    } catch {}
+  }
+
+  // Check local build outputs and resources (dev mode)
+  const localBin = findDaemonBinaryLocal({ linux, arch })
+  if (localBin) return localBin
+
+  // Check existing cache
+  const normalizedArch = normalizeArch(arch)
+  const osName = os || (linux ? 'linux' : (process.platform === 'darwin' ? 'macos' : 'linux'))
+  const cacheDir = join(homedir(), '.clawpilot', 'bin', 'cache')
+  if (existsSync(cacheDir)) {
+    const { readdirSync } = await import('fs')
+    const files = readdirSync(cacheDir)
+    const match = files.find(f => f.startsWith('clawpilot-daemon-') && f.endsWith(`-${osName}-${normalizedArch}`))
+    if (match) return join(cacheDir, match)
+  }
+
+  // Download from GitHub Releases
+  log.info(`Local daemon binary not found for ${osName}-${normalizedArch}, downloading from GitHub Releases...`)
+  return await downloadDaemonFromRelease(osName, normalizedArch)
 }
 
 async function isDaemonRunning(url) {
@@ -639,10 +719,11 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
     const { arch: remoteArch, os: remoteOs } = await detectArch(sshOpts)
     step(`✅ 远程系统: ${remoteOs} ${remoteArch}`)
 
-    step('🔍 查找本地 daemon 二进制（Linux）...')
-    const binPath = await findDaemonBinary({ linux: true, arch: remoteArch })
+    const remoteOsName = remoteOs.toLowerCase().includes('darwin') ? 'macos' : 'linux'
+    step(`🔍 查找 daemon 二进制 (${remoteOsName}-${normalizeArch(remoteArch)})...`)
+    const binPath = await findDaemonBinary({ linux: remoteOsName === 'linux', arch: remoteArch, os: remoteOsName })
     if (!binPath) {
-      throw new Error(`未找到 ${remoteOs}/${remoteArch} 版 clawpilot-daemon 二进制，请先编译对应目标`)
+      throw new Error(`未找到 ${remoteOsName}/${normalizeArch(remoteArch)} 版 clawpilot-daemon 二进制，请先编译或发布到 GitHub Releases`)
     }
     step(`✅ 找到: ${binPath}`)
 
