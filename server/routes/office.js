@@ -9,7 +9,7 @@ import { randomBytes } from 'crypto'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
 import { encrypt, decrypt } from '../utils/crypto.js'
-import { sshExecRaw, checkConnection, detectArch, commandExists, readFile, uploadFile } from '../utils/ssh.js'
+import { sshExecRaw, checkConnection, detectArch, commandExists, readFile, uploadFile, sshHttpRequest } from '../utils/ssh.js'
 
 const log = createLogger('office')
 
@@ -386,9 +386,35 @@ export function createOfficeRouter(db) {
 
   // check_daemon_health
   router.post('/check_daemon_health', async (req, res) => {
-    const { daemon_url, daemon_api_key } = req.body
+    const { daemon_url, daemon_api_key, office_id } = req.body
     if (!daemon_url) return res.json({ ok: false, error: '未配置 Daemon URL' })
+
     try {
+      // 远程 daemon 只监听 127.0.0.1，通过 SSH 隧道访问
+      if (office_id) {
+        const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+        if (office) {
+          const address = office.address || ''
+          const isRemote = address && address !== 'localhost'
+          if (isRemote) {
+            const idx = address.lastIndexOf(':')
+            const host = idx >= 0 ? address.slice(0, idx) : address
+            const sshPort = idx >= 0 ? parseInt(address.slice(idx + 1)) || 22 : 22
+            const sshOpts = {
+              host,
+              port: sshPort,
+              user: office.access_user || 'root',
+              keyPath: office.ssh_key_path || undefined,
+              password: office.access_password ? decrypt(office.access_password) : undefined,
+            }
+            const { status, data } = await sshHttpRequest(sshOpts, 'GET', '/health', decrypt(office.daemon_api_key) || daemon_api_key)
+            if (status >= 200 && status < 300) return res.json({ ok: true, ...data })
+            return res.json({ ok: false, error: `HTTP ${status}` })
+          }
+        }
+      }
+
+      // 本地直连
       const url = `${daemon_url.replace(/\/$/, '')}/health`
       const r = await fetch(url, {
         headers: { 'Authorization': `Bearer ${daemon_api_key ?? ''}` },
@@ -399,7 +425,6 @@ export function createOfficeRouter(db) {
       log.debug('daemon health response:', JSON.stringify(data))
       res.json({ ok: true, ...data })
     } catch (err) {
-      // Translate common errors to user-friendly messages
       const msg = err.message || ''
       if (msg.includes('abort') || msg.includes('timeout') || msg.includes('Timeout')) {
         res.json({ ok: false, error: '连接超时', not_installed: true })
@@ -604,47 +629,54 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
 
     step('office.install.uploading_daemon')
     await uploadFile(sshOpts, binPath, '/tmp/clawpilot-daemon')
-    await sshExecRaw(sshOpts, 'chmod +x /tmp/clawpilot-daemon && sudo mv /tmp/clawpilot-daemon /usr/local/bin/clawpilot-daemon')
+    await sshExecRaw(sshOpts, 'mkdir -p ~/.clawpilot/bin && mv /tmp/clawpilot-daemon ~/.clawpilot/bin/clawpilot-daemon && chmod +x ~/.clawpilot/bin/clawpilot-daemon')
     step('office.install.daemon_uploaded')
 
+    // 在 daemon 启动前写入 API key，daemon 启动时会读取它
+    step('🔑 生成 API Key...')
+    const apiKey = randomBytes(32).toString('hex')
+    await sshExecRaw(sshOpts, `mkdir -p ~/.clawpilot && printf '%s' '${apiKey}' > ~/.clawpilot/daemon.key && chmod 600 ~/.clawpilot/daemon.key`, { timeout: 5000 })
+    step('🔑 API Key 已就绪')
+
     step('🔧 安装 systemd 用户服务...')
+    // %h 由 systemd 在远程机器上展开为用户 home，daemon 只监听 127.0.0.1
     const serviceUnit = [
       '[Unit]',
-      'Description=ClawPilot Deploy Daemon',
+      'Description=ClawPilot Daemon',
       'After=network.target',
       '',
       '[Service]',
       'Type=simple',
-      `ExecStart=/usr/local/bin/clawpilot-daemon --listen 0.0.0.0:${daemon_port}`,
+      `ExecStart=%h/.clawpilot/bin/clawpilot-daemon --listen 127.0.0.1:${daemon_port}`,
       'Restart=on-failure',
       'RestartSec=5',
-      `Environment="PATH=/home/${ssh_user}/.npm-global/bin:/home/${ssh_user}/.local/bin:/usr/local/bin:/usr/bin:/bin"`,
+      'WorkingDirectory=%h/.clawpilot',
+      'Environment=PATH=/usr/bin:/bin:/usr/sbin:/sbin',
+      '',
+      `StandardOutput=append:%h/.clawpilot/logs/daemon.log`,
+      `StandardError=append:%h/.clawpilot/logs/daemon.log`,
       '',
       '[Install]',
       'WantedBy=default.target',
     ].join('\n')
     const encodedUnit = Buffer.from(serviceUnit).toString('base64')
-    await sshExecRaw(sshOpts, `mkdir -p ~/.config/systemd/user && echo '${encodedUnit}' | base64 -d > ~/.config/systemd/user/clawpilot-daemon.service && systemctl --user daemon-reload && systemctl --user enable clawpilot-daemon && systemctl --user start clawpilot-daemon`)
+    const uid = (await sshExecRaw(sshOpts, 'id -u')).stdout.trim()
+    await sshExecRaw(sshOpts, `mkdir -p ~/.clawpilot/logs ~/.config/systemd/user && echo '${encodedUnit}' | base64 -d > ~/.config/systemd/user/clawpilot-daemon.service && XDG_RUNTIME_DIR=/run/user/${uid} systemctl --user daemon-reload && XDG_RUNTIME_DIR=/run/user/${uid} systemctl --user enable --now clawpilot-daemon.service`)
     step('✅ systemd 用户服务已启用')
 
+    // daemon 只监听 127.0.0.1，通过 SSH 隧道等待就绪
     step('⏳ 等待远程 daemon 就绪...')
-    const bareHost = daemon_host || ssh_host
-    const daemonUrl = `http://${bareHost}:${daemon_port}`
+    const daemonUrl = `http://127.0.0.1:${daemon_port}`
     let started = false
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 1000))
-      if (await isDaemonRunning(daemonUrl)) { started = true; break }
+      try {
+        const { status } = await sshHttpRequest(sshOpts, 'GET', '/health', apiKey)
+        if (status >= 200 && status < 300) { started = true; break }
+      } catch { /* 继续等待 */ }
     }
     if (!started) throw new Error('远程 daemon 启动超时')
     step('✅ 远程 daemon 已就绪')
-
-    let apiKey = await readFile(sshOpts, '~/.clawpilot/daemon.key').then(s => s.trim()).catch(() => null)
-    if (!apiKey) {
-      step('🔑 生成新的 API Key...')
-      apiKey = randomBytes(32).toString('hex')
-      await sshExecRaw(sshOpts, `mkdir -p ~/.clawpilot && echo '${apiKey}' > ~/.clawpilot/daemon.key`, { timeout: 5000 })
-    }
-    step('🔑 API Key 已就绪')
 
     if (office_id && apiKey) {
       db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
@@ -736,12 +768,35 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
       return data.tag_name.replace(/^v/, '')
     }
 
+    // SSH opts（供平台探测和隧道访问复用）
+    const isRemote = mode === 'ssh'
+    const sshOpts = isRemote ? {
+      host: ssh_host,
+      port: ssh_port,
+      user: ssh_user || 'root',
+      password: ssh_password || undefined,
+      keyPath: ssh_key_path || undefined,
+    } : null
+
     try {
       // Get office info
       const officeRow = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
       if (!officeRow) {
         return res.json({ ok: false, error: '办公室不存在', logs })
       }
+
+      // 通过 SSH（或本地）探测目标平台/架构，不依赖 daemon health
+      lg('🔍 探测目标平台信息...')
+      let targetPlatform, targetArch
+      if (isRemote) {
+        const { arch, os } = await detectArch(sshOpts)
+        targetPlatform = os.toLowerCase().includes('darwin') ? 'darwin' : 'linux'
+        targetArch = (arch === 'aarch64' || arch === 'arm64') ? 'arm64' : 'x64'
+      } else {
+        targetPlatform = process.platform === 'darwin' ? 'darwin' : 'linux'
+        targetArch = process.arch === 'arm64' ? 'arm64' : 'x64'
+      }
+      lg(`   平台: ${targetPlatform}, 架构: ${targetArch}`)
 
       // If daemon not installed, install it first
       let daemonUrl = officeRow.daemon_url
@@ -757,53 +812,37 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
         lg('✅ Daemon 安装完成，继续安装 OpenClaw...')
       }
 
-      lg('📡 连接 daemon...')
+      lg(`📡 连接 daemon: ${daemonUrl}`)
 
       // Get version from GitHub
       const version = await getLatestVersion()
       lg(`   最新版本: ${version}`)
 
-      // Get platform/arch from daemon health
-      const healthResp = await fetch(`${daemonUrl.replace(/\/$/, '')}/health`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(5000),
-      })
-      if (!healthResp.ok) {
-        return res.json({ ok: false, error: `Daemon health 检查失败: HTTP ${healthResp.status}`, logs })
-      }
-      const healthData = await healthResp.json()
-      const targetPlatform = healthData.platform || 'linux'
-      const targetArch = healthData.arch || 'x64'
-      lg(`   平台: ${targetPlatform}, 架构: ${targetArch}`)
-
-      // Submit install task to daemon
+      // 提交安装任务（远程走 SSH 隧道，本地直连）
       const downloadUrl = buildOfflinePackageUrl(version, targetPlatform, targetArch)
       const sha256Url = `${downloadUrl}.sha256`
+      const installBody = { version, platform: targetPlatform, arch: targetArch, download_url: downloadUrl, sha256_url: sha256Url }
 
       lg('📤 提交安装任务到 daemon...')
-      const installResp = await fetch(`${daemonUrl.replace(/\/$/, '')}/install_openclaw`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          version,
-          platform: targetPlatform,
-          arch: targetArch,
-          download_url: downloadUrl,
-          sha256_url: sha256Url,
-        }),
-        signal: AbortSignal.timeout(30000),
-      })
-
-      if (!installResp.ok) {
-        const body = await installResp.text()
-        return res.json({ ok: false, error: `daemon 返回错误: ${body}`, logs })
+      let taskId
+      if (isRemote) {
+        const { status, data } = await sshHttpRequest(sshOpts, 'POST', '/install_openclaw', apiKey, installBody)
+        if (status < 200 || status >= 300) return res.json({ ok: false, error: `daemon 返回错误: ${JSON.stringify(data)}`, logs })
+        taskId = data?.task_id
+      } else {
+        const installResp = await fetch(`${daemonUrl.replace(/\/$/, '')}/install_openclaw`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(installBody),
+          signal: AbortSignal.timeout(30000),
+        })
+        if (!installResp.ok) {
+          const body = await installResp.text()
+          return res.json({ ok: false, error: `daemon 返回错误: ${body}`, logs })
+        }
+        taskId = (await installResp.json()).task_id
       }
-
-      const installData = await installResp.json()
-      const taskId = installData.task_id
+      if (!taskId) return res.json({ ok: false, error: 'daemon 未返回 task_id', logs })
       lg(`📋 安装任务已提交: ${taskId}`)
 
       // Poll for completion
@@ -812,34 +851,35 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
         await new Promise(r => setTimeout(r, 2000))
 
         try {
-          const statusResp = await fetch(`${daemonUrl.replace(/\/$/, '')}/install_openclaw/${taskId}`, {
-            headers: { 'Authorization': `Bearer ${apiKey}` },
-            signal: AbortSignal.timeout(5000),
-          })
-          if (!statusResp.ok) continue
+          let state
+          if (isRemote) {
+            const { status, data } = await sshHttpRequest(sshOpts, 'GET', `/install_openclaw/${taskId}`, apiKey)
+            if (status < 200 || status >= 300) continue
+            state = data?.state || {}
+          } else {
+            const statusResp = await fetch(`${daemonUrl.replace(/\/$/, '')}/install_openclaw/${taskId}`, {
+              headers: { 'Authorization': `Bearer ${apiKey}` },
+              signal: AbortSignal.timeout(5000),
+            })
+            if (!statusResp.ok) continue
+            state = (await statusResp.json()).state || {}
+          }
 
-          const taskState = await statusResp.json()
-          const state = taskState.state || {}
           const status = state.status || 'unknown'
           const progress = state.progress || 0
           const currentStep = state.current_step || ''
 
-          // Forward new logs
           if (Array.isArray(state.logs)) {
-            for (const logLine of state.logs.slice(logOffset)) {
-              lg(logLine)
-            }
+            for (const logLine of state.logs.slice(logOffset)) lg(logLine)
             logOffset = state.logs.length
           }
-
           lg(`   [${progress}%] ${currentStep}`)
 
           if (status === 'success') {
             writeLog('INFO', `openclaw 安装完成: ${version}`)
             return res.json({ ok: true, logs, version, daemon_url: daemonUrl, api_key: apiKey })
           } else if (status === 'failed') {
-            const errorMsg = state.error || '未知错误'
-            return res.json({ ok: false, error: errorMsg, logs })
+            return res.json({ ok: false, error: state.error || '未知错误', logs })
           }
         } catch (err) {
           lg(`⚠️  查询状态失败: ${err.message}`)

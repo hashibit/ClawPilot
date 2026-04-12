@@ -935,6 +935,7 @@ message AssignOfficeRequest {
 message CheckDaemonHealthRequest {
   string daemon_url = 1;
   string daemon_api_key = 2;
+  string office_id = 3;  // 可选：传入后自动通过 SSH 隧道访问远程 daemon
 }
 
 message CheckDaemonHealthResponse {

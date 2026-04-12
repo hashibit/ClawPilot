@@ -150,10 +150,41 @@ pub fn get_office_deployments(
 
 #[tauri::command]
 pub async fn check_daemon_health(
+    pool: State<'_, DbPool>,
     daemon_url: String,
     daemon_api_key: String,
-) -> DaemonHealthResult {
-    office_service::check_daemon_health(&daemon_url, &daemon_api_key).await
+    office_id: Option<String>,
+) -> Result<DaemonHealthResult> {
+    // 远程 daemon 需要通过 SSH 隧道访问
+    if let Some(oid) = office_id {
+        if let Ok(office) = office_service::get_office(&pool, &oid) {
+            let address = office.address.as_deref().unwrap_or("");
+            let is_remote = !address.is_empty() && address != "localhost";
+            if is_remote {
+                // 解析 host 和 port（address 可能是 "host" 或 "host:port"）
+                let (host, ssh_port) = if let Some(idx) = address.rfind(':') {
+                    let port = address[idx + 1..].parse::<u16>().unwrap_or(22);
+                    (&address[..idx], port)
+                } else {
+                    (address, 22u16)
+                };
+                let key_arg = build_ssh_key_arg(office.ssh_key_path.as_deref());
+                let ssh_user = office.access_user.as_deref().unwrap_or("root");
+                let prefix = format!(
+                    "ssh {}-o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
+                    key_arg, ssh_port
+                );
+                let target = format!("{}@{}", ssh_user, host);
+                if let Ok(tunnel) = SshTunnel::open(&prefix, &target, 16668) {
+                    let access_url = format!("http://127.0.0.1:{}", tunnel.local_port);
+                    let result = office_service::check_daemon_health(&access_url, &daemon_api_key).await;
+                    drop(tunnel);
+                    return Ok(result);
+                }
+            }
+        }
+    }
+    Ok(office_service::check_daemon_health(&daemon_url, &daemon_api_key).await)
 }
 
 /// Check SSH connection using system ssh command
@@ -597,8 +628,8 @@ pub async fn install_decoration(
                         ok: true,
                         logs,
                         error: None,
-                        daemon_url: None,
-                        api_key: None,
+                        daemon_url: Some(daemon_url.clone()),
+                        api_key: Some(decrypted_key.clone()),
                         already_running: None,
                     });
                 } else if status == "failed" {

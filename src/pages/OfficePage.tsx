@@ -120,7 +120,7 @@ export default function OfficePage() {
         setHealthChecking(true)
         setDaemonHealth(null)
         try {
-            const result = await checkDaemonHealth(daemonUrl, apiKey)
+            const result = await checkDaemonHealth(daemonUrl, apiKey, officeId)
             // Only update state if this office is still selected (avoid race condition)
             if (officeId && selected?.id !== officeId) return
             setDaemonHealth(result)

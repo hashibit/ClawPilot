@@ -306,6 +306,76 @@ export async function execWithCallbacks(options, command, callbacks, timeout = 3
   })
 }
 
+/**
+ * Make an HTTP request to a remote daemon via SSH port forwarding.
+ * The daemon only listens on 127.0.0.1 on the remote machine; this tunnels through SSH.
+ * @param {SSHOptions} options - SSH connection options
+ * @param {string} method - HTTP method
+ * @param {string} path - Request path (e.g. '/health')
+ * @param {string} [bearerToken] - Optional Authorization: Bearer token
+ * @param {object} [body] - Optional JSON body
+ * @param {number} [remotePort=16668] - Remote daemon port
+ * @returns {Promise<{status: number, data: any}>}
+ */
+export async function sshHttpRequest(options, method, path, bearerToken, body, remotePort = 16668) {
+  const { host, port = 22, user, password, keyPath, keyContent, timeout = 10000 } = options
+
+  return new Promise((resolve, reject) => {
+    const conn = new Client()
+
+    conn.on('ready', () => {
+      conn.forwardOut('127.0.0.1', 0, '127.0.0.1', remotePort, (err, stream) => {
+        if (err) { conn.end(); return reject(err) }
+
+        const headers = [`${method} ${path} HTTP/1.1`, `Host: 127.0.0.1:${remotePort}`]
+        if (bearerToken) headers.push(`Authorization: Bearer ${bearerToken}`)
+        const bodyStr = body ? JSON.stringify(body) : ''
+        if (bodyStr) {
+          headers.push('Content-Type: application/json')
+          headers.push(`Content-Length: ${Buffer.byteLength(bodyStr)}`)
+        }
+        headers.push('Connection: close', '')
+        const request = headers.join('\r\n') + '\r\n' + bodyStr
+
+        let rawResponse = ''
+        stream.on('data', d => { rawResponse += d.toString() })
+        stream.on('close', () => {
+          conn.end()
+          try {
+            const [head, ...bodyParts] = rawResponse.split('\r\n\r\n')
+            const statusLine = head.split('\r\n')[0]
+            const status = parseInt(statusLine.split(' ')[1]) || 0
+            const responseBody = bodyParts.join('\r\n\r\n').trim()
+            resolve({ status, data: responseBody ? JSON.parse(responseBody) : null })
+          } catch (e) {
+            reject(new Error(`Failed to parse HTTP response: ${e.message}`))
+          }
+        })
+        stream.on('error', e => { conn.end(); reject(e) })
+        stream.write(request)
+        stream.end()
+      })
+    })
+
+    conn.on('error', err => reject(err))
+
+    const connConfig = { host, port, username: user, readyTimeout: timeout }
+    if (keyContent) connConfig.privateKey = keyContent
+    else if (keyPath) {
+      const expandedPath = keyPath.replace(/^~/, homedir())
+      connConfig.privateKey = readFileSync(expandedPath)
+    } else if (password) {
+      connConfig.password = password
+    } else {
+      const defaultEd25519 = `${homedir()}/.ssh/id_ed25519`
+      const defaultRsa = `${homedir()}/.ssh/id_rsa`
+      if (existsSync(defaultEd25519)) connConfig.privateKey = readFileSync(defaultEd25519)
+      else if (existsSync(defaultRsa)) connConfig.privateKey = readFileSync(defaultRsa)
+    }
+    conn.connect(connConfig)
+  })
+}
+
 export default {
   sshExecRaw,
   checkConnection,
@@ -315,4 +385,5 @@ export default {
   readFile,
   uploadFile,
   execWithCallbacks,
+  sshHttpRequest,
 }
