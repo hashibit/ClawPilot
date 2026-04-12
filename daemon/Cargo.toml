@@ -28,7 +28,7 @@ thiserror         = "1"
 tracing           = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-appender  = "0.2"
-rusqlite          = { version = "0.32", features = ["bundled"] }
+rusqlite          = "0.32"
 tokio-tungstenite = { version = "0.21", features = ["rustls-tls-native-roots"] }
 futures-util      = "0.3"
 reqwest           = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
@@ -36,6 +36,9 @@ tokio-util        = { version = "0.7", features = ["io"] }
 async-stream      = "0.3"
 futures-core      = "0.3"
 axum-extra        = { version = "0.9", features = ["typed-header"] }
+
+[features]
+bundled-sqlite = ["rusqlite/bundled"]
 
 [target.'cfg(unix)'.dependencies]
 nix               = { version = "0.29", features = ["signal", "process"] }

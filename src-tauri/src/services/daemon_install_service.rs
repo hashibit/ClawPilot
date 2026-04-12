@@ -21,6 +21,13 @@ pub enum OsType {
     Linux,
 }
 
+/// CPU 架构
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Arch {
+    Arm64,
+    X64,
+}
+
 impl OsType {
     /// 探测当前操作系统类型
     pub fn detect() -> Result<Self> {
@@ -58,6 +65,59 @@ impl OsType {
             ))),
         }
     }
+
+    /// 资源文件中的平台后缀
+    pub fn resource_suffix(self) -> &'static str {
+        match self {
+            OsType::MacOS => "macos",
+            OsType::Linux => "linux",
+        }
+    }
+}
+
+impl Arch {
+    /// 探测当前 CPU 架构
+    pub fn detect() -> Result<Self> {
+        let output = Command::new("uname")
+            .arg("-m")
+            .output()
+            .map_err(|e| AppError::Io(e))?;
+
+        let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(Self::from_uname(&raw))
+    }
+
+    /// 探测远程 CPU 架构（通过 SSH）
+    pub fn detect_remote(ssh_prefix: &str, target: &str) -> Result<Self> {
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(format!("{} {} 'uname -m'", ssh_prefix, target))
+            .output()
+            .map_err(|e| AppError::Io(e))?;
+
+        if !output.status.success() {
+            return Err(AppError::Internal("无法探测远程架构".to_string()));
+        }
+
+        let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Ok(Self::from_uname(&raw))
+    }
+
+    /// 从 uname -m 输出归一化
+    fn from_uname(raw: &str) -> Self {
+        match raw {
+            "arm64" | "aarch64" => Arch::Arm64,
+            _ => Arch::X64,
+        }
+    }
+
+    /// 资源文件中的架构后缀
+    pub fn resource_suffix(self) -> &'static str {
+        match self {
+            Arch::Arm64 => "arm64",
+            Arch::X64 => "x64",
+        }
+    }
 }
 
 /// 获取 daemon 安装目录 (~/.clawpilot/bin/)
@@ -87,85 +147,115 @@ pub fn get_daemon_binary_path() -> Result<PathBuf> {
     Ok(get_daemon_bin_dir()?.join("clawpilot-daemon"))
 }
 
-/// 从 Tauri bundle 中复制 daemon binary
-fn copy_daemon_from_bundle(dest_path: &PathBuf) -> Result<()> {
-    // 尝试从当前 executable 所在的 resources 目录复制
-    // Tauri 会将 resources 放在 app bundle 中
+/// 从 Tauri bundle 中复制对应平台和架构的 daemon binary
+fn copy_daemon_from_bundle(dest_path: &PathBuf, os: OsType, arch: Arch) -> Result<()> {
     let current_exe = std::env::current_exe()?;
 
-    // 在 macOS 上，app 结构是：App.app/Contents/MacOS/app, resources 在 ../Resources/
-    // 在 Linux 上，resources 通常在可执行文件同级的 resources/ 目录
-
+    // 资源搜索路径
     #[cfg(target_os = "macos")]
-    let resource_paths = vec![
+    let resource_paths: Vec<PathBuf> = vec![
         current_exe.parent().map(|p| p.join("../Resources")).unwrap(),
-        dirs::home_dir().map(|p| p.join(".clawpilot/bin/clawpilot-daemon")).unwrap(),
+        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/resources")),
     ];
 
     #[cfg(target_os = "linux")]
-    let resource_paths = vec![
+    let resource_paths: Vec<PathBuf> = vec![
         current_exe.parent().map(|p| p.join("resources")).unwrap(),
         current_exe.parent().map(|p| p.to_path_buf()).unwrap(),
-        dirs::home_dir().map(|p| p.join(".clawpilot/bin/clawpilot-daemon")).unwrap(),
+        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/resources")),
     ];
 
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let resource_paths: Vec<PathBuf> = vec![];
 
+    // 目标 binary 文件名：clawpilot-daemon-{os}-{arch}
+    let target_name = format!("clawpilot-daemon-{}-{}", os.resource_suffix(), arch.resource_suffix());
+
     for resource_dir in &resource_paths {
-        let bundled_daemon = if cfg!(target_os = "macos") || cfg!(target_os = "linux") {
-            // 对于 macOS/Linux，daemon 直接在 resources 根目录
-            if resource_dir.ends_with("Resources") || resource_dir.ends_with("resources") {
-                resource_dir.join("clawpilot-daemon")
-            } else {
-                resource_dir.clone()
-            }
-        } else {
-            resource_dir.clone()
+        let entries = match fs::read_dir(resource_dir) {
+            Ok(e) => e,
+            Err(_) => continue,
         };
 
-        if bundled_daemon.exists() {
-            fs::copy(&bundled_daemon, dest_path)?;
-
-            // 设置 executable 权限
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mut perms = fs::metadata(dest_path)?.permissions();
-                perms.set_mode(0o755);
-                fs::set_permissions(dest_path, perms)?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(name) = path.file_name().map(|n| n.to_string_lossy()) {
+                if name == target_name.as_str() {
+                    fs::copy(&path, dest_path)?;
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let mut perms = fs::metadata(dest_path)?.permissions();
+                        perms.set_mode(0o755);
+                        fs::set_permissions(dest_path, perms)?;
+                    }
+                    return Ok(());
+                }
             }
-
-            return Ok(());
         }
     }
 
     Err(AppError::NotFound(
-        "daemon binary not found in bundle. Please ensure the daemon is built and bundled.".to_string()
+        format!("daemon binary not found in bundle: {}. Please ensure the daemon is built and bundled.", target_name)
     ))
+}
+
+/// 从 SSH 前缀字符串中提取 `-i "key_path"` 选项（用于 SCP 命令）
+fn extract_ssh_key_arg(ssh_prefix: &str) -> String {
+    if let Some(start) = ssh_prefix.find("-i \"") {
+        let rest = &ssh_prefix[start + 4..];
+        if let Some(end) = rest.find('"') {
+            return format!("-i \"{}\" ", &rest[..end]);
+        }
+    }
+    String::new()
+}
+
+/// 从 SSH 前缀字符串中提取端口号（用于 SCP 的 -P 选项）
+fn extract_ssh_port(ssh_prefix: &str) -> Option<u16> {
+    let parts: Vec<&str> = ssh_prefix.split_whitespace().collect();
+    for (i, part) in parts.iter().enumerate() {
+        if *part == "-p" {
+            if let Some(port_str) = parts.get(i + 1) {
+                if let Ok(port) = port_str.parse::<u16>() {
+                    return Some(port);
+                }
+            }
+        }
+    }
+    None
 }
 
 /// 复制 daemon binary 到目标机器
 pub fn install_daemon_binary(
     ssh_prefix: Option<&str>,
-    target: Option<&str>,
+    ssh_target: Option<&str>,
+    target_os: OsType,
+    target_arch: Arch,
 ) -> Result<String> {
     let bin_dir = get_daemon_bin_dir()?;
     let daemon_path = bin_dir.join("clawpilot-daemon");
 
     // 如果是远程安装，需要先复制 binary 到远程
-    if let (Some(prefix), Some(tgt)) = (ssh_prefix, target) {
+    if let (Some(prefix), Some(tgt)) = (ssh_prefix, ssh_target) {
         // 临时下载到本地，然后 scp 到远程
         let temp_path = std::env::temp_dir().join("clawpilot-daemon-temp");
 
-        // 从 Tauri bundle 中提取 binary
-        copy_daemon_from_bundle(&temp_path)?;
+        // 从 Tauri bundle 中提取对应架构的 binary
+        copy_daemon_from_bundle(&temp_path, target_os, target_arch)?;
 
-        // SCP 到远程
+        // SCP 到远程（从 ssh_prefix 提取 key 和 port，确保与 SSH 命令一致）
         let user = tgt.split('@').next().unwrap_or("root");
         let host = tgt.split('@').last().unwrap_or(tgt);
+        let key_arg = extract_ssh_key_arg(prefix);
+        let port_arg = extract_ssh_port(prefix)
+            .filter(|&p| p != 22)
+            .map(|p| format!("-P {} ", p))
+            .unwrap_or_default();
         let scp_cmd = format!(
-            "scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 \"{}\" {}@{}:/tmp/clawpilot-daemon",
+            "scp {}{}-o StrictHostKeyChecking=no -o ConnectTimeout=10 \"{}\" {}@{}:/tmp/clawpilot-daemon",
+            key_arg,
+            port_arg,
             temp_path.display(),
             user,
             host
@@ -183,10 +273,11 @@ pub fn install_daemon_binary(
             )));
         }
 
-        // 移动到目标目录 (不需要 sudo，因为是用户级安装)
+        // 移动到远程目标目录（使用远程机器上的 ~ 展开）
+        let remote_bin_path = "~/.clawpilot/bin/clawpilot-daemon";
         let mv_cmd = format!(
             "{} {} 'mkdir -p ~/.clawpilot/bin && mv /tmp/clawpilot-daemon {} && chmod +x {}'",
-            prefix, tgt, daemon_path.display(), daemon_path.display()
+            prefix, tgt, remote_bin_path, remote_bin_path
         );
 
         Command::new("sh").arg("-c").arg(&mv_cmd).output()?;
@@ -194,10 +285,10 @@ pub fn install_daemon_binary(
         // 清理临时文件
         let _ = fs::remove_file(&temp_path);
 
-        Ok(daemon_path.display().to_string())
+        Ok(remote_bin_path.to_string())
     } else {
         // 本地安装：从 bundle 复制
-        copy_daemon_from_bundle(&daemon_path)?;
+        copy_daemon_from_bundle(&daemon_path, target_os, target_arch)?;
         Ok(daemon_path.display().to_string())
     }
 }
@@ -333,7 +424,6 @@ fn install_systemd_user_service(daemon_path: &str, port: u16) -> Result<()> {
     fs::write(&service_path, service_content)?;
 
     // 重载 systemd 并启用服务
-    // 注意：这需要 XDG_RUNTIME_DIR 环境变量
     let uid = get_uid()?;
     let runtime_dir = format!("/run/user/{}", uid);
 
@@ -347,7 +437,6 @@ fn install_systemd_user_service(daemon_path: &str, port: u16) -> Result<()> {
         .output()?;
 
     if !output.status.success() {
-        // 如果失败，尝试不使用 XDG_RUNTIME_DIR（某些系统可能已设置）
         let _ = Command::new("systemctl")
             .args(["--user", "daemon-reload"])
             .output();
@@ -369,7 +458,6 @@ fn install_launchd_agent_remote(
     let plist_content = generate_launchd_plist(daemon_path, port);
     let escaped_plist = plist_content.replace("'", "'\\''");
 
-    // 创建 plist 文件
     let create_plist = format!(
         "{} {} 'mkdir -p ~/Library/LaunchAgents && cat > ~/Library/LaunchAgents/com.clawpilot.daemon.plist << EOF\n{}'\nEOF",
         ssh_prefix, target, escaped_plist
@@ -377,7 +465,6 @@ fn install_launchd_agent_remote(
 
     Command::new("sh").arg("-c").arg(&create_plist).output()?;
 
-    // 获取远程 UID 并加载 launchd agent（无需 sudo）
     let uid_output = Command::new("sh")
         .arg("-c")
         .arg(format!("{} {} 'id -u'", ssh_prefix, target))
@@ -396,6 +483,30 @@ fn install_launchd_agent_remote(
     Ok(())
 }
 
+/// 生成远程 systemd user service 内容（所有路径用 %h，systemd 会展开为远程用户 home）
+fn generate_systemd_service_remote(port: u16) -> String {
+    format!(
+        r#"[Unit]
+Description=ClawPilot Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.clawpilot/bin/clawpilot-daemon --listen 127.0.0.1:{port}
+Restart=on-failure
+RestartSec=5
+WorkingDirectory=%h/.clawpilot
+Environment=PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+StandardOutput=append:%h/.clawpilot/logs/daemon.log
+StandardError=append:%h/.clawpilot/logs/daemon.log
+
+[Install]
+WantedBy=default.target"#,
+        port = port,
+    )
+}
+
 /// 远程安装 systemd user service (Linux via SSH)
 fn install_systemd_user_service_remote(
     ssh_prefix: &str,
@@ -403,10 +514,9 @@ fn install_systemd_user_service_remote(
     daemon_path: &str,
     port: u16,
 ) -> Result<()> {
-    let service_content = generate_systemd_service(daemon_path, port);
+    let service_content = generate_systemd_service_remote(port);
     let escaped_service = service_content.replace("'", "'\\''");
 
-    // 创建 service 文件
     let create_service = format!(
         "{} {} 'mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/clawpilot-daemon.service << EOF\n{}'\nEOF",
         ssh_prefix, target, escaped_service
@@ -414,7 +524,6 @@ fn install_systemd_user_service_remote(
 
     Command::new("sh").arg("-c").arg(&create_service).output()?;
 
-    // 重载并启用服务
     let uid_cmd = format!("{} {} 'id -u'", ssh_prefix, target);
     let uid_output = Command::new("sh").arg("-c").arg(&uid_cmd).output()?;
     let uid = String::from_utf8_lossy(&uid_output.stdout).trim().to_string();
@@ -464,7 +573,6 @@ pub fn save_daemon_api_key(key: &str) -> Result<()> {
     let key_path = clawpilot_dir.join("daemon.key");
     fs::write(&key_path, key)?;
 
-    // 设置文件权限（仅 owner 可读写）
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -511,7 +619,20 @@ pub fn install_daemon(
         OsType::Linux => lg("✅ 检测到 Linux"),
     }
 
-    // 2. 检查是否已在运行
+    // 2. 探测 CPU 架构
+    lg("🔍 探测 CPU 架构...");
+    let arch = if ssh_prefix.is_some() && ssh_target.is_some() {
+        Arch::detect_remote(ssh_prefix.unwrap(), ssh_target.unwrap())?
+    } else {
+        Arch::detect()?
+    };
+
+    match arch {
+        Arch::Arm64 => lg("✅ 检测到 arm64"),
+        Arch::X64 => lg("✅ 检测到 x64"),
+    }
+
+    // 3. 检查是否已在运行
     if ssh_prefix.is_none() {
         if is_daemon_running()? {
             lg("⚠️  Daemon 已在运行，将先停止现有进程...");
@@ -520,18 +641,32 @@ pub fn install_daemon(
         }
     }
 
-    // 3. 安装 daemon binary
+    // 4. 安装 daemon binary
     lg("📥 安装 daemon binary...");
-    let daemon_path = install_daemon_binary(ssh_prefix, ssh_target)?;
+    let daemon_path = install_daemon_binary(
+        ssh_prefix,
+        ssh_target,
+        os_type,
+        arch,
+    )?;
     lg(&format!("✅ Binary 已安装到 {}", daemon_path));
 
-    // 4. 生成并保存 API key
+    // 5. 生成并保存 API key
     lg("🔑 生成 API Key...");
     let api_key = generate_api_key();
-    save_daemon_api_key(&api_key)?;
+    if let (Some(prefix), Some(tgt)) = (ssh_prefix, ssh_target) {
+        // 远程安装：将 key 写到远程机器，daemon 启动后会读取它
+        let write_key_cmd = format!(
+            "{} {} 'mkdir -p ~/.clawpilot && printf \"%s\" \"{}\" > ~/.clawpilot/daemon.key && chmod 600 ~/.clawpilot/daemon.key'",
+            prefix, tgt, api_key
+        );
+        Command::new("sh").arg("-c").arg(&write_key_cmd).output()?;
+    } else {
+        save_daemon_api_key(&api_key)?;
+    }
     lg("✅ API Key 已保存");
 
-    // 5. 安装系统服务
+    // 6. 安装系统服务
     lg("⚙️  注册系统服务...");
     match os_type {
         OsType::MacOS => {
@@ -562,11 +697,17 @@ pub fn install_daemon(
         }
     }
 
-    // 6. 验证服务状态
+    // 7. 验证服务状态
     lg("🔍 验证服务状态...");
     std::thread::sleep(std::time::Duration::from_millis(1000));
 
-    let daemon_url = format!("http://127.0.0.1:{}", port);
+    // 远程安装时 daemon_url 使用 SSH host，本地使用 127.0.0.1
+    let daemon_url = if let Some(tgt) = ssh_target {
+        let host = tgt.split('@').last().unwrap_or("127.0.0.1");
+        format!("http://{}:{}", host, port)
+    } else {
+        format!("http://127.0.0.1:{}", port)
+    };
 
     lg("✅ Daemon 安装完成");
 
@@ -605,6 +746,26 @@ mod tests {
     #[test]
     fn test_generate_api_key() {
         let key = generate_api_key();
-        assert_eq!(key.len(), 32); // UUID without hyphens
+        assert_eq!(key.len(), 32);
+    }
+
+    #[test]
+    fn test_arch_from_uname() {
+        assert_eq!(Arch::from_uname("arm64"), Arch::Arm64);
+        assert_eq!(Arch::from_uname("aarch64"), Arch::Arm64);
+        assert_eq!(Arch::from_uname("x86_64"), Arch::X64);
+        assert_eq!(Arch::from_uname("amd64"), Arch::X64);
+    }
+
+    #[test]
+    fn test_os_resource_suffix() {
+        assert_eq!(OsType::MacOS.resource_suffix(), "macos");
+        assert_eq!(OsType::Linux.resource_suffix(), "linux");
+    }
+
+    #[test]
+    fn test_arch_resource_suffix() {
+        assert_eq!(Arch::Arm64.resource_suffix(), "arm64");
+        assert_eq!(Arch::X64.resource_suffix(), "x64");
     }
 }

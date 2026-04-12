@@ -1,3 +1,5 @@
+use std::net::TcpListener;
+use std::process::{Child, Command};
 use tauri::{State, Emitter};
 
 use crate::database::pool::DbPool;
@@ -6,6 +8,43 @@ use crate::models::office::{DaemonHealthResult, Office, OfficeDeployment};
 use crate::services::office_service;
 use crate::services::ssh_service;
 use crate::services::daemon_install_service;
+
+/// SSH 本地端口转发隧道（RAII：drop 时自动关闭）
+struct SshTunnel {
+    process: Child,
+    pub local_port: u16,
+}
+
+impl SshTunnel {
+    /// 建立 SSH 本地端口转发，将本机随机端口映射到远程 127.0.0.1:remote_port
+    fn open(ssh_prefix: &str, ssh_target: &str, remote_port: u16) -> Result<Self> {
+        let local_port = TcpListener::bind("127.0.0.1:0")
+            .map_err(|e| AppError::Io(e))?
+            .local_addr()
+            .map_err(|e| AppError::Io(e))?
+            .port();
+
+        let process = Command::new("sh")
+            .arg("-c")
+            .arg(format!(
+                "{} -N -L 127.0.0.1:{}:127.0.0.1:{} {}",
+                ssh_prefix, local_port, remote_port, ssh_target
+            ))
+            .spawn()
+            .map_err(|e| AppError::Io(e))?;
+
+        // 等隧道就绪
+        std::thread::sleep(std::time::Duration::from_millis(800));
+
+        Ok(Self { process, local_port })
+    }
+}
+
+impl Drop for SshTunnel {
+    fn drop(&mut self) {
+        let _ = self.process.kill();
+    }
+}
 
 /// Install log payload for Tauri events
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -21,6 +60,14 @@ fn strip_ansi_codes(s: &str) -> String {
     // Pattern: \x1b\[ [0-9;?]* [A-Za-z]
     let re = regex::Regex::new(r"\x1b\[[0-9;?]*[A-Za-z]").unwrap();
     re.replace_all(s, "").into_owned()
+}
+
+/// Build the `-i "key_path"` SSH option string.
+fn build_ssh_key_arg(key_path: Option<&str>) -> String {
+    match key_path {
+        Some(p) => format!("-i \"{}\" ", p),
+        None => String::new(),
+    }
 }
 
 /// SSH connection check result
@@ -237,14 +284,10 @@ pub async fn install_daemon(
         let port = ssh_port.unwrap_or(22);
         let user = ssh_user.as_deref().unwrap_or("root");
 
-        let key_arg = if let Some(ref key_path) = ssh_key_path {
-            format!("-i \"{}\" ", key_path)
-        } else {
-            String::new()
-        };
+        let key_arg = build_ssh_key_arg(ssh_key_path.as_deref());
 
         let prefix = format!(
-            "ssh {}-t -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
+            "ssh {}-o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
             key_arg, port
         );
 
@@ -365,6 +408,51 @@ pub async fn install_decoration(
     let mut office = get_office(&pool, &office_id)
         .map_err(|e| AppError::Internal(format!("获取 office 信息失败: {}", e)))?;
 
+    // Build SSH prefix once — used for both daemon install and platform detection
+    let is_remote = mode.as_deref() == Some("ssh");
+    let (ssh_prefix, ssh_target) = if is_remote {
+        let host = ssh_host.unwrap_or_default();
+        let port_val = ssh_port.unwrap_or(22);
+        let user = ssh_user.as_deref().unwrap_or("root");
+        let key_arg = build_ssh_key_arg(ssh_key_path.as_deref());
+        let prefix = format!(
+            "ssh {}-o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
+            key_arg, port_val
+        );
+        (Some(prefix), Some(format!("{}@{}", user, host)))
+    } else {
+        (None, None)
+    };
+
+    // Detect target platform/arch via SSH (remote) or local system — before daemon starts
+    lg("🔍 探测目标平台信息...");
+    let (platform, arch) = {
+        let os_type = if is_remote {
+            daemon_install_service::OsType::detect_remote(
+                ssh_prefix.as_deref().unwrap(),
+                ssh_target.as_deref().unwrap(),
+            ).unwrap_or(daemon_install_service::OsType::Linux)
+        } else {
+            daemon_install_service::OsType::detect()
+                .map_err(|e| AppError::Internal(format!("探测本地 OS 失败: {}", e)))?
+        };
+        let arch_type = if is_remote {
+            daemon_install_service::Arch::detect_remote(
+                ssh_prefix.as_deref().unwrap(),
+                ssh_target.as_deref().unwrap(),
+            ).unwrap_or(daemon_install_service::Arch::X64)
+        } else {
+            daemon_install_service::Arch::detect()
+                .map_err(|e| AppError::Internal(format!("探测本地架构失败: {}", e)))?
+        };
+        let platform_str = match os_type {
+            daemon_install_service::OsType::MacOS => "darwin",
+            daemon_install_service::OsType::Linux => "linux",
+        };
+        (platform_str.to_string(), arch_type.resource_suffix().to_string())
+    };
+    lg(&format!("   平台: {}, 架构: {}", platform, arch));
+
     // If daemon not installed, install it first
     let (daemon_url, decrypted_key) = if office.daemon_url.is_some() {
         let daemon_url = office.daemon_url.unwrap();
@@ -376,25 +464,6 @@ pub async fn install_decoration(
         lg("📦 Daemon 未配置，先安装 daemon...");
 
         let port = 16668u16;
-        let is_remote = mode.as_deref() == Some("ssh");
-        let (ssh_prefix, ssh_target) = if is_remote {
-            let host = ssh_host.unwrap_or_default();
-            let port_val = ssh_port.unwrap_or(22);
-            let user = ssh_user.as_deref().unwrap_or("root");
-            let key_arg = if let Some(ref key_path) = ssh_key_path {
-                format!("-i \"{}\" ", key_path)
-            } else {
-                String::new()
-            };
-            let prefix = format!(
-                "ssh {}-t -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
-                key_arg, port_val
-            );
-            (Some(prefix), Some(format!("{}@{}", user, host)))
-        } else {
-            (None, None)
-        };
-
         let install_result = daemon_install_service::install_daemon(port, ssh_prefix.as_deref(), ssh_target.as_deref())
             .map_err(|e| AppError::Internal(format!("daemon 安装失败: {}", e)))?;
 
@@ -431,41 +500,24 @@ pub async fn install_decoration(
 
     lg(&format!("📡 连接 daemon: {}", daemon_url));
 
+    // 远程 daemon 只监听 127.0.0.1，通过 SSH 隧道转发访问
+    let _tunnel: Option<SshTunnel>;
+    let access_url = if is_remote {
+        let tunnel = SshTunnel::open(
+            ssh_prefix.as_deref().unwrap(),
+            ssh_target.as_deref().unwrap(),
+            16668,
+        ).map_err(|e| AppError::Internal(format!("SSH 隧道建立失败: {}", e)))?;
+        lg(&format!("🔗 SSH 隧道已建立 (127.0.0.1:{})", tunnel.local_port));
+        let url = format!("http://127.0.0.1:{}", tunnel.local_port);
+        _tunnel = Some(tunnel);
+        url
+    } else {
+        _tunnel = None;
+        daemon_url.clone()
+    };
+
     let daemon_client = reqwest::Client::new();
-
-    // Query daemon for target platform/arch
-    lg("🔍 获取目标平台信息...");
-
-    let health_resp = daemon_client
-        .get(format!("{}/health", daemon_url.trim_end_matches('/')))
-        .bearer_auth(&decrypted_key)
-        .send()
-        .await
-        .map_err(|e| AppError::Internal(format!("daemon health 请求失败: {}", e)))?;
-
-    if !health_resp.status().is_success() {
-        return Ok(InstallDaemonResult {
-            ok: false,
-            logs,
-            error: Some("daemon health 检查失败".to_string()),
-            daemon_url: None,
-            api_key: None,
-            already_running: None,
-        });
-    }
-
-    let health_data: serde_json::Value = health_resp.json().await
-        .map_err(|e| AppError::Internal(format!("解析 daemon health 响应失败: {}", e)))?;
-
-    let platform = health_data.get("platform")
-        .and_then(|v| v.as_str())
-        .unwrap_or("linux")
-        .to_string();
-    let arch = health_data.get("arch")
-        .and_then(|v| v.as_str())
-        .unwrap_or("x64")
-        .to_string();
-    lg(&format!("   平台: {}, 架构: {}", platform, arch));
 
     let download_url = build_offline_package_url(&version, &platform, &arch);
     let sha256_url = format!("{}.sha256", download_url);
@@ -480,7 +532,7 @@ pub async fn install_decoration(
     });
 
     let resp = daemon_client
-        .post(format!("{}/install_openclaw", daemon_url.trim_end_matches('/')))
+        .post(format!("{}/install_openclaw", access_url.trim_end_matches('/')))
         .bearer_auth(&decrypted_key)
         .json(&install_req)
         .send()
@@ -513,7 +565,7 @@ pub async fn install_decoration(
         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
         let status_resp = daemon_client
-            .get(format!("{}/install_openclaw/{}", daemon_url.trim_end_matches('/'), task_id))
+            .get(format!("{}/install_openclaw/{}", access_url.trim_end_matches('/'), task_id))
             .bearer_auth(&decrypted_key)
             .send()
             .await;

@@ -18,12 +18,9 @@ const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
 const DEV_BASE = `http://localhost:${SERVER_PORT}/api`
 
 function toInvokeArgs(args: Record<string, unknown>): Record<string, unknown> {
-  // Tauri 2.0 command parameters use snake_case in Rust but expect camelCase in JS invoke()
-  // However, nested objects (like config: ProviderConfig) should keep their original field names
-  // because serde deserializes them according to the struct definition (snake_case).
+  // Tauri 2 invokes use camelCase keys by default
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(args)) {
-    // Only convert top-level keys from snake_case to camelCase
     const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
     result[camelKey] = value
   }
