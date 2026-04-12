@@ -889,8 +889,8 @@ service OfficeService {
   // 安装 Daemon
   rpc InstallDaemon(InstallDaemonRequest) returns (InstallDaemonResponse);
 
-  // 安装 OpenClaw
-  rpc InstallOpenclaw(InstallOpenclawRequest) returns (InstallOpenclawResponse);
+  // 安装物业（自动安装 Daemon（如需）+ 安装 OpenClaw）
+  rpc InstallDecoration(InstallDecorationRequest) returns (InstallDecorationResponse);
 
   // 探测本地 Daemon
   rpc ProbeLocalDaemon(ProbeLocalDaemonRequest) returns (ProbeDaemonResponse);
@@ -1002,7 +1002,7 @@ message InstallDaemonResponse {
   bool already_running = 6;
 }
 
-message InstallOpenclawRequest {
+message InstallDecorationRequest {
   string office_id = 1;
   string mode = 2;         // local | ssh
   string ssh_host = 3;
@@ -1015,7 +1015,7 @@ message InstallOpenclawRequest {
   string arch = 10;
 }
 
-message InstallOpenclawResponse {
+message InstallDecorationResponse {
   bool ok = 1;
   string error = 2;
   repeated string logs = 3;
