@@ -31,6 +31,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(pool.clone())
+        .manage(commands::office::TunnelPool::new())
         .invoke_handler(tauri::generate_handler![
             // OPC
             commands::opc::get_all_opcs,

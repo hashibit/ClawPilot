@@ -264,7 +264,12 @@ pub fn get_office_deployments(
     Ok(rows)
 }
 
-pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealthResult {
+/// openclaw_bin_paths: optional (node_bin, openclaw_bin) to pass as query params to daemon
+pub async fn check_daemon_health(
+    daemon_url: &str,
+    api_key: &str,
+    openclaw_bin_paths: Option<(&str, &str)>,
+) -> DaemonHealthResult {
     if daemon_url.is_empty() {
         return DaemonHealthResult {
             ok: false,
@@ -273,7 +278,19 @@ pub async fn check_daemon_health(daemon_url: &str, api_key: &str) -> DaemonHealt
         };
     }
 
-    let url = format!("{}/health", daemon_url.trim_end_matches('/'));
+    let mut url = format!("{}/health", daemon_url.trim_end_matches('/'));
+    if let Some((node_bin, openclaw_bin)) = openclaw_bin_paths {
+        // Percent-encode only the path values (spaces, special chars)
+        fn pct_encode(s: &str) -> String {
+            s.bytes().map(|b| match b {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'
+                | b'-' | b'_' | b'.' | b'~' | b'/' => (b as char).to_string(),
+                _ => format!("%{:02X}", b),
+            }).collect()
+        }
+        url = format!("{}?node_bin={}&openclaw_bin={}",
+            url, pct_encode(node_bin), pct_encode(openclaw_bin));
+    }
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
@@ -338,7 +355,7 @@ pub async fn probe_local_daemon(pool: &DbPool, office_id: Option<&str>) -> Probe
 
     for port in &ports {
         let url = format!("http://127.0.0.1:{}", port);
-        match check_daemon_health(&url, "").await {
+        match check_daemon_health(&url, "", None).await {
             result if result.ok => {
                 // Found a running daemon, try to read API key
                 let api_key = read_local_daemon_key();
@@ -610,6 +627,26 @@ pub fn update_office_daemon_config_by_id(
     api_key: &str,
 ) -> Result<()> {
     update_office_daemon_config(pool, office_id, daemon_url, api_key)
+}
+
+/// Update openclaw installation info after a successful install
+pub fn update_office_openclaw_info(
+    pool: &DbPool,
+    office_id: &str,
+    version: &str,
+    install_path: &str,
+    nodejs_path: &str,
+    download_url: Option<&str>,
+) -> Result<()> {
+    let conn = pool.get()?;
+    let ts = now();
+    conn.execute(
+        "UPDATE offices SET openclaw_version=?2, openclaw_install_path=?3, \
+         openclaw_nodejs_path=?4, openclaw_download_url=?5, openclaw_installed_at=?6, \
+         updated_at=?6 WHERE id=?1",
+        rusqlite::params![office_id, version, install_path, nodejs_path, download_url, ts],
+    )?;
+    Ok(())
 }
 
 /// Get the version of local clawpilot-daemon binary
@@ -925,7 +962,7 @@ mod tests {
     // --- check_daemon_health 测试 ---
     #[tokio::test]
     async fn test_check_daemon_health_empty_url() {
-        let result = check_daemon_health("", "").await;
+        let result = check_daemon_health("", "", None).await;
         assert!(!result.ok);
         assert!(result.error.unwrap().contains("未配置"));
     }

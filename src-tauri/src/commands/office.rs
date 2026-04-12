@@ -1,5 +1,8 @@
-use std::net::TcpListener;
+use std::collections::HashMap;
+use std::net::{TcpListener, TcpStream};
 use std::process::{Child, Command};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::{State, Emitter};
 
 use crate::database::pool::DbPool;
@@ -33,8 +36,20 @@ impl SshTunnel {
             .spawn()
             .map_err(|e| AppError::Io(e))?;
 
-        // 等隧道就绪
-        std::thread::sleep(std::time::Duration::from_millis(800));
+        // 等隧道端口真正就绪（最多 10s，每 200ms 探测一次）
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        loop {
+            if TcpStream::connect(format!("127.0.0.1:{}", local_port)).is_ok() {
+                break;
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(AppError::Internal(format!(
+                    "SSH 隧道端口 {} 在 10s 内未就绪",
+                    local_port
+                )));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
 
         Ok(Self { process, local_port })
     }
@@ -43,6 +58,48 @@ impl SshTunnel {
 impl Drop for SshTunnel {
     fn drop(&mut self) {
         let _ = self.process.kill();
+    }
+}
+
+/// 按 office_id 缓存 SSH 隧道，TTL 内可复用，到期或端口失活时自动清理
+pub struct TunnelPool {
+    entries: Mutex<HashMap<String, (SshTunnel, Instant)>>,
+    ttl: Duration,
+}
+
+impl TunnelPool {
+    pub fn new() -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+            ttl: Duration::from_secs(60),
+        }
+    }
+
+    /// 返回可用隧道的本地端口（命中缓存则刷新 TTL，否则新建）
+    pub fn get_or_create(
+        &self,
+        office_id: &str,
+        create_fn: impl FnOnce() -> Result<SshTunnel>,
+    ) -> Result<u16> {
+        let mut map = self.entries.lock().unwrap();
+        let now = Instant::now();
+
+        // 懒清理过期条目
+        map.retain(|_, (_, exp)| now < *exp);
+
+        if let Some((tunnel, exp)) = map.get_mut(office_id) {
+            // 验证隧道进程仍然存活
+            if TcpStream::connect(format!("127.0.0.1:{}", tunnel.local_port)).is_ok() {
+                *exp = now + self.ttl;
+                return Ok(tunnel.local_port);
+            }
+            map.remove(office_id);
+        }
+
+        let tunnel = create_fn()?;
+        let port = tunnel.local_port;
+        map.insert(office_id.to_string(), (tunnel, now + self.ttl));
+        Ok(port)
     }
 }
 
@@ -151,40 +208,55 @@ pub fn get_office_deployments(
 #[tauri::command]
 pub async fn check_daemon_health(
     pool: State<'_, DbPool>,
-    daemon_url: String,
-    daemon_api_key: String,
-    office_id: Option<String>,
+    tunnel_pool: State<'_, TunnelPool>,
+    office_id: String,
 ) -> Result<DaemonHealthResult> {
-    // 远程 daemon 需要通过 SSH 隧道访问
-    if let Some(oid) = office_id {
-        if let Ok(office) = office_service::get_office(&pool, &oid) {
-            let address = office.address.as_deref().unwrap_or("");
-            let is_remote = !address.is_empty() && address != "localhost";
-            if is_remote {
-                // 解析 host 和 port（address 可能是 "host" 或 "host:port"）
-                let (host, ssh_port) = if let Some(idx) = address.rfind(':') {
-                    let port = address[idx + 1..].parse::<u16>().unwrap_or(22);
-                    (&address[..idx], port)
-                } else {
-                    (address, 22u16)
-                };
-                let key_arg = build_ssh_key_arg(office.ssh_key_path.as_deref());
-                let ssh_user = office.access_user.as_deref().unwrap_or("root");
-                let prefix = format!(
-                    "ssh {}-o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
-                    key_arg, ssh_port
-                );
-                let target = format!("{}@{}", ssh_user, host);
-                if let Ok(tunnel) = SshTunnel::open(&prefix, &target, 16668) {
-                    let access_url = format!("http://127.0.0.1:{}", tunnel.local_port);
-                    let result = office_service::check_daemon_health(&access_url, &daemon_api_key).await;
-                    drop(tunnel);
-                    return Ok(result);
-                }
-            }
-        }
+    use crate::utils::crypto::decrypt;
+
+    let office = office_service::get_office(&pool, &office_id)?;
+    let daemon_url = match office.daemon_url.as_deref() {
+        Some(url) if !url.is_empty() => url.to_string(),
+        _ => return Ok(DaemonHealthResult { ok: false, error: Some("未配置 Daemon URL".into()), ..Default::default() }),
+    };
+    let raw_key = office.daemon_api_key.as_deref().unwrap_or("");
+    let api_key = decrypt(raw_key).unwrap_or_else(|_| raw_key.to_string());
+
+    // Build optional (node_bin, openclaw_bin) from stored paths
+    let bin_paths: Option<(String, String)> = match (
+        &office.openclaw_nodejs_path,
+        &office.openclaw_install_path,
+    ) {
+        (Some(n), Some(o)) if !n.is_empty() && !o.is_empty() => Some((n.clone(), o.clone())),
+        _ => None,
+    };
+    let bin_refs = bin_paths.as_ref().map(|(n, o)| (n.as_str(), o.as_str()));
+
+    let address = office.address.as_deref().unwrap_or("");
+    let is_remote = !address.is_empty() && address != "localhost";
+
+    if is_remote {
+        let (host, ssh_port) = if let Some(idx) = address.rfind(':') {
+            let port = address[idx + 1..].parse::<u16>().unwrap_or(22);
+            (&address[..idx], port)
+        } else {
+            (address, 22u16)
+        };
+        let key_arg = build_ssh_key_arg(office.ssh_key_path.as_deref());
+        let ssh_user = office.access_user.as_deref().unwrap_or("root");
+        let prefix = format!(
+            "ssh {}-o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p {}",
+            key_arg, ssh_port
+        );
+        let target = format!("{}@{}", ssh_user, host);
+        let local_port = tunnel_pool.get_or_create(&office_id, || {
+            SshTunnel::open(&prefix, &target, 16668)
+                .map_err(|e| AppError::Internal(format!("SSH 隧道建立失败: {}", e)))
+        })?;
+        let access_url = format!("http://127.0.0.1:{}", local_port);
+        return Ok(office_service::check_daemon_health(&access_url, &api_key, bin_refs).await);
     }
-    Ok(office_service::check_daemon_health(&daemon_url, &daemon_api_key).await)
+
+    Ok(office_service::check_daemon_health(&daemon_url, &api_key, bin_refs).await)
 }
 
 /// Check SSH connection using system ssh command
@@ -624,6 +696,45 @@ pub async fn install_decoration(
                 lg(&format!("   [{}%] {}", progress, current_step));
 
                 if status == "success" {
+                    // Detect openclaw & node paths and save to offices table
+                    lg("🔍 检测 OpenClaw 安装路径...");
+                    let detect_cmds = vec![
+                        ("openclaw_bin", "readlink -f ~/.clawpilot/openclaw-current/node_modules/.bin/openclaw 2>/dev/null || echo ~/.clawpilot/openclaw-current/node_modules/.bin/openclaw"),
+                        ("node_bin", "readlink -f ~/.clawpilot/openclaw-current/nodejs/bin/node 2>/dev/null || echo ~/.clawpilot/openclaw-current/nodejs/bin/node"),
+                    ];
+                    let mut detected_openclaw_bin = String::new();
+                    let mut detected_node_bin = String::new();
+                    for (label, cmd) in detect_cmds {
+                        let full_cmd = if is_remote {
+                            format!("{} {} '{}'",
+                                ssh_prefix.as_deref().unwrap(),
+                                ssh_target.as_deref().unwrap(), cmd)
+                        } else {
+                            cmd.to_string()
+                        };
+                        if let Ok(out) = tokio::process::Command::new("sh")
+                            .arg("-c").arg(&full_cmd).output().await
+                        {
+                            let val = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                            if !val.is_empty() {
+                                match label {
+                                    "openclaw_bin" => detected_openclaw_bin = val,
+                                    "node_bin" => detected_node_bin = val,
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    if !detected_openclaw_bin.is_empty() && !detected_node_bin.is_empty() {
+                        lg(&format!("   openclaw: {}", detected_openclaw_bin));
+                        lg(&format!("   node:     {}", detected_node_bin));
+                        let _ = office_service::update_office_openclaw_info(
+                            &pool, &office_id, &version,
+                            &detected_openclaw_bin, &detected_node_bin,
+                            Some(&download_url),
+                        );
+                    }
+
                     return Ok(InstallDaemonResult {
                         ok: true,
                         logs,

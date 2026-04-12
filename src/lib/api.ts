@@ -187,8 +187,8 @@ export interface DaemonHealthResult {
   active_tasks?: number
   not_installed?: boolean  // True when daemon is not installed (connection refused/timeout)
 }
-export const checkDaemonHealth = (daemon_url: string, daemon_api_key: string, office_id?: string) =>
-  call<DaemonHealthResult>('check_daemon_health', { daemon_url, daemon_api_key, office_id })
+export const checkDaemonHealth = (office_id: string) =>
+  call<DaemonHealthResult>('check_daemon_health', { office_id })
 
 export const probeLocalDaemon = (office_id: string) =>
   call<{ ok: boolean; daemon_url?: string; api_key?: string }>('probe_local_daemon', { office_id })

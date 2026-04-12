@@ -83,7 +83,7 @@ export default function OfficePage() {
                 setSelected(first); setForm(first)
                 getOfficeDeployments(first.id).then(setDeployHistory).catch(() => setDeployHistory([]))
                 if (first.daemon_url) {
-                    checkDaemon(first.daemon_url, first.daemon_api_key ?? '', { officeId: first.id, useCache: true })
+                    checkDaemon(first.id, { useCache: true })
                 } else {
                     silentProbeDaemon(first)
                 }
@@ -95,38 +95,35 @@ export default function OfficePage() {
                     setForm(updated)
                     // Re-check daemon health if daemon_url was just set
                     if (updated.daemon_url && !selected.daemon_url) {
-                        checkDaemon(updated.daemon_url, updated.daemon_api_key ?? '', { officeId: updated.id })
+                        checkDaemon(updated.id)
                     }
                 }
             }
         } catch (e) { toast(String(e), 'error') }
     }
 
-    const checkDaemon = useCallback(async (daemonUrl: string, apiKey: string, opts?: { officeId?: string; useCache?: boolean }) => {
-        const { officeId, useCache = false } = opts ?? {}
-        const cacheKey = officeId ? `${officeId}:${daemonUrl}` : null
+    const checkDaemon = useCallback(async (officeId: string, opts?: { useCache?: boolean }) => {
+        const { useCache = false } = opts ?? {}
 
-        if (useCache && cacheKey) {
-            const cached = healthCacheRef.current.get(cacheKey)
+        if (useCache) {
+            const cached = healthCacheRef.current.get(officeId)
             if (cached) {
                 setDaemonHealth(cached)
                 return
             }
-        }
-        if (!useCache && cacheKey) {
-            healthCacheRef.current.delete(cacheKey)
+        } else {
+            healthCacheRef.current.delete(officeId)
         }
 
         setHealthChecking(true)
         setDaemonHealth(null)
         try {
-            const result = await checkDaemonHealth(daemonUrl, apiKey, officeId)
-            // Only update state if this office is still selected (avoid race condition)
-            if (officeId && selected?.id !== officeId) return
+            const result = await checkDaemonHealth(officeId)
+            if (selected?.id !== officeId) return
             setDaemonHealth(result)
-            if (cacheKey) healthCacheRef.current.set(cacheKey, result)
+            healthCacheRef.current.set(officeId, result)
         } catch (e) {
-            if (officeId && selected?.id !== officeId) return
+            if (selected?.id !== officeId) return
             setDaemonHealth({ ok: false, error: String(e) })
         } finally {
             setHealthChecking(false)
@@ -151,7 +148,7 @@ export default function OfficePage() {
                 setOffices(prev => prev.map(o => o.id === office.id ? { ...o, ...updates } : o))
                 setSelected(prev => prev?.id === office.id ? { ...prev, ...updates } : prev)
                 setForm(prev => ({ ...prev, ...updates }))
-                checkDaemon(r.daemon_url, r.api_key, { officeId: office.id })
+                checkDaemon(office.id)
             }
         } catch { /* silent */ }
     }, [checkDaemon, selected?.id])
@@ -163,7 +160,7 @@ export default function OfficePage() {
         setDaemonHealth(null)
         getOfficeDeployments(office.id).then(setDeployHistory).catch(() => setDeployHistory([]))
         if (office.daemon_url) {
-            checkDaemon(office.daemon_url, office.daemon_api_key ?? '', { officeId: office.id, useCache: true })
+            checkDaemon(office.id, { useCache: true })
         } else {
             silentProbeDaemon(office)
         }
@@ -224,7 +221,7 @@ export default function OfficePage() {
                 setDaemonHealth(null)
                 toast('办公室信息已保存', 'success')
                 if (!addressChanged && updated.daemon_url) {
-                    checkDaemon(updated.daemon_url, updated.daemon_api_key ?? '', { officeId: updated.id })
+                    checkDaemon(updated.id)
                 }
             }
         } catch (e) { toast(String(e), 'error') }
@@ -465,7 +462,7 @@ export default function OfficePage() {
                 setForm(updatedOffice)
                 setOffices(prev => prev.map(o => o.id === saved.id ? updatedOffice : o))
                 loadOffices()
-                checkDaemon(r.daemon_url, r.api_key, { officeId: saved.id })
+                checkDaemon(saved.id)
             }
             setInstallStep('done')
         } catch (e) { lg(`❌ ${String(e)}`); setInstallStep('error'); closeSSE(); return }
@@ -781,7 +778,7 @@ export default function OfficePage() {
                                     <div style={{ display: 'flex', gap: '6px' }}>
                                         {selected.daemon_url && (
                                             <button
-                                                onClick={() => checkDaemon(selected.daemon_url!, selected.daemon_api_key ?? '', { officeId: selected.id })}
+                                                onClick={() => checkDaemon(selected.id)}
                                                 disabled={healthChecking || installStep === 'openclaw' || installStep === 'daemon'}
                                                 style={{ padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(235,235,245,0.6)', opacity: healthChecking ? 0.5 : 1 }}
                                             >
@@ -802,32 +799,58 @@ export default function OfficePage() {
                                     </div>
                                 </div>
                                 <div className="group">
+                                    {/* Daemon 状态行 */}
                                     <div className="group-row">
-                                        <span className="group-label">{t('office.install_status')}</span>
-                                        {selected.daemon_url ? (
-                                            <span className="group-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: daemonHealth?.ok ? '#34c759' : healthChecking ? '#ff9f0a' : daemonHealth ? '#8E8E93' : '#34c759' }} />
-                                                <span style={{ fontSize: '13px', color: daemonHealth?.ok ? '#34c759' : healthChecking ? '#ff9f0a' : daemonHealth ? '#8E8E93' : '#34c759' }}>
-                                                    {healthChecking ? t('common.checking') : daemonHealth?.ok ? t('office.installed_running') : daemonHealth ? t('office.installed_offline') : t('office.installed')}
-                                                </span>
-                                            </span>
-                                        ) : (
-                                            <span className="group-value" style={{ color: '#8E8E93' }}>{t('office.not_installed')}</span>
-                                        )}
+                                        <span className="group-label">Daemon</span>
+                                        <span className="group-value" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                            {!selected.daemon_url ? (
+                                                <span style={{ color: '#8E8E93' }}>{t('office.not_installed')}</span>
+                                            ) : healthChecking ? (
+                                                <>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#ff9f0a' }} />
+                                                    <span style={{ fontSize: '13px', color: '#ff9f0a' }}>{t('common.checking')}</span>
+                                                </>
+                                            ) : daemonHealth?.ok ? (
+                                                <>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#34c759' }} />
+                                                    <span style={{ fontSize: '13px', color: '#34c759' }}>运行中</span>
+                                                    {daemonHealth.version && <span style={{ color: '#8b5cf6', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.version}</span>}
+                                                </>
+                                            ) : daemonHealth?.not_installed ? (
+                                                <>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#fbbf24' }} />
+                                                    <span style={{ fontSize: '13px', color: '#fbbf24' }}>{t('office.not_installed')}</span>
+                                                </>
+                                            ) : daemonHealth ? (
+                                                <>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#8E8E93' }} />
+                                                    <span style={{ fontSize: '13px', color: '#8E8E93' }}>离线</span>
+                                                </>
+                                            ) : (
+                                                <span style={{ color: '#8E8E93' }}>—</span>
+                                            )}
+                                        </span>
                                     </div>
+                                    {/* OpenClaw 状态行 */}
                                     <div className="group-row">
-                                        <span className="group-label">{t('office.daemon_version')}</span>
-                                        <span className="group-value" style={{ color: '#EBEBF5', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                            {daemonHealth?.version
-                                                ? <span>物业 <span style={{ color: '#8b5cf6', fontFamily: 'monospace' }}>v{daemonHealth.version}</span></span>
-                                                : <span style={{ color: '#8E8E93' }}>—</span>
-                                            }
-                                            {daemonHealth?.openclaw_version
-                                                ? <span>OpenClaw <span style={{ color: '#34c759', fontFamily: 'monospace' }}>v{daemonHealth.openclaw_version}</span></span>
-                                                : daemonHealth?.ok
-                                                    ? <span style={{ color: '#8E8E93' }}>OpenClaw 版本未知</span>
-                                                    : null
-                                            }
+                                        <span className="group-label">OpenClaw</span>
+                                        <span className="group-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {daemonHealth?.ok ? (
+                                                daemonHealth.openclaw_version ? (
+                                                    <>
+                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#34c759' }} />
+                                                        <span style={{ fontSize: '13px', color: '#34c759' }}>运行中</span>
+                                                        <span style={{ color: '#34c759', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.openclaw_version}</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#8E8E93' }} />
+                                                        <span style={{ fontSize: '13px', color: '#8E8E93' }}>{t('office.not_installed')}</span>
+                                                    </>
+                                                )
+                                            ) : (
+                                                <span style={{ color: '#8E8E93' }}>—</span>
+                                            )}
                                         </span>
                                     </div>
                                     {daemonHealth && !daemonHealth.ok && daemonHealth.error && !daemonHealth.not_installed && (

@@ -1,6 +1,6 @@
 use axum::{
     body::Bytes,
-    extract::{Multipart, Path, State},
+    extract::{Multipart, Path, Query, State},
     response::sse::{Event, Sse},
     Json,
 };
@@ -56,9 +56,15 @@ pub async fn restart_openclaw() -> Json<Value> {
 
 // ── GET /health ──────────────────────────────────────────────
 
-pub async fn health(State(_state): State<AppState>) -> Json<Value> {
-    let gw = openclaw_gateway_status();
-    let openclaw_ver = openclaw_version();
+#[derive(Debug, Deserialize)]
+pub struct HealthQuery {
+    pub node_bin: Option<String>,
+    pub openclaw_bin: Option<String>,
+}
+
+pub async fn health(State(_state): State<AppState>, Query(q): Query<HealthQuery>) -> Json<Value> {
+    let gw = openclaw_gateway_status(q.node_bin.as_deref(), q.openclaw_bin.as_deref());
+    let openclaw_ver = openclaw_version(q.node_bin.as_deref(), q.openclaw_bin.as_deref());
 
     let platform = if cfg!(target_os = "macos") { "darwin" }
                    else if cfg!(target_os = "windows") { "windows" }

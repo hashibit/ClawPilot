@@ -276,7 +276,7 @@ pub fn install_daemon_binary(
         // 移动到远程目标目录（使用远程机器上的 ~ 展开）
         let remote_bin_path = "~/.clawpilot/bin/clawpilot-daemon";
         let mv_cmd = format!(
-            "{} {} 'mkdir -p ~/.clawpilot/bin && mv /tmp/clawpilot-daemon {} && chmod +x {}'",
+            "{} {} 'mkdir -p ~/.clawpilot/bin ~/.clawpilot/logs && mv /tmp/clawpilot-daemon {} && chmod +x {}'",
             prefix, tgt, remote_bin_path, remote_bin_path
         );
 
@@ -700,6 +700,29 @@ pub fn install_daemon(
     // 7. 验证服务状态
     lg("🔍 验证服务状态...");
     std::thread::sleep(std::time::Duration::from_millis(1000));
+
+    if let (Some(prefix), Some(tgt)) = (ssh_prefix, ssh_target) {
+        let check_cmd = match os_type {
+            OsType::Linux => format!(
+                "{} {} 'systemctl --user is-active clawpilot-daemon'",
+                prefix, tgt
+            ),
+            OsType::MacOS => format!(
+                "{} {} 'launchctl list com.clawpilot.daemon 2>/dev/null | grep -q PID && echo active || echo inactive'",
+                prefix, tgt
+            ),
+        };
+        let out = Command::new("sh").arg("-c").arg(&check_cmd).output();
+        let active = out.map(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            s == "active"
+        }).unwrap_or(false);
+        if !active {
+            return Err(AppError::Internal(
+                "Daemon 服务安装后未能正常启动，请检查远程主机日志".to_string()
+            ));
+        }
+    }
 
     // 远程安装时 daemon_url 使用 SSH host，本地使用 127.0.0.1
     let daemon_url = if let Some(tgt) = ssh_target {

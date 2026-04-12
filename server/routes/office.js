@@ -398,38 +398,45 @@ export function createOfficeRouter(db) {
 
   // check_daemon_health
   router.post('/check_daemon_health', async (req, res) => {
-    const { daemon_url, daemon_api_key, office_id } = req.body
-    if (!daemon_url) return res.json({ ok: false, error: '未配置 Daemon URL' })
+    const { office_id } = req.body
+    if (!office_id) return res.json({ ok: false, error: '未提供 office_id' })
+
+    const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    if (!office) return res.json({ ok: false, error: 'office 不存在' })
+    if (!office.daemon_url) return res.json({ ok: false, error: '未配置 Daemon URL' })
+
+    const apiKey = office.daemon_api_key ? (decrypt(office.daemon_api_key) || office.daemon_api_key) : ''
+
+    // Build query string with stored openclaw bin paths
+    const qs = new URLSearchParams()
+    if (office.openclaw_nodejs_path) qs.set('node_bin', office.openclaw_nodejs_path)
+    if (office.openclaw_install_path) qs.set('openclaw_bin', office.openclaw_install_path)
+    const qsSuffix = qs.toString() ? `?${qs}` : ''
 
     try {
-      // 远程 daemon 只监听 127.0.0.1，通过 SSH 隧道访问
-      if (office_id) {
-        const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
-        if (office) {
-          const address = office.address || ''
-          const isRemote = address && address !== 'localhost'
-          if (isRemote) {
-            const idx = address.lastIndexOf(':')
-            const host = idx >= 0 ? address.slice(0, idx) : address
-            const sshPort = idx >= 0 ? parseInt(address.slice(idx + 1)) || 22 : 22
-            const sshOpts = {
-              host,
-              port: sshPort,
-              user: office.access_user || 'root',
-              keyPath: office.ssh_key_path || undefined,
-              password: office.access_password ? decrypt(office.access_password) : undefined,
-            }
-            const { status, data } = await sshHttpRequest(sshOpts, 'GET', '/health', decrypt(office.daemon_api_key) || daemon_api_key)
-            if (status >= 200 && status < 300) return res.json({ ok: true, ...data })
-            return res.json({ ok: false, error: `HTTP ${status}` })
-          }
+      const address = office.address || ''
+      const isRemote = address && address !== 'localhost'
+
+      if (isRemote) {
+        const idx = address.lastIndexOf(':')
+        const host = idx >= 0 ? address.slice(0, idx) : address
+        const sshPort = idx >= 0 ? parseInt(address.slice(idx + 1)) || 22 : 22
+        const sshOpts = {
+          host,
+          port: sshPort,
+          user: office.access_user || 'root',
+          keyPath: office.ssh_key_path || undefined,
+          password: office.access_password ? decrypt(office.access_password) : undefined,
         }
+        const { status, data } = await sshHttpRequest(sshOpts, 'GET', `/health${qsSuffix}`, apiKey)
+        if (status >= 200 && status < 300) return res.json({ ok: true, ...data })
+        return res.json({ ok: false, error: `HTTP ${status}` })
       }
 
       // 本地直连
-      const url = `${daemon_url.replace(/\/$/, '')}/health`
+      const url = `${office.daemon_url.replace(/\/$/, '')}/health${qsSuffix}`
       const r = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${daemon_api_key ?? ''}` },
+        headers: { 'Authorization': `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(5000),
       })
       if (!r.ok) return res.json({ ok: false, error: `HTTP ${r.status}` })

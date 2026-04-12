@@ -18,6 +18,25 @@ fn openclaw_home() -> PathBuf {
     home.join(".openclaw")
 }
 
+/// ~/.clawpilot/openclaw-current symlink path
+fn openclaw_current() -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+    home.join(".clawpilot").join("openclaw-current")
+}
+
+/// Run openclaw CLI via bundled node + openclaw bin from the current symlink.
+/// Returns (node_bin, openclaw_bin) if both exist, else None.
+fn openclaw_bins() -> Option<(PathBuf, PathBuf)> {
+    let current = openclaw_current();
+    let node_bin = current.join("nodejs").join("bin").join("node");
+    let openclaw_bin = current.join("node_modules").join(".bin").join("openclaw");
+    if node_bin.exists() && openclaw_bin.exists() {
+        Some((node_bin, openclaw_bin))
+    } else {
+        None
+    }
+}
+
 /// PID file path
 fn pid_file() -> PathBuf {
     openclaw_home().join("openclaw.pid")
@@ -54,41 +73,43 @@ pub struct GatewayStatus {
     pub rpc_ok: bool,
 }
 
-/// Get OpenClaw version via `openclaw --version`
-/// Returns "2026.3.28" format or None if not found
-pub fn openclaw_version() -> Option<String> {
+/// Resolve (node_bin, openclaw_bin) paths.
+/// If caller provides explicit paths, use them; otherwise fallback to symlink detection.
+fn resolve_bins(node_bin: Option<&str>, openclaw_bin: Option<&str>) -> Option<(PathBuf, PathBuf)> {
+    if let (Some(n), Some(o)) = (node_bin, openclaw_bin) {
+        let np = PathBuf::from(n);
+        let op = PathBuf::from(o);
+        if np.exists() && op.exists() {
+            return Some((np, op));
+        }
+        tracing::debug!("resolve_bins: provided paths don't exist: node={}, openclaw={}", n, o);
+    }
+    openclaw_bins()
+}
+
+/// Get OpenClaw version.
+/// Caller may supply explicit bin paths (from offices DB); otherwise auto-detect via symlink.
+pub fn openclaw_version(node_bin: Option<&str>, openclaw_bin: Option<&str>) -> Option<String> {
     use std::process::Command;
-    use std::env;
 
-    let home = env::var("HOME").unwrap_or_default();
-    let path = env::var("PATH").unwrap_or_default();
-    let path = format!(
-        "{}/.npm-global/bin:{}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}",
-        home, home, path
-    );
+    let (node, openclaw) = resolve_bins(node_bin, openclaw_bin)?;
 
-    tracing::debug!("openclaw_version: trying with PATH={}", path);
-
-    let output = Command::new("openclaw")
-        .args(["--version"])
-        .env("PATH", &path)
+    let output = Command::new(&node)
+        .arg(&openclaw)
+        .arg("--version")
         .output();
 
     match &output {
-        Ok(o) => {
-            tracing::debug!("openclaw_version: exit_code={:?}, stdout={}, stderr={}",
-                o.status.code(),
-                String::from_utf8_lossy(&o.stdout).trim(),
-                String::from_utf8_lossy(&o.stderr).trim()
-            );
-        }
-        Err(e) => {
-            tracing::debug!("openclaw_version: command failed: {}", e);
-        }
+        Ok(o) => tracing::debug!(
+            "openclaw_version: exit={:?} stdout={} stderr={}",
+            o.status.code(),
+            String::from_utf8_lossy(&o.stdout).trim(),
+            String::from_utf8_lossy(&o.stderr).trim()
+        ),
+        Err(e) => tracing::debug!("openclaw_version: command failed: {}", e),
     }
 
     let output = output.ok()?;
-
     if !output.status.success() {
         return None;
     }
@@ -111,21 +132,17 @@ pub fn openclaw_version() -> Option<String> {
 ///   rpc.ok                  = true
 ///
 /// Falls back to is_running=false when the command fails or JSON is absent.
-pub fn openclaw_gateway_status() -> GatewayStatus {
+pub fn openclaw_gateway_status(node_bin: Option<&str>, openclaw_bin: Option<&str>) -> GatewayStatus {
     use std::process::Command;
-    use std::env;
 
-    // Ensure PATH includes common locations since daemon may lack them
-    let home = env::var("HOME").unwrap_or_default();
-    let path = env::var("PATH").unwrap_or_default();
-    let path = format!(
-        "{}/.npm-global/bin:{}/.local/bin:/opt/homebrew/bin:/usr/local/bin:{}",
-        home, home, path
-    );
+    let (node, openclaw) = match resolve_bins(node_bin, openclaw_bin) {
+        Some(bins) => bins,
+        None => return GatewayStatus { is_running: false, pid: None, rpc_ok: false },
+    };
 
-    let output = Command::new("openclaw")
+    let output = Command::new(&node)
+        .arg(&openclaw)
         .args(["gateway", "status", "--json"])
-        .env("PATH", path)
         .output();
 
     let stdout = match output {
@@ -1025,7 +1042,7 @@ pub async fn run_deploy(
     });
 
     let running = is_openclaw_running();
-    let gw = openclaw_gateway_status();
+    let gw = openclaw_gateway_status(None, None);
 
     if running {
         update(&|t| t.log("✓ OpenClaw 进程存活"));
