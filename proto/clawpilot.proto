@@ -83,6 +83,17 @@ message Office {
   string daemon_url = 30;            // Daemon HTTP endpoint
   string daemon_api_key = 31;        // Daemon API Key
 
+  string opc_root = 32;               // 可配置的部署目录
+  string initial_openclaw_config = 33; // 初始 openclaw.json 配置（JSON 字符串）
+
+  // OpenClaw 安装信息（安装成功后写入）
+  string openclaw_version = 34;        // OpenClaw 安装版本
+  string openclaw_install_path = 35;   // OpenClaw 安装路径（which openclaw）
+  string openclaw_download_url = 36;   // OpenClaw 离线包下载地址
+  string openclaw_nodejs_path = 37;    // OpenClaw 使用的 Node.js 路径
+  string openclaw_nodejs_version = 38; // Node.js 版本号
+  int64  openclaw_installed_at = 39;   // 安装时间戳（Unix 秒）
+
   string current_opc_id = 40;
   string current_opc_name = 41;
 
