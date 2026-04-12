@@ -32,10 +32,16 @@ fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
         daemon_api_key: row.get(16)?,
         opc_root: row.get(17)?,
         initial_openclaw_config: row.get(18)?,
-        created_at: row.get(19)?,
-        updated_at: row.get(20)?,
-        current_opc_id: row.get(21).ok().flatten(),
-        current_opc_name: row.get(22).ok().flatten(),
+        openclaw_version: row.get(19).ok().flatten(),
+        openclaw_install_path: row.get(20).ok().flatten(),
+        openclaw_download_url: row.get(21).ok().flatten(),
+        openclaw_nodejs_path: row.get(22).ok().flatten(),
+        openclaw_nodejs_version: row.get(23).ok().flatten(),
+        openclaw_installed_at: row.get(24).ok().flatten(),
+        created_at: row.get(25)?,
+        updated_at: row.get(26)?,
+        current_opc_id: row.get(27).ok().flatten(),
+        current_opc_name: row.get(28).ok().flatten(),
     })
 }
 
@@ -52,6 +58,7 @@ pub fn get_offices(pool: &DbPool) -> Result<Vec<Office>> {
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
                 o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
                 o.daemon_url, o.daemon_api_key, o.opc_root, o.initial_openclaw_config,
+                o.openclaw_version, o.openclaw_install_path, o.openclaw_download_url, o.openclaw_nodejs_path, o.openclaw_nodejs_version, o.openclaw_installed_at,
                 o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
@@ -71,6 +78,7 @@ pub fn get_office(pool: &DbPool, id: &str) -> Result<Office> {
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
                 o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
                 o.daemon_url, o.daemon_api_key, o.opc_root, o.initial_openclaw_config,
+                o.openclaw_version, o.openclaw_install_path, o.openclaw_download_url, o.openclaw_nodejs_path, o.openclaw_nodejs_version, o.openclaw_installed_at,
                 o.created_at, o.updated_at,
                 oc.id, oc.display_name
          FROM offices o
@@ -99,8 +107,11 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
              (id, name, address, access_card, phone, receptionist_image,
               ownership, monthly_rent, internet_speed, decoration_grade,
               description, access_auth_type, access_user, access_password, ssh_key_path,
-              daemon_url, daemon_api_key, opc_root, created_at, updated_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20)",
+              daemon_url, daemon_api_key, opc_root, initial_openclaw_config,
+              openclaw_version, openclaw_install_path, openclaw_download_url,
+              openclaw_nodejs_path, openclaw_nodejs_version, openclaw_installed_at,
+              created_at, updated_at)
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27)",
         rusqlite::params![
             id,
             office.name,
@@ -120,7 +131,14 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
             office.daemon_url,
             office.daemon_api_key,
             office.opc_root,
-            office.created_at.max(1).min(i64::MAX - 1) + 0 * ts, // use provided or fallback
+            office.initial_openclaw_config,
+            office.openclaw_version,
+            office.openclaw_install_path,
+            office.openclaw_download_url,
+            office.openclaw_nodejs_path,
+            office.openclaw_nodejs_version,
+            office.openclaw_installed_at,
+            office.created_at.max(1).min(i64::MAX - 1) + 0 * ts,
             office.updated_at,
         ],
     )?;
@@ -135,7 +153,10 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
              ownership=?7, monthly_rent=?8, internet_speed=?9, decoration_grade=?10,
              description=?11, access_auth_type=?12, access_user=?13,
              access_password=?14, ssh_key_path=?15,
-             daemon_url=?16, daemon_api_key=?17, opc_root=?18, updated_at=?19
+             daemon_url=?16, daemon_api_key=?17, opc_root=?18, initial_openclaw_config=?19,
+             openclaw_version=?20, openclaw_install_path=?21, openclaw_download_url=?22,
+             openclaw_nodejs_path=?23, openclaw_nodejs_version=?24, openclaw_installed_at=?25,
+             updated_at=?26
          WHERE id=?1",
         rusqlite::params![
             id,
@@ -156,6 +177,13 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
             office.daemon_url,
             office.daemon_api_key,
             office.opc_root,
+            office.initial_openclaw_config,
+            office.openclaw_version,
+            office.openclaw_install_path,
+            office.openclaw_download_url,
+            office.openclaw_nodejs_path,
+            office.openclaw_nodejs_version,
+            office.openclaw_installed_at,
             now(),
         ],
     )?;
@@ -677,6 +705,12 @@ mod tests {
             daemon_api_key: None,
             opc_root: None,
             initial_openclaw_config: None,
+            openclaw_version: None,
+            openclaw_install_path: None,
+            openclaw_download_url: None,
+            openclaw_nodejs_path: None,
+            openclaw_nodejs_version: None,
+            openclaw_installed_at: None,
             created_at: 0,
             updated_at: 0,
             current_opc_id: None,

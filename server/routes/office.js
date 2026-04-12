@@ -284,8 +284,8 @@ export function createOfficeRouter(db) {
            access_auth_type, access_user, access_password, ssh_key_path,
            phone, receptionist_image,
            ownership, monthly_rent, internet_speed, decoration_grade, description,
-           daemon_url, daemon_api_key, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           daemon_url, daemon_api_key, opc_root, initial_openclaw_config, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         office.id, office.name,
         office.address ?? null,
@@ -296,6 +296,7 @@ export function createOfficeRouter(db) {
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
         office.description ?? null,
         office.daemon_url ?? null, encrypt(office.daemon_api_key ?? null),
+        office.opc_root ?? null, office.initial_openclaw_config ?? null,
         office.created_at ?? now(), office.updated_at ?? now()
       )
       writeLog('INFO', `办公室已创建: ${office.name} (${office.id})`)
@@ -333,6 +334,12 @@ export function createOfficeRouter(db) {
       const finalDaemonUrl = office.daemon_url ?? existing.daemon_url
       const finalDaemonApiKey = office.daemon_api_key !== undefined ? encrypt(office.daemon_api_key ?? null) : existing.daemon_api_key
       const finalOpcRoot = office.opc_root ?? existing.opc_root
+      const finalOpenclawVersion = office.openclaw_version ?? existing.openclaw_version
+      const finalOpenclawInstallPath = office.openclaw_install_path ?? existing.openclaw_install_path
+      const finalOpenclawDownloadUrl = office.openclaw_download_url ?? existing.openclaw_download_url
+      const finalOpenclawNodejsPath = office.openclaw_nodejs_path ?? existing.openclaw_nodejs_path
+      const finalOpenclawNodejsVersion = office.openclaw_nodejs_version ?? existing.openclaw_nodejs_version
+      const finalOpenclawInstalledAt = office.openclaw_installed_at ?? existing.openclaw_installed_at
 
       db.prepare(`
         UPDATE offices SET
@@ -340,7 +347,10 @@ export function createOfficeRouter(db) {
           access_auth_type = ?, access_user = ?, access_password = ?, ssh_key_path = ?,
           phone = ?, receptionist_image = ?,
           ownership = ?, monthly_rent = ?, internet_speed = ?, decoration_grade = ?,
-          description = ?, daemon_url = ?, daemon_api_key = ?, opc_root = ?, updated_at = ?
+          description = ?, daemon_url = ?, daemon_api_key = ?, opc_root = ?,
+          openclaw_version = ?, openclaw_install_path = ?, openclaw_download_url = ?,
+          openclaw_nodejs_path = ?, openclaw_nodejs_version = ?, openclaw_installed_at = ?,
+          updated_at = ?
         WHERE id = ?
       `).run(
         finalName, finalAddress,
@@ -349,6 +359,8 @@ export function createOfficeRouter(db) {
         finalOwnership, finalMonthlyRent, finalInternetSpeed, finalDecorationGrade,
         finalDescription,
         finalDaemonUrl, finalDaemonApiKey, finalOpcRoot,
+        finalOpenclawVersion, finalOpenclawInstallPath, finalOpenclawDownloadUrl,
+        finalOpenclawNodejsPath, finalOpenclawNodejsVersion, finalOpenclawInstalledAt,
         now(), id
       )
       res.json(null)
@@ -877,7 +889,57 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
 
           if (status === 'success') {
             writeLog('INFO', `openclaw 安装完成: ${version}`)
-            return res.json({ ok: true, logs, version, daemon_url: daemonUrl, api_key: apiKey })
+
+            // 记录 OpenClaw 安装信息
+            const installedAt = nowUnix()
+            let installPath = null
+            let nodejsPath = null
+            let nodejsVersion = null
+
+            try {
+              const home = isRemote
+                ? (await sshExecRaw(sshOpts, 'echo $HOME', { timeout: 5000 })).stdout.trim()
+                : process.env.HOME || ''
+
+              if (isRemote) {
+                const whichOut = await sshExecRaw(sshOpts, 'which openclaw', { timeout: 5000 })
+                installPath = whichOut.stdout.trim() || null
+
+                const nodeBin = `${home}/.openclaw/current/nodejs/bin/node`
+                const nodeCheck = await sshExecRaw(sshOpts, `test -f ${nodeBin} && echo "${nodeBin}" || command -v node 2>/dev/null`, { timeout: 5000 })
+                nodejsPath = nodeCheck.stdout.trim() || null
+
+                if (nodejsPath) {
+                  const nodeVerOut = await sshExecRaw(sshOpts, `${nodejsPath} --version`, { timeout: 5000 })
+                  nodejsVersion = nodeVerOut.stdout.trim().replace(/^v/, '') || null
+                }
+              } else {
+                const { stdout } = await execAsync('which openclaw')
+                installPath = stdout.trim() || null
+
+                const bundledNode = `${home}/.openclaw/current/nodejs/bin/node`
+                try {
+                  const { stdout: np } = await execAsync(`test -f ${bundledNode} && echo "${bundledNode}"`)
+                  nodejsPath = np.trim() || null
+                } catch {
+                  try {
+                    const { stdout: sys } = await execAsync('command -v node')
+                    nodejsPath = sys.trim() || null
+                  } catch {}
+                }
+
+                if (nodejsPath) {
+                  const { stdout: nv } = await execAsync(`${nodejsPath} --version`)
+                  nodejsVersion = nv.trim().replace(/^v/, '') || null
+                }
+              }
+            } catch { /* 不影响主流程 */ }
+
+            db.prepare(
+              'UPDATE offices SET openclaw_version=?, openclaw_install_path=?, openclaw_download_url=?, openclaw_nodejs_path=?, openclaw_nodejs_version=?, openclaw_installed_at=?, updated_at=? WHERE id=?'
+            ).run(version, installPath, downloadUrl, nodejsPath, nodejsVersion, installedAt, nowUnix(), office_id)
+
+            return res.json({ ok: true, logs, version, daemon_url: daemonUrl, api_key: apiKey, install_path: installPath, nodejs_path: nodejsPath, nodejs_version: nodejsVersion })
           } else if (status === 'failed') {
             return res.json({ ok: false, error: state.error || '未知错误', logs })
           }

@@ -27,6 +27,12 @@ pub struct Office {
     pub opc_root: Option<String>,
     #[serde(skip_serializing)]
     pub initial_openclaw_config: Option<String>,
+    pub openclaw_version: Option<String>,
+    pub openclaw_install_path: Option<String>,
+    pub openclaw_download_url: Option<String>,
+    pub openclaw_nodejs_path: Option<String>,
+    pub openclaw_nodejs_version: Option<String>,
+    pub openclaw_installed_at: Option<i64>,
     // Joined from opc_config (read-only)
     pub current_opc_id: Option<String>,
     pub current_opc_name: Option<String>,

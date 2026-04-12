@@ -253,6 +253,12 @@ export function runMigrations(db) {
     'access_user TEXT', 'access_password TEXT', 'ssh_key_path TEXT',
     'initial_openclaw_config TEXT',
     'opc_root TEXT',  // 可配置的部署目录
+    'openclaw_version TEXT',  // OpenClaw 安装版本
+    'openclaw_install_path TEXT',  // OpenClaw 安装路径
+    'openclaw_download_url TEXT',  // OpenClaw 离线包下载地址
+    'openclaw_nodejs_path TEXT',  // OpenClaw 使用的 Node.js 路径
+    'openclaw_nodejs_version TEXT',  // Node.js 版本
+    'openclaw_installed_at INTEGER',  // 安装时间戳
   ].forEach(col => safeAddColumn(db, 'offices', col))
 
   // Skills table extended fields

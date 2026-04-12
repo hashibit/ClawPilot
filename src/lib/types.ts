@@ -214,6 +214,12 @@ export interface Office {
   daemon_api_key?: string    // Daemon API Key (plain text, stored server-side)
   opc_root?: string          // 可配置的部署目录
   initial_openclaw_config?: string  // 初始 openclaw.json 配置
+  openclaw_version?: string   // OpenClaw 安装版本
+  openclaw_install_path?: string  // OpenClaw 安装路径
+  openclaw_download_url?: string  // OpenClaw 离线包下载地址
+  openclaw_nodejs_path?: string  // OpenClaw 使用的 Node.js 路径
+  openclaw_nodejs_version?: string  // Node.js 版本
+  openclaw_installed_at?: number  // 安装时间戳
   current_opc_id?: string | null
   current_opc_name?: string | null
   created_at: number
