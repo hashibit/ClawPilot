@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { LANGUAGES, setLanguage, isRtl } from '../i18n'
 import { Icon } from '../components/Icon'
 import { useState, useEffect } from 'react'
-import { call } from '../lib/api'
+import { call, getLicenseStatus, deactivateLicense, type LicenseStatus } from '../lib/api'
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation()
@@ -11,13 +11,22 @@ export default function SettingsPage() {
   const [opcRoot, setOpcRoot] = useState('~/.openclaw/OPC')
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+  const [license, setLicense] = useState<LicenseStatus | null>(null)
 
   useEffect(() => {
-    // Load opc_root from server
     call<string>('get_opc_root', {}).then(root => {
       if (root) setOpcRoot(root)
     }).catch(() => {})
+    getLicenseStatus().then(setLicense).catch(() => {})
   }, [])
+
+  const handleDeactivate = async () => {
+    if (!confirm('Are you sure you want to deactivate your license?')) return
+    try {
+      await deactivateLicense()
+      window.location.reload()
+    } catch {}
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -184,6 +193,54 @@ export default function SettingsPage() {
             </div>
           )}
         </section>
+
+        {/* License */}
+        {license && (
+          <section style={{ marginBottom: '28px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5', marginBottom: '4px' }}>
+              License
+            </div>
+            <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
+              Your license activation status
+            </div>
+            <div style={{
+              padding: '14px 16px', borderRadius: '9px',
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.03)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{
+                    width: '8px', height: '8px', borderRadius: '50%',
+                    background: license.activated ? '#34C759' : '#FF453A',
+                  }} />
+                  <span style={{ fontSize: '13px', color: '#EBEBF5', fontWeight: 500 }}>
+                    {license.activated ? 'Activated' : 'Not activated'}
+                  </span>
+                </div>
+                {license.license_key && (
+                  <div style={{ fontSize: '12px', color: '#8E8E93', fontFamily: 'monospace' }}>
+                    {license.license_key}
+                  </div>
+                )}
+              </div>
+              {license.activated && (
+                <button
+                  onClick={handleDeactivate}
+                  style={{
+                    padding: '6px 12px', borderRadius: '7px',
+                    border: '1px solid rgba(255,69,58,0.3)',
+                    background: 'transparent', color: '#FF453A',
+                    fontSize: '12px', cursor: 'pointer',
+                  }}
+                >
+                  Deactivate
+                </button>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* About */}
         <section>

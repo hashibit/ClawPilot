@@ -178,7 +178,6 @@ export function makeOffice(db, overrides = {}) {
     decoration_grade: 'MEDIUM',
     description: null,
     daemon_url: null,
-    daemon_api_key: null,
     created_at: now(),
     updated_at: now(),
     ...overrides
@@ -186,13 +185,13 @@ export function makeOffice(db, overrides = {}) {
   db.prepare(`
     INSERT INTO offices (id, name, address, access_card, phone, receptionist_image,
       ownership, monthly_rent, internet_speed, decoration_grade, description,
-      daemon_url, daemon_api_key, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      daemon_url, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.id, data.name, data.address, data.access_card, data.phone,
     data.receptionist_image, data.ownership, data.monthly_rent,
     data.internet_speed, data.decoration_grade, data.description,
-    data.daemon_url, data.daemon_api_key, data.created_at, data.updated_at
+    data.daemon_url, data.created_at, data.updated_at
   )
   return data
 }

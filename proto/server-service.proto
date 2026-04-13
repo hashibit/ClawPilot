@@ -933,7 +933,7 @@ message AssignOfficeRequest {
 }
 
 message CheckDaemonHealthRequest {
-  string office_id = 1;  // 后端从 DB 读取 daemon_url 和 daemon_api_key
+  string office_id = 1;  // 后端从 DB 读取 daemon_url
 }
 
 message CheckDaemonHealthResponse {
@@ -995,7 +995,7 @@ message InstallDaemonResponse {
   bool ok = 1;
   string error = 2;
   string daemon_url = 3;
-  string api_key = 4;
+  reserved 4;  // was api_key
   repeated string logs = 5;
   bool already_running = 6;
 }
@@ -1030,7 +1030,7 @@ message ProbeRemoteDaemonRequest {
 message ProbeDaemonResponse {
   bool ok = 1;
   string daemon_url = 2;
-  string api_key = 3;
+  reserved 3;  // was api_key
 }
 
 message GetLocalDaemonVersionResponse {

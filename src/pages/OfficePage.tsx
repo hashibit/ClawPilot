@@ -133,7 +133,7 @@ export default function OfficePage() {
     const silentProbeDaemon = useCallback(async (office: Office) => {
         if (office.daemon_url) return
         try {
-            let r: { ok: boolean; daemon_url?: string; api_key?: string }
+            let r: { ok: boolean; daemon_url?: string }
             if (!office.address || office.address === 'localhost') {
                 r = await probeLocalDaemon(office.id)
             } else if (office.access_user && (office.access_password || office.ssh_key_path)) {
@@ -143,8 +143,8 @@ export default function OfficePage() {
             }
             // Only update state if this office is still selected (avoid race condition)
             if (selected?.id !== office.id) return
-            if (r.ok && r.daemon_url && r.api_key) {
-                const updates = { daemon_url: r.daemon_url, daemon_api_key: r.api_key }
+            if (r.ok && r.daemon_url) {
+                const updates = { daemon_url: r.daemon_url }
                 setOffices(prev => prev.map(o => o.id === office.id ? { ...o, ...updates } : o))
                 setSelected(prev => prev?.id === office.id ? { ...prev, ...updates } : prev)
                 setForm(prev => ({ ...prev, ...updates }))
@@ -212,7 +212,7 @@ export default function OfficePage() {
                 toast('办公室已创建', 'success')
             } else {
                 const addressChanged = form.address !== selected.address
-                const daemonFields = addressChanged ? { daemon_url: undefined, daemon_api_key: undefined } : {}
+                const daemonFields = addressChanged ? { daemon_url: undefined } : {}
                 const updated: Office = { ...selected, ...form, ...daemonFields, updated_at: Math.floor(Date.now() / 1000) }
                 await updateOffice(selected.id, updated)
                 setOffices(prev => prev.map(o => o.id === updated.id ? updated : o))
@@ -455,9 +455,9 @@ export default function OfficePage() {
             lg(t('office.install_decoration_done'))
 
             // Update daemon config in UI
-            if (r.daemon_url && r.api_key) {
+            if (r.daemon_url) {
                 healthCacheRef.current.delete(`${saved.id}:${r.daemon_url}`)
-                const updatedOffice = { ...saved, daemon_url: r.daemon_url, daemon_api_key: r.api_key }
+                const updatedOffice = { ...saved, daemon_url: r.daemon_url }
                 setSelected(updatedOffice)
                 setForm(updatedOffice)
                 setOffices(prev => prev.map(o => o.id === saved.id ? updatedOffice : o))

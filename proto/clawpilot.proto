@@ -81,7 +81,7 @@ message Office {
   string description = 26;
 
   string daemon_url = 30;            // Daemon HTTP endpoint
-  string daemon_api_key = 31;        // Daemon API Key
+  reserved 31;                       // was daemon_api_key (removed: daemon no longer requires auth)
 
   string opc_root = 32;               // 可配置的部署目录
   string initial_openclaw_config = 33; // 初始 openclaw.json 配置（JSON 字符串）

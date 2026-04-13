@@ -42,10 +42,7 @@
       "icons/icon.png"
     ],
     "resources": [
-      "resources/clawpilot-daemon-macos-arm64",
-      "resources/clawpilot-daemon-macos-x64",
-      "resources/clawpilot-daemon-linux-x64",
-      "resources/clawpilot-daemon-linux-arm64",
+      "resources/clawpilot-daemon-*",
       "resources/install-node-user-latest-v22.sh",
       "resources/openclaw-install-20260406-080000.sh"
     ],

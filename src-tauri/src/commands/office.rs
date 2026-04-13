@@ -153,7 +153,6 @@ pub struct InstallDaemonResult {
     pub logs: Vec<String>,
     pub error: Option<String>,
     pub daemon_url: Option<String>,
-    pub api_key: Option<String>,
     pub already_running: Option<bool>,
 }
 
@@ -211,15 +210,11 @@ pub async fn check_daemon_health(
     tunnel_pool: State<'_, TunnelPool>,
     office_id: String,
 ) -> Result<DaemonHealthResult> {
-    use crate::utils::crypto::decrypt;
-
     let office = office_service::get_office(&pool, &office_id)?;
     let daemon_url = match office.daemon_url.as_deref() {
         Some(url) if !url.is_empty() => url.to_string(),
         _ => return Ok(DaemonHealthResult { ok: false, error: Some("未配置 Daemon URL".into()), ..Default::default() }),
     };
-    let raw_key = office.daemon_api_key.as_deref().unwrap_or("");
-    let api_key = decrypt(raw_key).unwrap_or_else(|_| raw_key.to_string());
 
     // Build optional (node_bin, openclaw_bin) from stored paths
     let bin_paths: Option<(String, String)> = match (
@@ -253,10 +248,10 @@ pub async fn check_daemon_health(
                 .map_err(|e| AppError::Internal(format!("SSH 隧道建立失败: {}", e)))
         })?;
         let access_url = format!("http://127.0.0.1:{}", local_port);
-        return Ok(office_service::check_daemon_health(&access_url, &api_key, bin_refs).await);
+        return Ok(office_service::check_daemon_health(&access_url, bin_refs).await);
     }
 
-    Ok(office_service::check_daemon_health(&daemon_url, &api_key, bin_refs).await)
+    Ok(office_service::check_daemon_health(&daemon_url, bin_refs).await)
 }
 
 /// Check SSH connection using system ssh command
@@ -403,9 +398,9 @@ pub async fn install_daemon(
     // Call the service layer
     match daemon_install_service::install_daemon(port, ssh_prefix.as_deref(), ssh_target.as_deref()) {
         Ok(result) => {
-            // Update office daemon config in DB
-            if let (Some(url), Some(key)) = (&result.daemon_url, &result.api_key) {
-                let _ = office_service::update_office_daemon_config_by_id(&pool, &office_id, url, key);
+            // Update office daemon url in DB
+            if let Some(url) = &result.daemon_url {
+                let _ = office_service::update_office_daemon_config_by_id(&pool, &office_id, url);
             }
 
             Ok(InstallDaemonResult {
@@ -413,7 +408,6 @@ pub async fn install_daemon(
                 logs: result.logs,
                 error: None,
                 daemon_url: result.daemon_url,
-                api_key: result.api_key,
                 already_running: None,
             })
         }
@@ -422,7 +416,6 @@ pub async fn install_daemon(
             logs: vec![],
             error: Some(e.to_string()),
             daemon_url: None,
-            api_key: None,
             already_running: None,
         }),
     }
@@ -463,7 +456,6 @@ pub async fn install_decoration(
     _arch: Option<String>,
 ) -> Result<InstallDaemonResult> {
     use crate::services::office_service::get_office;
-    use crate::utils::crypto::decrypt;
 
     let mut logs = Vec::new();
     let mut lg = |line: &str| {
@@ -501,7 +493,6 @@ pub async fn install_decoration(
             logs,
             error: Some("无法获取最新版本号".to_string()),
             daemon_url: None,
-            api_key: None,
             already_running: None,
         });
     }
@@ -557,12 +548,8 @@ pub async fn install_decoration(
     lg(&format!("   平台: {}, 架构: {}", platform, arch));
 
     // If daemon not installed, install it first
-    let (daemon_url, decrypted_key) = if office.daemon_url.is_some() {
-        let daemon_url = office.daemon_url.unwrap();
-        let api_key = office.daemon_api_key
-            .ok_or_else(|| AppError::NotFound("Daemon API Key 不存在".to_string()))?;
-        let decrypted = decrypt(&api_key).unwrap_or(api_key.clone());
-        (daemon_url, decrypted)
+    let daemon_url = if office.daemon_url.is_some() {
+        office.daemon_url.unwrap()
     } else {
         lg("📦 Daemon 未配置，先安装 daemon...");
 
@@ -576,29 +563,24 @@ pub async fn install_decoration(
                 logs,
                 error: Some("daemon 安装失败".to_string()),
                 daemon_url: None,
-                api_key: None,
                 already_running: None,
             });
         }
 
         let daemon_url = install_result.daemon_url
             .ok_or_else(|| AppError::Internal("daemon 安装成功但未返回 URL".to_string()))?;
-        let api_key = install_result.api_key
-            .ok_or_else(|| AppError::Internal("daemon 安装成功但未返回 API Key".to_string()))?;
 
         // Forward daemon install logs
         for log_line in &install_result.logs {
             lg(log_line);
         }
 
-        // Save daemon config to office
-        let _ = office_service::update_office_daemon_config_by_id(&pool, &office_id, &daemon_url, &api_key);
+        // Save daemon url to office
+        let _ = office_service::update_office_daemon_config_by_id(&pool, &office_id, &daemon_url);
         office.daemon_url = Some(daemon_url.clone());
-        office.daemon_api_key = Some(crate::utils::crypto::encrypt(&api_key).unwrap_or(api_key.clone()));
-        let decrypted = decrypt(&api_key).unwrap_or(api_key);
 
         lg("✅ Daemon 安装完成，继续安装 OpenClaw...");
-        (daemon_url, decrypted)
+        daemon_url
     };
 
     lg(&format!("📡 连接 daemon: {}", daemon_url));
@@ -636,7 +618,6 @@ pub async fn install_decoration(
 
     let resp = daemon_client
         .post(format!("{}/install_openclaw", access_url.trim_end_matches('/')))
-        .bearer_auth(&decrypted_key)
         .json(&install_req)
         .send()
         .await
@@ -649,7 +630,6 @@ pub async fn install_decoration(
             logs,
             error: Some(format!("daemon 返回错误: {}", body)),
             daemon_url: None,
-            api_key: None,
             already_running: None,
         });
     }
@@ -669,7 +649,6 @@ pub async fn install_decoration(
 
         let status_resp = daemon_client
             .get(format!("{}/install_openclaw/{}", access_url.trim_end_matches('/'), task_id))
-            .bearer_auth(&decrypted_key)
             .send()
             .await;
 
@@ -740,7 +719,6 @@ pub async fn install_decoration(
                         logs,
                         error: None,
                         daemon_url: Some(daemon_url.clone()),
-                        api_key: Some(decrypted_key.clone()),
                         already_running: None,
                     });
                 } else if status == "failed" {
@@ -750,7 +728,6 @@ pub async fn install_decoration(
                         logs,
                         error: Some(error_msg),
                         daemon_url: None,
-                        api_key: None,
                         already_running: None,
                     });
                 }
@@ -763,7 +740,6 @@ pub async fn install_decoration(
                     logs,
                     error: Some(format!("daemon 查询失败: {}", body)),
                     daemon_url: None,
-                    api_key: None,
                     already_running: None,
                 });
             }

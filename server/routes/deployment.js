@@ -6,69 +6,11 @@ import FormData from 'form-data'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { homedir } from 'os'
 import { createLogger } from '../logger.js'
 import { decrypt, encrypt } from '../utils/crypto.js'
-import { readFile } from '../utils/ssh.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE_ROOT = path.resolve(__dirname, '../..')
-
-/**
- * 刷新 daemon key - 从本地或远程读取 daemon.key 并更新数据库
- * @param {object} office - Office 对象（包含 address, access_* 等字段）
- * @param {object} db - SQLite database
- * @param {object} log - Logger
- * @returns {Promise<string|null>} - 返回新 key 或 null
- */
-async function refreshDaemonKey(office, db, log) {
-  const isLocalDaemon = !office.daemon_url ||
-    office.daemon_url.includes('localhost') ||
-    office.daemon_url.includes('127.0.0.1')
-
-  let newKey = null
-
-  if (isLocalDaemon) {
-    // 本地模式：直接读取 ~/.clawpilot/daemon.key
-    try {
-      newKey = fs.readFileSync(path.join(homedir(), '.clawpilot', 'daemon.key'), 'utf8').trim() || null
-    } catch { return null }
-  } else {
-    // 远程模式：通过 SSH 读取远程 ~/.clawpilot/daemon.key
-    if (!office.address || office.address === 'localhost') return null
-
-    const m = office.address.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::(\d+))?$/)
-    if (!m) return null
-
-    const sshOpts = {
-      host: m[1],
-      port: m[2] ? Number(m[2]) : 22,
-      user: office.access_user || 'root',
-      password: office.access_auth_type !== 'ssh_key' ? office.access_password : undefined,
-      keyPath: office.access_auth_type === 'ssh_key' ? office.ssh_key_path : undefined,
-      timeout: 5000,
-    }
-
-    try {
-      const keyContent = await readFile(sshOpts, '~/.clawpilot/daemon.key')
-      newKey = keyContent.trim() || null
-    } catch (err) {
-      log?.warn?.(`refreshDaemonKey: SSH read failed for ${office.address}: ${err.message}`)
-      return null
-    }
-  }
-
-  // 如果读取到新 key 且与数据库不同，更新数据库
-  if (newKey && newKey !== office.daemon_api_key) {
-    log?.info?.(`refreshDaemonKey: updating key for office ${office.id}`)
-    db.prepare('UPDATE offices SET daemon_api_key = ?, updated_at = ? WHERE id = ?')
-      .run(encrypt(newKey), Math.floor(Date.now() / 1000), office.id)
-    office.daemon_api_key = newKey
-    log?.info?.(`refreshDaemonKey: key synced for office ${office.id}`)
-  }
-
-  return newKey
-}
 
 const now = () => Math.floor(Date.now() / 1000)
 
@@ -702,7 +644,7 @@ router.post('/start_deployment', async (req, res) => {
 
     const officeRow = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
     if (!officeRow) return res.status(400).json({ error: 'Office not found' })
-    const office = { ...officeRow, daemon_api_key: decrypt(officeRow.daemon_api_key) }
+    const office = { ...officeRow }
 
     const taskId = randomUUID()
     const createdAt = now()
@@ -715,7 +657,7 @@ router.post('/start_deployment', async (req, res) => {
     writeLog('INFO', 'deployment', `Deploy started: ${opc.name} → ${office.name} (task: ${taskId})`)
 
     // Check if office has daemon configured
-    if (office.daemon_url && office.daemon_api_key) {
+    if (office.daemon_url) {
       // Real daemon deployment (async)
       log.info(`start_deployment: daemon mode opc=${opc.name} office=${office.name} task=${taskId}`)
       setImmediate(() => runDaemonDeploy(taskId, opc_id, opc, office).catch(e => log.error(`runDaemonDeploy: ${e.message}`)))
@@ -776,9 +718,6 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
   try {
     mark('RUNNING', 1, { started_at: now() })
 
-    // 刷新 daemon key - 自动同步本地或远程的 daemon.key 到数据库
-    await refreshDaemonKey(office, db, log)
-
     // Regenerate agent documents (AGENTS.md + leader SOUL.md section) before packaging
     regenerateAgentDocuments(opc_id)
 
@@ -808,77 +747,13 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
     const daemonUrl = office.daemon_url.replace(/\/$/, '')
     const response = await fetch(`${daemonUrl}/deploy`, {
       method: 'POST',
-      headers: {
-        ...form.getHeaders(),
-        'Authorization': `Bearer ${office.daemon_api_key}`,
-      },
+      headers: { ...form.getHeaders() },
       body: form.getBuffer(),
       signal: AbortSignal.timeout(DAEMON_UPLOAD_TIMEOUT_MS),
     })
 
     if (!response.ok) {
       const text = await response.text()
-      // If 401 Unauthorized, 刷新 daemon key 并重试
-      if (response.status === 401) {
-        log.warn(`Deploy got 401, 刷新 daemon key 并重试`)
-        const retryKey = await refreshDaemonKey(office, db, log)
-        if (retryKey) {
-          // Retry with new key
-          const retryForm = new FormData()
-          retryForm.append('manifest', JSON.stringify(manifest), { contentType: 'application/json' })
-          retryForm.append('package', pkgBuf, { filename: 'package.tar.gz', contentType: 'application/gzip' })
-          const retryResp = await fetch(`${daemonUrl}/deploy`, {
-            method: 'POST',
-            headers: {
-              ...retryForm.getHeaders(),
-              'Authorization': `Bearer ${retryKey}`,
-            },
-            body: retryForm.getBuffer(),
-            signal: AbortSignal.timeout(DAEMON_UPLOAD_TIMEOUT_MS),
-          })
-          if (retryResp.ok) {
-            const { task_id: daemonTaskId } = await retryResp.json()
-            try { db.prepare('UPDATE deployment_tasks SET daemon_task_id = ? WHERE id = ?').run(daemonTaskId, taskId) } catch (_) {}
-            mark('RUNNING', 3)
-            writeLog('INFO', 'deployment', `Daemon task accepted after retry: ${daemonTaskId}`)
-            // Continue with polling using retry key
-            const retryDeadline = Date.now() + DAEMON_DEPLOY_TIMEOUT_MS
-            while (Date.now() < retryDeadline) {
-              await sleep(DAEMON_POLL_INTERVAL_MS)
-              const pollResp = await fetch(`${daemonUrl}/deploy/${daemonTaskId}`, {
-                headers: { 'Authorization': `Bearer ${retryKey}` },
-                signal: AbortSignal.timeout(10000),
-              })
-              if (!pollResp.ok) continue
-              const pollData = await pollResp.json()
-              const pollState = pollData.state || pollData
-              const pollLog = (pollState.logs || []).slice(-5).join('\n')
-              try { db.prepare('UPDATE deployment_tasks SET message = ?, current_step = ? WHERE id = ?')
-                .run(pollLog, Math.min(3, Math.floor((pollState.progress || 0) / 34)), taskId) } catch (_) {}
-              if (pollState.status === 'success') {
-                mark('SUCCESS', 4, { completed_at: now(), message: (pollState.logs || []).join('\n') })
-                db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`).run(now(), opc_id)
-                db.prepare(`INSERT INTO office_deployments (id, opc_id, opc_name, office_id, office_name, deployed_at, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)`)
-                  .run(randomUUID(), opc_id, opc.name, office.id, office.name, now())
-                db.prepare(`UPDATE opc_config SET is_running = 1, office_id = ? WHERE id = ?`).run(office.id, opc_id)
-                writeLog('INFO', 'deployment', `Deploy SUCCESS (retry): ${opc.name} → ${office.name}`)
-                return
-              }
-              if (pollState.status === 'failed') {
-                mark('FAILED', 4, { completed_at: now(), message: pollState.error || 'Unknown error' })
-                writeLog('ERROR', 'deployment', `Deploy FAILED (retry): ${opc.name} → ${office.name}`)
-                return
-              }
-            }
-            mark('FAILED', 4, { completed_at: now(), message: '部署超时' })
-            writeLog('ERROR', 'deployment', `Deploy TIMEOUT (retry): ${opc.name} → ${office.name}`)
-            return
-          }
-          // Retry also failed, throw original error
-          const retryText = await retryResp.text()
-          throw new Error(`Daemon 返回错误 ${retryResp.status}: ${retryText}`)
-        }
-      }
       throw new Error(`Daemon 返回错误 ${response.status}: ${text}`)
     }
 
@@ -896,7 +771,6 @@ async function runDaemonDeploy(taskId, opc_id, opc, office) {
       await sleep(DAEMON_POLL_INTERVAL_MS)
 
       const statusResp = await fetch(`${daemonUrl}/deploy/${daemonTaskId}`, {
-        headers: { 'Authorization': `Bearer ${office.daemon_api_key}` },
         signal: AbortSignal.timeout(10000),
       })
 
@@ -1005,9 +879,9 @@ router.post('/undeploy', async (req, res) => {
     // Find which office this OPC is deployed to
     const opc = db.prepare('SELECT office_id FROM opc_config WHERE id = ?').get(opc_id)
     const officeRow = opc?.office_id
-      ? db.prepare('SELECT daemon_url, daemon_api_key, initial_openclaw_config FROM offices WHERE id = ?').get(opc.office_id)
+      ? db.prepare('SELECT daemon_url, initial_openclaw_config FROM offices WHERE id = ?').get(opc.office_id)
       : null
-    const office = officeRow ? { ...officeRow, daemon_api_key: decrypt(officeRow.daemon_api_key) } : null
+    const office = officeRow ? { ...officeRow } : null
 
     // Update DB records
     db.prepare(`UPDATE office_deployments SET is_active = 0, undeployed_at = ? WHERE opc_id = ? AND is_active = 1`)
@@ -1016,7 +890,7 @@ router.post('/undeploy', async (req, res) => {
     writeLog('INFO', 'deployment', `Undeployed opc_id=${opc_id}`)
 
     // Push initial config back to daemon to restore clean state
-    if (office?.daemon_url && office?.daemon_api_key && office?.initial_openclaw_config) {
+    if (office?.daemon_url && office?.initial_openclaw_config) {
       try {
         const initialConfig = office.initial_openclaw_config
         const pkgBuf = await buildResetPackage(initialConfig)
@@ -1027,7 +901,7 @@ router.post('/undeploy', async (req, res) => {
         const daemonUrl = office.daemon_url.replace(/\/$/, '')
         await fetch(`${daemonUrl}/deploy`, {
           method: 'POST',
-          headers: { ...form.getHeaders(), 'Authorization': `Bearer ${office.daemon_api_key}` },
+          headers: { ...form.getHeaders() },
           body: form.getBuffer(),
           signal: AbortSignal.timeout(DAEMON_UPLOAD_TIMEOUT_MS),
         })
@@ -1092,7 +966,7 @@ router.post('/deploy_to_office', async (req, res) => {
 
     const officeRow2 = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
     if (!officeRow2) return res.status(400).json({ error: 'Office not found' })
-    const office = { ...officeRow2, daemon_api_key: decrypt(officeRow2.daemon_api_key) }
+    const office = { ...officeRow2 }
 
     if (!office.daemon_url) {
       return res.json({ ok: false, error: '该办公室未配置 Daemon，请先安装物业' })
@@ -1142,10 +1016,7 @@ router.post('/deploy_to_office', async (req, res) => {
     try {
       const response = await fetch(`${daemonUrl}/deploy`, {
         method: 'POST',
-        headers: {
-          ...form.getHeaders(),
-          'Authorization': `Bearer ${office.daemon_api_key ?? ''}`,
-        },
+        headers: { ...form.getHeaders() },
         body: form.getBuffer(),
         signal: AbortSignal.timeout(DAEMON_UPLOAD_TIMEOUT_MS),
       })
@@ -1182,7 +1053,6 @@ router.post('/deploy_to_office', async (req, res) => {
       }
       try {
         const statusResp = await fetch(`${daemonUrl}/deploy/${daemonTaskId}`, {
-          headers: { 'Authorization': `Bearer ${office.daemon_api_key ?? ''}` },
           signal: AbortSignal.timeout(10000),
         })
         if (!statusResp.ok) return

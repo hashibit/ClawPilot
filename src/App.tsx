@@ -12,6 +12,7 @@ import SettingsPage from './pages/SettingsPage'
 import ActivitiesPage from './pages/ActivitiesPage'
 import { OpcProvider } from './contexts/OpcContext'
 import { ToastContainer } from './components/Toast'
+import LicenseGate from './components/LicenseGate'
 
 // Load bundle skills metadata at app startup
 async function loadBundleSkillsMetadata() {
@@ -31,23 +32,25 @@ export default function App() {
   loadBundleSkillsMetadata()
 
   return (
-    <OpcProvider>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/overview" replace />} />
-          <Route path="overview" element={<OverviewPage />} />
-          <Route path="opc" element={<OpcPage />} />
-          <Route path="agents" element={<AgentsPage />} />
-          <Route path="providers" element={<ProvidersPage />} />
-          <Route path="bindings" element={<BindingsPage />} />
-          <Route path="deploy" element={<DeployPage />} />
-          <Route path="logs" element={<LogsPage />} />
-          <Route path="activities" element={<ActivitiesPage />} />
-          <Route path="office" element={<OfficePage />} />
-          <Route path="settings" element={<SettingsPage />} />
-        </Route>
-      </Routes>
-      <ToastContainer />
-    </OpcProvider>
+    <LicenseGate>
+      <OpcProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/overview" replace />} />
+            <Route path="overview" element={<OverviewPage />} />
+            <Route path="opc" element={<OpcPage />} />
+            <Route path="agents" element={<AgentsPage />} />
+            <Route path="providers" element={<ProvidersPage />} />
+            <Route path="bindings" element={<BindingsPage />} />
+            <Route path="deploy" element={<DeployPage />} />
+            <Route path="logs" element={<LogsPage />} />
+            <Route path="activities" element={<ActivitiesPage />} />
+            <Route path="office" element={<OfficePage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+        </Routes>
+        <ToastContainer />
+      </OpcProvider>
+    </LicenseGate>
   )
 }

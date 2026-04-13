@@ -96,11 +96,11 @@ describe('Office Routes', () => {
   })
 
   describe('check_daemon_health', () => {
-    it('返回未配置错误（无daemon_url）', async () => {
+    it('返回错误（未提供 office_id）', async () => {
       const res = await request(app).post('/api/check_daemon_health').send({})
       expect(res.status).toBe(200)
       expect(res.body.ok).toBe(false)
-      expect(res.body.error).toContain('未配置')
+      expect(res.body.error).toBeTruthy()
     })
   })
 })

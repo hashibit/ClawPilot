@@ -29,19 +29,18 @@ fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
         access_password: row.get(13)?,
         ssh_key_path: row.get(14)?,
         daemon_url: row.get(15)?,
-        daemon_api_key: row.get(16)?,
-        opc_root: row.get(17)?,
-        initial_openclaw_config: row.get(18)?,
-        openclaw_version: row.get(19).ok().flatten(),
-        openclaw_install_path: row.get(20).ok().flatten(),
-        openclaw_download_url: row.get(21).ok().flatten(),
-        openclaw_nodejs_path: row.get(22).ok().flatten(),
-        openclaw_nodejs_version: row.get(23).ok().flatten(),
-        openclaw_installed_at: row.get(24).ok().flatten(),
-        created_at: row.get(25)?,
-        updated_at: row.get(26)?,
-        current_opc_id: row.get(27).ok().flatten(),
-        current_opc_name: row.get(28).ok().flatten(),
+        opc_root: row.get(16)?,
+        initial_openclaw_config: row.get(17)?,
+        openclaw_version: row.get(18).ok().flatten(),
+        openclaw_install_path: row.get(19).ok().flatten(),
+        openclaw_download_url: row.get(20).ok().flatten(),
+        openclaw_nodejs_path: row.get(21).ok().flatten(),
+        openclaw_nodejs_version: row.get(22).ok().flatten(),
+        openclaw_installed_at: row.get(23).ok().flatten(),
+        created_at: row.get(24)?,
+        updated_at: row.get(25)?,
+        current_opc_id: row.get(26).ok().flatten(),
+        current_opc_name: row.get(27).ok().flatten(),
     })
 }
 
@@ -57,7 +56,7 @@ pub fn get_offices(pool: &DbPool) -> Result<Vec<Office>> {
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
                 o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
-                o.daemon_url, o.daemon_api_key, o.opc_root, o.initial_openclaw_config,
+                o.daemon_url, o.opc_root, o.initial_openclaw_config,
                 o.openclaw_version, o.openclaw_install_path, o.openclaw_download_url, o.openclaw_nodejs_path, o.openclaw_nodejs_version, o.openclaw_installed_at,
                 o.created_at, o.updated_at,
                 oc.id, oc.display_name
@@ -77,7 +76,7 @@ pub fn get_office(pool: &DbPool, id: &str) -> Result<Office> {
         "SELECT o.id, o.name, o.address, o.access_card, o.phone, o.receptionist_image,
                 o.ownership, o.monthly_rent, o.internet_speed, o.decoration_grade,
                 o.description, o.access_auth_type, o.access_user, o.access_password, o.ssh_key_path,
-                o.daemon_url, o.daemon_api_key, o.opc_root, o.initial_openclaw_config,
+                o.daemon_url, o.opc_root, o.initial_openclaw_config,
                 o.openclaw_version, o.openclaw_install_path, o.openclaw_download_url, o.openclaw_nodejs_path, o.openclaw_nodejs_version, o.openclaw_installed_at,
                 o.created_at, o.updated_at,
                 oc.id, oc.display_name
@@ -107,11 +106,11 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
              (id, name, address, access_card, phone, receptionist_image,
               ownership, monthly_rent, internet_speed, decoration_grade,
               description, access_auth_type, access_user, access_password, ssh_key_path,
-              daemon_url, daemon_api_key, opc_root, initial_openclaw_config,
+              daemon_url, opc_root, initial_openclaw_config,
               openclaw_version, openclaw_install_path, openclaw_download_url,
               openclaw_nodejs_path, openclaw_nodejs_version, openclaw_installed_at,
               created_at, updated_at)
-         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26,?27)",
+         VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25,?26)",
         rusqlite::params![
             id,
             office.name,
@@ -129,7 +128,6 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
             office.access_password,
             office.ssh_key_path.as_ref().map(|s| s.trim().to_string()),
             office.daemon_url,
-            office.daemon_api_key,
             office.opc_root,
             office.initial_openclaw_config,
             office.openclaw_version,
@@ -153,10 +151,10 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
              ownership=?7, monthly_rent=?8, internet_speed=?9, decoration_grade=?10,
              description=?11, access_auth_type=?12, access_user=?13,
              access_password=?14, ssh_key_path=?15,
-             daemon_url=?16, daemon_api_key=?17, opc_root=?18, initial_openclaw_config=?19,
-             openclaw_version=?20, openclaw_install_path=?21, openclaw_download_url=?22,
-             openclaw_nodejs_path=?23, openclaw_nodejs_version=?24, openclaw_installed_at=?25,
-             updated_at=?26
+             daemon_url=?16, opc_root=?17, initial_openclaw_config=?18,
+             openclaw_version=?19, openclaw_install_path=?20, openclaw_download_url=?21,
+             openclaw_nodejs_path=?22, openclaw_nodejs_version=?23, openclaw_installed_at=?24,
+             updated_at=?25
          WHERE id=?1",
         rusqlite::params![
             id,
@@ -175,7 +173,6 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
             office.access_password,
             office.ssh_key_path.as_ref().map(|s| s.trim().to_string()),
             office.daemon_url,
-            office.daemon_api_key,
             office.opc_root,
             office.initial_openclaw_config,
             office.openclaw_version,
@@ -267,7 +264,6 @@ pub fn get_office_deployments(
 /// openclaw_bin_paths: optional (node_bin, openclaw_bin) to pass as query params to daemon
 pub async fn check_daemon_health(
     daemon_url: &str,
-    api_key: &str,
     openclaw_bin_paths: Option<(&str, &str)>,
 ) -> DaemonHealthResult {
     if daemon_url.is_empty() {
@@ -305,7 +301,7 @@ pub async fn check_daemon_health(
         }
     };
 
-    match client.get(&url).bearer_auth(api_key).send().await {
+    match client.get(&url).send().await {
         Ok(resp) if resp.status().is_success() => match resp.json::<serde_json::Value>().await {
             Ok(json) => DaemonHealthResult {
                 ok: true,
@@ -355,22 +351,16 @@ pub async fn probe_local_daemon(pool: &DbPool, office_id: Option<&str>) -> Probe
 
     for port in &ports {
         let url = format!("http://127.0.0.1:{}", port);
-        match check_daemon_health(&url, "", None).await {
+        match check_daemon_health(&url, None).await {
             result if result.ok => {
-                // Found a running daemon, try to read API key
-                let api_key = read_local_daemon_key();
-
-                // If office_id is provided, save the daemon config
+                // If office_id is provided, save the daemon url
                 if let Some(oid) = office_id {
-                    if let Some(key) = &api_key {
-                        let _ = update_office_daemon_config(pool, oid, &url, key);
-                    }
+                    let _ = update_office_daemon_url(pool, oid, &url);
                 }
 
                 return ProbeDaemonResult {
                     ok: true,
                     daemon_url: Some(url),
-                    api_key,
                 };
             }
             _ => continue,
@@ -380,7 +370,6 @@ pub async fn probe_local_daemon(pool: &DbPool, office_id: Option<&str>) -> Probe
     ProbeDaemonResult {
         ok: false,
         daemon_url: None,
-        api_key: None,
     }
 }
 
@@ -396,7 +385,6 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
                 return ProbeDaemonResult {
                     ok: false,
                     daemon_url: None,
-                    api_key: None,
                 }
             }
         };
@@ -419,7 +407,6 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
             return ProbeDaemonResult {
                 ok: false,
                 daemon_url: None,
-                api_key: None,
             }
         }
     };
@@ -440,7 +427,6 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
         return ProbeDaemonResult {
             ok: false,
             daemon_url: None,
-            api_key: None,
         };
     }
 
@@ -477,14 +463,12 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
             return ProbeDaemonResult {
                 ok: false,
                 daemon_url: None,
-                api_key: None,
             };
         }
     } else {
         return ProbeDaemonResult {
             ok: false,
             daemon_url: None,
-            api_key: None,
         };
     };
 
@@ -523,44 +507,18 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
             return ProbeDaemonResult {
                 ok: false,
                 daemon_url: None,
-                api_key: None,
             }
         }
     };
 
-    // Read daemon API key from remote
-    let read_key_cmd = format!(
-        "{} {} \"cat ~/.clawpilot/daemon.key 2>/dev/null\"",
-        ssh_prefix_with_pass.as_ref().unwrap_or(&ssh_prefix),
-        target
-    );
-
-    let api_key = tokio::process::Command::new("sh")
-        .arg("-c")
-        .arg(&read_key_cmd)
-        .output()
-        .await
-        .ok()
-        .and_then(|out| {
-            let key = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if key.is_empty() {
-                None
-            } else {
-                Some(key)
-            }
-        });
-
     let daemon_url = format!("http://{}:{}", host, found_port);
 
-    // Update office daemon config
-    if let Some(ref key) = api_key {
-        let _ = update_office_daemon_config(pool, office_id, &daemon_url, key);
-    }
+    // Update office daemon url
+    let _ = update_office_daemon_url(pool, office_id, &daemon_url);
 
     ProbeDaemonResult {
         ok: true,
         daemon_url: Some(daemon_url),
-        api_key,
     }
 }
 
@@ -569,33 +527,16 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
 pub struct ProbeDaemonResult {
     pub ok: bool,
     pub daemon_url: Option<String>,
-    pub api_key: Option<String>,
 }
 
-/// Read local daemon API key from ~/.clawpilot/daemon.key
-fn read_local_daemon_key() -> Option<String> {
-    use std::fs;
-
-    let key_path = dirs::home_dir().map(|home| home.join(".clawpilot").join("daemon.key"))?;
-
-    fs::read_to_string(&key_path)
-        .ok()
-        .map(|s| s.trim().to_string())
-}
-
-/// Update office daemon configuration
-pub fn update_office_daemon_config(
+/// Update office daemon URL
+pub fn update_office_daemon_url(
     pool: &DbPool,
     office_id: &str,
     daemon_url: &str,
-    api_key: &str,
 ) -> Result<()> {
-    use crate::utils::crypto::encrypt;
-
     let conn = pool.get()?;
     let ts = now();
-
-    let encrypted_key = encrypt(api_key)?;
 
     // Read existing initial_openclaw_config; if not set, use empty default
     let existing_config: Option<String> = conn
@@ -612,8 +553,8 @@ pub fn update_office_daemon_config(
     });
 
     conn.execute(
-        "UPDATE offices SET daemon_url = ?2, daemon_api_key = ?3, initial_openclaw_config = ?4, updated_at = ?5 WHERE id = ?1",
-        rusqlite::params![office_id, daemon_url, encrypted_key, initial_config, ts],
+        "UPDATE offices SET daemon_url = ?2, initial_openclaw_config = ?3, updated_at = ?4 WHERE id = ?1",
+        rusqlite::params![office_id, daemon_url, initial_config, ts],
     )?;
 
     Ok(())
@@ -624,9 +565,8 @@ pub fn update_office_daemon_config_by_id(
     pool: &DbPool,
     office_id: &str,
     daemon_url: &str,
-    api_key: &str,
 ) -> Result<()> {
-    update_office_daemon_config(pool, office_id, daemon_url, api_key)
+    update_office_daemon_url(pool, office_id, daemon_url)
 }
 
 /// Update openclaw installation info after a successful install
@@ -739,7 +679,6 @@ mod tests {
             access_password: None,
             ssh_key_path: None,
             daemon_url: None,
-            daemon_api_key: None,
             opc_root: None,
             initial_openclaw_config: None,
             openclaw_version: None,
@@ -962,7 +901,7 @@ mod tests {
     // --- check_daemon_health 测试 ---
     #[tokio::test]
     async fn test_check_daemon_health_empty_url() {
-        let result = check_daemon_health("", "", None).await;
+        let result = check_daemon_health("", None).await;
         assert!(!result.ok);
         assert!(result.error.unwrap().contains("未配置"));
     }
@@ -984,7 +923,6 @@ mod tests {
         let result = ProbeDaemonResult {
             ok: true,
             daemon_url: Some("http://127.0.0.1:16668".to_string()),
-            api_key: Some("test-key".to_string()),
         };
 
         let json = serde_json::to_string(&result).unwrap();
@@ -992,6 +930,5 @@ mod tests {
 
         assert_eq!(result.ok, parsed.ok);
         assert_eq!(result.daemon_url, parsed.daemon_url);
-        assert_eq!(result.api_key, parsed.api_key);
     }
 }

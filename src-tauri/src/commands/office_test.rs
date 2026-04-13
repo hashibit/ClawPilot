@@ -34,9 +34,14 @@ mod tests {
             access_password: None,
             ssh_key_path: None,
             daemon_url: None,
-            daemon_api_key: None,
             opc_root: None,
             initial_openclaw_config: None,
+            openclaw_version: None,
+            openclaw_install_path: None,
+            openclaw_download_url: None,
+            openclaw_nodejs_path: None,
+            openclaw_nodejs_version: None,
+            openclaw_installed_at: None,
             current_opc_id: None,
             current_opc_name: None,
             created_at: chrono::Utc::now().timestamp(),
@@ -65,9 +70,14 @@ mod tests {
             access_password: None,
             ssh_key_path: Some("/home/user/.ssh/id_rsa".to_string()),
             daemon_url: Some("http://localhost:16668".to_string()),
-            daemon_api_key: Some("test-key".to_string()),
             opc_root: None,
             initial_openclaw_config: None,
+            openclaw_version: None,
+            openclaw_install_path: None,
+            openclaw_download_url: None,
+            openclaw_nodejs_path: None,
+            openclaw_nodejs_version: None,
+            openclaw_installed_at: None,
             current_opc_id: None,
             current_opc_name: None,
             created_at: 1700000000,
@@ -244,7 +254,6 @@ mod tests {
         let pool = setup();
         let office = Office {
             daemon_url: Some("http://192.168.1.100:16668".to_string()),
-            daemon_api_key: Some("sk-daemon-test".to_string()),
             ..make_office("daemon-office")
         };
 

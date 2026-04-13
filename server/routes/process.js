@@ -1,37 +1,20 @@
 import { Router } from 'express'
 import { execSync, spawn } from 'child_process'
-import { existsSync, unlinkSync, readFileSync } from 'fs'
 import { createLogger } from '../logger.js'
-import { join } from 'path'
-import { homedir } from 'os'
 
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || 'openclaw'
 
 // ── Local daemon config (hardcoded for localhost mode) ───────────────────────────
 
 const LOCAL_DAEMON = {
-  daemon_url: 'http://localhost:16668',
-  daemon_api_key: (() => {
-    // Try to read from ~/.clawpilot/daemon.key
-    const keyPath = join(homedir(), '.clawpilot', 'daemon.key')
-    if (existsSync(keyPath)) {
-      const key = readFileSync(keyPath, 'utf-8').trim()
-      if (key) return key
-    }
-    return ''
-  })()
+  daemon_url: 'http://127.0.0.1:16668',
 }
 
 // ── Helpers ───────────────────────────────────────────────────
 
 /** GET local daemon health. Throws on network/HTTP error. */
 async function fetchDaemonHealth() {
-  if (!LOCAL_DAEMON.daemon_api_key) {
-    throw new Error('daemon API key not found')
-  }
-  const response = await fetch(`${LOCAL_DAEMON.daemon_url}/health`, {
-    headers: { 'Authorization': `Bearer ${LOCAL_DAEMON.daemon_api_key}` }
-  })
+  const response = await fetch(`${LOCAL_DAEMON.daemon_url}/health`)
   if (!response.ok) {
     throw new Error(`daemon health returned ${response.status}`)
   }
@@ -149,14 +132,9 @@ export function createProcessRouter(db) {
 
   // POST /api/restart_openclaw — 通过 daemon 重启 openclaw gateway
   router.post('/restart_openclaw', async (_req, res) => {
-    const daemon = LOCAL_DAEMON.daemon_api_key ? LOCAL_DAEMON : null
-    if (!daemon) {
-      return res.status(503).json({ ok: false, message: '本地 office 未配置 daemon' })
-    }
     try {
-      const r = await fetch(`${daemon.daemon_url}/restart_openclaw`, {
+      const r = await fetch(`${LOCAL_DAEMON.daemon_url}/restart_openclaw`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${daemon.daemon_api_key ?? ''}` },
         signal: AbortSignal.timeout(15000),
       })
       const data = await r.json()

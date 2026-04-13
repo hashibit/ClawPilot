@@ -1,4 +1,3 @@
-mod auth;
 mod deploy;
 mod error;
 mod install;
@@ -16,7 +15,6 @@ mod scheduler_http_tests;
 use std::sync::Arc;
 use axum::{
     extract::DefaultBodyLimit,
-    middleware,
     routing::{get, post},
     Router,
 };
@@ -39,51 +37,10 @@ struct Args {
     #[arg(long, default_value = "127.0.0.1:16668")]
     listen: SocketAddr,
 
-    /// Path to API key file (one line, plain text)
-    /// If not provided, reads from ~/.clawpilot/daemon.key
-    #[arg(long)]
-    key_file: Option<PathBuf>,
-
     /// Path to the scheduler SQLite database
     /// If not provided, uses ~/.clawpilot/scheduler.db
     #[arg(long)]
     db_path: Option<PathBuf>,
-}
-
-fn load_api_key(key_file: Option<PathBuf>) -> String {
-    let path = key_file.unwrap_or_else(|| {
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
-            .join(".clawpilot")
-            .join("daemon.key")
-    });
-
-    if let Ok(content) = fs::read_to_string(&path) {
-        let key = content.trim().to_string();
-        if !key.is_empty() {
-            tracing::info!("API Key loaded from {}", path.display());
-            return key;
-        }
-    }
-
-    // Generate a new key and save it
-    let key = uuid::Uuid::new_v4().to_string().replace("-", "");
-    if let Some(parent) = path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
-    let _ = fs::write(&path, &key);
-    // Restrict key file to owner-read/write only
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
-    }
-    tracing::warn!(
-        "Generated new API Key → {} (copy this key into ClawPilot Office config)",
-        path.display()
-    );
-    tracing::warn!("API Key: {}", key);
-    key
 }
 
 #[tokio::main]
@@ -115,7 +72,6 @@ async fn main() {
         .init();
 
     let args = Args::parse();
-    let api_key = load_api_key(args.key_file);
 
     // Initialize scheduler DB
     let data_dir = dirs::home_dir()
@@ -154,7 +110,7 @@ async fn main() {
     });
 
     // Create app state with scheduler and activity sender
-    let state = AppState::new(api_key)
+    let state = AppState::new()
         .with_scheduler(db, worker, dag.clone())
         .with_activity_sender(activity_tx);
 
@@ -186,8 +142,8 @@ async fn main() {
         }
     });
 
-    // Authenticated routes for deploy and install (existing)
-    let protected_deploy = Router::new()
+    // Deploy and install routes
+    let deploy_routes = Router::new()
         .route("/restart_openclaw", post(routes::restart_openclaw))
         .route("/deploy", post(routes::deploy))
         .route("/deploy/:task_id", get(routes::deploy_status))
@@ -195,26 +151,15 @@ async fn main() {
         .route("/install_openclaw", post(routes::install_openclaw))
         .route("/install_openclaw/:task_id", get(routes::install_status))
         .route("/install_openclaw/:task_id/sse", get(routes::install_sse))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::require_auth,
-        ))
         .layer(DefaultBodyLimit::max(MAX_DEPLOY_BODY_SIZE));
 
-    // Unprotected routes (health + websocket)
     let app = Router::new()
         .route("/health", get(routes::health))
         .route("/ws/activities", get(ws_routes::ws_activities));
 
-    // Add protected deploy routes with auth middleware
-    let app = app.merge(protected_deploy);
+    let app = app.merge(deploy_routes);
 
-    // Add scheduler routes with authentication
-    let scheduler_routes = scheduler::routes::scheduler_router()
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::require_auth,
-        ));
+    let scheduler_routes = scheduler::routes::scheduler_router();
 
     let app = app.merge(scheduler_routes)
         .layer(TraceLayer::new_for_http())

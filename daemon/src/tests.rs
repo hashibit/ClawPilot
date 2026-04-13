@@ -157,69 +157,6 @@ mod scheduler_db_tests {
     }
 }
 
-// ============================================================================
-// auth.rs tests
-// ============================================================================
-
-#[cfg(test)]
-mod auth_tests {
-    use axum::{
-        http::StatusCode,
-        middleware,
-        routing::get,
-        Router,
-    };
-    use axum_test::TestServer;
-    use crate::{auth::require_auth, state::AppState};
-
-    fn make_server(api_key: &str) -> TestServer {
-        let state = AppState::new(api_key.to_string());
-
-        let app: Router = Router::new()
-            .route("/protected", get(|| async { "ok" }))
-            .route_layer(middleware::from_fn_with_state(state.clone(), require_auth))
-            .with_state(state);
-
-        TestServer::new(app).unwrap()
-    }
-
-    #[tokio::test]
-    async fn missing_authorization_header_returns_401() {
-        let server = make_server("secret");
-        let resp = server.get("/protected").await;
-        assert_eq!(resp.status_code(), StatusCode::UNAUTHORIZED);
-    }
-
-    #[tokio::test]
-    async fn wrong_token_returns_401() {
-        let server = make_server("secret");
-        let resp = server
-            .get("/protected")
-            .add_header("Authorization", "Bearer wrong-token")
-            .await;
-        assert_eq!(resp.status_code(), StatusCode::UNAUTHORIZED);
-    }
-
-    #[tokio::test]
-    async fn malformed_header_not_bearer_returns_401() {
-        let server = make_server("secret");
-        let resp = server
-            .get("/protected")
-            .add_header("Authorization", "Token secret")
-            .await;
-        assert_eq!(resp.status_code(), StatusCode::UNAUTHORIZED);
-    }
-
-    #[tokio::test]
-    async fn correct_token_passes_through() {
-        let server = make_server("mysecret");
-        let resp = server
-            .get("/protected")
-            .add_header("Authorization", "Bearer mysecret")
-            .await;
-        assert_eq!(resp.status_code(), StatusCode::OK);
-    }
-}
 
 // ============================================================================
 // error.rs tests
@@ -238,13 +175,6 @@ mod error_tests {
         let bytes = collected.to_bytes();
         let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         (status, json)
-    }
-
-    #[tokio::test]
-    async fn unauthorized_maps_to_401() {
-        let (status, body) = status_and_body(AppError::Unauthorized).await;
-        assert_eq!(status, StatusCode::UNAUTHORIZED);
-        assert!(body["error"].is_string());
     }
 
     #[tokio::test]
@@ -279,7 +209,7 @@ mod error_tests {
 
     #[tokio::test]
     async fn response_body_is_json_error_object() {
-        let (_, body) = status_and_body(AppError::Unauthorized).await;
+        let (_, body) = status_and_body(AppError::NotFound("x".into())).await;
         // Must contain exactly the key "error"
         let obj = body.as_object().unwrap();
         assert!(obj.contains_key("error"));

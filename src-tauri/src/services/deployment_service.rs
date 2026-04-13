@@ -221,10 +221,10 @@ pub fn cancel_deployment(pool: &DbPool, id: &str) -> Result<()> {
 
 pub async fn undeploy(pool: &DbPool, opc_id: &str) -> Result<()> {
     // Step 1: Query office info before updating DB
-    let office_info: Option<(String, String, String)> = {
+    let office_info: Option<(String, String)> = {
         let conn = pool.get()?;
         conn.query_row(
-            "SELECT o.daemon_url, o.daemon_api_key, o.initial_openclaw_config
+            "SELECT o.daemon_url, o.initial_openclaw_config
              FROM offices o
              JOIN office_deployments od ON od.office_id = o.id
              WHERE od.opc_id = ?1 AND od.is_active = 1
@@ -234,12 +234,11 @@ pub async fn undeploy(pool: &DbPool, opc_id: &str) -> Result<()> {
                 Ok((
                     r.get::<_, Option<String>>(0)?.unwrap_or_default(),
                     r.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    r.get::<_, Option<String>>(2)?.unwrap_or_default(),
                 ))
             },
         )
         .ok()
-        .filter(|(url, key, _)| !url.is_empty() && !key.is_empty())
+        .filter(|(url, _)| !url.is_empty())
     };
 
     // Step 2: Update DB
@@ -257,10 +256,7 @@ pub async fn undeploy(pool: &DbPool, opc_id: &str) -> Result<()> {
     }
 
     // Step 3: Push reset config to daemon if available (async, best-effort)
-    if let Some((daemon_url, encrypted_key, initial_config)) = office_info {
-        use crate::utils::crypto::decrypt;
-
-        let api_key = decrypt(&encrypted_key).unwrap_or(encrypted_key);
+    if let Some((daemon_url, initial_config)) = office_info {
         let config_content = if initial_config.is_empty() {
             r#"{"agents":{"defaults":{},"list":[]},"channels":{},"models":{"providers":{}}}"#
                 .to_string()
@@ -275,7 +271,6 @@ pub async fn undeploy(pool: &DbPool, opc_id: &str) -> Result<()> {
             let client = reqwest::Client::new();
             let _ = client
                 .post(&url)
-                .header("X-API-Key", &api_key)
                 .header("Content-Type", "application/octet-stream")
                 .body(bytes)
                 .send()
@@ -770,9 +765,14 @@ mod tests {
             access_password: None,
             ssh_key_path: None,
             daemon_url: None,
-            daemon_api_key: None,
             opc_root: None,
             initial_openclaw_config: None,
+            openclaw_version: None,
+            openclaw_install_path: None,
+            openclaw_download_url: None,
+            openclaw_nodejs_path: None,
+            openclaw_nodejs_version: None,
+            openclaw_installed_at: None,
             created_at: 0,
             updated_at: 0,
             current_opc_id: None,

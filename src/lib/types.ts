@@ -211,7 +211,6 @@ export interface Office {
   decoration_grade: OfficeGrade
   description?: string
   daemon_url?: string        // Daemon HTTP endpoint
-  daemon_api_key?: string    // Daemon API Key (plain text, stored server-side)
   opc_root?: string          // 可配置的部署目录
   initial_openclaw_config?: string  // 初始 openclaw.json 配置
   openclaw_version?: string   // OpenClaw 安装版本

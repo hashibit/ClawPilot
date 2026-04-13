@@ -248,7 +248,7 @@ export function runMigrations(db) {
 
   // Daemon fields for offices - SQLite doesn't support DEFAULT in ALTER TABLE ADD COLUMN
   ;[
-    'daemon_url TEXT', 'daemon_api_key TEXT',
+    'daemon_url TEXT',
     "access_auth_type TEXT DEFAULT 'password'",
     'access_user TEXT', 'access_password TEXT', 'ssh_key_path TEXT',
     'initial_openclaw_config TEXT',

@@ -110,7 +110,6 @@ impl TaskRecord {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub api_key: String,
     pub tasks: Arc<DashMap<String, TaskRecord>>,
     pub scheduler_db: Option<Db>,
     pub scheduler_worker: Option<Worker>,
@@ -120,9 +119,8 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(api_key: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            api_key,
             tasks: Arc::new(DashMap::new()),
             scheduler_db: None,
             scheduler_worker: None,

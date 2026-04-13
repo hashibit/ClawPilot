@@ -140,6 +140,10 @@ pub fn run() {
             // Settings
             commands::settings::get_opc_root,
             commands::settings::set_opc_root,
+            // License
+            commands::settings::activate_license,
+            commands::settings::deactivate_license,
+            commands::settings::get_license_status,
             // AI
             commands::ai::ai_generate_agent,
             commands::ai::ai_generate_agents,

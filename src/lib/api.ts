@@ -191,10 +191,10 @@ export const checkDaemonHealth = (office_id: string) =>
   call<DaemonHealthResult>('check_daemon_health', { office_id })
 
 export const probeLocalDaemon = (office_id: string) =>
-  call<{ ok: boolean; daemon_url?: string; api_key?: string }>('probe_local_daemon', { office_id })
+  call<{ ok: boolean; daemon_url?: string }>('probe_local_daemon', { office_id })
 
 export const probeRemoteDaemon = (office_id: string) =>
-  call<{ ok: boolean; daemon_url?: string; api_key?: string }>('probe_remote_daemon', { office_id })
+  call<{ ok: boolean; daemon_url?: string }>('probe_remote_daemon', { office_id })
 
 export const getLocalDaemonVersion = () =>
   call<{ ok: boolean; version?: string; error?: string }>('get_local_daemon_version', {})
@@ -341,6 +341,15 @@ export interface RemoteSkillResult {
 /** source defaults to 'clawhub' (Convex). Pass 'lightmake' to use the old backend. */
 export const searchSkills = (q: string, source: 'clawhub' | 'lightmake' = 'clawhub', limit = 25) =>
   call<RemoteSkillResult[]>('search_skills', { q, source, limit })
+
+// ── License ──────────────────────────────────────────────────
+export interface LicenseStatus {
+  activated: boolean
+  license_key: string | null
+}
+export const getLicenseStatus = () => call<LicenseStatus>('get_license_status')
+export const activateLicense = (license_key: string) => call<boolean>('activate_license', { license_key })
+export const deactivateLicense = () => call<void>('deactivate_license')
 
 // ── Agent Chat ─────────────────────────────────────────────
 export const chatWithAgent = (agentId: string | null, messages: { role: string; content: string }[], soulOverride?: string) =>

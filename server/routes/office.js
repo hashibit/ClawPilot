@@ -2,14 +2,13 @@ import { Router } from 'express'
 import { spawn } from 'child_process'
 import { exec as execCb } from 'child_process'
 import { promisify } from 'util'
-import { existsSync, readFileSync, statSync, mkdirSync, writeFileSync } from 'fs'
+import { existsSync, statSync, mkdirSync } from 'fs'
 import { join, resolve } from 'path'
 import { homedir } from 'os'
-import { randomBytes } from 'crypto'
 import { fileURLToPath } from 'url'
 import { createLogger } from '../logger.js'
 import { encrypt, decrypt } from '../utils/crypto.js'
-import { sshExecRaw, checkConnection, detectArch, commandExists, readFile, uploadFile, sshHttpRequest } from '../utils/ssh.js'
+import { sshExecRaw, checkConnection, detectArch, commandExists, uploadFile, sshHttpRequest } from '../utils/ssh.js'
 
 const log = createLogger('office')
 
@@ -292,18 +291,11 @@ async function isDaemonRunning(url) {
   } catch { return false }
 }
 
-function readLocalKey() {
-  try {
-    return readFileSync(join(homedir(), '.clawpilot', 'daemon.key'), 'utf8').trim() || null
-  } catch { return null }
-}
-
 function rowToOffice(row) {
   if (!row) return null
   return {
     ...row,
     access_password: decrypt(row.access_password),
-    daemon_api_key: decrypt(row.daemon_api_key),
   }
 }
 
@@ -364,8 +356,8 @@ export function createOfficeRouter(db) {
            access_auth_type, access_user, access_password, ssh_key_path,
            phone, receptionist_image,
            ownership, monthly_rent, internet_speed, decoration_grade, description,
-           daemon_url, daemon_api_key, opc_root, initial_openclaw_config, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           daemon_url, opc_root, initial_openclaw_config, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         office.id, office.name,
         office.address ?? null,
@@ -375,7 +367,7 @@ export function createOfficeRouter(db) {
         office.ownership ?? 'RENTED', office.monthly_rent ?? null,
         office.internet_speed ?? null, office.decoration_grade ?? 'MEDIUM',
         office.description ?? null,
-        office.daemon_url ?? null, encrypt(office.daemon_api_key ?? null),
+        office.daemon_url ?? null,
         office.opc_root ?? null, office.initial_openclaw_config ?? null,
         office.created_at ?? now(), office.updated_at ?? now()
       )
@@ -412,7 +404,6 @@ export function createOfficeRouter(db) {
       const finalDecorationGrade = office.decoration_grade ?? existing.decoration_grade ?? 'MEDIUM'
       const finalDescription = office.description ?? existing.description
       const finalDaemonUrl = office.daemon_url ?? existing.daemon_url
-      const finalDaemonApiKey = office.daemon_api_key !== undefined ? encrypt(office.daemon_api_key ?? null) : existing.daemon_api_key
       const finalOpcRoot = office.opc_root ?? existing.opc_root
       const finalOpenclawVersion = office.openclaw_version ?? existing.openclaw_version
       const finalOpenclawInstallPath = office.openclaw_install_path ?? existing.openclaw_install_path
@@ -427,7 +418,7 @@ export function createOfficeRouter(db) {
           access_auth_type = ?, access_user = ?, access_password = ?, ssh_key_path = ?,
           phone = ?, receptionist_image = ?,
           ownership = ?, monthly_rent = ?, internet_speed = ?, decoration_grade = ?,
-          description = ?, daemon_url = ?, daemon_api_key = ?, opc_root = ?,
+          description = ?, daemon_url = ?, opc_root = ?,
           openclaw_version = ?, openclaw_install_path = ?, openclaw_download_url = ?,
           openclaw_nodejs_path = ?, openclaw_nodejs_version = ?, openclaw_installed_at = ?,
           updated_at = ?
@@ -438,7 +429,7 @@ export function createOfficeRouter(db) {
         finalPhone, finalReceptionistImage,
         finalOwnership, finalMonthlyRent, finalInternetSpeed, finalDecorationGrade,
         finalDescription,
-        finalDaemonUrl, finalDaemonApiKey, finalOpcRoot,
+        finalDaemonUrl, finalOpcRoot,
         finalOpenclawVersion, finalOpenclawInstallPath, finalOpenclawDownloadUrl,
         finalOpenclawNodejsPath, finalOpenclawNodejsVersion, finalOpenclawInstalledAt,
         now(), id
@@ -485,8 +476,6 @@ export function createOfficeRouter(db) {
     if (!office) return res.json({ ok: false, error: 'office 不存在' })
     if (!office.daemon_url) return res.json({ ok: false, error: '未配置 Daemon URL' })
 
-    const apiKey = office.daemon_api_key ? (decrypt(office.daemon_api_key) || office.daemon_api_key) : ''
-
     // Build query string with stored openclaw bin paths
     const qs = new URLSearchParams()
     if (office.openclaw_nodejs_path) qs.set('node_bin', office.openclaw_nodejs_path)
@@ -508,7 +497,7 @@ export function createOfficeRouter(db) {
           keyPath: office.ssh_key_path || undefined,
           password: office.access_password ? decrypt(office.access_password) : undefined,
         }
-        const { status, data } = await sshHttpRequest(sshOpts, 'GET', `/health${qsSuffix}`, apiKey)
+        const { status, data } = await sshHttpRequest(sshOpts, 'GET', `/health${qsSuffix}`, null)
         if (status >= 200 && status < 300) return res.json({ ok: true, ...data })
         return res.json({ ok: false, error: `HTTP ${status}` })
       }
@@ -516,7 +505,6 @@ export function createOfficeRouter(db) {
       // 本地直连
       const url = `${office.daemon_url.replace(/\/$/, '')}/health${qsSuffix}`
       const r = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(5000),
       })
       if (!r.ok) return res.json({ ok: false, error: `HTTP ${r.status}` })
@@ -641,21 +629,13 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
 
     if (await isDaemonRunning(daemonUrl)) {
       step('✅ Daemon 已在运行')
-      let apiKey = readLocalKey()
-      if (!apiKey) {
-        step('🔑 生成新的 API Key...')
-        apiKey = randomBytes(32).toString('hex')
-        const keyDir = join(homedir(), '.clawpilot')
-        mkdirSync(keyDir, { recursive: true })
-        writeFileSync(join(keyDir, 'daemon.key'), apiKey, 'utf8')
-      }
-      if (office_id && apiKey) {
+      if (office_id) {
         const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
         const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
-        db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
-          .run(daemonUrl, encrypt(apiKey), initialConfig, nowUnix(), office_id)
+        db.prepare('UPDATE offices SET daemon_url=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
+          .run(daemonUrl, initialConfig, nowUnix(), office_id)
       }
-      return { daemonUrl, apiKey, logs, already_running: true }
+      return { daemonUrl, logs, already_running: true }
     }
 
     step('🔍 查找 daemon 二进制...')
@@ -678,23 +658,13 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
     if (!started) throw new Error('daemon 启动超时')
     step('✅ Daemon 已就绪')
 
-    let apiKey = readLocalKey()
-    if (!apiKey) {
-      step('🔑 生成新的 API Key...')
-      apiKey = randomBytes(32).toString('hex')
-      const keyDir = join(homedir(), '.clawpilot')
-      mkdirSync(keyDir, { recursive: true })
-      writeFileSync(join(keyDir, 'daemon.key'), apiKey, 'utf8')
-    }
-    step('🔑 API Key 已就绪')
-
-    if (office_id && apiKey) {
-      db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
-        .run(daemonUrl, encrypt(apiKey), nowUnix(), office_id)
+    if (office_id) {
+      db.prepare('UPDATE offices SET daemon_url=?, updated_at=? WHERE id=?')
+        .run(daemonUrl, nowUnix(), office_id)
       step('💾 配置已自动保存')
     }
     writeLog('INFO', `daemon 安装完成 (local): ${daemonUrl}`)
-    return { daemonUrl, apiKey, logs }
+    return { daemonUrl, logs }
 
   } else if (mode === 'ssh') {
     if (!ssh_host) throw new Error('请填写远程主机地址')
@@ -732,12 +702,6 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
     await sshExecRaw(sshOpts, 'mkdir -p ~/.clawpilot/bin && mv /tmp/clawpilot-daemon ~/.clawpilot/bin/clawpilot-daemon && chmod +x ~/.clawpilot/bin/clawpilot-daemon')
     step('office.install.daemon_uploaded')
 
-    // 在 daemon 启动前写入 API key，daemon 启动时会读取它
-    step('🔑 生成 API Key...')
-    const apiKey = randomBytes(32).toString('hex')
-    await sshExecRaw(sshOpts, `mkdir -p ~/.clawpilot && printf '%s' '${apiKey}' > ~/.clawpilot/daemon.key && chmod 600 ~/.clawpilot/daemon.key`, { timeout: 5000 })
-    step('🔑 API Key 已就绪')
-
     step('🔧 安装 systemd 用户服务...')
     // %h 由 systemd 在远程机器上展开为用户 home，daemon 只监听 127.0.0.1
     const serviceUnit = [
@@ -771,20 +735,20 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 1000))
       try {
-        const { status } = await sshHttpRequest(sshOpts, 'GET', '/health', apiKey)
+        const { status } = await sshHttpRequest(sshOpts, 'GET', '/health', null)
         if (status >= 200 && status < 300) { started = true; break }
       } catch { /* 继续等待 */ }
     }
     if (!started) throw new Error('远程 daemon 启动超时')
     step('✅ 远程 daemon 已就绪')
 
-    if (office_id && apiKey) {
-      db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, updated_at=? WHERE id=?')
-        .run(daemonUrl, encrypt(apiKey), nowUnix(), office_id)
+    if (office_id) {
+      db.prepare('UPDATE offices SET daemon_url=?, updated_at=? WHERE id=?')
+        .run(daemonUrl, nowUnix(), office_id)
       step('💾 配置已自动保存')
     }
     writeLog('INFO', `daemon 安装完成 (ssh): ${daemonUrl}`)
-    return { daemonUrl, apiKey, logs }
+    return { daemonUrl, logs }
   }
 
   throw new Error('未知安装模式，请使用 local 或 ssh')
@@ -818,7 +782,7 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
       const result = await runDaemonInstall(db, {
         office_id, mode, daemon_port, ssh_host, ssh_port, ssh_user, ssh_key_path, ssh_password, daemon_host,
       }, step, writeLog)
-      return res.json({ ok: true, daemon_url: result.daemonUrl, api_key: result.apiKey, logs, already_running: result.already_running })
+      return res.json({ ok: true, daemon_url: result.daemonUrl, logs, already_running: result.already_running })
     } catch (err) {
       step(`❌ ${err.message}`)
       writeLog('ERROR', `install_daemon 失败: ${err.message}`)
@@ -900,7 +864,6 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
 
       // If daemon not installed, install it first
       let daemonUrl = officeRow.daemon_url
-      let apiKey = officeRow.daemon_api_key ? decrypt(officeRow.daemon_api_key) : null
 
       if (!daemonUrl) {
         lg('📦 Daemon 未配置，先安装 daemon...')
@@ -908,7 +871,6 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
           office_id, mode, daemon_port, ssh_host, ssh_port, ssh_user, ssh_key_path, ssh_password, daemon_host,
         }, lg, writeLog)
         daemonUrl = daemonResult.daemonUrl
-        apiKey = daemonResult.apiKey
         lg('✅ Daemon 安装完成，继续安装 OpenClaw...')
       }
 
@@ -926,13 +888,13 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
       lg('📤 提交安装任务到 daemon...')
       let taskId
       if (isRemote) {
-        const { status, data } = await sshHttpRequest(sshOpts, 'POST', '/install_openclaw', apiKey, installBody)
+        const { status, data } = await sshHttpRequest(sshOpts, 'POST', '/install_openclaw', null, installBody)
         if (status < 200 || status >= 300) return res.json({ ok: false, error: `daemon 返回错误: ${JSON.stringify(data)}`, logs })
         taskId = data?.task_id
       } else {
         const installResp = await fetch(`${daemonUrl.replace(/\/$/, '')}/install_openclaw`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(installBody),
           signal: AbortSignal.timeout(30000),
         })
@@ -953,12 +915,11 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
         try {
           let state
           if (isRemote) {
-            const { status, data } = await sshHttpRequest(sshOpts, 'GET', `/install_openclaw/${taskId}`, apiKey)
+            const { status, data } = await sshHttpRequest(sshOpts, 'GET', `/install_openclaw/${taskId}`, null)
             if (status < 200 || status >= 300) continue
             state = data?.state || {}
           } else {
             const statusResp = await fetch(`${daemonUrl.replace(/\/$/, '')}/install_openclaw/${taskId}`, {
-              headers: { 'Authorization': `Bearer ${apiKey}` },
               signal: AbortSignal.timeout(5000),
             })
             if (!statusResp.ok) continue
@@ -1027,7 +988,7 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
               'UPDATE offices SET openclaw_version=?, openclaw_install_path=?, openclaw_download_url=?, openclaw_nodejs_path=?, openclaw_nodejs_version=?, openclaw_installed_at=?, updated_at=? WHERE id=?'
             ).run(version, installPath, downloadUrl, nodejsPath, nodejsVersion, installedAt, nowUnix(), office_id)
 
-            return res.json({ ok: true, logs, version, daemon_url: daemonUrl, api_key: apiKey, install_path: installPath, nodejs_path: nodejsPath, nodejs_version: nodejsVersion })
+            return res.json({ ok: true, logs, version, daemon_url: daemonUrl, install_path: installPath, nodejs_path: nodejsPath, nodejs_version: nodejsVersion })
           } else if (status === 'failed') {
             return res.json({ ok: false, error: state.error || '未知错误', logs })
           }
@@ -1051,14 +1012,13 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
     for (const port of PORTS) {
       const url = `http://127.0.0.1:${port}`
       if (await isDaemonRunning(url)) {
-        const apiKey = readLocalKey()
-        if (office_id && apiKey) {
+        if (office_id) {
           const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
           const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
-          db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
-            .run(url, encrypt(apiKey), initialConfig, now(), office_id)
+          db.prepare('UPDATE offices SET daemon_url=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
+            .run(url, initialConfig, now(), office_id)
         }
-        return res.json({ ok: true, daemon_url: url, api_key: apiKey })
+        return res.json({ ok: true, daemon_url: url })
       }
     }
     return res.json({ ok: false })
@@ -1104,23 +1064,14 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
       }
       if (!foundPort) return res.json({ ok: false })
 
-      // Read daemon API key from remote
-      let apiKey = null
-      try {
-        const keyContent = await readFile(sshOpts, '~/.clawpilot/daemon.key')
-        apiKey = keyContent.trim() || null
-      } catch { /* no key file */ }
-
       const daemonUrl = `http://${host}:${foundPort}`
-      if (apiKey) {
-        const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
-        const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
-        db.prepare('UPDATE offices SET daemon_url=?, daemon_api_key=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
-          .run(daemonUrl, encrypt(apiKey), initialConfig, nowUnix(), office_id)
-      }
+      const existingOffice = db.prepare('SELECT initial_openclaw_config FROM offices WHERE id=?').get(office_id)
+      const initialConfig = existingOffice?.initial_openclaw_config ?? EMPTY_OPENCLAW_CONFIG
+      db.prepare('UPDATE offices SET daemon_url=?, initial_openclaw_config=?, updated_at=? WHERE id=?')
+        .run(daemonUrl, initialConfig, nowUnix(), office_id)
 
       log.info(`probe_remote_daemon: found daemon at ${daemonUrl} for office ${office_id}`)
-      return res.json({ ok: true, daemon_url: daemonUrl, api_key: apiKey })
+      return res.json({ ok: true, daemon_url: daemonUrl })
     } catch (err) {
       log.warn(`probe_remote_daemon: ${err.message}`)
       return res.json({ ok: false })

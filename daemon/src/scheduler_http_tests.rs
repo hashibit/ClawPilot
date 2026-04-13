@@ -24,8 +24,6 @@ mod scheduler_http_tests {
         state::AppState,
     };
 
-    const TEST_KEY: &str = "test-secret";
-    const AUTH_HEADER: (&str, &str) = ("Authorization", "Bearer test-secret");
 
     // -----------------------------------------------------------------------
     // Test server factory
@@ -48,8 +46,7 @@ mod scheduler_http_tests {
 
         let worker = Worker::new();
         let dag = DagScheduler::new(db.clone(), worker.clone());
-        let state =
-            AppState::new(TEST_KEY.to_string()).with_scheduler(db.clone(), worker, dag);
+        let state = AppState::new().with_scheduler(db.clone(), worker, dag);
 
         let app: Router = scheduler_router().with_state(state);
         (TestServer::new(app).unwrap(), db)
@@ -97,7 +94,7 @@ mod scheduler_http_tests {
 
         let resp = server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await;
 
@@ -132,7 +129,7 @@ mod scheduler_http_tests {
 
         let resp = server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await;
 
@@ -163,7 +160,7 @@ mod scheduler_http_tests {
 
         let resp = server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await;
 
@@ -186,7 +183,7 @@ mod scheduler_http_tests {
 
         let resp = server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await;
 
@@ -211,14 +208,14 @@ mod scheduler_http_tests {
         );
         server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await
             .assert_status_ok();
 
         let resp = server
             .get("/api/plans/plan-detail")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await;
 
         resp.assert_status_ok();
@@ -239,7 +236,7 @@ mod scheduler_http_tests {
 
         let resp = server
             .get("/api/plans/does-not-exist")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await;
 
         resp.assert_status_not_found();
@@ -256,14 +253,14 @@ mod scheduler_http_tests {
         let body = plan_body("plan-approve", json!([task("t1", "agent-a")]), json!([]));
         server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await
             .assert_status_ok();
 
         let resp = server
             .patch("/api/plans/plan-approve/approve")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await;
 
         resp.assert_status_ok();
@@ -285,20 +282,20 @@ mod scheduler_http_tests {
         let body = plan_body("plan-double", json!([task("t1", "agent-a")]), json!([]));
         server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await
             .assert_status_ok();
 
         server
             .patch("/api/plans/plan-double/approve")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await
             .assert_status_ok();
 
         server
             .patch("/api/plans/plan-double/approve")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await
             .assert_status_bad_request();
     }
@@ -314,14 +311,14 @@ mod scheduler_http_tests {
         let body = plan_body("plan-cancel", json!([task("t1", "agent-a")]), json!([]));
         server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await
             .assert_status_ok();
 
         let resp = server
             .patch("/api/plans/plan-cancel/cancel")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await;
 
         resp.assert_status_ok();
@@ -334,7 +331,7 @@ mod scheduler_http_tests {
 
         let resp = server
             .patch("/api/plans/ghost/cancel")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await;
 
         resp.assert_status_not_found();
@@ -358,7 +355,7 @@ mod scheduler_http_tests {
         );
         server
             .post("/api/plans")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .json(&body)
             .await
             .assert_status_ok();
@@ -366,7 +363,7 @@ mod scheduler_http_tests {
         // Approve — DAG sweep runs synchronously inside approve_plan before returning
         server
             .patch("/api/plans/plan-chain/approve")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await
             .assert_status_ok();
 
@@ -397,7 +394,7 @@ mod scheduler_http_tests {
 
         let resp = server
             .get("/api/agents")
-            .add_header(AUTH_HEADER.0, AUTH_HEADER.1)
+
             .await;
 
         resp.assert_status_ok();

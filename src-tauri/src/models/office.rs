@@ -23,7 +23,6 @@ pub struct Office {
     pub access_password: Option<String>,
     pub ssh_key_path: Option<String>,
     pub daemon_url: Option<String>,
-    pub daemon_api_key: Option<String>,
     pub opc_root: Option<String>,
     #[serde(skip_serializing)]
     pub initial_openclaw_config: Option<String>,

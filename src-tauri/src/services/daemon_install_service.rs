@@ -13,7 +13,6 @@ pub struct DaemonInstallResult {
     pub ok: bool,
     pub logs: Vec<String>,
     pub daemon_url: Option<String>,
-    pub api_key: Option<String>,
     pub error: Option<String>,
 }
 
@@ -664,51 +663,6 @@ fn install_systemd_user_service_remote(
     Ok(())
 }
 
-/// 读取 daemon API key
-pub fn read_daemon_api_key() -> Result<Option<String>> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| AppError::NotFound("home 目录不存在".to_string()))?;
-
-    let key_path = home.join(".clawpilot").join("daemon.key");
-
-    if key_path.exists() {
-        let key = fs::read_to_string(&key_path)?
-            .trim()
-            .to_string();
-        Ok(Some(key))
-    } else {
-        Ok(None)
-    }
-}
-
-/// 生成新的 API key
-pub fn generate_api_key() -> String {
-    use uuid::Uuid;
-    Uuid::new_v4().to_string().replace('-', "")
-}
-
-/// 保存 daemon API key
-pub fn save_daemon_api_key(key: &str) -> Result<()> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| AppError::NotFound("home 目录不存在".to_string()))?;
-
-    let clawpilot_dir = home.join(".clawpilot");
-    fs::create_dir_all(&clawpilot_dir)?;
-
-    let key_path = clawpilot_dir.join("daemon.key");
-    fs::write(&key_path, key)?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(&key_path)?.permissions();
-        perms.set_mode(0o600);
-        fs::set_permissions(&key_path, perms)?;
-    }
-
-    Ok(())
-}
-
 /// 检查 daemon 是否已在运行
 pub fn is_daemon_running() -> Result<bool> {
     let output = Command::new("pgrep")
@@ -776,22 +730,7 @@ pub fn install_daemon(
     )?;
     lg(&format!("✅ Binary 已安装到 {}", daemon_path));
 
-    // 5. 生成并保存 API key
-    lg("🔑 生成 API Key...");
-    let api_key = generate_api_key();
-    if let (Some(prefix), Some(tgt)) = (ssh_prefix, ssh_target) {
-        // 远程安装：将 key 写到远程机器，daemon 启动后会读取它
-        let write_key_cmd = format!(
-            "{} {} 'mkdir -p ~/.clawpilot && printf \"%s\" \"{}\" > ~/.clawpilot/daemon.key && chmod 600 ~/.clawpilot/daemon.key'",
-            prefix, tgt, api_key
-        );
-        Command::new("sh").arg("-c").arg(&write_key_cmd).output()?;
-    } else {
-        save_daemon_api_key(&api_key)?;
-    }
-    lg("✅ API Key 已保存");
-
-    // 6. 安装系统服务
+    // 5. 安装系统服务（原第6步）
     lg("⚙️  注册系统服务...");
     match os_type {
         OsType::MacOS => {
@@ -863,7 +802,6 @@ pub fn install_daemon(
         ok: true,
         logs,
         daemon_url: Some(daemon_url),
-        api_key: Some(api_key),
         error: None,
     })
 }
@@ -889,12 +827,6 @@ mod tests {
         assert!(service.contains("127.0.0.1:16668"));
         assert!(service.contains("WantedBy=default.target"));
         assert!(service.contains(".clawpilot/bin/clawpilot-daemon"));
-    }
-
-    #[test]
-    fn test_generate_api_key() {
-        let key = generate_api_key();
-        assert_eq!(key.len(), 32);
     }
 
     #[test]
