@@ -11,17 +11,18 @@ use crate::error::{AppError, Result};
 const ENC_PREFIX: &str = "enc:";
 
 /// Get the path to the shared key file (~/.clawpilot/server.key)
-fn key_file_path() -> PathBuf {
-    let home = dirs::home_dir().expect("Could not determine home directory");
-    home.join(".clawpilot").join("server.key")
+fn key_file_path() -> crate::error::Result<PathBuf> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| AppError::Internal("Could not determine home directory".to_string()))?;
+    Ok(home.join(".clawpilot").join("server.key"))
 }
 
 /// Load a 32-byte AES-256 key from the shared key file.
 /// If the file doesn't exist or contains invalid data, creates a new random key.
 ///
 /// This matches the Node.js server implementation for cross-compatibility.
-fn load_key() -> [u8; 32] {
-    let path = key_file_path();
+fn load_key() -> crate::error::Result<[u8; 32]> {
+    let path = key_file_path()?;
 
     // Try to read existing key
     if let Ok(hex) = fs::read_to_string(&path) {
@@ -31,7 +32,7 @@ fn load_key() -> [u8; 32] {
                 if bytes.len() == 32 {
                     let mut key = [0u8; 32];
                     key.copy_from_slice(&bytes);
-                    return key;
+                    return Ok(key);
                 }
             }
         }
@@ -58,11 +59,11 @@ fn load_key() -> [u8; 32] {
         }
     }
 
-    key
+    Ok(key)
 }
 
 /// Alias for load_key() for backward compatibility with tests.
-fn derive_key() -> [u8; 32] {
+fn derive_key() -> crate::error::Result<[u8; 32]> {
     load_key()
 }
 
@@ -95,7 +96,7 @@ pub fn encrypt(plaintext: &str) -> Result<String> {
         return Ok(String::new());
     }
 
-    let key_bytes = derive_key();
+    let key_bytes = derive_key()?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
 
@@ -152,7 +153,7 @@ pub fn decrypt(encoded: &str) -> Result<String> {
             )));
         }
 
-        let key_bytes = derive_key();
+        let key_bytes = derive_key()?;
         let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
         let cipher = Aes256Gcm::new(key);
 
@@ -193,7 +194,7 @@ pub fn decrypt(encoded: &str) -> Result<String> {
         )));
     }
 
-    let key_bytes = derive_key();
+    let key_bytes = derive_key()?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
 

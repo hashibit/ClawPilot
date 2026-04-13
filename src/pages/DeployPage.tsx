@@ -5,19 +5,9 @@ import { useApi } from '../hooks/useApi'
 import { toast } from '../components/Toast'
 import type { OpcConfig, Office, DeploymentTask } from '../lib/types'
 import { Icon } from '../components/Icon'
+import { formatRelativeTime } from '../lib/formatting'
 
 const DEPLOY_STEPS = ['prepare_config', 'write_dir', 'reload_process', 'health_check']
-
-function formatRelativeTime(ts: number, t: (key: string, opts?: any) => string): string {
-  const diff = Math.floor(Date.now() / 1000) - ts
-  const minutes = Math.floor(diff / 60)
-  const hours = Math.floor(diff / 3600)
-  const days = Math.floor(diff / 86400)
-  if (days > 0) return t('common.time_days_ago', { count: days })
-  if (hours > 0) return t('common.time_hours_ago', { count: hours })
-  if (minutes > 0) return t('common.time_minutes_ago', { count: minutes })
-  return t('common.time_just_now')
-}
 
 export default function DeployPage() {
   const { t } = useTranslation()

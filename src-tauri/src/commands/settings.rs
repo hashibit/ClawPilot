@@ -1,10 +1,14 @@
+use crate::database::helpers;
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
 use tauri::State;
 
 // ── License Keys ─────────────────────────────────────────────
-// Hardcoded valid license keys. Replace with API validation later.
-const VALID_LICENSE_KEYS: &[&str] = &[
+// TEMPORARY: Hardcoded fallback keys for early alpha/beta phase.
+// Override via CLAWPILOT_LICENSE_KEYS env var (comma-separated) or
+// ~/.clawpilot/license.conf (one key per line). Replace with server-side
+// validation before public release.
+const FALLBACK_LICENSE_KEYS: &[&str] = &[
     "CLAW-PILOT-2026-ALPHA-001",
     "CLAW-PILOT-2026-ALPHA-002",
     "CLAW-PILOT-2026-ALPHA-003",
@@ -13,9 +17,46 @@ const VALID_LICENSE_KEYS: &[&str] = &[
     "CLAW-PILOT-2026-BETA-003",
 ];
 
+/// Load the set of valid license keys from (in priority order):
+/// 1. `CLAWPILOT_LICENSE_KEYS` environment variable (comma-separated)
+/// 2. `~/.clawpilot/license.conf` (one key per line, comments with `#` ignored)
+/// 3. Hardcoded fallback list
+fn load_valid_keys() -> Vec<String> {
+    // 1. Environment variable
+    if let Ok(env_val) = std::env::var("CLAWPILOT_LICENSE_KEYS") {
+        let keys: Vec<String> = env_val
+            .split(',')
+            .map(|k| k.trim().to_uppercase())
+            .filter(|k| !k.is_empty())
+            .collect();
+        if !keys.is_empty() {
+            return keys;
+        }
+    }
+
+    // 2. Config file
+    if let Some(home) = dirs::home_dir() {
+        let conf_path = home.join(".clawpilot").join("license.conf");
+        if let Ok(contents) = std::fs::read_to_string(&conf_path) {
+            let keys: Vec<String> = contents
+                .lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                .map(|l| l.to_uppercase())
+                .collect();
+            if !keys.is_empty() {
+                return keys;
+            }
+        }
+    }
+
+    // 3. Hardcoded fallback
+    FALLBACK_LICENSE_KEYS.iter().map(|k| k.to_string()).collect()
+}
+
 fn is_valid_key(key: &str) -> bool {
     let normalized = key.trim().to_uppercase();
-    VALID_LICENSE_KEYS.iter().any(|k| *k == normalized)
+    load_valid_keys().iter().any(|k| k == &normalized)
 }
 
 // ── License Commands ─────────────────────────────────────────
@@ -90,24 +131,11 @@ fn mask_key(key: &str) -> String {
 
 #[tauri::command]
 pub fn get_opc_root(pool: State<'_, DbPool>) -> Result<String> {
-    let conn = pool.get()?;
-    let row = conn
-        .query_row(
-            "SELECT value FROM settings WHERE key = 'opc_root'",
-            [],
-            |r| r.get::<_, String>(0),
-        )
-        .ok();
-    Ok(row.unwrap_or_else(|| "~/.openclaw/OPC".to_string()))
+    let value = helpers::get_setting(&pool, "opc_root")?;
+    Ok(value.unwrap_or_else(|| "~/.openclaw/OPC".to_string()))
 }
 
 #[tauri::command]
 pub fn set_opc_root(pool: State<'_, DbPool>, opc_root: String) -> Result<()> {
-    let conn = pool.get()?;
-    conn.execute(
-        "INSERT INTO settings (key, value) VALUES ('opc_root', ?1)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        rusqlite::params![opc_root],
-    )?;
-    Ok(())
+    helpers::set_setting(&pool, "opc_root", &opc_root)
 }

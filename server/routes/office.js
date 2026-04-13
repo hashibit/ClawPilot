@@ -299,15 +299,12 @@ function rowToOffice(row) {
   }
 }
 
-export function createOfficeRouter(db) {
+export function createOfficeRouter(db, dao) {
   const router = Router()
   const now = () => Math.floor(Date.now() / 1000)
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'office', message)
-    } catch (_) {}
+    dao.writeLog(level, 'office', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -386,7 +383,7 @@ export function createOfficeRouter(db) {
       if (!office) return res.status(400).json({ error: 'office object required' })
 
       // 先读取现有记录，避免 NOT NULL 约束冲突
-      const existing = db.prepare('SELECT * FROM offices WHERE id = ?').get(id)
+      const existing = dao.getOfficeById(id)
       if (!existing) return res.status(404).json({ error: 'Office not found' })
 
       // 合并传入的字段，只更新有值的字段
@@ -472,7 +469,7 @@ export function createOfficeRouter(db) {
     const { office_id } = req.body
     if (!office_id) return res.json({ ok: false, error: '未提供 office_id' })
 
-    const office = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    const office = dao.getOfficeById(office_id)
     if (!office) return res.json({ ok: false, error: 'office 不存在' })
     if (!office.daemon_url) return res.json({ ok: false, error: '未配置 Daemon URL' })
 
@@ -610,7 +607,7 @@ export function createOfficeRouter(db) {
       const { opc_id } = req.body
       const opc = db.prepare('SELECT office_id FROM opc_config WHERE id = ?').get(opc_id)
       if (!opc?.office_id) return res.json(null)
-      const row = db.prepare('SELECT * FROM offices WHERE id = ?').get(opc.office_id)
+      const row = dao.getOfficeById(opc.office_id)
       res.json(row ? rowToOffice(row) : null)
     } catch (err) {
       res.status(500).json({ error: err.message })
@@ -844,7 +841,7 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
 
     try {
       // Get office info
-      const officeRow = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+      const officeRow = dao.getOfficeById(office_id)
       if (!officeRow) {
         return res.json({ ok: false, error: '办公室不存在', logs })
       }
@@ -1029,7 +1026,7 @@ async function runDaemonInstall(db, { office_id, mode, daemon_port, ssh_host, ss
     const { office_id } = req.body
     if (!office_id) return res.json({ ok: false })
 
-    const row = db.prepare('SELECT * FROM offices WHERE id = ?').get(office_id)
+    const row = dao.getOfficeById(office_id)
     if (!row) return res.json({ ok: false })
     const office = rowToOffice(row)
 

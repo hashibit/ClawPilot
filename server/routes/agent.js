@@ -41,15 +41,12 @@ function toJsonStr(val) {
   return JSON.stringify(val)
 }
 
-export function createAgentRouter(db) {
+export function createAgentRouter(db, dao) {
   const log = createLogger('agent')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'agent', message)
-    } catch (_) {}
+    dao.writeLog(level, 'agent', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -71,7 +68,7 @@ export function createAgentRouter(db) {
   router.post('/get_agent', (req, res) => {
     try {
       const { id } = req.body
-      const row = db.prepare('SELECT * FROM agents WHERE id = ?').get(id)
+      const row = dao.getAgentById(id)
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToAgent(row))
     } catch (err) {
@@ -84,8 +81,8 @@ export function createAgentRouter(db) {
     try {
       const { config, documents } = req.body
       if (!config.name) throw new Error('Agent name cannot be empty')
-      const existing = db.prepare('SELECT COUNT(*) as cnt FROM agents WHERE opc_id = ?').get(config.opc_id)
-      if (existing.cnt === 0) config.is_default = true
+      const existingCount = dao.getOpcAgentCount(config.opc_id)
+      if (existingCount === 0) config.is_default = true
 
       const insertDoc = db.prepare(`
         INSERT INTO agent_documents (agent_id, document_type, content, created_at, updated_at)
@@ -136,7 +133,7 @@ export function createAgentRouter(db) {
       const { id, config } = req.body
 
       // 先读取现有记录，避免 NOT NULL 约束冲突
-      const existing = db.prepare('SELECT * FROM agents WHERE id = ?').get(id)
+      const existing = dao.getAgentById(id)
       if (!existing) throw new Error(`Not found: ${id}`)
 
       // 合并传入的字段，只更新有值的字段

@@ -33,15 +33,12 @@ function rowToModel(row) {
   }
 }
 
-export function createModelRouter(db) {
+export function createModelRouter(db, dao) {
   const log = createLogger('model')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'model', message)
-    } catch (_) {}
+    dao.writeLog(level, 'model', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -83,7 +80,7 @@ export function createModelRouter(db) {
         INSERT INTO model_providers_v2 (id, name, api, base_url, api_key, is_enabled, is_available, last_tested, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
       `).run(id, name, api, base_url, encrypt(api_key ?? ''), is_available ? 1 : 0, last_tested ?? null, n, n)
-      const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
+      const row = dao.getProviderById(id)
       writeLog('INFO', `模型提供商已创建: ${name}`)
       res.json(rowToProvider(row))
     } catch (err) {
@@ -99,7 +96,7 @@ export function createModelRouter(db) {
       if (!id) return res.status(400).json({ error: 'id required' })
 
       // 先读取现有记录，避免 NOT NULL 约束冲突
-      const existing = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
+      const existing = dao.getProviderById(id)
       if (!existing) return res.status(404).json({ error: 'Not found' })
 
       // 合并传入的字段，只更新有值的字段
@@ -115,7 +112,7 @@ export function createModelRouter(db) {
         WHERE id=?
       `).run(finalName, finalApi, finalBaseUrl, finalApiKey, finalIsEnabled, now(), id)
 
-      const row = db.prepare('SELECT * FROM model_providers_v2 WHERE id = ?').get(id)
+      const row = dao.getProviderById(id)
       res.json(rowToProvider(row))
     } catch (err) {
       if (err.message.includes('UNIQUE')) return res.status(409).json({ error: `Provider name "${req.body.name}" already exists` })

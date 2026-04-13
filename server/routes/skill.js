@@ -105,15 +105,16 @@ function rowToSkill(row) {
   }
 }
 
-export function createSkillRouter(db) {
+function isValidSlug(slug) {
+  return typeof slug === 'string' && /^[a-zA-Z0-9_-]+$/.test(slug) && slug.length <= 128
+}
+
+export function createSkillRouter(db, dao) {
   const log = createLogger('skill')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'skill', message)
-    } catch (_) {}
+    dao.writeLog(level, 'skill', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -205,6 +206,10 @@ export function createSkillRouter(db) {
       for (const s of skills) {
         const slug = s.slug
         if (!slug) continue
+        if (!isValidSlug(slug)) {
+          log.warn(`sync_skills: skipping invalid slug: ${slug}`)
+          continue
+        }
 
         const downloadUrl = `${CLAWHUB_BASE}/skills/${slug}/download`
         const skillDir = path.join(SKILLS_DIR, slug)
@@ -267,6 +272,7 @@ export function createSkillRouter(db) {
     try {
       const { slug } = req.body
       if (!slug) return res.status(400).json({ error: 'slug is required' })
+      if (!isValidSlug(slug)) return res.status(400).json({ error: 'invalid slug format' })
 
       const row = db.prepare('SELECT * FROM skills WHERE slug = ?').get(slug)
       const downloadUrl = row?.download_url || `${CLAWHUB_BASE}/skills/${slug}/download`
@@ -324,6 +330,7 @@ export function createSkillRouter(db) {
     try {
       const { slug } = req.body
       if (!slug) return res.status(400).json({ error: 'slug is required' })
+      if (!isValidSlug(slug)) return res.status(400).json({ error: 'invalid slug format' })
 
       const row = db.prepare('SELECT * FROM skills WHERE slug = ?').get(slug)
       const skillDir = row?.install_path || path.join(SKILLS_DIR, slug)

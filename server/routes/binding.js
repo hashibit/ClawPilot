@@ -11,15 +11,12 @@ function rowToBinding(row) {
   }
 }
 
-export function createBindingRouter(db) {
+export function createBindingRouter(db, dao) {
   const log = createLogger('binding')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'binding', message)
-    } catch (_) {}
+    dao.writeLog(level, 'binding', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -41,7 +38,7 @@ export function createBindingRouter(db) {
   router.post('/get_binding', (req, res) => {
     try {
       const { id } = req.body
-      const row = db.prepare('SELECT * FROM bindings WHERE id = ?').get(id)
+      const row = dao.getBindingById(id)
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToBinding(row))
     } catch (err) {

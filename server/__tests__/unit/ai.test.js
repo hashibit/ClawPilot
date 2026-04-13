@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import express from 'express'
 import request from 'supertest'
 import { createAiRouter } from '../../routes/ai.js'
+import { createDao } from '../../dao.js'
 import { encrypt } from '../../utils/crypto.js'
 import Database from 'better-sqlite3'
 
@@ -50,7 +51,8 @@ describe('AI Routes', () => {
 
     app = express()
     app.use(express.json())
-    app.use('/api', createAiRouter(db))
+    const dao = createDao(db)
+    app.use('/api', createAiRouter(db, dao))
 
     vi.clearAllMocks()
   })

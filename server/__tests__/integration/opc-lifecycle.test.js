@@ -214,8 +214,10 @@ describe('Deployment Flow Integration', () => {
     })
     expect(res.status).toBe(200)
     expect(res.body).toHaveProperty('agents')
-    expect(res.body.agents).toHaveProperty('list')
-    expect(res.body.agents.list).toHaveLength(1)
+    // agents now uses $include format; actual list is in _sections
+    expect(res.body.agents).toHaveProperty('$include')
+    expect(res.body._sections.agents).toHaveProperty('list')
+    expect(res.body._sections.agents.list).toHaveLength(1)
   })
 
   it('部署任务生命周期', async () => {

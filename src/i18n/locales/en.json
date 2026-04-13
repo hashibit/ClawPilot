@@ -97,7 +97,9 @@
     "dark": "Dark",
     "about": "About",
     "version": "Version",
-    "appDesc": "OpenClaw visual team configuration management desktop app"
+    "appDesc": "OpenClaw visual team configuration management desktop app",
+    "saved": "✓ Saved",
+    "save_failed": "Save failed: {{msg}}"
   },
   "common": {
     "pro": "PRO",
@@ -443,7 +445,25 @@
     "table_header_capabilities": "Capabilities",
     "tag_vision": "Vision",
     "tag_streaming": "Streaming",
-    "no_providers": "No providers yet"
+    "no_providers": "No providers yet",
+    "button_add_model": "Add Model",
+    "button_reset_models": "Reset to Default",
+    "button_apply_recommended": "Apply Recommended",
+    "inferred_provider": "Detected as {{name}} based on Base URL, {{count}} recommended models available",
+    "no_models": "No models configured",
+    "col_actions": "Actions",
+    "unsaved_changes_confirm": "You have unsaved changes. Discard them?",
+    "models_saved": "Models saved",
+    "connect_success_msg": "Connected{{latency}}",
+    "connect_failed_msg": "Connection failed: {{error}}",
+    "status_connected": "Connected",
+    "status_failed": "Failed",
+    "status_untested": "Not Tested",
+    "status_disabled": "Disabled",
+    "label_name": "Name",
+    "label_protocol": "Protocol",
+    "label_status": "Status",
+    "label_last_tested": "Last Tested"
   },
   "office": {
     "section_title": "Offices",

@@ -33,10 +33,11 @@ export default function SettingsPage() {
     setSaveMsg('')
     try {
       await call('set_opc_root', { opc_root: opcRoot })
-      setSaveMsg('✓ 已保存')
+      setSaveMsg(t('settings.saved'))
       setTimeout(() => setSaveMsg(''), 2000)
-    } catch (e: any) {
-      setSaveMsg('保存失败：' + e.message)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setSaveMsg(t('settings.save_failed', { msg }))
     }
     setSaving(false)
   }

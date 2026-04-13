@@ -21,8 +21,8 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
     try {
       await activateLicense(key.trim())
       setActivated(true)
-    } catch (e: any) {
-      setError(e?.message || 'Invalid license key')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Invalid license key')
     }
     setSubmitting(false)
   }

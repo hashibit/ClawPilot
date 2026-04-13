@@ -15,8 +15,8 @@ import {
 import { toast } from '../components/Toast'
 import type { ProviderConfig, ModelInfo, ProviderApi, KnownProvider } from '../lib/types'
 
-function maskKey(key?: string): string {
-  if (!key) return '未设置'
+function maskKey(key?: string, notSetLabel = '---'): string {
+  if (!key) return notSetLabel
   if (key.length <= 8) return '****'
   return key.slice(0, 6) + '****' + key.slice(-4)
 }
@@ -84,23 +84,23 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
           {editMode ? (
             <>
               <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onAddModel}>
-                + 添加模型
+                + {t('providers.button_add_model')}
               </button>
               <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
-                取消
+                {t('common.button_cancel')}
               </button>
               <button className="tbtn tbtn-accent" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onSaveModels}>
-                保存
+                {t('common.button_save')}
               </button>
             </>
           ) : (
             <>
               <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
-                编辑
+                {t('common.button_edit')}
               </button>
               {known && models.length > 0 && (
                 <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onReset}>
-                  恢复默认模型
+                  {t('providers.button_reset_models')}
                 </button>
               )}
             </>
@@ -110,15 +110,15 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
       {models.length === 0 && known ? (
         <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '12px', color: '#8E8E93' }}>
-            根据 Base URL 推断为 <span style={{ color: '#EBEBF5' }}>{known.suggest_name}</span>，可使用 {known.models.length} 个推荐模型
+            {t('providers.inferred_provider', { name: known.suggest_name, count: known.models.length })}
           </span>
           <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', flexShrink: 0 }} onClick={onReset}>
-            应用推荐模型
+            {t('providers.button_apply_recommended')}
           </button>
         </div>
       ) : models.length === 0 ? (
         <div style={{ fontSize: '12px', color: '#8E8E93', padding: '12px 0', textAlign: 'center' }}>
-          暂无模型配置
+          {t('providers.no_models')}
         </div>
       ) : (
         <div className="group">
@@ -130,7 +130,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                 <th>{t('providers.col_context')}</th>
                 <th>input_types</th>
                 <th>vision</th>
-                {editMode && <th style={{ width: '60px' }}>操作</th>}
+                {editMode && <th style={{ width: '60px' }}>{t('providers.col_actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -157,7 +157,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                             className="field-input"
                             style={{ width: '100%', padding: '4px 6px', fontSize: '12px' }}
                           />
-                          {isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[未保存]</span>}
+                          {isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}
                         </td>
                         <td>
                           <input
@@ -191,14 +191,14 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                         </td>
                         <td>
                           <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', color: '#f43f5e', padding: '2px 6px', background: 'rgba(244,63,94,0.1)' }} onClick={() => onDeleteModel?.(m.id)}>
-                            删除
+                            {t('common.button_delete')}
                           </button>
                         </td>
                       </>
                     ) : (
                       <>
                         <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{m.model_id}</td>
-                        <td style={{ fontSize: '12px' }}>{m.display_name}{isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[未保存]</span>}</td>
+                        <td style={{ fontSize: '12px' }}>{m.display_name}{isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}</td>
                         <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
                         <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>{m.input_types}</td>
                         <td>
@@ -308,7 +308,7 @@ export default function ProvidersPage() {
 
   const handleSelectProvider = (id: string) => {
     if (editMode !== 'none') {
-      if (!window.confirm('有未保存的修改，确认放弃？')) return
+      if (!window.confirm(t('providers.unsaved_changes_confirm'))) return
     }
     setSelectedId(id)
     setEditMode('none')
@@ -464,7 +464,7 @@ export default function ProvidersPage() {
       await loadModels(selectedProvider.name)
       setEditingModels([])
       setModelEditMode(false)
-      toast('Models saved', 'success')
+      toast(t('providers.models_saved'), 'success')
     } catch (e) {
       toast(String(e), 'error')
     }
@@ -480,9 +480,9 @@ export default function ProvidersPage() {
     try {
       const result = await testProvider(baseUrl, apiKey, api, providerId)
       if (result.ok) {
-        toast(`连接成功${result.latency_ms != null ? `（${result.latency_ms}ms）` : ''}`, 'success')
+        toast(t('providers.connect_success_msg', { latency: result.latency_ms != null ? `（${result.latency_ms}ms）` : '' }), 'success')
       } else {
-        toast(`连接失败: ${result.error ?? '未知错误'}`, 'error')
+        toast(t('providers.connect_failed_msg', { error: result.error ?? t('common.unknown_error') }), 'error')
       }
       if (editMode !== 'none') setFormTestPassed(result.ok)
       if (providerId) await reloadProviders()
@@ -522,7 +522,7 @@ export default function ProvidersPage() {
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 600 }}>{p.name}</span>
                     {editMode === 'edit' && selectedId === p.id && (
-                      <span style={{ fontSize: '10px', color: '#f59e0b' }}>[未保存]</span>
+                      <span style={{ fontSize: '10px', color: '#f59e0b' }}>[{t('common.status_unsaved')}]</span>
                     )}
                   </div>
                   <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -532,7 +532,7 @@ export default function ProvidersPage() {
                       background: p.is_available ? 'rgba(52,199,89,0.12)' : (p.is_enabled ? (p.last_tested ? 'rgba(244,63,94,0.12)' : 'rgba(255,255,255,0.06)') : 'rgba(255,255,255,0.06)'),
                       color: p.is_available ? '#34c759' : (p.is_enabled ? (p.last_tested ? '#f43f5e' : '#8E8E93') : '#555'),
                     }}>
-                      {p.is_available ? '已连通' : (p.is_enabled ? (p.last_tested ? '连接失败' : '未测试') : '已禁用')}
+                      {p.is_available ? t('providers.status_connected') : (p.is_enabled ? (p.last_tested ? t('providers.status_failed') : t('providers.status_untested')) : t('providers.status_disabled'))}
                     </span>
                   </div>
                 </div>
@@ -546,7 +546,7 @@ export default function ProvidersPage() {
             style={{ width: '100%', fontSize: '12px', justifyContent: 'center', color: editMode === 'create' ? '#f59e0b' : undefined }}
             onClick={handleAddProvider}
           >
-            + {t('common.button_add')}{editMode === 'create' && <span style={{ marginLeft: '4px', fontSize: '10px' }}>未保存</span>}
+            + {t('common.button_add')}{editMode === 'create' && <span style={{ marginLeft: '4px', fontSize: '10px' }}>{t('common.status_unsaved')}</span>}
           </button>
         </div>
       </div>
@@ -706,11 +706,11 @@ export default function ProvidersPage() {
             <>
               <div className="group">
                 <div className="group-row">
-                  <span className="group-label">名称</span>
+                  <span className="group-label">{t('providers.label_name')}</span>
                   <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>{selectedProvider.name}</span>
                 </div>
                 <div className="group-row">
-                  <span className="group-label">协议</span>
+                  <span className="group-label">{t('providers.label_protocol')}</span>
                   <span className="group-value"><ApiBadge api={selectedProvider.api} /></span>
                 </div>
                 <div className="group-row">
@@ -722,21 +722,21 @@ export default function ProvidersPage() {
                 <div className="group-row">
                   <span className="group-label">API Key</span>
                   <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
-                    {maskKey(selectedProvider.api_key)}
+                    {maskKey(selectedProvider.api_key, t('common.not_set'))}
                   </span>
                 </div>
                 <div className="group-row">
-                  <span className="group-label">状态</span>
+                  <span className="group-label">{t('providers.label_status')}</span>
                   <span className="group-value" style={{
                     color: selectedProvider.is_available ? '#34c759' : selectedProvider.last_tested ? '#f43f5e' : '#8E8E93',
                     fontSize: '12px',
                   }}>
-                    {selectedProvider.is_available ? '已连通' : selectedProvider.last_tested ? '连接失败' : '未测试'}
+                    {selectedProvider.is_available ? t('providers.status_connected') : selectedProvider.last_tested ? t('providers.status_failed') : t('providers.status_untested')}
                   </span>
                 </div>
                 {selectedProvider.last_tested && (
                   <div className="group-row">
-                    <span className="group-label">上次测试</span>
+                    <span className="group-label">{t('providers.label_last_tested')}</span>
                     <span className="group-value" style={{ fontSize: '11px', color: '#8E8E93' }}>
                       {new Date(selectedProvider.last_tested * 1000).toLocaleString()}
                     </span>

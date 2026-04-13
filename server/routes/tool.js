@@ -3,15 +3,12 @@ import { createLogger } from '../logger.js'
 
 const now = () => Math.floor(Date.now() / 1000)
 
-export function createToolRouter(db) {
+export function createToolRouter(db, dao) {
   const log = createLogger('tool')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'tool', message)
-    } catch (_) {}
+    dao.writeLog(level, 'tool', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)

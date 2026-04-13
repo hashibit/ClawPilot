@@ -4,24 +4,7 @@ import { useOpc } from '../contexts/OpcContext'
 import { getOpcStats } from '../lib/api'
 import type { OpcStats } from '../lib/types'
 import { Icon } from '../components/Icon'
-
-function formatUptime(sec: number | null, lang: string): string {
-  if (sec === null) return '—'
-  if (sec < 60) return `${sec}s`
-  if (sec < 3600) {
-    const m = Math.floor(sec / 60)
-    if (lang === 'zh-CN') return `${m}分钟`
-    if (lang === 'ja') return `${m}分`
-    if (lang === 'ko') return `${m}분`
-    return `${m}m ${sec % 60}s`
-  }
-  const h = Math.floor(sec / 3600)
-  const m = Math.floor((sec % 3600) / 60)
-  if (lang === 'zh-CN') return `${h}小时${m}分`
-  if (lang === 'ja') return `${h}時間${m}分`
-  if (lang === 'ko') return `${h}시간 ${m}분`
-  return `${h}h ${m}m`
-}
+import { formatUptime } from '../lib/formatting'
 
 function sumStats(stats: Map<string, OpcStats>): { agents: number; channels: number; messages: number; growth: number } {
   let agents = 0, channels = 0, messages = 0, growth = 0, n = 0

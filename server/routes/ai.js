@@ -74,7 +74,7 @@ ${getSystemPromptSkillsText()}
 guardrail 规范：每条 3-10 字的短语，允许 3-6 条，禁止 3-5 条，按角色职能定制。
 只输出 JSON，不要有任何其他内容。`
 
-export function createAiRouter(db) {
+export function createAiRouter(db, dao) {
   const log = createLogger('ai')
   const router = Router()
 
@@ -85,7 +85,7 @@ router.post('/ai_generate_agent', async (req, res) => {
 
   if (!prompt?.trim()) return res.status(400).json({ error: 'prompt is required' })
 
-  const row = db.prepare("SELECT * FROM model_providers_v2 WHERE name = 'bailian'").get()
+  const row = dao.getProviderByName('bailian')
   if (!row?.api_key) return res.status(400).json({ error: 'BAILIAN 未配置 API Key，请先在模型管理页完成配置并测试连接' })
   if (!row?.base_url) return res.status(400).json({ error: 'BAILIAN 未配置 Base URL，请先在模型管理页完成配置并测试连接' })
 
@@ -272,7 +272,7 @@ router.post('/ai_generate_agents', async (req, res) => {
     return res.status(400).json({ error: 'prompts array or prompt string is required' })
   }
 
-  const row = db.prepare("SELECT * FROM model_providers_v2 WHERE name = 'bailian'").get()
+  const row = dao.getProviderByName('bailian')
   if (!row?.api_key) return res.status(400).json({ error: 'BAILIAN 未配置 API Key' })
   if (!row?.base_url) return res.status(400).json({ error: 'BAILIAN 未配置 Base URL' })
 
@@ -422,7 +422,7 @@ router.post('/chat_with_agent', async (req, res) => {
   }
 
   // Get configured provider
-  const row = db.prepare("SELECT * FROM model_providers_v2 WHERE name = 'bailian' AND is_enabled = 1").get()
+  const row = dao.getEnabledProviderByName('bailian')
   if (!row?.api_key) return res.status(400).json({ error: 'BAILIAN 未配置 API Key，请先在模型管理页完成配置' })
 
   const MODEL = 'qwen3.5-plus'

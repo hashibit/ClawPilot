@@ -57,15 +57,12 @@ async function probeLocalStatus(db, log) {
 
 // ── Router ────────────────────────────────────────────────────
 
-export function createProcessRouter(db) {
+export function createProcessRouter(db, dao) {
   const log = createLogger('process')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'process', message)
-    } catch (_) {}
+    dao.writeLog(level, 'process', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)

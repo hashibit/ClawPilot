@@ -34,15 +34,12 @@ function toEncryptedJsonStr(v) {
   return encrypt(str)
 }
 
-export function createChannelRouter(db) {
+export function createChannelRouter(db, dao) {
   const log = createLogger('channel')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'channel', message)
-    } catch (_) {}
+    dao.writeLog(level, 'channel', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -64,7 +61,7 @@ export function createChannelRouter(db) {
   router.post('/get_channel', (req, res) => {
     try {
       const { id } = req.body
-      const row = db.prepare('SELECT * FROM channels WHERE id = ?').get(Number(id))
+      const row = dao.getChannelById(id)
       if (!row) throw new Error(`Not found: ${id}`)
       res.json(rowToChannel(row))
     } catch (err) {

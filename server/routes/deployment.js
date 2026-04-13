@@ -23,7 +23,7 @@ const DAEMON_POLL_INTERVAL_MS = 2000
 const MAX_CACHE_SIZE = 50 // max entries
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
-export function createDeploymentRouter(db) {
+export function createDeploymentRouter(db, dao) {
   const log = createLogger('deployment')
   const router = Router()
 
@@ -75,10 +75,7 @@ export function createDeploymentRouter(db) {
   }
 
 function writeLog(level, component, message) {
-  try {
-    db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-      .run(now(), level, component, message)
-  } catch (_) {}
+  dao.writeLog(level, component, message)
   const lvl = level.toLowerCase()
   if (lvl === 'error') log.error(`[${component}] ${message}`)
   else if (lvl === 'warn') log.warn(`[${component}] ${message}`)
@@ -86,12 +83,11 @@ function writeLog(level, component, message) {
 }
 
 function collectOpcData(opcId) {
-  const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opcId)
+  const opc = dao.getOpcById(opcId)
   if (!opc) throw new Error(`OPC not found: ${opcId}`)
 
   // Get global opc_root from settings
-  const settingsRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('opc_root')
-  const opcRoot = settingsRow?.value || '~/.openclaw/OPC'
+  const opcRoot = dao.getSetting('opc_root') || '~/.openclaw/OPC'
 
   const agents = db.prepare('SELECT * FROM agents WHERE opc_id = ? ORDER BY order_index').all(opcId)
   const agentIds = agents.map(a => a.id)
@@ -192,7 +188,7 @@ function collectOpcData(opcId) {
  * 划定领队段落边界，避免覆盖用户自定义的其他内容。
  */
 function regenerateAgentDocuments(opcId) {
-  const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opcId)
+  const opc = dao.getOpcById(opcId)
   if (!opc) return
 
   const agents = db.prepare('SELECT * FROM agents WHERE opc_id = ? ORDER BY order_index').all(opcId)
@@ -228,9 +224,7 @@ function regenerateAgentDocuments(opcId) {
     upsertDoc.run(agent.id, 'AGENTS', agentsMd)
 
     // ── SOUL.md：仅修改领队段落，其他内容保留 ───────────────
-    const existingSoul = db.prepare(
-      `SELECT content FROM agent_documents WHERE agent_id = ? AND document_type = 'SOUL'`
-    ).get(agent.id)
+    const existingSoul = dao.getAgentDocument(agent.id, 'SOUL')
 
     // SOUL.md: 只更新已存在的，不创建新的
     // 新的 SOUL.md 应该由 ai_generate_agents 生成并通过 batch_create_agents 保存

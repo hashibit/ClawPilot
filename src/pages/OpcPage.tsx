@@ -6,14 +6,7 @@ import { toast } from '../components/Toast'
 import type { OpcConfig, OpcStats } from '../lib/types'
 import type { LocalSnapshot } from '../lib/types'
 import { Icon } from '../components/Icon'
-
-function fmtRelTime(ts: number, t: (key: string, opts?: any) => string) {
-  const diff = Math.floor((Date.now() / 1000 - ts))
-  if (diff < 3600) return t('common.time_minutes_ago', { count: Math.floor(diff / 60) })
-  if (diff < 86400) return t('common.time_hours_ago', { count: Math.floor(diff / 3600) })
-  if (diff < 604800) return t('common.time_days_ago', { count: Math.floor(diff / 86400) })
-  return t('common.time_days_ago', { count: Math.floor(diff / 86400) })
-}
+import { formatRelativeTime } from '../lib/formatting'
 
 const COLOR_PRESETS = ['#8b5cf6', '#10b981', '#f59e0b', '#f43f5e', '#3b82f6']
 
@@ -284,7 +277,7 @@ export default function OpcPage() {
                     </div>
                     <div className="text-xs text-dim">{opc.agent_count} {t('common.label_agents')} · {opc.channel_count} 频道</div>
                   </div>
-                  <span className="text-xs text-dim">{fmtRelTime(opc.updated_at, t)}</span>
+                  <span className="text-xs text-dim">{formatRelativeTime(opc.updated_at, t)}</span>
                 </div>
               ))}
             </>
@@ -308,7 +301,7 @@ export default function OpcPage() {
                     </div>
                     <div className="text-xs text-dim">{opc.agent_count} {t('common.label_agents')} · {opc.channel_count} 频道</div>
                   </div>
-                  <span className="text-xs text-dim">{fmtRelTime(opc.updated_at, t)}</span>
+                  <span className="text-xs text-dim">{formatRelativeTime(opc.updated_at, t)}</span>
                 </div>
               ))}
             </>
@@ -416,7 +409,7 @@ export default function OpcPage() {
                   <div className="group-row"><span className="group-label">内部名称</span><span className="group-value">{selected.name}</span></div>
                   <div className="group-row"><span className="group-label">描述</span><span className="group-value">{selected.description ?? '—'}</span></div>
                   <div className="group-row"><span className="group-label">{t('common.label_created_at')}</span><span className="group-value">{new Date(selected.created_at * 1000).toLocaleDateString()}</span></div>
-                  <div className="group-row"><span className="group-label">{t('common.label_updated_at')}</span><span className="group-value">{fmtRelTime(selected.updated_at, t)}</span></div>
+                  <div className="group-row"><span className="group-label">{t('common.label_updated_at')}</span><span className="group-value">{formatRelativeTime(selected.updated_at, t)}</span></div>
                 </div>
               </section>
 

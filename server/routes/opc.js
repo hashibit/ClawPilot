@@ -14,15 +14,12 @@ function rowToOpc(row) {
   }
 }
 
-export function createOpcRouter(db) {
+export function createOpcRouter(db, dao) {
   const log = createLogger('opc')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'opc', message)
-    } catch (_) {}
+    dao.writeLog(level, 'opc', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -137,7 +134,7 @@ export function createOpcRouter(db) {
   router.post('/set_current_opc', (req, res) => {
     try {
       const { id } = req.body
-      const row = db.prepare('SELECT name FROM opc_config WHERE id = ?').get(id)
+      const row = dao.getOpcById(id)
       if (!row) return res.status(404).json({ error: `OPC not found: ${id}` })
       db.transaction(() => {
         db.prepare('UPDATE opc_config SET is_active = 0').run()
@@ -178,8 +175,8 @@ export function createOpcRouter(db) {
         'SELECT message_count_today, message_growth FROM opc_config WHERE id = ?'
       ).get(opc_id)
       if (!base) throw new Error(`Not found: ${opc_id}`)
-      const agent_count = db.prepare('SELECT COUNT(*) as cnt FROM agents WHERE opc_id = ?').get(opc_id).cnt
-      const channel_count = db.prepare('SELECT COUNT(*) as cnt FROM channels WHERE opc_id = ?').get(opc_id).cnt
+      const agent_count = dao.getOpcAgentCount(opc_id)
+      const channel_count = dao.getOpcChannelCount(opc_id)
       const group_count = db.prepare("SELECT COUNT(*) as cnt FROM bindings WHERE opc_id = ? AND channel_type = 'GROUP'").get(opc_id).cnt
       const dm_count = db.prepare("SELECT COUNT(*) as cnt FROM bindings WHERE opc_id = ? AND channel_type = 'DM'").get(opc_id).cnt
       res.json({ agent_count, channel_count, group_count, dm_count, message_count_today: base.message_count_today, message_growth: base.message_growth })
@@ -192,8 +189,8 @@ export function createOpcRouter(db) {
   router.post('/update_opc_stats', (req, res) => {
     try {
       const { id } = req.body
-      const agentCount = db.prepare('SELECT COUNT(*) as cnt FROM agents WHERE opc_id = ?').get(id).cnt
-      const channelCount = db.prepare('SELECT COUNT(*) as cnt FROM channels WHERE opc_id = ?').get(id).cnt
+      const agentCount = dao.getOpcAgentCount(id)
+      const channelCount = dao.getOpcChannelCount(id)
       db.prepare('UPDATE opc_config SET agent_count = ?, channel_count = ?, updated_at = ? WHERE id = ?')
         .run(agentCount, channelCount, now(), id)
       // 补充返回值 { ok: true, stats: {...} }
@@ -207,16 +204,16 @@ export function createOpcRouter(db) {
   router.post('/export_opc', (req, res) => {
     try {
       const { opc_id } = req.body
-      const opc = db.prepare('SELECT * FROM opc_config WHERE id = ?').get(opc_id)
+      const opc = dao.getOpcById(opc_id)
       if (!opc) throw new Error(`Not found: ${opc_id}`)
-      const agents = db.prepare('SELECT * FROM agents WHERE opc_id = ?').all(opc_id)
+      const agents = dao.getAgentsByOpcId(opc_id)
       const agentDocs = []
       for (const agent of agents) {
-        const docs = db.prepare('SELECT * FROM agent_documents WHERE agent_id = ?').all(agent.id)
+        const docs = dao.getAgentDocuments(agent.id)
         agentDocs.push(...docs)
       }
-      const channels = db.prepare('SELECT * FROM channels WHERE opc_id = ?').all(opc_id)
-      const bindings = db.prepare('SELECT * FROM bindings WHERE opc_id = ?').all(opc_id)
+      const channels = dao.getChannelsByOpcId(opc_id)
+      const bindings = dao.getBindingsByOpcId(opc_id)
       writeLog('INFO', `OPC 已导出: ${opc.name} (${opc_id})`)
       res.json(JSON.stringify({ opc, agents, agent_documents: agentDocs, channels, bindings }))
     } catch (err) {

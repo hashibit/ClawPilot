@@ -25,15 +25,12 @@ function collectOpcSnapshot(db, opcId) {
   return { opc, agents, agent_documents: agentDocuments, channels, bindings }
 }
 
-export function createSnapshotRouter(db) {
+export function createSnapshotRouter(db, dao) {
   const log = createLogger('snapshot')
   const router = Router()
 
   function writeLog(level, message) {
-    try {
-      db.prepare('INSERT INTO log_entries (timestamp, level, component, message) VALUES (?, ?, ?, ?)')
-        .run(Math.floor(Date.now() / 1000), level, 'snapshot', message)
-    } catch (_) {}
+    dao.writeLog(level, 'snapshot', message)
     const lvl = level.toLowerCase()
     if (lvl === 'error') log.error(message)
     else if (lvl === 'warn') log.warn(message)
@@ -69,7 +66,7 @@ export function createSnapshotRouter(db) {
       const { opc_id } = req.body
       if (!opc_id) return res.status(400).json({ error: 'opc_id is required' })
 
-      const opc = db.prepare('SELECT name FROM opc_config WHERE id = ?').get(opc_id)
+      const opc = dao.getOpcById(opc_id)
       const opcName = opc?.name ?? opc_id
 
       const rows = db.prepare(
@@ -214,10 +211,7 @@ export function createSnapshotRouter(db) {
 
       restore()
 
-      db.prepare(`
-        INSERT INTO log_entries (timestamp, level, component, message)
-        VALUES (?, 'INFO', 'snapshot', ?)
-      `).run(t, `Restored snapshot '${snap.label}' → opc '${opc.name}'`)
+      dao.writeLog('INFO', 'snapshot', `Restored snapshot '${snap.label}' → opc '${opc.name}'`)
 
       res.json(opc.id)
     } catch (err) {

@@ -5,25 +5,7 @@ import { getProcessStatus, restartOpenclaw } from '../lib/api'
 import type { ProcessStatus } from '../lib/api'
 import { toast } from './Toast'
 import { Icon } from './Icon'
-
-function fmtUptime(seconds: number, lang: string) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  if (lang === 'zh-CN') {
-    if (h > 0) return `${h}小时${m}分`
-    return `${m}分钟`
-  }
-  if (lang === 'ja') {
-    if (h > 0) return `${h}時間${m}分`
-    return `${m}分`
-  }
-  if (lang === 'ko') {
-    if (h > 0) return `${h}시간 ${m}분`
-    return `${m}분`
-  }
-  if (h > 0) return `${h}h ${m}m`
-  return `${m}m`
-}
+import { formatUptime } from '../lib/formatting'
 
 export default function Layout() {
   const { t, i18n } = useTranslation()
@@ -201,7 +183,7 @@ export default function Layout() {
                 {processLoading && !process
                   ? t('process.checkingDesc')
                   : process?.is_running && process.pid != null
-                    ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${fmtUptime(process.uptime_seconds, i18n.language)}` : ''}`
+                    ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${formatUptime(process.uptime_seconds, i18n.language)}` : ''}`
                     : process?.daemon_available === false
                       ? 'daemon 未运行，无法获取进程状态'
                       : t('process.notRunning')}

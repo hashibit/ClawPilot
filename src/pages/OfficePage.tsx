@@ -325,8 +325,9 @@ export default function OfficePage() {
             } else {
                 toast(`✗ SSH 连接失败：${r.error ?? '未知错误'}`, 'error')
             }
-        } catch (e: any) {
-            toast(`✗ SSH 连接失败：${e?.message ?? '检测失败'}`, 'error')
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e)
+            toast(`✗ SSH 连接失败：${msg}`, 'error')
         } finally {
             setSshChecking(false)
         }

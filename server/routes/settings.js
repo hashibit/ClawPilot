@@ -27,7 +27,7 @@ function maskKey(key) {
   return key.slice(0, 4) + '****'
 }
 
-export function createSettingsRouter(db) {
+export function createSettingsRouter(db, dao) {
   const router = Router()
 
   // Ensure settings table exists
@@ -54,10 +54,7 @@ export function createSettingsRouter(db) {
         return res.status(400).json({ error: '无效的许可证密钥' })
       }
 
-      db.prepare(`
-        INSERT INTO settings (key, value) VALUES ('license_key', ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-      `).run(key)
+      dao.setSetting('license_key', key)
 
       res.json(true)
     } catch (err) {
@@ -76,9 +73,9 @@ export function createSettingsRouter(db) {
 
   router.post('/get_license_status', (_req, res) => {
     try {
-      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('license_key')
-      if (row?.value && isValidKey(row.value)) {
-        res.json({ activated: true, license_key: maskKey(row.value) })
+      const value = dao.getSetting('license_key')
+      if (value && isValidKey(value)) {
+        res.json({ activated: true, license_key: maskKey(value) })
       } else {
         res.json({ activated: false, license_key: null })
       }
@@ -91,9 +88,8 @@ export function createSettingsRouter(db) {
 
   router.post('/get_opc_root', (req, res) => {
     try {
-      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('opc_root')
       const defaultValue = '~/.openclaw/OPC'
-      res.json(row?.value || defaultValue)
+      res.json(dao.getSetting('opc_root') || defaultValue)
     } catch (err) {
       res.status(500).json({ error: err.message })
     }
@@ -106,10 +102,7 @@ export function createSettingsRouter(db) {
         return res.status(400).json({ error: 'opc_root is required' })
       }
 
-      db.prepare(`
-        INSERT INTO settings (key, value) VALUES ('opc_root', ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value
-      `).run(opc_root)
+      dao.setSetting('opc_root', opc_root)
 
       res.json({ ok: true })
     } catch (err) {

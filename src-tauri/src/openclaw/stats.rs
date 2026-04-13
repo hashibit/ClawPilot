@@ -33,7 +33,7 @@ pub fn get_opc_stats(pool: &DbPool, opc_id: &str) -> Result<OpcStats> {
     let today_start = Utc::now()
         .date_naive()
         .and_hms_opt(0, 0, 0)
-        .unwrap()
+        .ok_or_else(|| crate::error::AppError::Internal("invalid midnight timestamp".to_string()))?
         .and_utc()
         .timestamp();
     let yesterday_start = today_start - 86_400;
@@ -105,7 +105,7 @@ pub fn get_daily_message_trend(pool: &DbPool, days: u32) -> Result<Vec<DailyStat
     let today_start = Utc::now()
         .date_naive()
         .and_hms_opt(0, 0, 0)
-        .unwrap()
+        .ok_or_else(|| crate::error::AppError::Internal("invalid midnight timestamp".to_string()))?
         .and_utc()
         .timestamp();
     let range_start = today_start - (days as i64 - 1) * 86_400;

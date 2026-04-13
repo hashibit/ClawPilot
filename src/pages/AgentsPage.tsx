@@ -1,164 +1,23 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
+
+interface BundleSkillMeta { slug: string; name: string; display_name: string; description?: string; icon?: string; category?: string }
+interface BundleSkillsMetadata { skills?: BundleSkillMeta[] }
+declare global { interface Window { __BUNDLE_SKILLS_METADATA?: BundleSkillsMetadata } }
 import {
     getAgents, createAgent, updateAgent, deleteAgent, reorderAgents, setDefaultAgent,
     getAgentDocument, updateAgentDocument, aiGenerateAgent, aiGenerateAgents, batchCreateAgents, getModels,
-    chatWithAgent, createSnapshot,
+    createSnapshot,
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType, ModelInfo, OpcConfig } from '../lib/types'
 import { Icon } from '../components/Icon'
-
-const AGENT_COLORS: string[] = [
-    '#8b5cf6', '#f97316', '#ec4899', '#10b981', '#3b82f6', '#ef4444', '#a855f7', '#14b8a6',
-    '#f43f5e', '#eab308', '#06b6d4', '#84cc16', '#6366f1', '#e11d48', '#0ea5e9', '#d946ef',
-    '#22c55e', '#fb923c', '#2dd4bf', '#7c3aed', '#dc2626', '#0891b2', '#65a30d', '#db2777',
-    '#059669', '#b45309', '#0284c7', '#c026d3', '#16a34a', '#ea580c', '#0e7490', '#9333ea',
-    '#be123c', '#4f46e5', '#0f766e', '#d97706', '#7e22ce', '#15803d', '#1d4ed8', '#9d174d',
-    '#047857', '#c2410c', '#6d28d9', '#b91c1c', '#0369a1', '#4d7c0f', '#7c2d12', '#831843',
-    '#14532d', '#1e3a5f', '#4a044e', '#422006', '#052e16', '#450a0a', '#1a1a2e', '#0d0221',
-    '#1b0036', '#0a0a23', '#ff6b6b', '#48dbfb', '#54a0ff', '#1dd1a1', '#f368e0', '#feca57',
-]
-
-const DOC_TYPES: DocumentType[] = ['SOUL', 'IDENTITY', 'AGENTS', 'USER', 'MEMORY', 'HEARTBEAT', 'TOOLS']
-
+import { TagInput } from '../components/TagInput'
+import { ChatDrawer } from '../components/ChatDrawer'
+import { AGENT_COLORS, DOC_TYPES, slugify } from './agents/constants'
 
 import type { RemoteSkillResult as RemoteSkill } from '../lib/api'
-
-function slugify(name: string): string {
-    const slug = name.toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '') || 'agent'
-    return /^[a-z]/.test(slug) ? slug : `agent_${slug.replace(/^_+/, '')}`
-}
-
-// ── Tag input ──────────────────────────────────────────────
-function TagInput({ tags, onChange, placeholder, disabled }: {
-    tags: string[]
-    onChange: (tags: string[]) => void
-    placeholder?: string
-    disabled?: boolean
-}) {
-    const [input, setInput] = useState('')
-    const add = () => {
-        if (disabled) return
-        const v = input.trim()
-        if (v && !tags.includes(v)) onChange([...tags, v])
-        setInput('')
-    }
-    return (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px', padding: '6px 9px', minHeight: '36px', opacity: disabled ? 0.7 : 1 }}>
-            {tags.map(tag => (
-                <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.18)', color: '#a78bfa', fontSize: '12px', padding: '2px 8px', borderRadius: '5px' }}>
-                    {tag}
-                    {!disabled && <button onClick={() => onChange(tags.filter(t => t !== tag))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a78bfa', padding: 0, lineHeight: 1, fontSize: '13px' }}>×</button>}
-                </span>
-            ))}
-            {!disabled && <input
-                type="text" value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() }
-                    if (e.key === 'Backspace' && !input && tags.length > 0) onChange(tags.slice(0, -1))
-                }}
-                onBlur={add}
-                placeholder={tags.length === 0 ? placeholder : ''}
-                style={{ background: 'none', border: 'none', outline: 'none', color: 'rgba(255,255,255,0.8)', fontSize: '12px', minWidth: '80px', flex: 1 }}
-            />}
-        </div>
-    )
-}
-
-// ── Agent Chat Drawer ──────────────────────────────────────
-interface ChatMsg { role: 'user' | 'assistant'; content: string }
-
-function ChatDrawer({ agent, onClose, soulOverride }: { agent: AgentConfig; onClose: () => void; soulOverride?: string }) {
-    const { t } = useTranslation()
-    const [messages, setMessages] = useState<ChatMsg[]>([])
-    const [input, setInput] = useState('')
-    const [loading, setLoading] = useState(false)
-    const bottomRef = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [messages])
-
-    async function send() {
-        const text = input.trim()
-        if (!text || loading) return
-        const next: ChatMsg[] = [...messages, { role: 'user', content: text }]
-        setMessages(next)
-        setInput('')
-        setLoading(true)
-        try {
-            const { reply } = await chatWithAgent(agent.id, next, soulOverride)
-            setMessages(prev => [...prev, { role: 'assistant', content: reply }])
-        } catch (e: any) {
-            toast(e?.message ?? t('agents.request_failed'), 'error')
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
-            <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
-            <div style={{ position: 'relative', width: '400px', height: '100%', background: '#1C1C1E', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)' }}>
-                {/* Header */}
-                <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: agent.gradient_start ?? '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                        {agent.initials ?? agent.display_name.slice(0, 2)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{agent.display_name}</div>
-                        <div style={{ fontSize: '11px', color: soulOverride ? '#f59e0b' : '#8E8E93' }}>{soulOverride ? '临时测试-智能体尚未保存' : '测试对话 · 基于 SOUL.md'}</div>
-                    </div>
-                    <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '11px', padding: '4px 8px', borderRadius: '5px' }}>{t('agents.clear_chat')}</button>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
-                </div>
-
-                {/* Messages */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {messages.length === 0 && (
-                        <div style={{ textAlign: 'center', color: '#636366', fontSize: '12px', marginTop: '40px' }}>{t('agents.chat_empty', { name: agent.display_name })}</div>
-                    )}
-                    {messages.map((m, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                            <div style={{
-                                maxWidth: '85%', padding: '9px 12px', borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-                                background: m.role === 'user' ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.07)',
-                                color: '#EBEBF5', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                            }}>
-                                {m.content}
-                            </div>
-                        </div>
-                    ))}
-                    {loading && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                            <div style={{ padding: '9px 14px', borderRadius: '12px 12px 12px 3px', background: 'rgba(255,255,255,0.07)', color: '#8E8E93', fontSize: '13px' }}>…</div>
-                        </div>
-                    )}
-                    <div ref={bottomRef} />
-                </div>
-
-                {/* Input */}
-                <div style={{ padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '8px' }}>
-                    <textarea
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-                        placeholder={t('agents.chat_placeholder')}
-                        rows={2}
-                        style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px', color: '#EBEBF5', fontSize: '12px', padding: '8px 10px', resize: 'none', outline: 'none', fontFamily: 'inherit' }}
-                    />
-                    <button
-                        onClick={send}
-                        disabled={!input.trim() || loading}
-                        style={{ padding: '8px 14px', borderRadius: '8px', background: '#8b5cf6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500, opacity: (!input.trim() || loading) ? 0.5 : 1, alignSelf: 'flex-end' }}
-                    >{t('agents.send')}</button>
-                </div>
-            </div>
-        </div>
-    )
-}
 
 // ── Skill Modal ────────────────────────────────────────────
 function SkillModal({ enabled, onClose, onToggle }: {
@@ -203,8 +62,8 @@ function SkillModal({ enabled, onClose, onToggle }: {
             const fresh = await api.getSkills()
             setDbSkills(fresh)
             toast(t('agents.skill_installed', { slug }), 'success')
-        } catch (e: any) {
-            toast(e?.message ?? t('agents.skill_install_failed'), 'error')
+        } catch (e: unknown) {
+            toast(e instanceof Error ? e.message : t('agents.skill_install_failed'), 'error')
         } finally {
             setInstalling(null)
         }
@@ -217,8 +76,8 @@ function SkillModal({ enabled, onClose, onToggle }: {
             const fresh = await api.getSkills()
             setDbSkills(fresh)
             toast(t('agents.skill_uninstalled', { slug }), 'success')
-        } catch (e: any) {
-            toast(e?.message ?? t('agents.skill_uninstall_failed'), 'error')
+        } catch (e: unknown) {
+            toast(e instanceof Error ? e.message : t('agents.skill_uninstall_failed'), 'error')
         }
     }
 
@@ -391,7 +250,7 @@ export default function AgentsPage() {
     ]
 
     // Load skill registry from bundled-skills-metadata.json
-    const SKILL_REGISTRY = (window as any).__BUNDLE_SKILLS_METADATA?.skills?.map((s: any) => ({
+    const SKILL_REGISTRY = window.__BUNDLE_SKILLS_METADATA?.skills?.map((s) => ({
         slug: s.slug,
         name: s.display_name,
         icon: s.icon || '🔧',
