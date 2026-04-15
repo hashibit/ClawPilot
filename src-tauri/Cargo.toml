@@ -40,6 +40,15 @@ tar = "0.4"
 # Checksum
 md5 = "0.7"
 
+# HTTP server
+axum = { version = "0.7", features = ["json"] }
+tower-http = { version = "0.5", features = ["cors", "limit"] }
+clap = { version = "4", features = ["derive"] }
+
+[[bin]]
+name = "dev-server"
+path = "src/bin/dev_server.rs"
+
 [profile.release]
 panic = "abort"
 codegen-units = 1

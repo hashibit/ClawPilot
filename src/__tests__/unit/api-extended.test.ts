@@ -48,7 +48,7 @@ describe('API Client', () => {
         const result = await getAllOpcs()
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/get_all_opcs',
+          'http://127.0.0.1:16667/api/get_all_opcs',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -85,7 +85,7 @@ describe('API Client', () => {
         const result = await getOpc('opc-123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/get_opc',
+          'http://127.0.0.1:16667/api/get_opc',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -113,7 +113,7 @@ describe('API Client', () => {
         const result = await createOpc(opcData as any)
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/create_opc',
+          'http://127.0.0.1:16667/api/create_opc',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -152,7 +152,7 @@ describe('API Client', () => {
         await updateOpc('opc-123', updatedData as any)
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/update_opc',
+          'http://127.0.0.1:16667/api/update_opc',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -172,7 +172,7 @@ describe('API Client', () => {
         await deleteOpc('opc-123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/delete_opc',
+          'http://127.0.0.1:16667/api/delete_opc',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -192,7 +192,7 @@ describe('API Client', () => {
         await setCurrentOpc('opc-123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/set_current_opc',
+          'http://127.0.0.1:16667/api/set_current_opc',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -218,7 +218,7 @@ describe('API Client', () => {
         const result = await getOpcStats('opc-123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/get_opc_stats',
+          'http://127.0.0.1:16667/api/get_opc_stats',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -245,7 +245,7 @@ describe('API Client', () => {
         const result = await getAgents('opc-123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/get_agents',
+          'http://127.0.0.1:16667/api/get_agents',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -283,7 +283,7 @@ describe('API Client', () => {
         const result = await createAgent(agentData as any)
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/create_agent',
+          'http://127.0.0.1:16667/api/create_agent',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -309,7 +309,7 @@ describe('API Client', () => {
         await updateAgent('agent-123', updatedData as any)
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/update_agent',
+          'http://127.0.0.1:16667/api/update_agent',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -329,7 +329,7 @@ describe('API Client', () => {
         await deleteAgent('agent-123')
 
         expect(mockFetch).toHaveBeenCalledWith(
-          'http://localhost:16667/api/delete_agent',
+          'http://127.0.0.1:16667/api/delete_agent',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

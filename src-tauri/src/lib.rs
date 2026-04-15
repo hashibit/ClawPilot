@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod database;
 pub mod error;
+pub mod http;
 pub mod models;
 pub mod openclaw;
 pub mod services;
@@ -9,7 +10,12 @@ pub mod utils;
 #[cfg(test)]
 mod integration_tests;
 
+use std::sync::Arc;
+
 use database::{migrations, pool::DbPool};
+
+/// The port the embedded axum server listens on inside the Tauri app.
+const EMBEDDED_API_PORT: u16 = 16667;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -27,6 +33,24 @@ pub fn run() {
 
     // 注册 bundle 中的技能到数据库
     services::skill_service::register_bundle_skills(&pool).expect("failed to register bundle skills");
+
+    // Start embedded axum HTTP server in background
+    let api_state = http::AppState {
+        pool: pool.clone(),
+        tunnel_pool: Arc::new(commands::office::TunnelPool::new()),
+    };
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
+        rt.block_on(async {
+            let app = http::routes(api_state);
+            let addr = std::net::SocketAddr::from(([127, 0, 0, 1], EMBEDDED_API_PORT));
+            tracing::info!("Embedded API server listening on http://{}", addr);
+            let listener = tokio::net::TcpListener::bind(addr)
+                .await
+                .expect("failed to bind API port");
+            axum::serve(listener, app).await.expect("API server error");
+        });
+    });
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

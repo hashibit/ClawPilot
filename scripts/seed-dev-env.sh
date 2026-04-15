@@ -28,7 +28,7 @@ if [ ! -f "$DB_PATH" ]; then
     echo "Database not found at $DB_PATH"
     echo "Creating database directory..."
     mkdir -p "$(dirname "$DB_PATH")"
-    echo "Please run 'npm run server:dev' first to initialize the database schema."
+    echo "Please run 'npm run dev:api' first to initialize the database schema."
     exit 1
 fi
 

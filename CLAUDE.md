@@ -16,12 +16,12 @@ ClawPilot 是面向 **OpenClaw** 用户的可视化团队配置管理桌面应�
 
 ```
 ClawPilot/
-├── src-tauri/          # Tauri 后端（Rust）：commands/ models/ database/ services/ openclaw/ utils/
+├── src-tauri/          # Rust 后端：http/ services/ commands/ models/ database/ openclaw/ utils/
+│   └── src/bin/        # dev-server（独立 axum HTTP 服务，开发用）
 ├── daemon/             # 独立 Rust Daemon 服务（HTTP API，端口 16668）
 ├── src/                # 前端（React + TypeScript，Vite）：components/ pages/ hooks/ contexts/
-├── server/             # Node.js 开发服务（Express，端口 16667）：db.js routes/
 ├── proto/              # ⚠️ Protobuf 定义 — 数据模型与 API 接口的唯一事实标准，改字段先改这里
-├── scripts/            # 开发脚本（dev.sh、compare-api-signatures.js 等）
+├── scripts/            # 开发脚本（dev.sh 等）
 ├── tests/              # E2E 测试（Playwright）
 └── docs/
 ```

@@ -3,7 +3,7 @@
  */
 export default async function globalSetup() {
   const serverPort = process.env.VITE_SERVER_PORT ?? '16667'
-  const url = `http://localhost:${serverPort}/api/activate_license`
+  const url = `http://127.0.0.1:${serverPort}/api/activate_license`
 
   const res = await fetch(url, {
     method: 'POST',

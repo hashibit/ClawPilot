@@ -218,6 +218,10 @@ pub struct SuggestedProvider {
     pub models: Vec<KnownModelInfo>,
 }
 
+pub(crate) fn known_providers_list() -> &'static [KnownProviderInfo] {
+    known_providers()
+}
+
 fn known_providers() -> &'static [KnownProviderInfo] {
     use once_cell::sync::Lazy;
     static KNOWN: Lazy<Vec<KnownProviderInfo>> = Lazy::new(|| {

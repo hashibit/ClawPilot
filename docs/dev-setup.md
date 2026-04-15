@@ -17,7 +17,7 @@ bash scripts/dev.sh --start-port 16666
 | 服务 | 命令 | 默认端口 |
 |------|------|----------|
 | **Vite (前端)** | `npm run dev:web` 或 `npx vite` | 16666 |
-| **Server (Node.js)** | `npm run server:dev` | 16667 |
+| **API Server (Rust)** | `npm run dev:api` 或 `cd src-tauri && cargo watch -x 'run --bin dev-server'` | 16667 |
 | **Daemon (Rust)** | `cd daemon && cargo watch -x 'run -- --listen 127.0.0.1:16668'` | 16668 |
 
 ## 停止服务
@@ -31,7 +31,7 @@ npm run stop
 | 服务 | Hot Reload | 实现方式 |
 |------|------------|----------|
 | **Vite 前端** | ✓ | Vite 原生 HMR，React 组件热更新 |
-| **Server (Node.js)** | ✓ | `node --watch index.js` (Node.js 原生 watch) |
+| **API Server (Rust)** | ✓ | `cargo watch` 监听 Rust 文件变化自动重编译 |
 | **Daemon (Rust)** | ✓ | `cargo watch` 监听 Rust 文件变化自动重编译 |
 
 ## 初始化开发数据

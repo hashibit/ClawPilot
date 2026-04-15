@@ -21,7 +21,7 @@ DAEMON_PORT=$((START_PORT + 2))
 
 mkdir -p logs
 
-# Unset proxy env vars (for Node.js services, not for Claude)
+# Unset proxy env vars (for services, not for Claude)
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY
 
 # Kill existing processes on ports
@@ -34,7 +34,7 @@ lsof -ti:"$VITE_PORT","$SERVER_PORT","$DAEMON_PORT" | xargs kill -9 2>/dev/null 
 > logs/daemon.log 2>/dev/null || true
 
 echo "Starting ClawPilot services..."
-echo "  Ports: vite=$VITE_PORT  server=$SERVER_PORT  daemon=$DAEMON_PORT"
+echo "  Ports: vite=$VITE_PORT  api-server=$SERVER_PORT  daemon=$DAEMON_PORT"
 echo "Logs will be written to logs/ directory"
 echo ""
 
@@ -47,11 +47,13 @@ VITE_SERVER_PORT=$SERVER_PORT npx vite --port "$VITE_PORT" > logs/vite.log 2>&1 
 VITE_PID=$!
 echo "  Vite started (PID: $VITE_PID) -> logs/vite.log"
 
-# Start server
-echo "Starting Server..."
-(cd "$ROOT_DIR/server" && PORT=$SERVER_PORT node --watch index.js) > "$ROOT_DIR/logs/server.log" 2>&1 &
+# Start Rust API server (replaces Node.js server)
+echo "Starting API Server (Rust)..."
+cd "$ROOT_DIR/src-tauri"
+cargo watch -x "run --bin dev-server -- --port $SERVER_PORT" > "$ROOT_DIR/logs/server.log" 2>&1 &
 SERVER_PID=$!
-echo "  Server started (PID: $SERVER_PID) -> logs/server.log"
+cd "$ROOT_DIR"
+echo "  API Server started (PID: $SERVER_PID) -> logs/server.log"
 
 # Start daemon
 echo "Starting Daemon..."
@@ -63,7 +65,7 @@ echo "  Daemon started (PID: $DAEMON_PID) -> logs/daemon.log"
 
 echo ""
 echo "Waiting for services to start..."
-sleep 8
+sleep 12
 
 echo ""
 echo "=========================================="
@@ -73,23 +75,23 @@ echo ""
 
 # Check Vite
 if curl -s -o /dev/null "http://localhost:$VITE_PORT/"; then
-    echo "✓ Vite      - http://localhost:$VITE_PORT"
+    echo "✓ Vite        - http://localhost:$VITE_PORT"
 else
-    echo "✗ Vite      - Failed to start"
+    echo "✗ Vite        - Failed to start"
 fi
 
-# Check Server
-if curl -s -o /dev/null "http://127.0.0.1:$SERVER_PORT/api/process/status" 2>/dev/null; then
-    echo "✓ Server    - http://127.0.0.1:$SERVER_PORT"
+# Check API Server
+if curl -s -o /dev/null "http://127.0.0.1:$SERVER_PORT/health"; then
+    echo "✓ API Server  - http://127.0.0.1:$SERVER_PORT"
 else
-    echo "✓ Server    - http://127.0.0.1:$SERVER_PORT (starting...)"
+    echo "✗ API Server  - Failed to start (may still be compiling...)"
 fi
 
 # Check Daemon
 if curl -s -o /dev/null "http://127.0.0.1:$DAEMON_PORT/health"; then
-    echo "✓ Daemon    - http://127.0.0.1:$DAEMON_PORT"
+    echo "✓ Daemon      - http://127.0.0.1:$DAEMON_PORT"
 else
-    echo "✗ Daemon    - Failed to start"
+    echo "✗ Daemon      - Failed to start"
 fi
 
 echo ""

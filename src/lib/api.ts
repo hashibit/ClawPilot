@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core'
 import type {
   OpcConfig, OpcStats,
   AgentConfig,
@@ -12,37 +11,24 @@ import type {
 } from './types'
 
 // ── Transport ──────────────────────────────────────────────
-// In Tauri context: use invoke(). In browser dev mode: use HTTP.
-const USE_HTTP = !('__TAURI_INTERNALS__' in window)
-const SERVER_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
-const DEV_BASE = `http://localhost:${SERVER_PORT}/api`
-
-function toInvokeArgs(args: Record<string, unknown>): Record<string, unknown> {
-  // Tauri 2 invokes use camelCase keys by default
-  const result: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(args)) {
-    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
-    result[camelKey] = value
-  }
-  return result
-}
+// Always use HTTP — both in dev mode (Vite) and in Tauri app
+// (embedded axum server on port 16667).
+const API_PORT = import.meta.env.VITE_SERVER_PORT ?? '16667'
+const API_BASE = `http://127.0.0.1:${API_PORT}/api`
 
 export async function call<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
-  if (USE_HTTP) {
-    const res = await fetch(`${DEV_BASE}/${cmd}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(args),
-    })
-    if (!res.ok) {
-      const text = await res.text()
-      let message = text
-      try { message = JSON.parse(text).error ?? text } catch {}
-      throw new Error(message)
-    }
-    return res.json() as Promise<T>
+  const res = await fetch(`${API_BASE}/${cmd}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    let message = text
+    try { message = JSON.parse(text).error ?? text } catch {}
+    throw new Error(message)
   }
-  return invoke<T>(cmd, toInvokeArgs(args))
+  return res.json() as Promise<T>
 }
 
 // ── OPC ───────────────────────────────────────────────────

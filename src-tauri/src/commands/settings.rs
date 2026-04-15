@@ -8,7 +8,7 @@ use tauri::State;
 // Override via CLAWPILOT_LICENSE_KEYS env var (comma-separated) or
 // ~/.clawpilot/license.conf (one key per line). Replace with server-side
 // validation before public release.
-const FALLBACK_LICENSE_KEYS: &[&str] = &[
+pub(crate) const FALLBACK_LICENSE_KEYS: &[&str] = &[
     "CLAW-PILOT-2026-ALPHA-001",
     "CLAW-PILOT-2026-ALPHA-002",
     "CLAW-PILOT-2026-ALPHA-003",

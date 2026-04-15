@@ -13,14 +13,14 @@ use crate::services::ssh_service;
 use crate::services::daemon_install_service;
 
 /// SSH 本地端口转发隧道（RAII：drop 时自动关闭）
-struct SshTunnel {
+pub struct SshTunnel {
     process: Child,
     pub local_port: u16,
 }
 
 impl SshTunnel {
     /// 建立 SSH 本地端口转发，将本机随机端口映射到远程 127.0.0.1:remote_port
-    fn open(ssh_prefix: &str, ssh_target: &str, remote_port: u16) -> Result<Self> {
+    pub fn open(ssh_prefix: &str, ssh_target: &str, remote_port: u16) -> Result<Self> {
         let local_port = TcpListener::bind("127.0.0.1:0")
             .map_err(|e| AppError::Io(e))?
             .local_addr()

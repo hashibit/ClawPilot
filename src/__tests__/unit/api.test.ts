@@ -145,7 +145,7 @@ describe('API Client', () => {
       }
       const result = await createOpc(opcData)
 
-      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/create_opc', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:16667/api/create_opc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: opcData }),
@@ -165,7 +165,7 @@ describe('API Client', () => {
       }
       await updateOpc('opc-123', opcData)
 
-      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/update_opc', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:16667/api/update_opc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: 'opc-123', config: opcData }),
@@ -180,7 +180,7 @@ describe('API Client', () => {
 
       await deleteOpc('opc-123')
 
-      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/delete_opc', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:16667/api/delete_opc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: 'opc-123' }),
@@ -201,7 +201,7 @@ describe('API Client', () => {
 
       const result = await getAgents('opc-123')
 
-      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/get_agents', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:16667/api/get_agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ opc_id: 'opc-123' }),
@@ -223,7 +223,7 @@ describe('API Client', () => {
       }
       const result = await createAgent(agentData)
 
-      expect(globalThis.fetch).toHaveBeenCalledWith('http://localhost:16667/api/create_agent', {
+      expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:16667/api/create_agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config: agentData }),
