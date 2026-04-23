@@ -32,7 +32,7 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', background: '#1C1C1E', color: '#8E8E93',
+        height: '100vh', background: 'var(--bg-base)', color: 'var(--text-dimmer)',
         fontSize: '13px',
       }}>
         Loading...
@@ -47,22 +47,22 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', background: '#1C1C1E',
+      height: '100vh', background: 'var(--bg-base)',
     }}>
       <div style={{
         width: '380px', padding: '40px 36px', borderRadius: '16px',
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
           <div className="logo-box">
             <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
           </div>
-          <span style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF' }}>ClawPilot</span>
+          <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>ClawPilot</span>
         </div>
 
-        <div style={{ fontSize: '13px', color: '#8E8E93', marginBottom: '28px', lineHeight: 1.5 }}>
+        <div style={{ fontSize: '13px', color: 'var(--text-dimmer)', marginBottom: '28px', lineHeight: 1.5 }}>
           Enter your license key to activate ClawPilot.
         </div>
 
@@ -77,17 +77,17 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
           style={{
             width: '100%', padding: '12px 14px', borderRadius: '9px',
             border: error
-              ? '1.5px solid rgba(255,69,58,0.6)'
-              : '1px solid rgba(255,255,255,0.12)',
-            background: 'rgba(255,255,255,0.04)',
-            color: '#EBEBF5', fontSize: '14px', fontFamily: 'monospace',
+              ? '1.5px solid var(--error)'
+              : '1px solid var(--border-subtle)',
+            background: 'var(--bg-elevated)',
+            color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'monospace',
             letterSpacing: '0.5px', outline: 'none', boxSizing: 'border-box',
           }}
         />
 
         {error && (
           <div style={{
-            marginTop: '8px', fontSize: '12px', color: '#FF453A',
+            marginTop: '8px', fontSize: '12px', color: 'var(--error)',
           }}>
             {error}
           </div>
@@ -96,22 +96,19 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
         <button
           onClick={handleActivate}
           disabled={submitting || !key.trim()}
+          className="tbtn tbtn-primary"
           style={{
             width: '100%', marginTop: '16px', padding: '12px',
-            borderRadius: '9px', border: 'none',
-            background: submitting || !key.trim()
-              ? 'rgba(139,92,246,0.3)'
-              : 'rgba(139,92,246,0.8)',
-            color: '#fff', fontSize: '14px', fontWeight: 600,
+            borderRadius: '9px',
+            opacity: submitting || !key.trim() ? 0.5 : 1,
             cursor: submitting || !key.trim() ? 'not-allowed' : 'pointer',
-            transition: 'background 0.15s ease',
           }}
         >
           {submitting ? 'Activating...' : 'Activate'}
         </button>
 
         <div style={{
-          marginTop: '20px', fontSize: '11px', color: '#636366',
+          marginTop: '20px', fontSize: '11px', color: 'var(--text-dimmer)',
           textAlign: 'center', lineHeight: 1.5,
         }}>
           Contact support to get your license key

@@ -16,11 +16,11 @@ export function TagInput({ tags, onChange, placeholder, disabled }: TagInputProp
         setInput('')
     }
     return (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px', padding: '6px 9px', minHeight: '36px', opacity: disabled ? 0.7 : 1 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', alignItems: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '6px 9px', minHeight: '36px', opacity: disabled ? 0.7 : 1 }}>
             {tags.map(tag => (
-                <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.18)', color: '#a78bfa', fontSize: '12px', padding: '2px 8px', borderRadius: '5px' }}>
+                <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(139,92,246,0.18)', color: 'var(--accent-hover)', fontSize: '12px', padding: '2px 8px', borderRadius: '5px' }}>
                     {tag}
-                    {!disabled && <button onClick={() => onChange(tags.filter(t => t !== tag))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#a78bfa', padding: 0, lineHeight: 1, fontSize: '13px' }}>×</button>}
+                    {!disabled && <button onClick={() => onChange(tags.filter(t => t !== tag))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-hover)', padding: 0, lineHeight: 1, fontSize: '13px' }}>×</button>}
                 </span>
             ))}
             {!disabled && <input
@@ -31,7 +31,7 @@ export function TagInput({ tags, onChange, placeholder, disabled }: TagInputProp
                 }}
                 onBlur={add}
                 placeholder={tags.length === 0 ? placeholder : ''}
-                style={{ background: 'none', border: 'none', outline: 'none', color: 'rgba(255,255,255,0.8)', fontSize: '12px', minWidth: '80px', flex: 1 }}
+                style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-secondary)', fontSize: '12px', minWidth: '80px', flex: 1 }}
             />}
         </div>
     )

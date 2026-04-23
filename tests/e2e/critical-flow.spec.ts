@@ -132,13 +132,7 @@ test.describe('Critical User Flows', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 先选择一个 OPC 公司
-      const firstOpc = page.locator('.list-row').first()
-      if (await firstOpc.isVisible()) {
-        await firstOpc.click()
-        await page.waitForTimeout(300)
-      }
-
+      // OpcContext 自动选择第一个 OPC，无需手动选择
       // 点击"添加智能体"按钮 - 这是一个 span 元素，不是 button
       const addAgentBtn = page.locator('span:has-text("添加智能体")').first()
       await addAgentBtn.click()
@@ -165,13 +159,7 @@ test.describe('Critical User Flows', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 先选择一个 OPC 公司
-      const firstOpc = page.locator('.list-row').first()
-      if (await firstOpc.isVisible()) {
-        await firstOpc.click()
-        await page.waitForTimeout(300)
-      }
-
+      // OpcContext 自动选择第一个 OPC，无需手动选择
       // 点击第一个 Agent 卡片（在顶部横条中）
       const firstAgent = page.locator('[class*="avatar"]').first()
       if (await firstAgent.isVisible()) {

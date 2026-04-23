@@ -6,11 +6,13 @@ import { toast } from '../components/Toast'
 import type { OpcConfig, Office, DeploymentTask } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { formatRelativeTime } from '../lib/formatting'
+import { useOpc } from '../contexts/OpcContext'
 
 const DEPLOY_STEPS = ['prepare_config', 'write_dir', 'reload_process', 'health_check']
 
 export default function DeployPage() {
   const { t } = useTranslation()
+  const { currentOpc } = useOpc()
   const [opcs, setOpcs] = useState<OpcConfig[]>([])
   const [offices, setOffices] = useState<Office[]>([])
   const [selectedOpcId, setSelectedOpcId] = useState('')
@@ -28,7 +30,11 @@ export default function DeployPage() {
     () => Promise.all([getAllOpcs(), getOffices()]),
     [],
     {
-      onSuccess: ([allOpcs, allOffices]) => { setOpcs(allOpcs); setOffices(allOffices) },
+      onSuccess: ([allOpcs, allOffices]) => {
+        setOpcs(allOpcs)
+        setOffices(allOffices)
+        setSelectedOpcId(prev => prev || currentOpc?.id || '')
+      },
       onError: (e) => toast(e.message, 'error'),
     }
   )
@@ -152,7 +158,7 @@ export default function DeployPage() {
         <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('deploy.section_title')}</span>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {deploying ? (
-            <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={handleCancel}>{t('deploy.cancel_deploy')}</button>
+            <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={handleCancel}>{t('deploy.cancel_deploy')}</button>
           ) : (
             <button className="tbtn tbtn-success" onClick={handleDeploy} disabled={!canDeploy}>
               {t('deploy.deploy_now')}
@@ -202,12 +208,12 @@ export default function DeployPage() {
               </select>
             </div>
             {selectedOfficeId && !selectedOffice?.daemon_url && (
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#f59e0b' }}>
+              <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--warning)' }}>
                 {t('deploy.office_no_daemon')}
               </div>
             )}
             {freeOffices.length === 0 && (
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: '#f59e0b' }}>
+              <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--warning)' }}>
                 {t('deploy.no_free_offices')}
               </div>
             )}
@@ -218,8 +224,8 @@ export default function DeployPage() {
         {currentTask && (
           <section>
             <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.deploy_progress')}</div>
-            <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: '#8b5cf6', borderRadius: '2px', transition: 'width 0.4s ease' }}></div>
+            <div style={{ height: '3px', background: 'var(--border-subtle)', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--accent)', borderRadius: '2px', transition: 'width 0.4s ease' }}></div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
               {DEPLOY_STEPS.map((label, i) => {
@@ -227,10 +233,10 @@ export default function DeployPage() {
                 const stepLabel = taskSteps[i] ?? label
                 const stepLabelI18n = t(`deploy.step_${DEPLOY_STEPS[i]}`)
                 const colorMap = {
-                  done: { bg: 'rgba(52,199,89,0.15)', stroke: '#34c759', text: '#34c759', sub: t('common.status_done') },
-                  running: { bg: 'rgba(139,92,246,0.15)', stroke: '#a78bfa', text: '#a78bfa', sub: t('common.status_running_ellipsis') },
-                  pending: { bg: 'rgba(255,255,255,0.06)', stroke: '#8E8E93', text: '#8E8E93', sub: t('common.status_waiting') },
-                  failed: { bg: 'rgba(244,63,94,0.15)', stroke: '#f43f5e', text: '#f43f5e', sub: t('common.status_failed') },
+                  done: { bg: 'var(--success-muted)', stroke: 'var(--success)', text: 'var(--success)', sub: t('common.status_done') },
+                  running: { bg: 'var(--accent-muted)', stroke: 'var(--accent-hover)', text: 'var(--accent-hover)', sub: t('common.status_running_ellipsis') },
+                  pending: { bg: 'var(--border-subtle)', stroke: 'var(--text-dimmer)', text: 'var(--text-dimmer)', sub: t('common.status_waiting') },
+                  failed: { bg: 'var(--error-muted)', stroke: 'var(--error)', text: 'var(--error)', sub: t('common.status_failed') },
                 }[status]
                 return (
                   <div key={label} className={`step-card${status === 'done' ? ' done' : ''}`}>
@@ -248,10 +254,10 @@ export default function DeployPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: '11px', fontWeight: 500, color: colorMap.text }}>{stepLabelI18n}</div>
-                        <div style={{ fontSize: '10px', color: '#8E8E93' }}>{colorMap.sub}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dimmer)' }}>{colorMap.sub}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '11px', color: '#8E8E93' }}>{stepLabel}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>{stepLabel}</div>
                   </div>
                 )
               })}
@@ -266,17 +272,17 @@ export default function DeployPage() {
             <div className="group">
               {runningOpcs.map(opc => (
                 <div key={opc.id} className="group-row" style={{ gap: '8px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34c759', flexShrink: 0, alignSelf: 'center' }}></div>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', flexShrink: 0, alignSelf: 'center' }}></div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{opc.display_name}</div>
-                    <div style={{ fontSize: '11px', color: '#8E8E93' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{opc.display_name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>
                       🏢 {opc.office_name ?? t('deploy.unknown_office')}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                     <button
                       className="tbtn tbtn-ghost"
-                      style={{ fontSize: '11px', color: '#8b5cf6' }}
+                      style={{ fontSize: '11px', color: 'var(--accent)' }}
                       onClick={() => handleRedeploy(opc)}
                       disabled={deploying}
                     >
@@ -284,7 +290,7 @@ export default function DeployPage() {
                     </button>
                     <button
                       className="tbtn tbtn-ghost"
-                      style={{ fontSize: '11px', color: '#f43f5e' }}
+                      style={{ fontSize: '11px', color: 'var(--error)' }}
                       onClick={() => handleUndeploy(opc)}
                     >
                       {t('deploy.undeploy')}
@@ -303,23 +309,23 @@ export default function DeployPage() {
             <div className="group">
               {recentDeployments.map(task => {
                 const statusColorMap: Record<string, { bg: string; color: string; label: string }> = {
-                  SUCCESS:  { bg: 'rgba(52,199,89,0.15)',   color: '#34c759', label: t('common.status_success') },
-                  FAILED:   { bg: 'rgba(244,63,94,0.15)',   color: '#f43f5e', label: t('common.status_failed') },
-                  ROLLBACK: { bg: 'rgba(245,158,11,0.15)',  color: '#f59e0b', label: t('deploy.status_rollback') },
-                  RUNNING:  { bg: 'rgba(139,92,246,0.15)',  color: '#a78bfa', label: t('common.status_running') },
-                  PENDING:  { bg: 'rgba(255,255,255,0.06)', color: '#8E8E93', label: t('common.status_waiting') },
+                  SUCCESS:  { bg: 'var(--success-muted)',  color: 'var(--success)',    label: t('common.status_success') },
+                  FAILED:   { bg: 'var(--error-muted)',    color: 'var(--error)',      label: t('common.status_failed') },
+                  ROLLBACK: { bg: 'var(--warning-muted)',  color: 'var(--warning)',    label: t('deploy.status_rollback') },
+                  RUNNING:  { bg: 'var(--accent-muted)',   color: 'var(--accent-hover)', label: t('common.status_running') },
+                  PENDING:  { bg: 'var(--border-subtle)',  color: 'var(--text-dimmer)', label: t('common.status_waiting') },
                 }
                 const sc = statusColorMap[task.status] ?? statusColorMap.PENDING
                 return (
                   <div key={task.id} className="group-row" style={{ gap: '8px' }}>
                     <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: sc.bg, color: sc.color, flexShrink: 0 }}>{sc.label}</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', color: '#EBEBF5' }}>{task.opc_name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{task.opc_name}</div>
                       {task.office_name && (
-                        <div style={{ fontSize: '11px', color: '#8E8E93' }}>🏢 {task.office_name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>🏢 {task.office_name}</div>
                       )}
                     </div>
-                    <span style={{ fontSize: '11px', color: '#8E8E93', flexShrink: 0 }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-dimmer)', flexShrink: 0 }}>
                       {formatRelativeTime(task.completed_at ?? task.created_at, t)}
                     </span>
                   </div>

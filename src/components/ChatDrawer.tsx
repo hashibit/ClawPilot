@@ -43,31 +43,31 @@ export function ChatDrawer({ agent, onClose, soulOverride }: ChatDrawerProps) {
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
             <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
-            <div style={{ position: 'relative', width: '400px', height: '100%', background: '#1C1C1E', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)' }}>
+            <div style={{ position: 'relative', width: '400px', height: '100%', background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)' }}>
                 {/* Header */}
-                <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: agent.gradient_start ?? '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: agent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
                         {agent.initials ?? agent.display_name.slice(0, 2)}
                     </div>
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{agent.display_name}</div>
-                        <div style={{ fontSize: '11px', color: soulOverride ? '#f59e0b' : '#8E8E93' }}>{soulOverride ? '临时测试-智能体尚未保存' : '测试对话 · 基于 SOUL.md'}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{agent.display_name}</div>
+                        <div style={{ fontSize: '11px', color: soulOverride ? 'var(--warning)' : 'var(--text-dimmer)' }}>{soulOverride ? '临时测试-智能体尚未保存' : '测试对话 · 基于 SOUL.md'}</div>
                     </div>
-                    <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '11px', padding: '4px 8px', borderRadius: '5px' }}>{t('agents.clear_chat')}</button>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
+                    <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dimmer)', fontSize: '11px', padding: '4px 8px', borderRadius: '5px' }}>{t('agents.clear_chat')}</button>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dimmer)', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
                 </div>
 
                 {/* Messages */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {messages.length === 0 && (
-                        <div style={{ textAlign: 'center', color: '#636366', fontSize: '12px', marginTop: '40px' }}>{t('agents.chat_empty', { name: agent.display_name })}</div>
+                        <div style={{ textAlign: 'center', color: 'var(--text-dimmer)', fontSize: '12px', marginTop: '40px' }}>{t('agents.chat_empty', { name: agent.display_name })}</div>
                     )}
                     {messages.map((m, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                             <div style={{
                                 maxWidth: '85%', padding: '9px 12px', borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-                                background: m.role === 'user' ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.07)',
-                                color: '#EBEBF5', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                background: m.role === 'user' ? 'rgba(139,92,246,0.25)' : 'var(--bg-surface)',
+                                color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                             }}>
                                 {m.content}
                             </div>
@@ -75,26 +75,26 @@ export function ChatDrawer({ agent, onClose, soulOverride }: ChatDrawerProps) {
                     ))}
                     {loading && (
                         <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                            <div style={{ padding: '9px 14px', borderRadius: '12px 12px 12px 3px', background: 'rgba(255,255,255,0.07)', color: '#8E8E93', fontSize: '13px' }}>…</div>
+                            <div style={{ padding: '9px 14px', borderRadius: '12px 12px 12px 3px', background: 'var(--bg-surface)', color: 'var(--text-dimmer)', fontSize: '13px' }}>…</div>
                         </div>
                     )}
                     <div ref={bottomRef} />
                 </div>
 
                 {/* Input */}
-                <div style={{ padding: '12px 14px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '8px' }}>
+                <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
                     <textarea
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                         placeholder={t('agents.chat_placeholder')}
                         rows={2}
-                        style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: '8px', color: '#EBEBF5', fontSize: '12px', padding: '8px 10px', resize: 'none', outline: 'none', fontFamily: 'inherit' }}
+                        style={{ flex: 1, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px', padding: '8px 10px', resize: 'none', outline: 'none', fontFamily: 'inherit' }}
                     />
                     <button
                         onClick={send}
                         disabled={!input.trim() || loading}
-                        style={{ padding: '8px 14px', borderRadius: '8px', background: '#8b5cf6', color: 'white', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500, opacity: (!input.trim() || loading) ? 0.5 : 1, alignSelf: 'flex-end' }}
+                        style={{ padding: '8px 14px', borderRadius: '8px', background: 'var(--accent)', color: 'var(--text-primary)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500, opacity: (!input.trim() || loading) ? 0.5 : 1, alignSelf: 'flex-end' }}
                     >{t('agents.send')}</button>
                 </div>
             </div>

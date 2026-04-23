@@ -488,11 +488,11 @@ export default function OfficePage() {
             {/* COL2 - office list */}
             <div className="list-pane">
                 <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('office.section_title')}</span>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('office.section_title')}</span>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto' }}>
                     {offices.length === 0 && (
-                        <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: '12px', color: '#8E8E93' }}>
+                        <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-dimmer)' }}>
                             {t('office.no_offices')}
                         </div>
                     )}
@@ -510,7 +510,7 @@ export default function OfficePage() {
                             >
                                 <div style={{
                                     width: '30px', height: '30px', borderRadius: '8px',
-                                    background: '#8b5cf6',
+                                    background: 'var(--accent)',
                                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                                     fontSize: '16px', overflow: 'hidden',
                                 }}>
@@ -523,7 +523,7 @@ export default function OfficePage() {
                                         position: 'absolute', top: '0', left: '38px', zIndex: 300,
                                         borderRadius: '10px', overflow: 'hidden',
                                         boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-                                        border: '1px solid rgba(255,255,255,0.12)',
+                                        border: '1px solid var(--border-default)',
                                         pointerEvents: 'none',
                                     }}>
                                         <img src={office.receptionist_image!} alt="" style={{ width: '160px', height: '160px', objectFit: 'cover', display: 'block' }} />
@@ -532,14 +532,14 @@ export default function OfficePage() {
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', overflow: 'hidden' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id && !isNewOffice ? '#FFFFFF' : 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    <span style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id && !isNewOffice ? 'var(--text-primary)' : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                         {office.name}
                                     </span>
                                     {selected?.id === office.id && editing && !isNewOffice && (
-                                        <span style={{ fontSize: '10px', color: '#f59e0b', flexShrink: 0 }}>[未保存]</span>
+                                        <span style={{ fontSize: '10px', color: 'var(--warning)', flexShrink: 0 }}>[未保存]</span>
                                     )}
                                 </div>
-                                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {GRADE_LABELS[office.decoration_grade]}{office.address ? ` · ${office.address}` : ''}
                                 </div>
                             </div>
@@ -547,17 +547,17 @@ export default function OfficePage() {
                     ))}
                     {isNewOffice && (
                         <div className="list-row selected">
-                            <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏢</div>
+                            <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏢</div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name || '新办公室'}</span>
-                                    <span style={{ fontSize: '10px', color: '#f59e0b', flexShrink: 0 }}>[未保存]</span>
+                                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name || '新办公室'}</span>
+                                    <span style={{ fontSize: '10px', color: 'var(--warning)', flexShrink: 0 }}>[未保存]</span>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
-                <div style={{ padding: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
                     <button
                         className="tbtn tbtn-ghost"
                         style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
@@ -571,7 +571,7 @@ export default function OfficePage() {
             {/* COL3 - detail/edit */}
             <main className="detail-pane">
                 {!selected ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
                         {t('office.select_hint')}
                     </div>
                 ) : (
@@ -579,8 +579,8 @@ export default function OfficePage() {
                         <div className="toolbar" style={{ justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontSize: '18px' }}>🏢</span>
-                                <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{isNewOffice ? (form.name || '新办公室') : selected.name}</span>
-                                {(editing || isNewOffice) && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', fontWeight: 400 }}>未保存</span>}
+                                <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{isNewOffice ? (form.name || '新办公室') : selected.name}</span>
+                                {(editing || isNewOffice) && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 400 }}>未保存</span>}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {/* 测试连接按钮 - 只读和编辑模式都可用，仅远程办公室显示 */}
@@ -602,7 +602,7 @@ export default function OfficePage() {
                                 ) : (
                                     <>
                                         <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>{t('common.button_edit')}</button>
-                                        <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => setConfirmDelete(selected)}>{t('common.button_delete')}</button>
+                                        <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={() => setConfirmDelete(selected)}>{t('common.button_delete')}</button>
                                     </>
                                 )
                                 }
@@ -643,7 +643,7 @@ export default function OfficePage() {
                                                     position: 'absolute', top: '0', left: '44px', zIndex: 300,
                                                     borderRadius: '10px', overflow: 'hidden',
                                                     boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    border: '1px solid var(--border-default)',
                                                     pointerEvents: 'none',
                                                 }}>
                                                     <img src={form.receptionist_image} alt="" style={{ width: '160px', height: '160px', objectFit: 'cover', display: 'block' }} />
@@ -654,7 +654,7 @@ export default function OfficePage() {
                                                     <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setAvatarPickerOpen(false)} />
                                                     <div style={{
                                                         position: 'absolute', top: '34px', left: 0, zIndex: 200,
-                                                        background: '#2c2c2e', border: '1px solid rgba(255,255,255,0.12)',
+                                                        background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
                                                         borderRadius: '12px', padding: '10px',
                                                         boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                                                         display: 'grid', gridTemplateColumns: 'repeat(4, 52px)', gap: '6px',
@@ -690,9 +690,9 @@ export default function OfficePage() {
                                                         else if (addressMode !== true) handleFormChange('address', '')
                                                     }} style={{
                                                         padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', flexShrink: 0,
-                                                        border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
-                                                        background: active ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.04)',
-                                                        color: active ? '#c4b5fd' : 'rgba(235,235,245,0.45)',
+                                                        border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid var(--border-default)',
+                                                        background: active ? 'var(--accent-strong)' : 'rgba(255,255,255,0.04)',
+                                                        color: active ? 'var(--accent-hover)' : 'var(--text-tertiary)',
                                                         fontWeight: active ? 500 : 400,
                                                         opacity: editing ? 1 : 0.7,
                                                     }}>
@@ -728,9 +728,9 @@ export default function OfficePage() {
                                                         return (
                                                             <button key={authType} onClick={() => { if (editing) handleFormChange('access_auth_type', authType) }} style={{
                                                                 height: '28px', lineHeight: '28px', padding: '0 12px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default',
-                                                                border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.1)',
-                                                                background: active ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.04)',
-                                                                color: active ? '#a78bfa' : 'rgba(235,235,245,0.5)',
+                                                                border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid var(--border-default)',
+                                                                background: active ? 'var(--accent-strong)' : 'rgba(255,255,255,0.04)',
+                                                                color: active ? 'var(--accent-hover)' : 'var(--text-tertiary)',
                                                                 fontWeight: active ? 500 : 400,
                                                             }}>
                                                                 {authType === 'password' ? '密码' : 'SSH 私钥'}
@@ -755,8 +755,8 @@ export default function OfficePage() {
                                                     onClick={() => { if (editing) handleFormChange('decoration_grade', v) }}
                                                     style={{
                                                         padding: '5px 14px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', border: 'none',
-                                                        background: form.decoration_grade === v ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)',
-                                                        color: form.decoration_grade === v ? '#a78bfa' : 'rgba(235,235,245,0.6)',
+                                                        background: form.decoration_grade === v ? 'var(--accent-strong)' : 'var(--border-subtle)',
+                                                        color: form.decoration_grade === v ? 'var(--accent-hover)' : 'var(--text-secondary)',
                                                         opacity: editing ? 1 : 0.8,
                                                     }}
                                                 >
@@ -781,7 +781,7 @@ export default function OfficePage() {
                                             <button
                                                 onClick={() => checkDaemon(selected.id)}
                                                 disabled={healthChecking || installStep === 'openclaw' || installStep === 'daemon'}
-                                                style={{ padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'rgba(235,235,245,0.6)', opacity: healthChecking ? 0.5 : 1 }}
+                                                style={{ padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid var(--border-default)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', opacity: healthChecking ? 0.5 : 1 }}
                                             >
                                                 {healthChecking ? t('common.checking') : t('common.button_refresh')}
                                             </button>
@@ -790,7 +790,7 @@ export default function OfficePage() {
                                             onClick={handleInstallLatest}
                                             style={{
                                                 padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer',
-                                                border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.12)', color: '#c4b5fd',
+                                                border: '1px solid rgba(139,92,246,0.4)', background: 'var(--accent-muted)', color: 'var(--accent-hover)',
                                             }}
                                         >
                                             {(daemonHealth?.ok && daemonHealth.version && latestDaemonVersion && daemonHealth.version !== latestDaemonVersion)
@@ -805,30 +805,30 @@ export default function OfficePage() {
                                         <span className="group-label">Daemon</span>
                                         <span className="group-value" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                             {!selected.daemon_url ? (
-                                                <span style={{ color: '#8E8E93' }}>{t('office.not_installed')}</span>
+                                                <span style={{ color: 'var(--text-dimmer)' }}>{t('office.not_installed')}</span>
                                             ) : healthChecking ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#ff9f0a' }} />
-                                                    <span style={{ fontSize: '13px', color: '#ff9f0a' }}>{t('common.checking')}</span>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--warning)' }} />
+                                                    <span style={{ fontSize: '13px', color: 'var(--warning)' }}>{t('common.checking')}</span>
                                                 </>
                                             ) : daemonHealth?.ok ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#34c759' }} />
-                                                    <span style={{ fontSize: '13px', color: '#34c759' }}>运行中</span>
-                                                    {daemonHealth.version && <span style={{ color: '#8b5cf6', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.version}</span>}
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--success)' }} />
+                                                    <span style={{ fontSize: '13px', color: 'var(--success)' }}>运行中</span>
+                                                    {daemonHealth.version && <span style={{ color: 'var(--accent)', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.version}</span>}
                                                 </>
                                             ) : daemonHealth?.not_installed ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#fbbf24' }} />
-                                                    <span style={{ fontSize: '13px', color: '#fbbf24' }}>{t('office.not_installed')}</span>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--warning)' }} />
+                                                    <span style={{ fontSize: '13px', color: 'var(--warning)' }}>{t('office.not_installed')}</span>
                                                 </>
                                             ) : daemonHealth ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#8E8E93' }} />
-                                                    <span style={{ fontSize: '13px', color: '#8E8E93' }}>离线</span>
+                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--text-dimmer)' }} />
+                                                    <span style={{ fontSize: '13px', color: 'var(--text-dimmer)' }}>离线</span>
                                                 </>
                                             ) : (
-                                                <span style={{ color: '#8E8E93' }}>—</span>
+                                                <span style={{ color: 'var(--text-dimmer)' }}>—</span>
                                             )}
                                         </span>
                                     </div>
@@ -839,28 +839,28 @@ export default function OfficePage() {
                                             {daemonHealth?.ok ? (
                                                 daemonHealth.openclaw_version ? (
                                                     <>
-                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#34c759' }} />
-                                                        <span style={{ fontSize: '13px', color: '#34c759' }}>运行中</span>
-                                                        <span style={{ color: '#34c759', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.openclaw_version}</span>
+                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--success)' }} />
+                                                        <span style={{ fontSize: '13px', color: 'var(--success)' }}>运行中</span>
+                                                        <span style={{ color: 'var(--success)', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.openclaw_version}</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: '#8E8E93' }} />
-                                                        <span style={{ fontSize: '13px', color: '#8E8E93' }}>{t('office.not_installed')}</span>
+                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--text-dimmer)' }} />
+                                                        <span style={{ fontSize: '13px', color: 'var(--text-dimmer)' }}>{t('office.not_installed')}</span>
                                                     </>
                                                 )
                                             ) : (
-                                                <span style={{ color: '#8E8E93' }}>—</span>
+                                                <span style={{ color: 'var(--text-dimmer)' }}>—</span>
                                             )}
                                         </span>
                                     </div>
                                     {daemonHealth && !daemonHealth.ok && daemonHealth.error && !daemonHealth.not_installed && (
-                                        <div style={{ padding: '5px 10px', fontSize: '11px', color: '#f87171', background: 'rgba(244,63,94,0.06)', borderTop: '1px solid rgba(244,63,94,0.1)' }}>
+                                        <div style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--error)', background: 'rgba(244,63,94,0.06)', borderTop: '1px solid rgba(244,63,94,0.1)' }}>
                                             {daemonHealth.error}
                                         </div>
                                     )}
                                     {daemonHealth?.not_installed && (
-                                        <div style={{ padding: '5px 10px', fontSize: '11px', color: '#fbbf24', background: 'rgba(251,191,36,0.06)', borderTop: '1px solid rgba(251,191,36,0.1)' }}>
+                                        <div style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--warning)', background: 'rgba(251,191,36,0.06)', borderTop: '1px solid rgba(251,191,36,0.1)' }}>
                                             Daemon 未安装，点击「安装物业」开始安装
                                         </div>
                                     )}
@@ -875,13 +875,13 @@ export default function OfficePage() {
                                         <span className="group-label">{t('office.deploy_company')}</span>
                                         {selected.current_opc_id ? (
                                             <span className="group-value flex-center gap-5">
-                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#34c759', flexShrink: 0 }}></span>
-                                                <a href="#/opc" style={{ color: '#a78bfa', fontSize: '13px', textDecoration: 'none' }}>
+                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }}></span>
+                                                <a href="#/opc" style={{ color: 'var(--accent-hover)', fontSize: '13px', textDecoration: 'none' }}>
                                                     {selected.current_opc_name}
                                                 </a>
                                             </span>
                                         ) : (
-                                            <span className="group-value" style={{ color: '#8E8E93' }}>{t('office.not_deployed')}</span>
+                                            <span className="group-value" style={{ color: 'var(--text-dimmer)' }}>{t('office.not_deployed')}</span>
                                         )}
                                     </div>
                                 </div>
@@ -895,14 +895,14 @@ export default function OfficePage() {
                                             <div key={d.id} className="group-row" style={{ gap: '8px' }}>
                                                 <span style={{
                                                     fontSize: '10px', padding: '1px 6px', borderRadius: '4px', flexShrink: 0,
-                                                    background: d.is_active ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)',
-                                                    color: d.is_active ? '#34c759' : '#8E8E93',
+                                                    background: d.is_active ? 'var(--success-muted)' : 'var(--border-subtle)',
+                                                    color: d.is_active ? 'var(--success)' : 'var(--text-dimmer)',
                                                 }}>
                                                     {d.is_active ? t('common.status_running') : t('office.status_revoked')}
                                                 </span>
                                                 <div style={{ flex: 1 }}>
-                                                    <div style={{ fontSize: '12px', color: '#EBEBF5' }}>{d.opc_name}</div>
-                                                    <div style={{ fontSize: '11px', color: '#8E8E93' }}>
+                                                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{d.opc_name}</div>
+                                                    <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>
                                                         {fmtDate(d.deployed_at)}
                                                         {d.undeployed_at ? ` → ${fmtDate(d.undeployed_at)}` : ''}
                                                     </div>
@@ -920,14 +920,14 @@ export default function OfficePage() {
 
             {confirmDelete && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>删除办公室</div>
-                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
-                            确定要删除「<span style={{ color: '#FFFFFF' }}>{confirmDelete.name}</span>」吗？此操作不可撤销。
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>删除办公室</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                            确定要删除「<span style={{ color: 'var(--text-primary)' }}>{confirmDelete.name}</span>」吗？此操作不可撤销。
                         </div>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                             <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
-                            <button className="tbtn" style={{ background: '#f43f5e', color: '#fff', border: 'none' }} onClick={() => handleDelete(confirmDelete)}>确认删除</button>
+                            <button className="tbtn" style={{ background: 'var(--error)', color: 'var(--text-primary)', border: 'none' }} onClick={() => handleDelete(confirmDelete)}>确认删除</button>
                         </div>
                     </div>
                 </div>
@@ -942,20 +942,20 @@ export default function OfficePage() {
                 }}>
                     <div style={{
                         width: '520px', maxWidth: '90vw',
-                        background: '#1c1c1e', borderRadius: '14px',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'var(--bg-elevated)', borderRadius: '14px',
+                        border: '1px solid var(--border-default)',
                         boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
                         display: 'flex', flexDirection: 'column', overflow: 'hidden',
                     }}>
                         {/* Header */}
-                        <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '15px', fontWeight: 600, color: '#fff', flex: 1 }}>
+                        <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>
                                 {installStep === 'done' ? '✅ 安装完成' : installStep === 'error' ? '❌ 安装失败' : '安装物业'}
                             </span>
                             <span style={{
                                 fontSize: '11px', padding: '2px 8px', borderRadius: '4px',
-                                background: installStep === 'done' ? 'rgba(52,199,89,0.15)' : installStep === 'error' ? 'rgba(248,113,113,0.15)' : 'rgba(139,92,246,0.15)',
-                                color: installStep === 'done' ? '#34d399' : installStep === 'error' ? '#f87171' : '#a78bfa',
+                                background: installStep === 'done' ? 'var(--success-muted)' : installStep === 'error' ? 'var(--error-muted)' : 'var(--accent-muted)',
+                                color: installStep === 'done' ? 'var(--success)' : installStep === 'error' ? 'var(--error)' : 'var(--accent-hover)',
                             }}>
                                 {installStep === 'checking' ? '检查连通性…'
                                     : installStep === 'openclaw' ? '安装 OpenClaw…'
@@ -981,14 +981,14 @@ export default function OfficePage() {
                                 const isPending = currentIdx !== -1 && currentIdx < i && installStep !== 'done'
                                 return (
                                     <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        {i > 0 && <div style={{ width: '20px', height: '1px', background: isDone ? '#34d399' : 'rgba(255,255,255,0.12)' }} />}
+                                        {i > 0 && <div style={{ width: '20px', height: '1px', background: isDone ? '#34d399' : 'var(--border-default)' }} />}
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <div style={{
                                                 width: '7px', height: '7px', borderRadius: '50%',
-                                                background: isDone ? '#34d399' : isError ? '#f87171' : isActive ? '#a78bfa' : 'rgba(255,255,255,0.15)',
+                                                background: isDone ? 'var(--success)' : isError ? 'var(--error)' : isActive ? 'var(--accent-hover)' : 'var(--border-strong)',
                                                 boxShadow: isActive && !isDone ? '0 0 6px #a78bfa' : 'none',
                                             }} />
-                                            <span style={{ fontSize: '11px', color: isPending ? 'rgba(235,235,245,0.3)' : '#EBEBF5' }}>{step.label}</span>
+                                            <span style={{ fontSize: '11px', color: isPending ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>{step.label}</span>
                                         </div>
                                     </div>
                                 )
@@ -1002,10 +1002,10 @@ export default function OfficePage() {
                             padding: '10px 12px',
                             fontFamily: 'monospace', fontSize: '11px', lineHeight: 1.8,
                             height: '260px', overflowY: 'auto',
-                            border: '1px solid rgba(255,255,255,0.06)',
+                            border: '1px solid var(--border-subtle)',
                         }}>
                             {installLogs.length === 0 ? (
-                                <span style={{ color: 'rgba(235,235,245,0.25)' }}>等待开始…</span>
+                                <span style={{ color: 'var(--text-tertiary)' }}>等待开始…</span>
                             ) : installLogs.map((entry, i) => {
                                 // Style based on log type
                                 const getLogStyle = (type: string): React.CSSProperties => {
@@ -1014,23 +1014,23 @@ export default function OfficePage() {
                                         case 'step':
                                             return { color: '#60a5fa', fontWeight: 600 }  // Blue, bold
                                         case 'success':
-                                            return { color: '#34d399' }  // Green
+                                            return { color: 'var(--success)' }  // Green
                                         case 'detail':
                                             return { color: '#9ca3af', paddingLeft: '12px' }  // Gray, indented
                                         case 'progress':
-                                            return { color: '#a78bfa', fontWeight: 500 }  // Purple
+                                            return { color: 'var(--accent-hover)', fontWeight: 500 }  // Purple
                                         case 'error':
-                                            return { color: '#f87171', fontWeight: 500 }  // Red
+                                            return { color: 'var(--error)', fontWeight: 500 }  // Red
                                         case 'warning':
-                                            return { color: '#fbbf24' }  // Yellow
+                                            return { color: 'var(--warning)' }  // Yellow
                                         case 'banner':
-                                            return { color: '#c4b5fd', fontWeight: 600, marginTop: '4px' }  // Light purple, bold
+                                            return { color: 'var(--accent-hover)', fontWeight: 600, marginTop: '4px' }  // Light purple, bold
                                         case 'keyvalue':
                                             return { color: '#d1d5db' }  // Light gray
                                         case 'empty':
                                             return { display: 'none' }
                                         default:
-                                            return { color: '#EBEBF5' }  // Default white
+                                            return { color: 'var(--text-primary)' }  // Default white
                                     }
                                 }
                                 return (
@@ -1046,14 +1046,14 @@ export default function OfficePage() {
                             {(installStep === 'done' || installStep === 'error') ? (
                                 <button
                                     onClick={handleInstallClose}
-                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.07)', color: '#EBEBF5' }}
+                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid var(--border-strong)', background: 'rgba(255,255,255,0.07)', color: 'var(--text-primary)' }}
                                 >
                                     关闭
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleInstallStop}
-                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}
+                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: 'var(--error)' }}
                                 >
                                     停止安装
                                 </button>

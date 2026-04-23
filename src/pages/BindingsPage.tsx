@@ -13,7 +13,7 @@ import { Icon } from '../components/Icon'
 
 export default function BindingsPage() {
     const { t } = useTranslation()
-    const { opcs, currentOpc, selectOpc } = useOpc()
+    const { currentOpc } = useOpc()
 
     const [channel, setChannel] = useState<ChannelConfig | null>(null)
     const [appId, setAppId] = useState('')
@@ -177,81 +177,16 @@ export default function BindingsPage() {
     }
 
     return (
-        <>
-            {/* COL2 - company list */}
-            <div className="list-pane">
+        <main style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            {/* Main config area */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('bindings.section_title')}</span>
-                </div>
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {(() => {
-                        const running = opcs.filter(o => o.is_running)
-                        const stopped = opcs.filter(o => !o.is_running)
-                        return (
-                            <>
-                                {running.length > 0 && (
-                                    <>
-                                        <div className="section-label" style={{ padding: '8px 12px 3px' }}>{t('common.status_running')}</div>
-                                        {running.map(opc => (
-                                            <div
-                                                key={opc.id}
-                                                className={`list-row${currentOpc?.id === opc.id ? ' selected' : ''}`}
-                                                onClick={() => { selectOpc(opc); setSelectedBinding(null) }}
-                                                style={{ cursor: 'pointer' }}
-                                            >
-                                                <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
-                                                    {opc.avatar_initials ?? opc.display_name.slice(0, 1)}
-                                                </div>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div className="flex-center gap-5">
-                                                        <span className="text-sm text-medium">{opc.display_name}</span>
-                                                        <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759' }}></span>
-                                                    </div>
-                                                    <div className="text-xs text-dim">{opc.agent_count} {t('bindings.agents_count')} · {opc.channel_count} {t('bindings.groups_count')}</div>
-                                                </div>
-                                                <Icon name="chevron-right" size={14} style={{ color: currentOpc?.id === opc.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)' }} />
-                                            </div>
-                                        ))}
-                                    </>
-                                )}
-                                {stopped.length > 0 && (
-                                    <>
-                                        <div className="section-label" style={{ padding: '10px 12px 3px' }}>{t('common.status_stopped')}</div>
-                                        {stopped.map(opc => (
-                                            <div
-                                                key={opc.id}
-                                                className={`list-row${currentOpc?.id === opc.id ? ' selected' : ''}`}
-                                                onClick={() => { selectOpc(opc); setSelectedBinding(null) }}
-                                                style={{ cursor: 'pointer' }}
-                                            >
-                                                <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
-                                                    {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
-                                                </div>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div className="flex-center gap-5">
-                                                        <span className="text-sm text-medium text-dim">{opc.display_name}</span>
-                                                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#48484A' }}></span>
-                                                    </div>
-                                                    <div className="text-xs text-dim">{opc.agent_count} {t('bindings.agents_count')} · {opc.channel_count} {t('bindings.groups_count')}</div>
-                                                </div>
-                                                <Icon name="chevron-right" size={14} style={{ color: 'rgba(255,255,255,0.3)' }} />
-                                            </div>
-                                        ))}
-                                    </>
-                                )}
-                            </>
-                        )
-                    })()}
-                </div>
-            </div>
-
-            {/* COL3 - OPC config: feishu bot + group list */}
-            <main className="detail-pane">
-                <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{currentOpc?.display_name ?? '—'}</span>
+                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {currentOpc?.display_name ?? t('bindings.section_title')}
+                    </span>
                 </div>
                 {!currentOpc ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
                         {t('bindings.select_opc_hint')}
                     </div>
                 ) : (
@@ -268,8 +203,8 @@ export default function BindingsPage() {
                             <div className="group">
                                 <div className="group-row">
                                     <span className="group-label">{t('bindings.connection_status')}</span>
-                                    <span className="group-value" style={{ color: channel?.is_connected ? '#34c759' : '#8E8E93', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        {channel?.is_connected && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>}
+                                    <span className="group-value" style={{ color: channel?.is_connected ? 'var(--success)' : 'var(--text-dimmer)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        {channel?.is_connected && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}></span>}
                                         {channel?.is_connected ? t('common.status_connected') : t('common.status_not_connected')}
                                     </span>
                                 </div>
@@ -298,7 +233,7 @@ export default function BindingsPage() {
                             </div>
                             <div className="group">
                                 {bindings.length === 0 && !isNewBinding ? (
-                                    <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#8E8E93' }}>{t('bindings.no_bindings')}</div>
+                                    <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('bindings.no_bindings')}</div>
                                 ) : (
                                     <>
                                         {bindings.map(binding => (
@@ -308,11 +243,11 @@ export default function BindingsPage() {
                                                 onClick={() => handleSelectBinding(binding)}
                                                 style={{
                                                     cursor: 'pointer',
-                                                    background: selectedBinding?.id === binding.id ? 'rgba(139,92,246,0.15)' : undefined,
+                                                    background: selectedBinding?.id === binding.id ? 'var(--accent-muted)' : undefined,
                                                 }}
                                             >
-                                                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <Icon name="users" size={14} stroke="#a78bfa" strokeWidth={1.75} />
+                                                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <Icon name="users" size={14} stroke="var(--accent-hover)" strokeWidth={1.75} />
                                                 </div>
                                                 <div style={{ flex: 1, minWidth: 0 }}>
                                                     <div className="text-xs text-medium">{binding.channel_name || '（未命名群组）'}</div>
@@ -320,16 +255,16 @@ export default function BindingsPage() {
                                                         {binding.is_enabled ? t('bindings.status_bound') : t('bindings.status_disabled')} · {binding.agent_name || t('bindings.no_agent')}
                                                     </div>
                                                 </div>
-                                                <Icon name="chevron-right" size={14} style={{ color: selectedBinding?.id === binding.id ? '#8b5cf6' : 'rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                                                <Icon name="chevron-right" size={14} style={{ color: selectedBinding?.id === binding.id ? 'var(--accent)' : 'var(--border-subtle)', flexShrink: 0 }} />
                                             </div>
                                         ))}
                                         {isNewBinding && selectedBinding && (
                                             <div
                                                 className="list-row"
-                                                style={{ background: 'rgba(139,92,246,0.15)', cursor: 'default' }}
+                                                style={{ background: 'var(--accent-muted)', cursor: 'default' }}
                                             >
-                                                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'rgba(139,92,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <Icon name="plus" size={14} stroke="#a78bfa" strokeWidth={1.75} />
+                                                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <Icon name="plus" size={14} stroke="var(--accent-hover)" strokeWidth={1.75} />
                                                 </div>
                                                 <div style={{ flex: 1, minWidth: 0 }}>
                                                     <div className="text-xs text-medium">{bindingForm.channel_name || t('bindings.new_group')}</div>
@@ -343,15 +278,15 @@ export default function BindingsPage() {
                         </section>
                     </div>
                 )}
-            </main>
+            </div>
 
-            {/* COL4 - Channel detail panel */}
+            {/* Detail panel */}
             {selectedBinding && (
-                <aside style={{ width: '480px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#141416' }}>
+                <aside style={{ width: '480px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
                     <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {bindingForm.channel_name || t('bindings.group_config')}
-                            {isNewBinding && <span style={{ fontSize: '11px', color: '#a78bfa', marginLeft: '6px', fontWeight: 400 }}>{t('bindings.unsaved')}</span>}
+                            {isNewBinding && <span style={{ fontSize: '11px', color: 'var(--accent-hover)', marginLeft: '6px', fontWeight: 400 }}>{t('bindings.unsaved')}</span>}
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             {bindingEditing ? (
@@ -362,12 +297,12 @@ export default function BindingsPage() {
                             ) : (
                                 <>
                                     <button className="tbtn tbtn-ghost" onClick={() => setBindingEditing(true)}>{t('common.button_edit')}</button>
-                                    <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => handleDeleteBinding(selectedBinding.id)}>{t('common.button_delete')}</button>
+                                    <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={() => handleDeleteBinding(selectedBinding.id)}>{t('common.button_delete')}</button>
                                 </>
                             )}
                             <button
                                 onClick={() => { setSelectedBinding(null); setIsNewBinding(false) }}
-                                style={{ background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: '18px', lineHeight: 1, marginLeft: '2px' }}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-dimmer)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, marginLeft: '2px' }}
                             >×</button>
                         </div>
                     </div>
@@ -456,7 +391,7 @@ export default function BindingsPage() {
                                             disabled={!bindingEditing}
                                             style={{
                                                 width: '32px', height: '18px', borderRadius: '9px', border: 'none', cursor: bindingEditing ? 'pointer' : 'default',
-                                                background: bindingForm.is_enabled ? '#8b5cf6' : '#3A3A3C',
+                                                background: bindingForm.is_enabled ? 'var(--accent)' : 'var(--bg-overlay)',
                                                 position: 'relative', transition: 'background 0.15s',
                                                 flexShrink: 0, opacity: bindingEditing ? 1 : 0.7,
                                             }}
@@ -465,10 +400,10 @@ export default function BindingsPage() {
                                                 position: 'absolute', top: '2px',
                                                 left: bindingForm.is_enabled ? '16px' : '2px',
                                                 width: '14px', height: '14px', borderRadius: '50%',
-                                                background: '#fff', transition: 'left 0.15s',
+                                                background: 'var(--text-primary)', transition: 'left 0.15s',
                                             }}></span>
                                         </button>
-                                        <span style={{ fontSize: '12px', color: '#EBEBF5' }}>{bindingForm.is_enabled ? t('common.enabled') : t('common.disabled')}</span>
+                                        <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{bindingForm.is_enabled ? t('common.enabled') : t('common.disabled')}</span>
                                     </label>
                                 </div>
                             </div>
@@ -477,6 +412,6 @@ export default function BindingsPage() {
                     </div>
                 </aside>
             )}
-        </>
+        </main>
     )
 }

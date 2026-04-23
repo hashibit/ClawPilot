@@ -144,20 +144,20 @@ export default function ActivitiesPage() {
   // Get status color
   const getStatusColor = (status: AgentActivity['status']) => {
     switch (status) {
-      case 'busy': return '#10b981'
-      case 'error': return '#ef4444'
-      default: return '#6b7280'
+      case 'busy': return 'var(--success)'
+      case 'error': return 'var(--error)'
+      default: return 'var(--text-dimmer)'
     }
   }
 
   // Get stream badge color
   const getStreamColor = (stream: string) => {
     switch (stream) {
-      case 'lifecycle': return '#8b5cf6'
+      case 'lifecycle': return 'var(--accent)'
       case 'assistant': return '#3b82f6'
       case 'tool': return '#f97316'
-      case 'error': return '#ef4444'
-      default: return '#6b7280'
+      case 'error': return 'var(--error)'
+      default: return 'var(--text-dimmer)'
     }
   }
 
@@ -176,8 +176,8 @@ export default function ActivitiesPage() {
               fontSize: 12,
               padding: '4px 12px',
               borderRadius: 12,
-              background: 'rgba(16, 185, 129, 0.2)',
-              color: '#10b981'
+              background: 'var(--success-muted)',
+              color: 'var(--success)'
             }}>
               {busyCount} {t('activities.active', 'active')}
             </span>
@@ -187,9 +187,9 @@ export default function ActivitiesPage() {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: connectionStatus === 'connected' ? '#10b981' : '#ef4444'
+              background: connectionStatus === 'connected' ? 'var(--success)' : 'var(--error)'
             }} />
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
               {connectionStatus === 'connected' ? t('activities.connected', 'Connected') : t('activities.disconnected', 'Disconnected')}
             </span>
           </div>
@@ -203,7 +203,7 @@ export default function ActivitiesPage() {
           alignItems: 'center',
           justifyContent: 'center',
           height: 200,
-          color: 'rgba(255,255,255,0.4)',
+          color: 'var(--text-tertiary)',
           gap: 16
         }}>
           <Icon name="building" size={48} />
@@ -217,13 +217,13 @@ export default function ActivitiesPage() {
           alignItems: 'center',
           justifyContent: 'center',
           height: 200,
-          color: 'rgba(255,255,255,0.4)',
+          color: 'var(--text-tertiary)',
           gap: 16
         }}>
           <Icon name="activity" size={48} />
           <p>{t('activities.noActivity', 'No agent activity yet')}</p>
           <p style={{ fontSize: 12 }}>{t('activities.waitingHint', 'Waiting for agents to start working...')}</p>
-          <div style={{ marginTop: 16, fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>
+          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-tertiary)' }}>
             {t('activities.runningCompanies', 'Running companies')}: {runningOpcs.map(o => o.display_name || o.name).join(', ')}
           </div>
         </div>
@@ -254,7 +254,7 @@ export default function ActivitiesPage() {
                 </div>
                 <div>
                   <div style={{ fontWeight: 500 }}>{opc.display_name || opc.name}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
                     {agents.length} {t('activities.agents', 'agents')}
                   </div>
                 </div>
@@ -267,7 +267,7 @@ export default function ActivitiesPage() {
                     key={agent.agent_id}
                     style={{
                       background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      border: '1px solid var(--border-default)',
                       borderRadius: 12,
                       overflow: 'hidden'
                     }}
@@ -278,7 +278,7 @@ export default function ActivitiesPage() {
                       alignItems: 'center',
                       gap: 12,
                       padding: '12px 16px',
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      borderBottom: '1px solid var(--border-default)',
                       background: 'rgba(255,255,255,0.02)'
                     }}>
                       <span style={{
@@ -293,12 +293,12 @@ export default function ActivitiesPage() {
                         fontSize: 11,
                         padding: '2px 8px',
                         borderRadius: 4,
-                        background: agent.status === 'busy' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.1)',
-                        color: agent.status === 'busy' ? '#10b981' : 'rgba(255,255,255,0.6)'
+                        background: agent.status === 'busy' ? 'var(--success-muted)' : 'var(--border-default)',
+                        color: agent.status === 'busy' ? 'var(--success)' : 'var(--text-secondary)'
                       }}>
                         {agent.status}
                       </span>
-                      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)' }}>
                         {agent.events.length} events
                       </span>
                     </div>
@@ -312,7 +312,7 @@ export default function ActivitiesPage() {
                             display: 'flex',
                             gap: 12,
                             padding: '8px 16px',
-                            borderBottom: idx < Math.min(agent.events.length, 10) - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                            borderBottom: idx < Math.min(agent.events.length, 10) - 1 ? '1px solid var(--border-subtle)' : 'none',
                             fontSize: 13
                           }}
                         >
@@ -328,10 +328,10 @@ export default function ActivitiesPage() {
                           }}>
                             {event.stream}
                           </span>
-                          <span style={{ flex: 1, color: 'rgba(255,255,255,0.8)', wordBreak: 'break-all' }}>
+                          <span style={{ flex: 1, color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
                             {formatEventData(event)}
                           </span>
-                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
                             {formatTime(event.ts)}
                           </span>
                         </div>

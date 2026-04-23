@@ -40,7 +40,7 @@ const API_AVATAR_GRADIENTS: Record<ProviderApi, string> = {
 }
 
 function ApiBadge({ api }: { api: ProviderApi }) {
-  const colors = API_BADGE_COLORS[api] ?? { bg: 'rgba(255,255,255,0.08)', color: '#8E8E93' }
+  const colors = API_BADGE_COLORS[api] ?? { bg: 'var(--border-subtle)', color: 'var(--text-dimmer)' }
   return (
     <span style={{
       fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
@@ -77,7 +77,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: '#8E8E93' }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-dimmer)' }}>
           {t('providers.available_models')} ({models.length})
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -109,7 +109,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
       </div>
       {models.length === 0 && known ? (
         <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '12px', color: '#8E8E93' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>
             {t('providers.inferred_provider', { name: known.suggest_name, count: known.models.length })}
           </span>
           <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', flexShrink: 0 }} onClick={onReset}>
@@ -117,7 +117,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
           </button>
         </div>
       ) : models.length === 0 ? (
-        <div style={{ fontSize: '12px', color: '#8E8E93', padding: '12px 0', textAlign: 'center' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '12px 0', textAlign: 'center' }}>
           {t('providers.no_models')}
         </div>
       ) : (
@@ -157,7 +157,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                             className="field-input"
                             style={{ width: '100%', padding: '4px 6px', fontSize: '12px' }}
                           />
-                          {isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}
+                          {isNew && <span style={{ fontSize: '10px', color: 'var(--warning)', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}
                         </td>
                         <td>
                           <input
@@ -168,7 +168,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                             style={{ width: '80px', padding: '4px 6px', fontSize: '11px' }}
                           />
                         </td>
-                        <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>
+                        <td style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: 'monospace' }}>
                           <select
                             value={m.input_types}
                             onChange={(e) => onUpdateModel?.(m.id, 'input_types', e.target.value)}
@@ -185,12 +185,12 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                               type="checkbox"
                               checked={m.supports_vision}
                               onChange={(e) => onUpdateModel?.(m.id, 'supports_vision', e.target.checked)}
-                              style={{ accentColor: '#8b5cf6' }}
+                              style={{ accentColor: 'var(--accent)' }}
                             />
                           </label>
                         </td>
                         <td>
-                          <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', color: '#f43f5e', padding: '2px 6px', background: 'rgba(244,63,94,0.1)' }} onClick={() => onDeleteModel?.(m.id)}>
+                          <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', color: 'var(--error)', padding: '2px 6px', background: 'var(--error-muted)' }} onClick={() => onDeleteModel?.(m.id)}>
                             {t('common.button_delete')}
                           </button>
                         </td>
@@ -198,9 +198,9 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                     ) : (
                       <>
                         <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{m.model_id}</td>
-                        <td style={{ fontSize: '12px' }}>{m.display_name}{isNew && <span style={{ fontSize: '10px', color: '#f59e0b', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}</td>
+                        <td style={{ fontSize: '12px' }}>{m.display_name}{isNew && <span style={{ fontSize: '10px', color: 'var(--warning)', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}</td>
                         <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
-                        <td style={{ fontSize: '11px', color: '#8E8E93', fontFamily: 'monospace' }}>{m.input_types}</td>
+                        <td style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: 'monospace' }}>{m.input_types}</td>
                         <td>
                           {m.supports_vision
                             ? <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>{t('providers.cap_vision')}</span>
@@ -502,7 +502,7 @@ export default function ProvidersPage() {
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {providers.length === 0 && (
-            <div style={{ padding: '12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>
+            <div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-dimmer)', textAlign: 'center' }}>
               {t('providers.no_providers')}
             </div>
           )}
@@ -522,15 +522,15 @@ export default function ProvidersPage() {
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
                     <span style={{ fontSize: '12px', fontWeight: 600 }}>{p.name}</span>
                     {editMode === 'edit' && selectedId === p.id && (
-                      <span style={{ fontSize: '10px', color: '#f59e0b' }}>[{t('common.status_unsaved')}]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--warning)' }}>[{t('common.status_unsaved')}]</span>
                     )}
                   </div>
                   <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <ApiBadge api={p.api} />
                     <span style={{
                       fontSize: '10px', padding: '1px 5px', borderRadius: '4px',
-                      background: p.is_available ? 'rgba(52,199,89,0.12)' : (p.is_enabled ? (p.last_tested ? 'rgba(244,63,94,0.12)' : 'rgba(255,255,255,0.06)') : 'rgba(255,255,255,0.06)'),
-                      color: p.is_available ? '#34c759' : (p.is_enabled ? (p.last_tested ? '#f43f5e' : '#8E8E93') : '#555'),
+                      background: p.is_available ? 'var(--success-muted)' : (p.is_enabled ? (p.last_tested ? 'var(--error-muted)' : 'var(--border-subtle)') : 'var(--border-subtle)'),
+                      color: p.is_available ? 'var(--success)' : (p.is_enabled ? (p.last_tested ? 'var(--error)' : 'var(--text-dimmer)') : 'var(--text-dimmer)'),
                     }}>
                       {p.is_available ? t('providers.status_connected') : (p.is_enabled ? (p.last_tested ? t('providers.status_failed') : t('providers.status_untested')) : t('providers.status_disabled'))}
                     </span>
@@ -540,10 +540,10 @@ export default function ProvidersPage() {
             )
           })}
         </div>
-        <div style={{ padding: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)' }}>
           <button
             className="tbtn tbtn-ghost"
-            style={{ width: '100%', fontSize: '12px', justifyContent: 'center', color: editMode === 'create' ? '#f59e0b' : undefined }}
+            style={{ width: '100%', fontSize: '12px', justifyContent: 'center', color: editMode === 'create' ? 'var(--warning)' : undefined }}
             onClick={handleAddProvider}
           >
             + {t('common.button_add')}{editMode === 'create' && <span style={{ marginLeft: '4px', fontSize: '10px' }}>{t('common.status_unsaved')}</span>}
@@ -562,8 +562,8 @@ export default function ProvidersPage() {
                 <ApiBadge api={selectedProvider.api} />
                 <span style={{
                   fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
-                  background: selectedProvider.is_available ? 'rgba(52,199,89,0.15)' : 'rgba(255,255,255,0.06)',
-                  color: selectedProvider.is_available ? '#34c759' : '#8E8E93',
+                  background: selectedProvider.is_available ? 'var(--success-muted)' : 'var(--border-subtle)',
+                  color: selectedProvider.is_available ? 'var(--success)' : 'var(--text-dimmer)',
                 }}>
                   {selectedProvider.is_available ? t('common.status_connected') : t('common.status_configured')}
                 </span>
@@ -609,7 +609,7 @@ export default function ProvidersPage() {
                 </button>
                 <button
                   className="tbtn tbtn-ghost"
-                  style={{ fontSize: '11px', color: '#f43f5e' }}
+                  style={{ fontSize: '11px', color: 'var(--error)' }}
                   onClick={() => setConfirmDelete(selectedProvider.id)}
                 >
                   {t('common.button_delete')}
@@ -623,7 +623,7 @@ export default function ProvidersPage() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {editMode === 'none' && !selectedProvider && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
-              <div style={{ fontSize: '13px', color: '#8E8E93', textAlign: 'center' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-dimmer)', textAlign: 'center' }}>
                 {t('providers.select_hint')}
               </div>
             </div>
@@ -642,7 +642,7 @@ export default function ProvidersPage() {
                   className="field-input"
                   style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px' }}
                 />
-                {suggesting && <span style={{ fontSize: '11px', color: '#8E8E93' }}>...</span>}
+                {suggesting && <span style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>...</span>}
               </div>
 
               <div className="group-row" style={{ gap: '8px' }}>
@@ -684,16 +684,16 @@ export default function ProvidersPage() {
               </div>
 
               {pendingModels.length > 0 && (
-                <div style={{ fontSize: '11px', color: '#8E8E93', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
-                  <div style={{ marginBottom: '6px', color: '#a78bfa' }}>{t('providers.auto_detected_models', { count: pendingModels.length })}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                  <div style={{ marginBottom: '6px', color: 'var(--accent-hover)' }}>{t('providers.auto_detected_models', { count: pendingModels.length })}</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {pendingModels.slice(0, 8).map((m, i) => (
-                      <span key={i} style={{ padding: '2px 6px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', borderRadius: '4px', fontSize: '10px' }}>
+                      <span key={i} style={{ padding: '2px 6px', background: 'var(--accent-muted)', color: 'var(--accent-hover)', borderRadius: '4px', fontSize: '10px' }}>
                         {m.model_id}
                       </span>
                     ))}
                     {pendingModels.length > 8 && (
-                      <span style={{ padding: '2px 6px', color: '#8E8E93', fontSize: '10px' }}>+{pendingModels.length - 8} more</span>
+                      <span style={{ padding: '2px 6px', color: 'var(--text-dimmer)', fontSize: '10px' }}>+{pendingModels.length - 8} more</span>
                     )}
                   </div>
                 </div>
@@ -728,7 +728,7 @@ export default function ProvidersPage() {
                 <div className="group-row">
                   <span className="group-label">{t('providers.label_status')}</span>
                   <span className="group-value" style={{
-                    color: selectedProvider.is_available ? '#34c759' : selectedProvider.last_tested ? '#f43f5e' : '#8E8E93',
+                    color: selectedProvider.is_available ? 'var(--success)' : selectedProvider.last_tested ? 'var(--error)' : 'var(--text-dimmer)',
                     fontSize: '12px',
                   }}>
                     {selectedProvider.is_available ? t('providers.status_connected') : selectedProvider.last_tested ? t('providers.status_failed') : t('providers.status_untested')}
@@ -737,7 +737,7 @@ export default function ProvidersPage() {
                 {selectedProvider.last_tested && (
                   <div className="group-row">
                     <span className="group-label">{t('providers.label_last_tested')}</span>
-                    <span className="group-value" style={{ fontSize: '11px', color: '#8E8E93' }}>
+                    <span className="group-value" style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>
                       {new Date(selectedProvider.last_tested * 1000).toLocaleString()}
                     </span>
                   </div>
@@ -746,14 +746,14 @@ export default function ProvidersPage() {
 
               {/* Delete confirmation */}
               {confirmDelete === selectedProvider.id && (
-                <div style={{ padding: '10px', background: 'rgba(244,63,94,0.08)', borderRadius: '8px', border: '1px solid rgba(244,63,94,0.2)' }}>
-                  <div style={{ fontSize: '12px', marginBottom: '8px', color: '#f43f5e' }}>
+                <div style={{ padding: '10px', background: 'var(--error-muted)', borderRadius: '8px', border: '1px solid rgba(244,63,94,0.2)' }}>
+                  <div style={{ fontSize: '12px', marginBottom: '8px', color: 'var(--error)' }}>
                     {t('providers.delete_confirm_msg', { name: selectedProvider.name })}
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
                       className="tbtn"
-                      style={{ fontSize: '11px', background: 'rgba(244,63,94,0.2)', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.3)' }}
+                      style={{ fontSize: '11px', background: 'var(--error-muted)', color: 'var(--error)', border: '1px solid rgba(244,63,94,0.3)' }}
                       onClick={() => handleDeleteProvider(selectedProvider.id)}
                     >
                       {t('providers.delete_confirm_btn')}

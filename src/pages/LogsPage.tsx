@@ -91,13 +91,13 @@ export default function LogsPage() {
         <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('logs.title')}</span>
-            <span style={{ fontSize: '11px', color: '#8E8E93' }}>{t('logs.realtimeLabel')}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>{t('logs.realtimeLabel')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {!cleared && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '2px 8px', background: 'rgba(52,199,89,0.12)', borderRadius: '5px' }}>
-                <span className="pulse-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>
-                <span style={{ fontSize: '11px', color: '#34c759' }}>{t('logs.live')}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '2px 8px', background: 'var(--success-muted)', borderRadius: '5px' }}>
+                <span className="pulse-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}></span>
+                <span style={{ fontSize: '11px', color: 'var(--success)' }}>{t('logs.live')}</span>
               </div>
             )}
             {cleared ? (
@@ -114,10 +114,10 @@ export default function LogsPage() {
         <div
           ref={streamRef}
           className="log-stream"
-          style={{ flex: 1, overflowY: 'auto', background: '#161618', padding: '10px 14px' }}
+          style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-inset)', padding: '10px 14px' }}
         >
           {displayLogs.length === 0 ? (
-            <div style={{ fontSize: '12px', color: '#8E8E93', padding: '8px 0' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '8px 0' }}>
               {cleared ? t('logs.cleared') : t('logs.noLogs')}
             </div>
           ) : (
@@ -134,19 +134,19 @@ export default function LogsPage() {
       </div>
 
       {/* Filters panel */}
-      <div style={{ width: '168px', borderLeft: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
+      <div style={{ width: '168px', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
         <div className="toolbar" style={{ justifyContent: 'flex-start' }}>
-          <span style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5' }}>{t('logs.filter')}</span>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{t('logs.filter')}</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
           <div className="section-label" style={{ padding: '0 0 5px' }}>{t('logs.levelFilter')}</div>
           {LOG_LEVELS.map(level => {
             const colorMap: Record<string, string> = {
-              INFO: 'rgba(235,235,245,0.85)',
-              WARN: '#f59e0b',
-              ERROR: '#f43f5e',
-              DEBUG: '#8E8E93',
-              SYSTEM: '#a78bfa',
+              INFO: 'var(--text-secondary)',
+              WARN: 'var(--warning)',
+              ERROR: 'var(--error)',
+              DEBUG: 'var(--text-dimmer)',
+              SYSTEM: 'var(--accent-hover)',
             }
             return (
               <label key={level} className="filter-check">
@@ -156,7 +156,7 @@ export default function LogsPage() {
                   checked={enabledLevels.has(level)}
                   onChange={() => toggleLevel(level)}
                 />
-                <span style={{ color: colorMap[level] ?? 'rgba(235,235,245,0.85)' }}>{level}</span>
+                <span style={{ color: colorMap[level] ?? 'var(--text-secondary)' }}>{level}</span>
               </label>
             )
           })}
@@ -184,7 +184,7 @@ export default function LogsPage() {
             ))}
           </select>
 
-          <div style={{ marginTop: '12px', fontSize: '11px', color: '#8E8E93' }}>
+          <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-dimmer)' }}>
             {t('logs.total', { count: displayLogs.length })}
           </div>
         </div>

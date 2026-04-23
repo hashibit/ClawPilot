@@ -10,6 +10,7 @@ import LogsPage from './pages/LogsPage'
 import OfficePage from './pages/OfficePage'
 import SettingsPage from './pages/SettingsPage'
 import ActivitiesPage from './pages/ActivitiesPage'
+import CompanyListPage from './pages/CompanyListPage'
 import { OpcProvider } from './contexts/OpcContext'
 import { ToastContainer } from './components/Toast'
 import LicenseGate from './components/LicenseGate'
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Navigate to="/overview" replace />} />
               <Route path="overview" element={<OverviewPage />} />
+              <Route path="companies" element={<CompanyListPage />} />
               <Route path="opc" element={<OpcPage />} />
               <Route path="agents" element={<AgentsPage />} />
               <Route path="providers" element={<ProvidersPage />} />

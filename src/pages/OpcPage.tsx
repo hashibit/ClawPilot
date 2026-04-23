@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
-import { createOpc, deleteOpc, updateOpc, exportOpc, getOpcStats, createSnapshot, getSnapshots, restoreSnapshot, deleteSnapshot, undeploy } from '../lib/api'
+import { createOpc, deleteOpc, exportOpc, getOpcStats, createSnapshot, getSnapshots, restoreSnapshot, deleteSnapshot, undeploy } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { OpcConfig, OpcStats } from '../lib/types'
 import type { LocalSnapshot } from '../lib/types'
@@ -111,7 +111,6 @@ export default function OpcPage() {
   const [confirmOffline, setConfirmOffline] = useState<OpcConfig | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<OpcConfig | null>(null)
 
-
   const selected = currentOpc
 
   useEffect(() => {
@@ -171,7 +170,6 @@ export default function OpcPage() {
   }
 
   const handleDelete = async (opc: OpcConfig) => {
-    
     try {
       await deleteOpc(opc.id)
       toast(t('common.status_deleted'), 'success')
@@ -206,19 +204,16 @@ export default function OpcPage() {
     }
   }
 
-  const running = opcs.filter(o => o.is_running && o.office_id)
-  const stopped = opcs.filter(o => !o.is_running || !o.office_id)
-
   return (
     <>
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={reload} />}
 
       {confirmOffline && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', zIndex: 1000 }}>
-          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '420px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', borderRadius: '14px', padding: '24px', width: '420px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5', marginBottom: '8px' }}>{t('opc.confirm_undeploy_title', { name: confirmOffline.display_name })}</div>
-              <div style={{ fontSize: '13px', color: '#8E8E93', lineHeight: 1.6 }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>{t('opc.confirm_undeploy_title', { name: confirmOffline.display_name })}</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-dimmer)', lineHeight: 1.6 }}>
                 {t('opc.undeploy_warning_prefix')}
                 <ul style={{ margin: '8px 0 0', paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <li>{t('opc.undeploy_warn_agents')}</li>
@@ -237,103 +232,79 @@ export default function OpcPage() {
 
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff', marginBottom: '8px' }}>{confirmDelete.display_name}</div>
-              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>{confirmDelete.display_name}</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 {t('opc.confirm_delete')}
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>{t('common.button_cancel')}</button>
-              <button className="tbtn" style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e' }} onClick={() => handleDelete(confirmDelete)}>{t('common.button_delete')}</button>
+              <button className="tbtn tbtn-danger" onClick={() => handleDelete(confirmDelete)}>{t('common.button_delete')}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* COL2: list-pane */}
+      {/* OPC list */}
       <div className="list-pane">
         <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('opc.section_my_companies')}</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>OPC 管理</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {running.length > 0 && (
+          {opcs.filter(o => o.is_running).length > 0 && (
             <>
               <div className="section-label" style={{ padding: '8px 12px 3px' }}>{t('common.status_running')}</div>
-              {running.map(opc => (
-                <div
-                  key={opc.id}
-                  className={`list-row${selected?.id === opc.id ? ' selected' : ''}`}
-                  onClick={() => selectOpc(opc)}
-                >
-                  <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
+              {opcs.filter(o => o.is_running).map(opc => (
+                <div key={opc.id} className={`list-row${selected?.id === opc.id ? ' selected' : ''}`} onClick={() => selectOpc(opc)} style={{ cursor: 'pointer' }}>
+                  <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? 'var(--accent)' }}>
                     {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="flex-center gap-5">
-                      <span className="text-sm text-medium">{opc.display_name}</span>
-                      <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34c759' }}></span>
-                    </div>
-                    <div className="text-xs text-dim">{opc.agent_count} {t('common.label_agents')} · {opc.channel_count} 频道</div>
+                    <div className="text-sm text-medium" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
+                    <div className="text-xs text-dim">{opc.agent_count} agents</div>
                   </div>
-                  <span className="text-xs text-dim">{formatRelativeTime(opc.updated_at, t)}</span>
+                  <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
                 </div>
               ))}
             </>
           )}
-          {stopped.length > 0 && (
+          {opcs.filter(o => !o.is_running).length > 0 && (
             <>
               <div className="section-label" style={{ padding: '10px 12px 3px' }}>{t('common.status_stopped')}</div>
-              {stopped.map(opc => (
-                <div
-                  key={opc.id}
-                  className={`list-row${selected?.id === opc.id ? ' selected' : ''}`}
-                  onClick={() => selectOpc(opc)}
-                >
-                  <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
+              {opcs.filter(o => !o.is_running).map(opc => (
+                <div key={opc.id} className={`list-row${selected?.id === opc.id ? ' selected' : ''}`} onClick={() => selectOpc(opc)} style={{ cursor: 'pointer' }}>
+                  <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? 'var(--accent)' }}>
                     {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="flex-center gap-5">
-                      <span className="text-sm text-medium text-dim">{opc.display_name}</span>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#48484A', flexShrink: 0 }}></span>
-                    </div>
-                    <div className="text-xs text-dim">{opc.agent_count} {t('common.label_agents')} · {opc.channel_count} 频道</div>
+                    <div className="text-sm text-medium text-dim" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
+                    <div className="text-xs text-dim">{opc.agent_count} agents</div>
                   </div>
-                  <span className="text-xs text-dim">{formatRelativeTime(opc.updated_at, t)}</span>
                 </div>
               ))}
             </>
           )}
-          {opcs.length === 0 && (
-            <div style={{ padding: '20px 12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>
-              {t('opc.empty_state_text')}
-            </div>
-          )}
         </div>
-        <div style={{ padding: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <button
-            className="tbtn tbtn-ghost"
-            style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
-            onClick={() => setShowCreate(true)}
-          >
+        <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)' }}>
+          <button className="tbtn tbtn-accent" style={{ width: '100%' }} onClick={() => setShowCreate(true)}>
             + {t('opc.button_create_new')}
           </button>
         </div>
       </div>
 
-      {/* COL3: detail-pane */}
+      {/* Detail pane */}
       <main className="detail-pane">
         {!selected ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
             {t('opc.select_company_prompt')}
           </div>
         ) : (
           <>
-            <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
+            <div style={{ padding: '10px 16px 0', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{selected.display_name}</span>
+                <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{selected.display_name}</span>
                 <span className={`status-badge ${selected.is_running ? 'status-green' : 'status-gray'}`}>
                   {selected.is_running ? t('common.status_running') : t('common.status_stopped')}
                 </span>
@@ -351,13 +322,13 @@ export default function OpcPage() {
               {/* 数据概览 */}
               <section>
                 <div className="flex-center gap-10" style={{ marginBottom: '8px' }}>
-                  <div><div className="text-bold" style={{ fontSize: '15px', color: '#EBEBF5', lineHeight: '1.2' }}>{t('opc.section_data_overview')}</div></div>
+                  <div><div className="text-bold" style={{ fontSize: '15px', color: 'var(--text-primary)', lineHeight: '1.2' }}>{t('opc.section_data_overview')}</div></div>
                 </div>
                 <div className="group">
                   <div className="group-row" style={{ justifyContent: 'space-between' }}>
                     <span className="group-label">{t('common.label_agents')}</span>
                     <span className="group-value flex-center gap-5" style={{ flex: 1 }}>{selected.agent_count} {t('common.unit_count')}</span>
-                    <a href="#/agents" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none', flexShrink: 0 }}>{t('common.button_manage')}</a>
+                    <a href="#/agents" style={{ fontSize: '11px', color: 'var(--accent-hover)', textDecoration: 'none', flexShrink: 0 }}>{t('common.button_manage')}</a>
                   </div>
                   <div className="group-row" style={{ justifyContent: 'space-between' }}>
                     <span className="group-label">飞书频道</span>
@@ -365,19 +336,19 @@ export default function OpcPage() {
                       {selected.channel_count} {t('common.unit_count')}
                       {stats && <span className="text-dimmer">（{stats.group_count} {t('common.channel_type_group')}, {stats.dm_count} {t('common.channel_type_dm')}）</span>}
                     </span>
-                    <a href="#/bindings" style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none', flexShrink: 0 }}>{t('common.button_manage')}</a>
+                    <a href="#/bindings" style={{ fontSize: '11px', color: 'var(--accent-hover)', textDecoration: 'none', flexShrink: 0 }}>{t('common.button_manage')}</a>
                   </div>
                   <div className="group-row" style={{ justifyContent: 'space-between' }}>
                     <span className="group-label">{t('opc.label_running_status')}</span>
                     <span className="group-value flex-center gap-5" style={{ flex: 1 }}>
-                      <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: selected.is_running && selected.office_id ? '#34c759' : '#48484A' }}></span>
-                      <span style={{ color: selected.is_running && selected.office_id ? '#34c759' : '#8E8E93' }}>
+                      <span className="pulse-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: selected.is_running && selected.office_id ? 'var(--success)' : 'var(--bg-overlay)' }}></span>
+                      <span style={{ color: selected.is_running && selected.office_id ? 'var(--success)' : 'var(--text-dimmer)' }}>
                         {selected.is_running && selected.office_id ? t('common.status_running') : t('common.status_stopped')}
                       </span>
                       {selected.is_running && selected.office_name && (
                         <>
-                          <span style={{ color: '#48484A', fontSize: '11px' }}>·</span>
-                          <a href={`#/office?highlight=${selected.office_id}`} style={{ fontSize: '12px', color: '#a78bfa', textDecoration: 'none' }}>
+                          <span style={{ color: 'var(--bg-overlay)', fontSize: '11px' }}>·</span>
+                          <a href={`#/office?highlight=${selected.office_id}`} style={{ fontSize: '12px', color: 'var(--accent-hover)', textDecoration: 'none' }}>
                             {selected.office_name}
                           </a>
                         </>
@@ -385,7 +356,7 @@ export default function OpcPage() {
                     </span>
                     {selected.is_running && selected.office_id && (
                       <a
-                        style={{ fontSize: '11px', color: '#a78bfa', textDecoration: 'none', flexShrink: 0, cursor: 'pointer' }}
+                        style={{ fontSize: '11px', color: 'var(--accent-hover)', textDecoration: 'none', flexShrink: 0, cursor: 'pointer' }}
                         onClick={() => setConfirmOffline(selected)}
                       >
                         {t('opc.button_undeploy')}
@@ -394,7 +365,7 @@ export default function OpcPage() {
                   </div>
                   <div className="group-row">
                     <span className="group-label">{t('opc.label_messages_today')}</span>
-                    <span className="group-value" style={{ color: '#34c759' }}>
+                    <span className="group-value" style={{ color: 'var(--success)' }}>
                       {selected.message_count_today.toLocaleString()} {t('common.unit_messages')}
                       <span className="text-dimmer"> {selected.message_growth >= 0 ? '↑' : '↓'} {Math.abs(selected.message_growth).toFixed(1)}%</span>
                     </span>
@@ -418,7 +389,7 @@ export default function OpcPage() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div>
                     <span className="section-label" style={{ padding: 0 }}>{t('opc.section_snapshots')}</span>
-                    <span style={{ marginLeft: '6px', fontSize: '11px', color: '#636366' }}>{snapshots.length} {t('common.unit_count')}</span>
+                    <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--text-dimmer)' }}>{snapshots.length} {t('common.unit_count')}</span>
                   </div>
                 </div>
 
@@ -444,22 +415,22 @@ export default function OpcPage() {
 
                 {/* 快照列表 */}
                 {snapshots.length === 0 ? (
-                  <div style={{ fontSize: '12px', color: '#636366', padding: '10px 0', textAlign: 'center' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '10px 0', textAlign: 'center' }}>
                     {t('opc.empty_snapshots_text')}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {snapshots.map(snap => (
-                      <div key={snap.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '4px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div key={snap.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '4px 12px', background: 'var(--border-subtle)', borderRadius: '8px', border: '1px solid var(--border-default)' }}>
                         <div style={{ flexShrink: 0 }}>
-                          <Icon name="folder" size={15} stroke={snap.is_auto ? '#f59e0b' : '#8b5cf6'} strokeWidth={1.75} />
+                          <Icon name="folder" size={15} stroke={snap.is_auto ? '#f59e0b' : 'var(--accent)'} strokeWidth={1.75} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {snap.label}
                             {snap.is_auto && <span style={{ marginLeft: '5px', fontSize: '10px', color: '#f59e0b', background: 'rgba(245,158,11,0.12)', padding: '1px 5px', borderRadius: '4px' }}>{t('opc.snapshot_tag_auto')}</span>}
                           </div>
-                          <div style={{ fontSize: '11px', color: '#636366' }}>
+                          <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>
                             {new Date(snap.created_at * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
@@ -467,11 +438,11 @@ export default function OpcPage() {
                           <button
                             onClick={() => handleRestoreSnapshot(snap)}
                             disabled={snapshotLoading}
-                            style={{ padding: '3px 9px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(139,92,246,0.35)', background: 'rgba(139,92,246,0.1)', color: '#a78bfa', opacity: snapshotLoading ? 0.5 : 1 }}
+                            style={{ padding: '3px 9px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid var(--accent-strong)', background: 'var(--accent-muted)', color: 'var(--accent-hover)', opacity: snapshotLoading ? 0.5 : 1 }}
                           >{t('opc.button_restore_snapshot')}</button>
                           <button
                             onClick={() => handleDeleteSnapshot(snap)}
-                            style={{ padding: '3px 7px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid rgba(244,63,94,0.3)', background: 'none', color: '#f43f5e' }}
+                            style={{ padding: '3px 7px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid var(--error-muted)', background: 'none', color: 'var(--error)' }}
                           >×</button>
                         </div>
                       </div>

@@ -41,14 +41,14 @@ export function ToastContainer() {
           padding: '10px 14px', borderRadius: 8, fontSize: 13,
           background: t.kind === 'success' ? 'rgba(52,199,89,0.15)'
             : t.kind === 'error' ? 'rgba(244,63,94,0.15)'
-            : 'rgba(255,255,255,0.1)',
-          color: t.kind === 'success' ? '#34c759'
-            : t.kind === 'error' ? '#f43f5e'
-            : '#ebebf5',
+            : 'var(--bg-surface)',
+          color: t.kind === 'success' ? 'var(--success)'
+            : t.kind === 'error' ? 'var(--error)'
+            : 'var(--text-primary)',
           border: `1px solid ${
             t.kind === 'success' ? 'rgba(52,199,89,0.3)'
             : t.kind === 'error' ? 'rgba(244,63,94,0.3)'
-            : 'rgba(255,255,255,0.12)'
+            : 'var(--border-subtle)'
           }`,
           backdropFilter: 'blur(8px)',
           maxWidth: 320,

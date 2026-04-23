@@ -20,12 +20,13 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return this.props.fallback ?? (
-        <div style={{ padding: '40px', textAlign: 'center', color: '#ff6b6b' }}>
+        <div style={{ padding: '40px', textAlign: 'center', background: 'var(--bg-base)', color: 'var(--error)' }}>
           <h2>Something went wrong</h2>
-          <p style={{ color: '#8E8E93', fontSize: '14px' }}>{this.state.error?.message}</p>
+          <p style={{ color: 'var(--text-dimmer)', fontSize: '14px' }}>{this.state.error?.message}</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            style={{ marginTop: '16px', padding: '8px 16px', background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+            className="tbtn tbtn-primary"
+            style={{ marginTop: '16px', padding: '8px 16px' }}
           >
             Try Again
           </button>

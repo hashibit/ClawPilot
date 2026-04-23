@@ -12,11 +12,7 @@ test.describe('OPC Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 检查是否已有 OPC，如果有则跳过创建（避免重复）
-      const existingOpcs = page.locator('.list-row')
-      const opcCount = await existingOpcs.count()
-
-      // 点击创建按钮 - 底部 footer 按钮，文本是 "+ 创建子公司"
+      // 点击创建按钮 - toolbar 中的按钮，文本是 "+ 创建子公司"
       const createBtn = page.locator('button:has-text("创建子公司"), .tbtn:has-text("+")').first()
       await createBtn.click()
       await page.waitForTimeout(300)
@@ -97,16 +93,10 @@ test.describe('OPC Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 点击第一个 OPC 卡片 - 使用 list-row 选择器
-      const firstCard = page.locator('.list-row').first()
-      if (await firstCard.isVisible()) {
-        await firstCard.click()
-        await page.waitForTimeout(300)
-
-        // 验证右侧面板显示
-        const detailPane = page.locator('.detail-pane, [class*="detail"], aside, [class*="panel"]').first()
-        await expect(detailPane).toBeVisible()
-      }
+      // OPC 页面为全宽布局，直接显示当前选中 OPC 的详情
+      // OpcContext 自动选择第一个 OPC，无需手动点击
+      const detailPane = page.locator('.detail-pane, [class*="detail"], aside, [class*="panel"]').first()
+      await expect(detailPane).toBeVisible()
     })
 
     test('OPC 统计数据加载', async ({ page }) => {
@@ -114,18 +104,12 @@ test.describe('OPC Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 点击第一个 OPC - 使用 list-row 选择器
-      const firstCard = page.locator('.list-row').first()
-      if (await firstCard.isVisible()) {
-        await firstCard.click()
-        await page.waitForTimeout(500)
-
-        // 验证统计数据存在（允许为 0）
-        const statsSection = page.locator('[class*="stat"], [class*="metric"]')
-        const count = await statsSection.count()
-        // 至少有 1 个统计项或详情内容
-        expect(count).toBeGreaterThanOrEqual(0)
-      }
+      // OPC 页面为全宽布局，OpcContext 自动选择第一个 OPC
+      // 验证统计数据存在（允许为 0）
+      const statsSection = page.locator('[class*="stat"], [class*="metric"]')
+      const count = await statsSection.count()
+      // 至少有 1 个统计项或详情内容
+      expect(count).toBeGreaterThanOrEqual(0)
     })
   })
 
@@ -136,18 +120,12 @@ test.describe('OPC Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 点击第一个 OPC - 使用 list-row 选择器
-      const firstCard = page.locator('.list-row').first()
-      if (await firstCard.isVisible()) {
-        await firstCard.click()
-        await page.waitForTimeout(500)
-
-        // 验证快照区域存在
-        const snapshotSection = page.locator('text=快照, text=Snapshot, [class*="snapshot"], [class*="history"]')
-        const count = await snapshotSection.count()
-        // 快照区域可能存在也可能不存在（取决于 OPC 是否有快照）
-        expect(count).toBeGreaterThanOrEqual(0)
-      }
+      // OPC 页面为全宽布局，OpcContext 自动选择第一个 OPC
+      // 验证快照区域存在
+      const snapshotSection = page.locator('text=快照, text=Snapshot, [class*="snapshot"], [class*="history"]')
+      const count = await snapshotSection.count()
+      // 快照区域可能存在也可能不存在（取决于 OPC 是否有快照）
+      expect(count).toBeGreaterThanOrEqual(0)
     })
   })
 

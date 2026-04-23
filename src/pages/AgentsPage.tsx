@@ -95,31 +95,29 @@ function SkillModal({ enabled, onClose, onToggle }: {
     )
 
     return (
-        <div
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh' }}
-            onClick={onClose}
-        >
+        <div className="modal-backdrop" onClick={onClose}>
             <div
-                style={{ background: '#1c1c1e', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', width: '580px', maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}
+                className="modal-panel"
+                style={{ width: '580px', maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
-                        <div style={{ fontSize: '15px', fontWeight: 600, color: '#EBEBF5' }}>{t('agents.skill_modal_title')}</div>
-                        <div style={{ fontSize: '12px', color: '#8E8E93', marginTop: '2px' }}>{t('agents.skill_modal_subtitle')}</div>
+                        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('agents.skill_modal_title')}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', marginTop: '2px' }}>{t('agents.skill_modal_subtitle')}</div>
                     </div>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#8E8E93', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-dimmer)', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
                 </div>
 
                 {/* Search */}
-                <div style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'relative' }}>
+                <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-subtle)', position: 'relative' }}>
                     <input
                         type="text" placeholder={t('agents.skill_search_placeholder')} className="field-input"
                         style={{ width: '100%' }} value={search} onChange={e => setSearch(e.target.value)}
                     />
                     {searching && (
-                        <span style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#8E8E93' }}>{t('agents.searching')}</span>
+                        <span style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--text-dimmer)' }}>{t('agents.searching')}</span>
                     )}
                 </div>
 
@@ -129,26 +127,26 @@ function SkillModal({ enabled, onClose, onToggle }: {
                     {/* Installed skills */}
                     {installedSkills.length > 0 && (
                         <>
-                            <div style={{ fontSize: '11px', color: '#8E8E93', padding: '2px 0', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('agents.installed')}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', padding: '2px 0', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('agents.installed')}</div>
                             {installedSkills.map(skill => {
                                 const slug = skill.slug ?? skill.name
                                 const added = enabled.includes(slug)
                                 return (
-                                    <div key={skill.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'rgba(52,199,89,0.3)' : 'rgba(255,255,255,0.12)'}`, background: added ? 'rgba(52,199,89,0.06)' : 'rgba(255,255,255,0.04)' }}>
+                                    <div key={skill.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'var(--success-muted)' : 'var(--border-default)'}`, background: added ? 'var(--success-muted)' : 'var(--border-subtle)' }}>
                                         <span style={{ fontSize: '18px', flexShrink: 0 }}>🔧</span>
                                         <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => onToggle(slug)}>
-                                            <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{skill.display_name}</div>
-                                            <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{skill.description}</div>
-                                            {skill.version && <div style={{ fontSize: '10px', color: '#636366', marginTop: '1px' }}>v{skill.version}{skill.author ? ` · ${skill.author}` : ''}</div>}
+                                            <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill.display_name}</div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{skill.description}</div>
+                                            {skill.version && <div style={{ fontSize: '10px', color: 'var(--text-dimmer)', marginTop: '1px' }}>v{skill.version}{skill.author ? ` · ${skill.author}` : ''}</div>}
                                         </div>
                                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                                             <span
                                                 onClick={() => onToggle(slug)}
-                                                style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'rgba(52,199,89,0.15)' : 'rgba(139,92,246,0.15)', color: added ? '#34c759' : '#a78bfa', cursor: 'pointer' }}
+                                                style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'var(--success-muted)' : 'var(--accent-muted)', color: added ? 'var(--success)' : 'var(--accent-hover)', cursor: 'pointer' }}
                                             >{added ? `✓ ${t('agents.added')}` : `+ ${t('agents.add')}`}</span>
                                             <span
                                                 onClick={() => handleUninstall(slug)}
-                                                style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,59,48,0.1)', color: '#ff3b30', cursor: 'pointer' }}
+                                                style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'var(--error-muted)', color: 'var(--error)', cursor: 'pointer' }}
                                             >{t('agents.uninstall')}</span>
                                         </div>
                                     </div>
@@ -165,7 +163,7 @@ function SkillModal({ enabled, onClose, onToggle }: {
                     {/* Remote — new (not in DB at all) */}
                     {remoteNew.length > 0 && (
                         <>
-                            <div style={{ fontSize: '11px', color: '#8E8E93', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('agents.clawhub_results')}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('agents.clawhub_results')}</div>
                             {remoteNew.map(skill => (
                                 <SkillRow key={skill.slug} skill={skill} installing={installing} onInstall={handleInstall} />
                             ))}
@@ -173,19 +171,19 @@ function SkillModal({ enabled, onClose, onToggle }: {
                     )}
 
                     {installedSkills.length === 0 && remoteSkills.length === 0 && !searching && (
-                        <div style={{ textAlign: 'center', color: '#636366', fontSize: '13px', padding: '32px 0' }}>
+                        <div style={{ textAlign: 'center', color: 'var(--text-dimmer)', fontSize: '13px', padding: '32px 0' }}>
                             <div style={{ marginBottom: '8px' }}>{t('agents.no_installed_skills')}</div>
                             <div style={{ fontSize: '11px' }}>{t('agents.skill_search_hint')}</div>
                         </div>
                     )}
 
                     {!searching && search.trim() && installedSkills.length === 0 && remoteSkills.length === 0 && (
-                        <div style={{ textAlign: 'center', color: '#8E8E93', fontSize: '13px', padding: '24px 0' }}>{t('agents.no_skills_found')}</div>
+                        <div style={{ textAlign: 'center', color: 'var(--text-dimmer)', fontSize: '13px', padding: '24px 0' }}>{t('agents.no_skills_found')}</div>
                     )}
                 </div>
 
-                <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#8E8E93' }}>{t('agents.skill_selected_count', { selected: enabled.length, installed: dbSkills.filter(s => s.is_installed).length })}</span>
+                <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('agents.skill_selected_count', { selected: enabled.length, installed: dbSkills.filter(s => s.is_installed).length })}</span>
                     <button className="tbtn tbtn-accent" onClick={onClose}>{t('common.button_done')}</button>
                 </div>
             </div>
@@ -201,21 +199,21 @@ function SkillRow({ skill, installing, onInstall }: {
     const { t } = useTranslation()
     const isInstalling = installing === skill.slug
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.10)', background: 'rgba(255,255,255,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-default)', background: 'var(--border-subtle)' }}>
             <span style={{ fontSize: '18px', flexShrink: 0 }}>🔌</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: '#EBEBF5' }}>{skill.name}</div>
-                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {skill.description_zh || skill.description}
                 </div>
-                <div style={{ fontSize: '10px', color: '#636366', marginTop: '1px' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-dimmer)', marginTop: '1px' }}>
                     {skill.ownerName} · ↓{skill.downloads.toLocaleString()} · ★{skill.stars} · v{skill.version}
                 </div>
             </div>
             <button
                 onClick={() => onInstall(skill.slug)}
                 disabled={isInstalling}
-                style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(6,182,212,0.4)', background: 'rgba(6,182,212,0.1)', color: isInstalling ? '#636366' : '#06b6d4', cursor: isInstalling ? 'not-allowed' : 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+                style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(6,182,212,0.4)', background: 'rgba(6,182,212,0.1)', color: isInstalling ? 'var(--text-dimmer)' : 'var(--info)', cursor: isInstalling ? 'not-allowed' : 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
             >{isInstalling ? t('agents.installing') : t('agents.install')}</button>
         </div>
     )
@@ -224,7 +222,7 @@ function SkillRow({ skill, installing, onInstall }: {
 // ── Main page ─────────────────────────────────────────────
 export default function AgentsPage() {
     const { t } = useTranslation()
-    const { opcs, currentOpc, selectOpc } = useOpc()
+    const { currentOpc, selectOpc } = useOpc()
 
     const DOC_DESCRIPTIONS: Record<DocumentType, string> = {
         SOUL: t('agents.doc_soul'),
@@ -626,17 +624,17 @@ export default function AgentsPage() {
     const guardrailDeny = form.guardrail_deny ?? []
 
     return (
-        <>
+        <main className="detail-pane">
             {/* ── AI 一键生成 Modal ── */}
             {aiModalOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', zIndex: 1000 }} onClick={() => { if (!aiGenerating) setAiModalOpen(false) }}>
-                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '480px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-backdrop" onClick={() => { if (!aiGenerating) setAiModalOpen(false) }}>
+                    <div className="modal-panel" style={{ padding: '24px', width: '480px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
                         <div>
-                            <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>{t('agents.ai_quick_gen')}</div>
-                            <div style={{ fontSize: '12px', color: '#8E8E93' }}>{aiGenerating ? t('agents.generating') : t('agents.ai_generate_placeholder')}</div>
+                            <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>{t('agents.ai_quick_gen')}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{aiGenerating ? t('agents.generating') : t('agents.ai_generate_placeholder')}</div>
                         </div>
                         {aiGenerating ? (
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '20px 0', color: '#a78bfa', fontSize: '13px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '20px 0', color: 'var(--accent-hover)', fontSize: '13px' }}>
                                 <Icon name="loading" size={18} spin />
                                 {t('agents.generating')}
                             </div>
@@ -662,18 +660,18 @@ export default function AgentsPage() {
 
             {/* ── 批量添加 Modal ── */}
             {batchModalOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '12vh', zIndex: 1000 }} onClick={() => { if (!batchRunning) setBatchModalOpen(false) }}>
-                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '580px', maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-backdrop" onClick={() => { if (!batchRunning) setBatchModalOpen(false) }}>
+                    <div className="modal-panel" style={{ padding: '24px', width: '580px', maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
                         <div>
-                            <div style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF', marginBottom: '4px' }}>批量添加智能体</div>
-                            <div style={{ fontSize: '12px', color: '#8E8E93' }}>每行描述一个智能体角色，AI 自动生成并立即保存</div>
+                            <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>批量添加智能体</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>每行描述一个智能体角色，AI 自动生成并立即保存</div>
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {batchPrompts.map((p, i) => {
                                 const status = batchProgress[i]
                                 return (
                                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ fontSize: '11px', color: '#8E8E93', width: '16px', textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-dimmer)', width: '16px', textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
                                         <input
                                             className="field-input"
                                             style={{ flex: 1 }}
@@ -684,12 +682,12 @@ export default function AgentsPage() {
                                             onKeyDown={e => { if (e.key === 'Enter' && i === batchPrompts.length - 1 && !batchRunning) setBatchPrompts(prev => [...prev, '']) }}
                                         />
                                         {status === 'generating' && (
-                                            <Icon name="loading" size={14} stroke="#a78bfa" strokeWidth={2} spin />
+                                            <Icon name="loading" size={14} stroke="var(--accent-hover)" strokeWidth={2} spin />
                                         )}
-                                        {status === 'done' && <span style={{ color: '#34c759', fontSize: '14px', flexShrink: 0 }}>✓</span>}
-                                        {status === 'error' && <span style={{ color: '#f43f5e', fontSize: '14px', flexShrink: 0 }}>✗</span>}
+                                        {status === 'done' && <span style={{ color: 'var(--success)', fontSize: '14px', flexShrink: 0 }}>✓</span>}
+                                        {status === 'error' && <span style={{ color: 'var(--error)', fontSize: '14px', flexShrink: 0 }}>✗</span>}
                                         {!batchRunning && !status && (
-                                            <button onClick={() => setBatchPrompts(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8E8E93', fontSize: '16px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
+                                            <button onClick={() => setBatchPrompts(prev => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dimmer)', fontSize: '16px', lineHeight: 1, padding: '0 2px', flexShrink: 0 }}>×</button>
                                         )}
                                     </div>
                                 )
@@ -710,391 +708,341 @@ export default function AgentsPage() {
                 </div>
             )}
 
-            {/* ── COL 2: Company list ─────────────────────────── */}
-            <div className="list-pane">
-                <div data-tauri-drag-region className="toolbar">
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{t('agents.section_title')}</span>
-                </div>
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {opcs.length === 0 && (
-                        <div style={{ padding: '20px 12px', fontSize: '12px', color: '#8E8E93', textAlign: 'center' }}>{t('agents.no_companies')}</div>
-                    )}
-                    {(() => {
-                        const running = opcs.filter(o => o.is_running && o.office_id)
-                        const stopped = opcs.filter(o => !o.is_running || !o.office_id)
-                        const renderRow = (opc: OpcConfig) => {
-                            const isSelected = currentOpc?.id === opc.id
-                            const agentCount = opcAgentsMap[opc.id] ? opcAgentsMap[opc.id].length : opc.agent_count
-                            return (
-                                <div
-                                    key={opc.id}
-                                    className={`list-row${isSelected ? ' selected' : ''}`}
-                                    onClick={() => { selectOpc(opc); setIsNewAgent(false); setEditing(false) }}
-                                    style={{ cursor: 'pointer' }}
-                                >
-                                    <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? '#8b5cf6' }}>
-                                        {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div className="text-sm text-medium" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{opc.display_name}</div>
-                                        <div className="text-xs text-dim">{t('agents.agent_count', { count: agentCount })}</div>
-                                    </div>
-                                </div>
-                            )
-                        }
-                        return (
-                            <>
-                                {running.length > 0 && (
-                                    <>
-                                        <div className="section-label" style={{ padding: '8px 12px 3px' }}>{t('common.status_running')}</div>
-                                        {running.map(renderRow)}
-                                    </>
-                                )}
-                                {stopped.length > 0 && (
-                                    <>
-                                        <div className="section-label" style={{ padding: '10px 12px 3px' }}>{t('common.status_stopped')}</div>
-                                        {stopped.map(renderRow)}
-                                    </>
-                                )}
-                            </>
-                        )
-                    })()}
-                </div>
+            {/* ── Toolbar ──────────────────────────────────────── */}
+            <div data-tauri-drag-region className="toolbar">
+                <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('agents.section_title')}</span>
             </div>
 
-            {/* ── COL 3: Detail pane ──────────────────────────── */}
-            <main className="detail-pane">
-                {!currentOpc ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
-                        {t('agents.select_company_hint')}
-                    </div>
-                ) : (
-                    <>
-                        {/* Agents strip */}
-                        <div style={{ flexShrink: 0, background: '#1a1a1f', display: 'flex', alignItems: 'center' }}>
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '2px', padding: '10px 12px', overflowX: 'auto', minWidth: 0 }}>
-                                {(() => {
-                                    const base = [...(opcAgentsMap[currentOpc.id] ?? [])].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
-                                    const list = isNewAgent && selectedAgent ? [...base, selectedAgent] : base
-                                    return list
-                                })().map((agent) => {
-                                    const isActive = selectedAgent?.id === agent.id
-                                    return (
-                                        <div
-                                            key={agent.id}
-                                            onClick={() => handleSelectAgent(agent)}
-                                            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', background: isActive ? 'rgba(139,92,246,0.15)' : 'transparent', border: `1px solid ${isActive ? 'rgba(139,92,246,0.35)' : 'transparent'}`, transition: 'all 0.15s' }}
-                                        >
-                                            <div style={{ position: 'relative' }}>
-                                                <div style={{ width: agent.is_default ? '44px' : '36px', height: agent.is_default ? '44px' : '36px', borderRadius: agent.is_default ? '12px' : '10px', background: agent.gradient_start ?? '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: agent.is_default ? '14px' : '12px', fontWeight: 700, color: 'white' }}>
-                                                    {agent.initials ?? agent.display_name.slice(0, 2)}
-                                                </div>
-                                                {agent.is_default && (
-                                                    <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: '#a78bfa', border: '1.5px solid #1a1a1f' }} />
-                                                )}
+            {!currentOpc ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+                    {t('agents.select_company_hint')}
+                </div>
+            ) : (
+                <>
+                    {/* Agents strip */}
+                    <div style={{ flexShrink: 0, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center' }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '2px', padding: '10px 12px', overflowX: 'auto', minWidth: 0 }}>
+                            {(() => {
+                                const base = [...(opcAgentsMap[currentOpc.id] ?? [])].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
+                                const list = isNewAgent && selectedAgent ? [...base, selectedAgent] : base
+                                return list
+                            })().map((agent) => {
+                                const isActive = selectedAgent?.id === agent.id
+                                return (
+                                    <div
+                                        key={agent.id}
+                                        onClick={() => handleSelectAgent(agent)}
+                                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', background: isActive ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${isActive ? 'var(--accent-strong)' : 'transparent'}`, transition: 'all 0.15s' }}
+                                    >
+                                        <div style={{ position: 'relative' }}>
+                                            <div style={{ width: agent.is_default ? '44px' : '36px', height: agent.is_default ? '44px' : '36px', borderRadius: agent.is_default ? '12px' : '10px', background: agent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: agent.is_default ? '14px' : '12px', fontWeight: 700, color: 'white' }}>
+                                                {agent.initials ?? agent.display_name.slice(0, 2)}
                                             </div>
-                                            <span style={{ fontSize: '10px', color: isActive ? '#c4b5fd' : 'rgba(255,255,255,0.85)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-                                                {agent.display_name}{(isNewAgent || editing) && selectedAgent?.id === agent.id ? ' *' : ''}
-                                            </span>
+                                            {agent.is_default && (
+                                                <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-hover)', border: '1.5px solid var(--bg-elevated)' }} />
+                                            )}
                                         </div>
-                                    )
-                                })}
+                                        <span style={{ fontSize: '10px', color: isActive ? 'var(--accent-hover)' : 'var(--text-secondary)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                                            {agent.display_name}{(isNewAgent || editing) && selectedAgent?.id === agent.id ? ' *' : ''}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        {/* Add buttons — right-aligned */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '10px 12px', flexShrink: 0, borderLeft: '1px solid var(--border-subtle)' }}>
+                            <div
+                                onClick={() => handleAddAgent()}
+                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed var(--border-strong)', transition: 'all 0.15s' }}
+                            >
+                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icon name="plus" size={16} stroke="var(--text-tertiary)" strokeWidth={2} />
+                                </div>
+                                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>添加智能体</span>
                             </div>
-                            {/* Add buttons — right-aligned, same column style as before */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '10px 12px', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.06)' }}>
-                                <div
-                                    onClick={() => handleAddAgent()}
-                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed rgba(255,255,255,0.15)', transition: 'all 0.15s' }}
-                                >
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Icon name="plus" size={16} stroke="rgba(255,255,255,0.4)" strokeWidth={2} />
-                                    </div>
-                                    <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)' }}>添加智能体</span>
+                            <div
+                                onClick={() => { setBatchPrompts(['', '']); setBatchProgress([]); setBatchRunning(false); setBatchModalOpen(true) }}
+                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed var(--accent-strong)', transition: 'all 0.15s' }}
+                            >
+                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icon name="bolt" size={16} stroke="var(--accent)" strokeWidth={2} />
                                 </div>
-                                <div
-                                    onClick={() => { setBatchPrompts(['', '']); setBatchProgress([]); setBatchRunning(false); setBatchModalOpen(true) }}
-                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed rgba(139,92,246,0.3)', transition: 'all 0.15s' }}
-                                >
-                                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <Icon name="bolt" size={16} stroke="rgba(139,92,246,0.6)" strokeWidth={2} />
-                                    </div>
-                                    <span style={{ fontSize: '10px', color: 'rgba(139,92,246,0.9)' }}>批量添加</span>
-                                </div>
+                                <span style={{ fontSize: '10px', color: 'var(--accent)' }}>批量添加</span>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Agent form */}
-                        {!selectedAgent ? (
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8E8E93', fontSize: '13px' }}>
-                                {t('agents.select_agent_hint')}
-                            </div>
-                        ) : (
-                            <>
-                                <div className="toolbar" style={{ justifyContent: 'space-between', background: '#1a1a1f', borderBottom: '1px solid rgba(255,255,255,0.10)', height: 'auto', padding: '12px 16px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: selectedAgent.gradient_start ?? '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                                            {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
-                                        </div>
-                                        <span style={{ fontSize: '15px', fontWeight: 600, color: '#FFFFFF' }}>{(editing ? (form as AgentConfig).display_name : null) || selectedAgent.display_name}</span>
-                                        {(isNewAgent || editing) && <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 400 }}>[{t('agents.unsaved')}]</span>}
-                                        {selectedAgent.is_default && !isNewAgent && (
-                                            <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 500 }}>[{t('agents.leader')}]</span>
-                                        )}
+                    {/* Agent form */}
+                    {!selectedAgent ? (
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+                            {t('agents.select_agent_hint')}
+                        </div>
+                    ) : (
+                        <>
+                            <div className="toolbar" style={{ justifyContent: 'space-between', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)', height: 'auto', padding: '12px 16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: selectedAgent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                                        {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        {editing && <button className="tbtn tbtn-ghost" style={{ color: '#a78bfa' }} disabled={aiGenerating} onClick={() => { setAiPrompt(''); setAiModalOpen(true) }}>
-                                            <Icon name="bolt" size={11} strokeWidth={2.2} style={{ display: 'inline', marginRight: '4px' }} />
-                                            {aiGenerating ? t('agents.generating') : t('agents.ai_quick_gen')}
-                                        </button>}
-                                        <button className="tbtn tbtn-ghost" style={{ color: '#06b6d4' }} onClick={async () => {
-                                            if (activeDocTab === 'SOUL' && docContent.trim()) {
-                                                // Use current editor content (may be unsaved)
-                                                setChatSoulOverride(docContent)
-                                                setChatAgent(selectedAgent)
-                                            } else if (isNewAgent) {
-                                                toast(t('agents.save_first_warning'), 'error')
-                                            } else {
-                                                const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
-                                                if (!soul?.trim()) { toast(t('agents.soul_empty_warning'), 'error'); return }
-                                                setChatSoulOverride(undefined)
-                                                setChatAgent(selectedAgent)
-                                            }
-                                        }}>{t('agents.test_chat')}</button>
-                                        {!selectedAgent.is_default && !editing && (
-                                            <div className="tip">
-                                                <button className="tbtn tbtn-ghost" onClick={() => handleSetDefault(selectedAgent)}>{t('agents.set_as_leader')}</button>
-                                                <span className="tip-content">{t('agents.set_as_leader_tooltip')}</span>
-                                            </div>
-                                        )}
-                                        {editing ? (
-                                            <>
-                                                <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>{t('common.button_cancel')}</button>
-                                                <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>{saving ? t('common.saving') : t('common.button_save')}</button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>{t('common.button_edit')}</button>
-                                                <button className="tbtn tbtn-ghost" style={{ color: '#f43f5e' }} onClick={() => setConfirmDelete(selectedAgent)}>{t('common.button_delete')}</button>
-                                            </>
-                                        )}
-                                    </div>
+                                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{(editing ? (form as AgentConfig).display_name : null) || selectedAgent.display_name}</span>
+                                    {(isNewAgent || editing) && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 400 }}>[{t('agents.unsaved')}]</span>}
+                                    {selectedAgent.is_default && !isNewAgent && (
+                                        <span style={{ fontSize: '11px', color: 'var(--accent-hover)', fontWeight: 500 }}>[{t('agents.leader')}]</span>
+                                    )}
                                 </div>
-
-                                <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
-                                    {/* ── 基本信息 ── */}
-                                    <section>
-                                        <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_basic')}</div>
-                                        <div className="group">
-                                            <div className="group-row" style={{ gap: '10px' }}>
-                                                <span className="group-label">{t('agents.display_name')}</span>
-                                                {editing ? <input type="text" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.display_name || '—'}</span>}
-                                            </div>
-                                            <div className="group-row" style={{ gap: '10px' }}>
-                                                <span className="group-label">{t('agents.identifier')}</span>
-                                                {editing ? <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace" }} /> : <span className="group-value" style={{ fontFamily: "'SF Mono','Menlo',monospace" }}>{form.name || '—'}</span>}
-                                            </div>
-                                            <div className="group-row" style={{ gap: '10px' }}>
-                                                <span className="group-label">{t('agents.description')}</span>
-                                                {editing ? <textarea className="field-input" rows={1} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none', height: '36px', overflowY: 'auto' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} /> : <span className="group-value">{form.description || '—'}</span>}
-                                            </div>
-                                            <div className="group-row" style={{ gap: '10px' }}>
-                                                <span className="group-label">{t('agents.job_title')}</span>
-                                                {editing ? <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.job_title || '—'}</span>}
-                                            </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {editing && <button className="tbtn tbtn-ghost" style={{ color: 'var(--accent-hover)' }} disabled={aiGenerating} onClick={() => { setAiPrompt(''); setAiModalOpen(true) }}>
+                                        <Icon name="bolt" size={11} strokeWidth={2.2} style={{ display: 'inline', marginRight: '4px' }} />
+                                        {aiGenerating ? t('agents.generating') : t('agents.ai_quick_gen')}
+                                    </button>}
+                                    <button className="tbtn tbtn-ghost" style={{ color: 'var(--info)' }} onClick={async () => {
+                                        if (activeDocTab === 'SOUL' && docContent.trim()) {
+                                            // Use current editor content (may be unsaved)
+                                            setChatSoulOverride(docContent)
+                                            setChatAgent(selectedAgent)
+                                        } else if (isNewAgent) {
+                                            toast(t('agents.save_first_warning'), 'error')
+                                        } else {
+                                            const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
+                                            if (!soul?.trim()) { toast(t('agents.soul_empty_warning'), 'error'); return }
+                                            setChatSoulOverride(undefined)
+                                            setChatAgent(selectedAgent)
+                                        }
+                                    }}>{t('agents.test_chat')}</button>
+                                    {!selectedAgent.is_default && !editing && (
+                                        <div className="tip">
+                                            <button className="tbtn tbtn-ghost" onClick={() => handleSetDefault(selectedAgent)}>{t('agents.set_as_leader')}</button>
+                                            <span className="tip-content">{t('agents.set_as_leader_tooltip')}</span>
                                         </div>
-                                    </section>
+                                    )}
+                                    {editing ? (
+                                        <>
+                                            <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>{t('common.button_cancel')}</button>
+                                            <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>{saving ? t('common.saving') : t('common.button_save')}</button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>{t('common.button_edit')}</button>
+                                            <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={() => setConfirmDelete(selectedAgent)}>{t('common.button_delete')}</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
 
-                                    {/* ── 模型与工具 ── */}
-                                    <section>
-                                        <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_model_tools')}</div>
-                                        <div className="group">
-                                            <div className="group-row" style={{ gap: '10px' }}>
-                                                <span className="group-label">{t('agents.model_label')}</span>
-                                                {editing ? (
-                                                    <div style={{ position: 'relative', flex: 1 }}>
-                                                        <select
-                                                            className="field-input"
-                                                            style={{ width: '100%', paddingRight: '24px' }}
-                                                            value={selectedModel}
-                                                            onChange={e => handleModelSelect(e.target.value)}
-                                                        >
-                                                            <option value="">{t('agents.model_none')}</option>
-                                                            {hasCustomModel && (
-                                                                <optgroup label={t('agents.model_stored')}>
-                                                                    <option value={selectedModel}>{selectedModel} ({t('agents.model_stored')})</option>
-                                                                </optgroup>
-                                                            )}
-                                                            {Object.entries(modelsByProvider).map(([providerName, mlist]) => (
-                                                                <optgroup key={providerName} label={providerName}>
-                                                                    {mlist.map(m => (
-                                                                        <option key={m.id} value={`${m.provider_name}/${m.model_id}`}>{m.display_name || m.model_id}</option>
-                                                                    ))}
-                                                                </optgroup>
-                                                            ))}
-                                                        </select>
-                                                        <Icon name="chevron-down" size={10} stroke="#8E8E93" strokeWidth={2} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                                                    </div>
-                                                ) : (
-                                                    <span className="group-value">{selectedModel || t('agents.model_none')}</span>
-                                                )}
-                                            </div>
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-                                            <div style={{ padding: '5px 12px 2px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                                                {t('agents.tool_permissions')}
-                                                <span style={{ marginLeft: '6px', color: 'rgba(255,255,255,0.35)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('agents.tools_enabled_count', { count: enabledTools.length })}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '4px 12px 8px' }}>
-                                                {AVAILABLE_TOOLS.map(tool => {
-                                                    const active = enabledTools.includes(tool.id)
-                                                    return (
-                                                        <button
-                                                            key={tool.id}
-                                                            onClick={() => editing && toggleTool(tool.id)}
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: active ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${active ? 'rgba(139,92,246,0.35)' : 'rgba(255,255,255,0.12)'}`, cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: active ? '#a78bfa' : 'rgba(235,235,245,0.7)', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
-                                                        >
-                                                            {tool.name}
-                                                        </button>
-                                                    )
-                                                })}
-                                                {customTools.map(id => (
-                                                    <button
-                                                        key={id}
-                                                        onClick={() => editing && toggleTool(id)}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)', cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: '#a78bfa', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
+                                {/* ── 基本信息 ── */}
+                                <section>
+                                    <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_basic')}</div>
+                                    <div className="group">
+                                        <div className="group-row" style={{ gap: '10px' }}>
+                                            <span className="group-label">{t('agents.display_name')}</span>
+                                            {editing ? <input type="text" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.display_name || '—'}</span>}
+                                        </div>
+                                        <div className="group-row" style={{ gap: '10px' }}>
+                                            <span className="group-label">{t('agents.identifier')}</span>
+                                            {editing ? <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace" }} /> : <span className="group-value" style={{ fontFamily: "'SF Mono','Menlo',monospace" }}>{form.name || '—'}</span>}
+                                        </div>
+                                        <div className="group-row" style={{ gap: '10px' }}>
+                                            <span className="group-label">{t('agents.description')}</span>
+                                            {editing ? <textarea className="field-input" rows={1} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none', height: '36px', overflowY: 'auto' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} /> : <span className="group-value">{form.description || '—'}</span>}
+                                        </div>
+                                        <div className="group-row" style={{ gap: '10px' }}>
+                                            <span className="group-label">{t('agents.job_title')}</span>
+                                            {editing ? <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.job_title || '—'}</span>}
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* ── 模型与工具 ── */}
+                                <section>
+                                    <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_model_tools')}</div>
+                                    <div className="group">
+                                        <div className="group-row" style={{ gap: '10px' }}>
+                                            <span className="group-label">{t('agents.model_label')}</span>
+                                            {editing ? (
+                                                <div style={{ position: 'relative', flex: 1 }}>
+                                                    <select
+                                                        className="field-input"
+                                                        style={{ width: '100%', paddingRight: '24px' }}
+                                                        value={selectedModel}
+                                                        onChange={e => handleModelSelect(e.target.value)}
                                                     >
-                                                        {id} <span style={{ opacity: 0.6 }}>×</span>
-                                                    </button>
-                                                ))}
-                                                {/* 自定义工具输入 */}
-                                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                                    <input
-                                                        value={customToolInput}
-                                                        onChange={e => setCustomToolInput(e.target.value)}
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') {
-                                                                const v = customToolInput.trim()
-                                                                if (v && !enabledTools.includes(v)) {
-                                                                    handleFormChange('enabled_tools', [...enabledTools, v])
-                                                                }
-                                                                setCustomToolInput('')
-                                                            }
-                                                        }}
-                                                        placeholder={t('agents.custom_tool_placeholder')}
-                                                        disabled={!editing}
-                                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.18)', borderRadius: '6px', padding: '4px 9px', fontSize: '11px', color: 'rgba(255,255,255,0.7)', outline: 'none', width: '130px', opacity: editing ? 1 : 0.5 }}
-                                                    />
+                                                        <option value="">{t('agents.model_none')}</option>
+                                                        {hasCustomModel && (
+                                                            <optgroup label={t('agents.model_stored')}>
+                                                                <option value={selectedModel}>{selectedModel} ({t('agents.model_stored')})</option>
+                                                            </optgroup>
+                                                        )}
+                                                        {Object.entries(modelsByProvider).map(([providerName, mlist]) => (
+                                                            <optgroup key={providerName} label={providerName}>
+                                                                {mlist.map(m => (
+                                                                    <option key={m.id} value={`${m.provider_name}/${m.model_id}`}>{m.display_name || m.model_id}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        ))}
+                                                    </select>
+                                                    <Icon name="chevron-down" size={10} stroke="var(--text-dimmer)" strokeWidth={2} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </section>
-
-                                    {/* ── 技能配置 ── */}
-                                    <section>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span className="section-label" style={{ padding: 0 }}>{t('agents.section_skills')}</span>
-                                                <span style={{ fontSize: '11px', color: '#8E8E93' }}>{t('agents.skills_count', { count: enabledSkills.length })}</span>
-                                            </div>
-                                            {editing && <button
-                                                className="tbtn tbtn-ghost"
-                                                style={{ padding: '1px 8px', fontSize: '11px' }}
-                                                onClick={() => setSkillModalOpen(true)}
-                                            >
-                                                <Icon name="plus" size={10} strokeWidth={1.75} style={{ display: 'inline', marginRight: '3px' }} />
-                                                {t('common.button_add')}
-                                            </button>}
-                                        </div>
-                                        <div className="group" style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                            {enabledSkills.length === 0 && (
-                                                <div style={{ fontSize: '12px', color: '#8E8E93' }}>{t('agents.no_skills')}</div>
+                                            ) : (
+                                                <span className="group-value">{selectedModel || t('agents.model_none')}</span>
                                             )}
-                                            {enabledSkills.map(slug => {
-                                                const skill = SKILL_REGISTRY.find((s: { slug: string }) => s.slug === slug)
+                                        </div>
+
+                                        <div style={{ padding: '5px 12px 2px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-secondary)', textTransform: 'uppercase', borderTop: '1px solid var(--border-subtle)' }}>
+                                            {t('agents.tool_permissions')}
+                                            <span style={{ marginLeft: '6px', color: 'var(--text-tertiary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('agents.tools_enabled_count', { count: enabledTools.length })}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '4px 12px 8px' }}>
+                                            {AVAILABLE_TOOLS.map(tool => {
+                                                const active = enabledTools.includes(tool.id)
                                                 return (
-                                                    <div
-                                                        key={slug}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', minWidth: '180px', maxWidth: '260px' }}
+                                                    <button
+                                                        key={tool.id}
+                                                        onClick={() => editing && toggleTool(tool.id)}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: active ? 'var(--accent-muted)' : 'var(--border-subtle)', border: `1px solid ${active ? 'var(--accent-strong)' : 'var(--border-default)'}`, cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: active ? 'var(--accent-hover)' : 'var(--text-secondary)', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
                                                     >
-                                                        <span style={{ fontSize: '14px', flexShrink: 0 }}>{skill?.icon ?? '🔌'}</span>
-                                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                                            <div style={{ fontSize: '12px', fontWeight: 500, color: '#EBEBF5' }}>{skill?.name ?? slug}</div>
-                                                            {skill && <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)', marginTop: '1px' }}>{skill.desc}</div>}
-                                                        </div>
-                                                        {editing && <button
-                                                            onClick={() => handleFormChange('enabled_skills', enabledSkills.filter(s => s !== slug))}
-                                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', color: '#8E8E93', border: 'none', cursor: 'pointer', fontSize: '11px', lineHeight: 1, flexShrink: 0 }}
-                                                        >×</button>}
-                                                    </div>
+                                                        {tool.name}
+                                                    </button>
                                                 )
                                             })}
-                                        </div>
-                                    </section>
-
-                                    {/* ── 护栏规则 ── */}
-                                    <section>
-                                        <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_guardrails')}</div>
-                                        <div className="group" style={{ padding: '12px', display: 'flex', gap: '12px' }}>
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontSize: '11px', color: 'rgba(52,199,89,0.9)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34c759', display: 'inline-block' }}></span>
-                                                    {t('agents.guardrail_allow')}
-                                                </div>
-                                                <TagInput
-                                                    tags={guardrailAllow}
-                                                    onChange={v => { handleFormChange('guardrail_allow', v); handleFormChange('guardrail_rules', v) }}
-                                                    placeholder={t('agents.guardrail_allow_placeholder')}
-                                                    disabled={!editing}
-                                                />
-                                            </div>
-                                            <div style={{ width: '1px', background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{ fontSize: '11px', color: 'rgba(244,63,94,0.9)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }}></span>
-                                                    {t('agents.guardrail_deny')}
-                                                </div>
-                                                <TagInput
-                                                    tags={guardrailDeny}
-                                                    onChange={v => handleFormChange('guardrail_deny', v)}
-                                                    placeholder={t('agents.guardrail_deny_placeholder')}
-                                                    disabled={!editing}
-                                                />
-                                            </div>
-                                        </div>
-                                    </section>
-
-                                    {/* ── 人格配置 / 文档编辑 ── */}
-                                    <section>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
-                                            <span className="section-label" style={{ padding: 0 }}>{t('agents.section_persona')}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                                            {DOC_TYPES.map(dt => (
-                                                <button key={dt} className={`soul-tab${activeDocTab === dt ? ' active' : ''}`} title={DOC_DESCRIPTIONS[dt]} onClick={() => setActiveDocTab(dt)}>{dt}</button>
+                                            {customTools.map(id => (
+                                                <button
+                                                    key={id}
+                                                    onClick={() => editing && toggleTool(id)}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: 'var(--accent-muted)', border: '1px solid var(--accent-strong)', cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: 'var(--accent-hover)', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
+                                                >
+                                                    {id} <span style={{ opacity: 0.6 }}>×</span>
+                                                </button>
                                             ))}
-                                        </div>
-                                        <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                            <div style={{ height: '26px', background: '#2C2C2E', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                                                <span style={{ fontSize: '11px', color: '#8E8E93', fontFamily: "'SF Mono','Menlo',monospace" }}>{activeDocTab}.md</span>
-                                                {editing && <button className="tbtn tbtn-accent" style={{ padding: '1px 8px', fontSize: '11px' }} onClick={handleSaveDoc} disabled={docLoading}>{t('agents.save_doc')}</button>}
+                                            {/* 自定义工具输入 */}
+                                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                <input
+                                                    value={customToolInput}
+                                                    onChange={e => setCustomToolInput(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') {
+                                                            const v = customToolInput.trim()
+                                                            if (v && !enabledTools.includes(v)) {
+                                                                handleFormChange('enabled_tools', [...enabledTools, v])
+                                                            }
+                                                            setCustomToolInput('')
+                                                        }
+                                                    }}
+                                                    placeholder={t('agents.custom_tool_placeholder')}
+                                                    disabled={!editing}
+                                                    style={{ background: 'var(--border-subtle)', border: '1px dashed var(--border-default)', borderRadius: '6px', padding: '4px 9px', fontSize: '11px', color: 'var(--text-secondary)', outline: 'none', width: '130px', opacity: editing ? 1 : 0.5 }}
+                                                />
                                             </div>
-                                            <textarea
-                                                className="field-textarea"
-                                                rows={12}
-                                                spellCheck={false}
-                                                value={docLoading ? t('common.loading') : docContent}
-                                                onChange={e => setDocContent(e.target.value)}
-                                                disabled={docLoading || !editing}
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* ── 技能配置 ── */}
+                                <section>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span className="section-label" style={{ padding: 0 }}>{t('agents.section_skills')}</span>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>{t('agents.skills_count', { count: enabledSkills.length })}</span>
+                                        </div>
+                                        {editing && <button
+                                            className="tbtn tbtn-ghost"
+                                            style={{ padding: '1px 8px', fontSize: '11px' }}
+                                            onClick={() => setSkillModalOpen(true)}
+                                        >
+                                            <Icon name="plus" size={10} strokeWidth={1.75} style={{ display: 'inline', marginRight: '3px' }} />
+                                            {t('common.button_add')}
+                                        </button>}
+                                    </div>
+                                    <div className="group" style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                        {enabledSkills.length === 0 && (
+                                            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('agents.no_skills')}</div>
+                                        )}
+                                        {enabledSkills.map(slug => {
+                                            const skill = SKILL_REGISTRY.find((s: { slug: string }) => s.slug === slug)
+                                            return (
+                                                <div
+                                                    key={slug}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', background: 'var(--accent-muted)', border: '1px solid var(--accent-strong)', minWidth: '180px', maxWidth: '260px' }}
+                                                >
+                                                    <span style={{ fontSize: '14px', flexShrink: 0 }}>{skill?.icon ?? '🔌'}</span>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill?.name ?? slug}</div>
+                                                        {skill && <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '1px' }}>{skill.desc}</div>}
+                                                    </div>
+                                                    {editing && <button
+                                                        onClick={() => handleFormChange('enabled_skills', enabledSkills.filter(s => s !== slug))}
+                                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--border-subtle)', color: 'var(--text-dimmer)', border: 'none', cursor: 'pointer', fontSize: '11px', lineHeight: 1, flexShrink: 0 }}
+                                                    >×</button>}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </section>
+
+                                {/* ── 护栏规则 ── */}
+                                <section>
+                                    <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_guardrails')}</div>
+                                    <div className="group" style={{ padding: '12px', display: 'flex', gap: '12px' }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}></span>
+                                                {t('agents.guardrail_allow')}
+                                            </div>
+                                            <TagInput
+                                                tags={guardrailAllow}
+                                                onChange={v => { handleFormChange('guardrail_allow', v); handleFormChange('guardrail_rules', v) }}
+                                                placeholder={t('agents.guardrail_allow_placeholder')}
+                                                disabled={!editing}
                                             />
                                         </div>
-                                    </section>
+                                        <div style={{ width: '1px', background: 'var(--border-subtle)', flexShrink: 0 }} />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontSize: '11px', color: 'var(--error)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--error)', display: 'inline-block' }}></span>
+                                                {t('agents.guardrail_deny')}
+                                            </div>
+                                            <TagInput
+                                                tags={guardrailDeny}
+                                                onChange={v => handleFormChange('guardrail_deny', v)}
+                                                placeholder={t('agents.guardrail_deny_placeholder')}
+                                                disabled={!editing}
+                                            />
+                                        </div>
+                                    </div>
+                                </section>
 
-                                </div>
-                            </>
-                        )}
-                    </>
-                )}
-            </main>
+                                {/* ── 人格配置 / 文档编辑 ── */}
+                                <section>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
+                                        <span className="section-label" style={{ padding: 0 }}>{t('agents.section_persona')}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                        {DOC_TYPES.map(dt => (
+                                            <button key={dt} className={`soul-tab${activeDocTab === dt ? ' active' : ''}`} title={DOC_DESCRIPTIONS[dt]} onClick={() => setActiveDocTab(dt)}>{dt}</button>
+                                        ))}
+                                    </div>
+                                    <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                                        <div style={{ height: '26px', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid var(--border-subtle)' }}>
+                                            <span style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: "'SF Mono','Menlo',monospace" }}>{activeDocTab}.md</span>
+                                            {editing && <button className="tbtn tbtn-accent" style={{ padding: '1px 8px', fontSize: '11px' }} onClick={handleSaveDoc} disabled={docLoading}>{t('agents.save_doc')}</button>}
+                                        </div>
+                                        <textarea
+                                            className="field-textarea"
+                                            rows={12}
+                                            spellCheck={false}
+                                            value={docLoading ? t('common.loading') : docContent}
+                                            onChange={e => setDocContent(e.target.value)}
+                                            disabled={docLoading || !editing}
+                                        />
+                                    </div>
+                                </section>
+
+                            </div>
+                        </>
+                    )}
+                </>
+            )}
 
             {skillModalOpen && (
                 <SkillModal
@@ -1109,36 +1057,36 @@ export default function AgentsPage() {
             )}
 
             {confirmDelete && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-                    <div style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="modal-backdrop" style={{ zIndex: 200 }}>
+                    <div className="modal-panel" style={{ padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: confirmDelete.gradient_start ?? '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: confirmDelete.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
                                 {confirmDelete.initials ?? confirmDelete.display_name.slice(0, 2)}
                             </div>
                             <div>
-                                <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff' }}>{confirmDelete.display_name}</div>
+                                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{confirmDelete.display_name}</div>
                                 {confirmDelete.is_default && (
-                                    <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '2px' }}>{t('agents.leader')}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--accent-hover)', marginTop: '2px' }}>{t('agents.leader')}</div>
                                 )}
                             </div>
                         </div>
                         {confirmDelete.is_default ? (
-                            <div style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.25)', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#fca5a5', lineHeight: 1.6 }}>
-                                <strong style={{ color: '#f43f5e', display: 'block', marginBottom: '4px' }}>⚠️ {t('agents.delete_leader_warning_title')}</strong>
+                            <div style={{ background: 'var(--error-muted)', border: '1px solid var(--error-muted)', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#fca5a5', lineHeight: 1.6 }}>
+                                <strong style={{ color: 'var(--error)', display: 'block', marginBottom: '4px' }}>⚠️ {t('agents.delete_leader_warning_title')}</strong>
                                 {t('agents.delete_leader_warning_body')}
                             </div>
                         ) : (
-                            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>
+                            <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
                                 {t('agents.delete_confirm')}
                             </div>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                             <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>{t('common.button_cancel')}</button>
-                            <button className="tbtn" style={{ background: 'rgba(244,63,94,0.15)', color: '#f43f5e' }} onClick={() => handleDeleteAgent(confirmDelete)}>{t('agents.confirm_delete')}</button>
+                            <button className="tbtn" style={{ background: 'var(--error-muted)', color: 'var(--error)' }} onClick={() => handleDeleteAgent(confirmDelete)}>{t('agents.confirm_delete')}</button>
                         </div>
                     </div>
                 </div>
             )}
-        </>
+        </main>
     )
 }

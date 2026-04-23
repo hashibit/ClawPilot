@@ -12,13 +12,7 @@ test.describe('Agent Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 先选择一个 OPC 公司
-      const firstOpc = page.locator('.list-row').first()
-      if (await firstOpc.isVisible()) {
-        await firstOpc.click()
-        await page.waitForTimeout(300)
-      }
-
+      // OpcContext 自动选择第一个 OPC，无需手动选择
       // 点击"添加智能体"按钮 - 这是一个 span 元素，不是 button
       const addAgentBtn = page.locator('span:has-text("添加智能体")').first()
       await addAgentBtn.click()
@@ -45,13 +39,7 @@ test.describe('Agent Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 先选择一个 OPC 公司
-      const firstOpc = page.locator('.list-row').first()
-      if (await firstOpc.isVisible()) {
-        await firstOpc.click()
-        await page.waitForTimeout(300)
-      }
-
+      // OpcContext 自动选择第一个 OPC，无需手动选择
       // 点击"添加智能体"按钮 - 这是一个 span 元素
       const addAgentBtn = page.locator('span:has-text("添加智能体")').first()
       await addAgentBtn.click()
@@ -72,13 +60,7 @@ test.describe('Agent Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 先选择一个 OPC 公司
-      const firstOpc = page.locator('.list-row').first()
-      if (await firstOpc.isVisible()) {
-        await firstOpc.click()
-        await page.waitForTimeout(300)
-      }
-
+      // OpcContext 自动选择第一个 OPC，无需手动选择
       // 点击"添加智能体"按钮 - 这是一个 span 元素
       const addAgentBtn = page.locator('span:has-text("添加智能体")').first()
       await addAgentBtn.click()
@@ -103,13 +85,7 @@ test.describe('Agent Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 先选择一个 OPC 公司
-      const firstOpc = page.locator('.list-row').first()
-      if (await firstOpc.isVisible()) {
-        await firstOpc.click()
-        await page.waitForTimeout(300)
-      }
-
+      // OpcContext 自动选择第一个 OPC，无需手动选择
       // 点击第一个 Agent 卡片（在顶部横条中）
       const firstAgent = page.locator('[class*="avatar"]').first()
       if (await firstAgent.isVisible()) {
@@ -126,13 +102,7 @@ test.describe('Agent Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 先选择一个 OPC 公司
-      const firstOpc = page.locator('.list-row').first()
-      if (await firstOpc.isVisible()) {
-        await firstOpc.click()
-        await page.waitForTimeout(300)
-      }
-
+      // OpcContext 自动选择第一个 OPC，无需手动选择
       // 点击第一个 Agent 卡片
       const firstAgent = page.locator('[class*="avatar"]').first()
       if (await firstAgent.isVisible()) {
@@ -234,9 +204,9 @@ test.describe('Agent Management', () => {
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(500)
 
-      // 验证 OPC 列表存在（左侧公司列表）
-      const opcList = page.locator('.list-pane').first()
-      await expect(opcList).toBeVisible()
+      // 页面为全宽 detail-pane 布局，验证主内容区域正常渲染
+      const mainPane = page.locator('main.detail-pane, .detail-pane').first()
+      await expect(mainPane).toBeVisible()
     })
   })
 })

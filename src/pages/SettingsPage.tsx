@@ -52,10 +52,10 @@ export default function SettingsPage() {
 
         {/* Language */}
         <section style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5', marginBottom: '4px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
             {t('settings.language')}
           </div>
-          <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
             {t('settings.languageDesc')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
@@ -72,10 +72,10 @@ export default function SettingsPage() {
                     padding: '10px 14px',
                     borderRadius: '9px',
                     border: active
-                      ? '1.5px solid rgba(167,139,250,0.7)'
-                      : '1px solid rgba(255,255,255,0.08)',
+                      ? '1.5px solid var(--accent-hover)'
+                      : '1px solid var(--border-subtle)',
                     background: active
-                      ? 'rgba(139,92,246,0.15)'
+                      ? 'var(--accent-muted)'
                       : 'rgba(255,255,255,0.04)',
                     cursor: 'pointer',
                     textAlign: 'left',
@@ -87,12 +87,12 @@ export default function SettingsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: '13px', fontWeight: 500,
-                      color: active ? '#a78bfa' : '#EBEBF5',
+                      color: active ? 'var(--accent-hover)' : 'var(--text-primary)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {lang.label}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#8E8E93', marginTop: '1px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-dimmer)', marginTop: '1px' }}>
                       {lang.code}{lang.rtl ? ' · RTL' : ''}
                     </div>
                   </div>
@@ -109,8 +109,8 @@ export default function SettingsPage() {
           {isRtl(currentLang) && (
             <div style={{
               marginTop: '10px', padding: '8px 12px', borderRadius: '7px',
-              background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)',
-              fontSize: '11px', color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '6px',
+              background: 'var(--accent-muted)', border: '1px solid rgba(167,139,250,0.25)',
+              fontSize: '11px', color: 'var(--accent-hover)', display: 'flex', alignItems: 'center', gap: '6px',
             }}>
               <Icon name="info" size={12} />
               RTL layout active — text flows right to left
@@ -120,31 +120,31 @@ export default function SettingsPage() {
 
         {/* Theme */}
         <section style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5', marginBottom: '4px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
             {t('settings.theme')}
           </div>
-          <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
             {t('settings.themeDesc')}
           </div>
           <div style={{
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '10px 14px', borderRadius: '9px',
-            border: '1.5px solid rgba(167,139,250,0.7)',
-            background: 'rgba(139,92,246,0.15)',
+            border: '1.5px solid var(--accent-hover)',
+            background: 'var(--accent-muted)',
             width: 'fit-content',
           }}>
             <Icon name="moon" size={16} stroke="#a78bfa" strokeWidth={2} />
-            <span style={{ fontSize: '13px', color: '#a78bfa', fontWeight: 500 }}>{t('settings.dark')}</span>
+            <span style={{ fontSize: '13px', color: 'var(--accent-hover)', fontWeight: 500 }}>{t('settings.dark')}</span>
             <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />
           </div>
         </section>
 
         {/* Deployment Directory */}
         <section style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5', marginBottom: '4px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
             部署目录
           </div>
-          <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
             OPC 部署根目录，格式：{opcRoot}/{'{opc_id}'}/workspace-{'{agent_name}'}
           </div>
 
@@ -160,9 +160,9 @@ export default function SettingsPage() {
                 flex: 1,
                 padding: '10px 14px',
                 borderRadius: '9px',
-                border: '1px solid rgba(255,255,255,0.08)',
+                border: '1px solid var(--border-subtle)',
                 background: 'rgba(255,255,255,0.04)',
-                color: '#EBEBF5',
+                color: 'var(--text-primary)',
                 fontSize: '13px',
                 outline: 'none',
                 fontFamily: 'monospace',
@@ -176,7 +176,7 @@ export default function SettingsPage() {
                 borderRadius: '9px',
                 border: 'none',
                 background: saving ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.7)',
-                color: '#fff',
+                color: 'var(--text-primary)',
                 fontSize: '13px',
                 fontWeight: 500,
                 cursor: saving ? 'not-allowed' : 'pointer',
@@ -188,7 +188,7 @@ export default function SettingsPage() {
           {saveMsg && (
             <div style={{
               marginTop: '8px', fontSize: '12px',
-              color: saveMsg.includes('失败') ? '#ff6b6b' : '#34c759',
+              color: saveMsg.includes('失败') ? 'var(--error)' : 'var(--success)',
             }}>
               {saveMsg}
             </div>
@@ -198,15 +198,15 @@ export default function SettingsPage() {
         {/* License */}
         {license && (
           <section style={{ marginBottom: '28px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5', marginBottom: '4px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
               License
             </div>
-            <div style={{ fontSize: '11px', color: '#8E8E93', marginBottom: '12px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
               Your license activation status
             </div>
             <div style={{
               padding: '14px 16px', borderRadius: '9px',
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: '1px solid var(--border-subtle)',
               background: 'rgba(255,255,255,0.03)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
@@ -214,14 +214,14 @@ export default function SettingsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <div style={{
                     width: '8px', height: '8px', borderRadius: '50%',
-                    background: license.activated ? '#34C759' : '#FF453A',
+                    background: license.activated ? 'var(--success)' : 'var(--error)',
                   }} />
-                  <span style={{ fontSize: '13px', color: '#EBEBF5', fontWeight: 500 }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
                     {license.activated ? 'Activated' : 'Not activated'}
                   </span>
                 </div>
                 {license.license_key && (
-                  <div style={{ fontSize: '12px', color: '#8E8E93', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', fontFamily: 'monospace' }}>
                     {license.license_key}
                   </div>
                 )}
@@ -232,7 +232,7 @@ export default function SettingsPage() {
                   style={{
                     padding: '6px 12px', borderRadius: '7px',
                     border: '1px solid rgba(255,69,58,0.3)',
-                    background: 'transparent', color: '#FF453A',
+                    background: 'transparent', color: 'var(--error)',
                     fontSize: '12px', cursor: 'pointer',
                   }}
                 >
@@ -245,24 +245,24 @@ export default function SettingsPage() {
 
         {/* About */}
         <section>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#EBEBF5', marginBottom: '12px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
             {t('settings.about')}
           </div>
           <div style={{
             padding: '14px 16px', borderRadius: '9px',
-            border: '1px solid rgba(255,255,255,0.08)',
+            border: '1px solid var(--border-subtle)',
             background: 'rgba(255,255,255,0.03)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <div className="logo-box">
                 <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
               </div>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>ClawPilot</span>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>ClawPilot</span>
             </div>
-            <div style={{ fontSize: '12px', color: '#8E8E93', lineHeight: 1.6 }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', lineHeight: 1.6 }}>
               {t('settings.appDesc')}
             </div>
-            <div style={{ fontSize: '11px', color: '#636366', marginTop: '8px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginTop: '8px' }}>
               {t('settings.version')} 0.1.0
             </div>
           </div>
