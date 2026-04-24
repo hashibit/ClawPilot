@@ -4,11 +4,11 @@
 
 ```
 ~/.clawpilot/
-├── clawpilot.db        # 主 SQLite 数据库（Server 和 Tauri 共用同一个文件）
+├── clawpilot.db        # 主 SQLite 数据库（dev-server 和 Tauri App 共用同一个文件）
 ├── clawpilot.db-shm    # SQLite WAL 共享内存文件
 ├── clawpilot.db-wal    # SQLite WAL 日志文件
 ├── scheduler.db        # Daemon 调度器数据库
-├── server.key          # Server / Tauri 加密密钥
+├── server.key          # 主后端加密密钥（API Server / Tauri）
 ├── daemon.key          # Daemon 加密密钥
 ├── artifacts/          # 部署产物（OPC 配置包等）
 ├── bin/                # 内置二进制（clawpilot-daemon 等）
@@ -17,9 +17,9 @@
 
 ## 数据库路径规则
 
-- **Node.js Server**：优先读 `CLAWPILOT_DB_PATH` 环境变量，否则默认 `~/.clawpilot/clawpilot.db`
-- **Tauri（Rust）**：通过 `utils/path.rs` 的 `app_data_dir()` 返回 `~/.clawpilot/`，数据库为 `~/.clawpilot/clawpilot.db`
-- Server 和 Tauri **共用同一个 SQLite 文件**，需注意并发写入
+- **API Server（Rust dev-server）**：通过 `utils/path.rs` 的 `app_data_dir()` 解析 `~/.clawpilot/`，数据库为 `~/.clawpilot/clawpilot.db`
+- **Tauri App（Rust，内嵌 axum）**：同上，与 dev-server 走同一份 `utils/path.rs`，指向同一路径
+- dev-server 与 Tauri App **共用同一个 SQLite 文件**，开发时不要同时启动两者写入相同库
 
 ## 主数据库表（clawpilot.db）
 

@@ -7,8 +7,9 @@
 
 ## Phase 9：安装物业 & 真实部署打通（DONE）
 
-> **开发约束**：服务端逻辑走 `server/`（Node.js/Express），UI 走 `src/pages/`。
+> **开发约束**：服务端逻辑走 `src-tauri/src/services/`（Rust，axum 暴露），UI 走 `src/pages/`。
 > **参考文档**：[docs/tech/install-property.md](./docs/tech/install-property.md)
+> **历史注**：本 Phase 当时使用 Node.js Server（`server/`），现已统一迁移至 Rust 后端；下文 `server/routes/*.js` 路径为历史实现，功能已等价实现于 `src-tauri/src/services/`。
 
 ### Feature E：OpenClaw 安装路由
 

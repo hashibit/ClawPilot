@@ -1,5 +1,8 @@
 # ClawPilot E2E Test - API Bug Log
 
+> 📜 **历史档案**：本文档记录 2026-04-11~12 对旧 Node.js Server（`server/`）的 E2E 测试与 Bug 复盘。
+> Server 已于后续全量迁移至 Rust 后端（`src-tauri/src/services/`），下文 `server/routes/*.js` 路径为当时实现，今天的等价文件在 Rust services 层；保留原文以备追溯。
+>
 > 测试日期: 2026-04-11
 > 验证日期: 2026-04-12
 > 测试范围: E2E-1 ~ E2E-10（全量测试）

@@ -33,32 +33,13 @@ bundle/
 - 图标（icon）
 - 标签（tags）
 
-所有端（Server、Tauri App、前端）都从这个文件读取技能元数据进行注册和展示。
+后端（Rust）和前端都从这个文件读取技能元数据进行注册和展示。
 
 ## 技能使用流程
 
-### 1. Server 端
+### 1. 后端（Rust，Tauri App / dev-server 共用）
 
-Server 在启动时从 JSON 文件读取技能元数据，并注册到数据库：
-
-```javascript
-// server/routes/skill.js
-export function registerBundleSkills(db) {
-  const metadata = loadBundleSkillsMetadata()  // 从 JSON 读取
-  for (const skill of metadata.skills) {
-    // 注册到数据库
-  }
-}
-```
-
-同时提供 API 端点供前端读取元数据：
-```
-GET /api/get_bundle_skills_metadata
-```
-
-### 2. Tauri App 端
-
-Tauri App 在启动时从 JSON 文件读取技能元数据，并注册到数据库：
+后端在启动时从 JSON 文件读取技能元数据，并注册到数据库：
 
 ```rust
 // src-tauri/src/services/skill_service.rs
@@ -70,7 +51,12 @@ pub fn register_bundle_skills(pool: &DbPool) -> Result<()> {
 }
 ```
 
-### 3. 前端
+同时通过 axum 路由暴露 API 端点供前端读取元数据：
+```
+POST /api/get_bundle_skills_metadata
+```
+
+### 2. 前端
 
 前端在 App 启动时通过 API 获取技能元数据，缓存到 `window.__BUNDLE_SKILLS_METADATA`：
 
@@ -85,7 +71,7 @@ async function loadBundleSkillsMetadata() {
 const SKILL_REGISTRY = window.__BUNDLE_SKILLS_METADATA?.skills?.map(...)
 ```
 
-### 4. OPC 部署
+### 3. OPC 部署
 
 当用户部署 OPC 时，已安装的技能会被打包到部署包中，随 bundle 目录一起发布。
 
@@ -93,7 +79,7 @@ const SKILL_REGISTRY = window.__BUNDLE_SKILLS_METADATA?.skills?.map(...)
 
 1. 在 `bundle/skills/` 目录下创建技能目录
 2. 在 `bundled-skills-metadata.json` 的 `skills` 数组中添加技能元数据
-3. Server 和 Tauri App 启动时会自动注册
+3. 后端（dev-server / Tauri App）启动时会自动注册
 
 示例元数据：
 ```json

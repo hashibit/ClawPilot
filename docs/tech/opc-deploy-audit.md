@@ -1,5 +1,7 @@
 # OPC 打包部署流程审计报告
 
+> 📜 **历史档案**：审计 Node.js Server 时代代码，Server 已下线，下文 `server/routes/deployment.js` 的等价实现现在位于 `src-tauri/src/services/deployment/`。保留作为审计决策与 Bug 修复追溯。
+>
 > 审计日期：2026-04-11
 > 审计范围：`server/routes/deployment.js`、`daemon/src/deploy.rs`、`proto/server-service.proto`、`proto/clawpilot.proto`
 

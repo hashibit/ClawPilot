@@ -398,3 +398,87 @@ input[type="checkbox"].mac-check {
 .opc-dropdown-item:hover { background: rgba(255,255,255,0.06); }
 .opc-dropdown-item.active { background: var(--accent-muted); }
 .opc-dropdown-item + .opc-dropdown-item { border-top: 1px solid var(--border-subtle); }
+
+/* ── Mobile menu button ──────────────────────────────── */
+.mobile-menu-btn {
+  display: none; background: none; border: none; cursor: pointer;
+  color: var(--text-secondary); padding: 4px; flex-shrink: 0;
+  transition: color var(--transition-default);
+}
+.mobile-menu-btn:hover { color: var(--text-primary); }
+
+/* ── Sidebar overlay backdrop ────────────────────────── */
+.sidebar-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(2px);
+  z-index: 900;
+}
+
+/* ── Responsive: Tablet & Mobile (≤768px) ────────────── */
+@media (max-width: 768px) {
+  body { overflow: auto; }
+
+  .mobile-menu-btn { display: flex; align-items: center; }
+
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    z-index: 950; width: 240px !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+
+  .sidebar-overlay.visible { display: block; }
+
+  .list-pane { width: 100%; min-width: 0; border-right: none; }
+  .detail-pane { display: none; }
+  .detail-pane.mobile-visible { display: flex; position: fixed; inset: 0; z-index: 800; background: var(--bg-base); }
+
+  .modal-backdrop { padding-top: 5vh; align-items: center; }
+  .modal-panel { width: 92vw; max-width: 92vw; max-height: 88vh; overflow-y: auto; }
+
+  .search-box input { width: 120px; }
+
+  .toolbar { padding: 0 10px 0 38px; }
+  .toolbar .tbtn { font-size: 11px; padding: 5px 8px; }
+  .sidebar .toolbar { padding: 0 10px; }
+
+  .group-row { flex-wrap: wrap; gap: 4px; }
+  .group-label { min-width: 60px; }
+
+  /* Table horizontal scroll */
+  .group table { display: block; overflow-x: auto; }
+}
+
+/* ── Responsive: Small Phone (≤480px) ────────────────── */
+@media (max-width: 480px) {
+  .sidebar { width: 85vw !important; }
+
+  .toolbar { height: 42px; }
+
+  .tbtn { font-size: 12px; padding: 5px 10px; }
+  .tbtn-ghost { padding: 5px 8px; }
+
+  .field-input { height: 34px; font-size: 12px; }
+
+  .modal-panel { width: 96vw; max-width: 96vw; border-radius: var(--radius-md); }
+
+  .tip-content { font-size: 11px; }
+
+  .search-box input { width: 100px; }
+}
+
+/* ── RTL mobile sidebar ──────────────────────────────── */
+@media (max-width: 768px) {
+  html[dir='rtl'] .sidebar {
+    left: auto; right: 0;
+    transform: translateX(100%);
+  }
+  html[dir='rtl'] .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+}

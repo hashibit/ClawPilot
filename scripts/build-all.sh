@@ -7,7 +7,6 @@
 #   frontend  - 仅构建前端
 #   daemon    - 仅构建 daemon（多架构）
 #   tauri     - 仅构建 Tauri 应用
-#   server    - 仅构建 server
 #   release   - 发布构建（包含所有平台）
 #
 # Options:
@@ -40,7 +39,7 @@ for arg in "$@"; do
     case $arg in
         --cross) CROSS_COMPILE=true ;;
         --clean) CLEAN_FIRST=true ;;
-        frontend|daemon|tauri|server|all|release) TARGET="$arg" ;;
+        frontend|daemon|tauri|all|release) TARGET="$arg" ;;
     esac
 done
 
@@ -81,16 +80,10 @@ clean_tauri() {
     rm -rf "$PROJECT_ROOT/src-tauri/target"
 }
 
-clean_server() {
-    log_info "Cleaning server..."
-    rm -rf "$PROJECT_ROOT/server/dist"
-}
-
 clean_all() {
     clean_frontend
     clean_daemon
     clean_tauri
-    clean_server
     log_success "All build artifacts cleaned"
 }
 
@@ -276,24 +269,6 @@ build_tauri() {
     fi
 }
 
-build_server() {
-    log_info "Building server..."
-    cd "$PROJECT_ROOT/server"
-
-    check_command npm || return 1
-
-    # Ensure dependencies
-    if [ ! -d "node_modules" ]; then
-        log_info "Installing server dependencies..."
-        npm install
-    fi
-
-    # Server doesn't need compilation, but we can create a production bundle
-    # For now, just validate it can start
-    log_success "Server ready (no build step required for Node.js)"
-    log_info "Production deployment: copy server/ directory and run npm install --production"
-}
-
 build_all() {
     log_info "===== Building all ClawPilot components ====="
 
@@ -331,13 +306,12 @@ case "$TARGET" in
     frontend) build_frontend ;;
     daemon)   build_daemon ;;
     tauri)    build_tauri ;;
-    server)   build_server ;;
     all)      build_all ;;
     release)  build_release ;;
     clean)    clean_all ;;
     *)
         log_error "Unknown target: $TARGET"
-        echo "Usage: $0 [all|frontend|daemon|tauri|server|release|clean] [--cross] [--clean]"
+        echo "Usage: $0 [all|frontend|daemon|tauri|release|clean] [--cross] [--clean]"
         exit 1
         ;;
 esac

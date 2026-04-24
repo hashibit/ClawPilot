@@ -1,5 +1,7 @@
 # Daemon 安装功能测试用例
 
+> 📜 **历史档案**：记录 Daemon 安装能力早期验证。Bug 表中 `server/utils/ssh.js` 已随 Node Server 下线迁移至 Rust，等价逻辑现位于 `src-tauri/src/services/ssh_service.rs`；其它 daemon/openclaw 路径仍然有效。
+
 **测试目标**: 验证 `install_daemon` 命令在 macOS 和 Linux 平台上的安装功能
 
 ---

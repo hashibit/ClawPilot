@@ -28,10 +28,11 @@ TEST_LOG="/tmp/e2e-dag-$(date +%Y%m%d-%H%M%S).log"
 echo "=== E2E DAG 测试开始：$(date) ===" | tee $TEST_LOG
 
 # （可选）独立测试数据库，避免污染开发数据
-# 使用方式：启动 Server 时传入 --db 参数
-#   node server/index.js --db /tmp/clawpilot-test.db
+# 使用方式：启动各后端时指定独立路径
+#   CLAWPILOT_DB_PATH=/tmp/clawpilot-test.db \
+#     cd src-tauri && cargo run --bin dev-server
 #   cd daemon && cargo run -- --db-path /tmp/clawpilot-scheduler.db
-# 如果不指定，则使用默认的 dev.db 和 ~/.clawpilot/scheduler.db
+# 如果不指定，则使用默认的 ~/.clawpilot/clawpilot.db 和 ~/.clawpilot/scheduler.db
 
 # 通用验证函数：pass/fail 写入日志
 check() {

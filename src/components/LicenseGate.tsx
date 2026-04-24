@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import { getLicenseStatus, activateLicense } from '../lib/api'
 import { Icon } from './Icon'
 
+// Check if we're in development mode (skip license gate during development)
+const IS_DEV = process.env.NODE_ENV === 'development' || import.meta.env.DEV
+
 export default function LicenseGate({ children }: { children: React.ReactNode }) {
   const [activated, setActivated] = useState<boolean | null>(null) // null = loading
   const [key, setKey] = useState('')
@@ -9,6 +12,12 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    // Skip license check in development
+    if (IS_DEV) {
+      setActivated(true)
+      return
+    }
+
     getLicenseStatus()
       .then(s => setActivated(s.activated))
       .catch(() => setActivated(false))
@@ -26,6 +35,9 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
     }
     setSubmitting(false)
   }
+
+  // Skip activation in development
+  if (IS_DEV) return <>{children}</>
 
   // Loading state
   if (activated === null) {

@@ -2,8 +2,10 @@
 
 > 本文档说明如何运行 ClawPilot 项目的所有自动化测试。
 >
-> 版本: v1.3
-> 日期: 2026-04-03
+> 版本: v1.4
+> 日期: 2026-04-23
+>
+> v1.4 更新：Node.js Server 已下线，业务逻辑统一由 `src-tauri/` 的 Rust 后端承担（dev-server / Tauri App 同代码），原 Server 测试章节移除。
 
 ---
 
@@ -13,13 +15,12 @@
 
 1. **自动化测试**（按顺序执行）：
    - 前端单元测试（Vitest，16 个用例）
-   - Server 测试（单元 + 集成 + 安全 + 性能）
-   - Tauri 后端 Rust 测试（202 个用例）
+   - Tauri 后端 Rust 测试（202 个用例，覆盖 services/commands/http 路由/数据层）
    - Daemon Rust 测试（68 个用例）
    - Playwright E2E i18n 测试（36 个用例，16 种语言）
 
 2. **手动测试**（agent-browser 驾驶浏览器）：
-   - 启动开发服务器（Vite + Server + Daemon）
+   - 启动开发服务器（Vite + dev-server + Daemon）
    - 执行 `tests/e2e/scenarios.md` 中的所有测试场景
    - 包括：基础页面加载、OPC/Agent/Binding/Provider/Office 管理、部署流程、日志、设置、网络异常处理、表单验证等
 
@@ -28,16 +29,15 @@
 ## 目录
 
 1. [快速开始](#快速开始)
-2. [Server 测试](#server-测试)
-3. [前端测试](#前端测试)
-4. [Tauri 后端测试](#tauri-后端测试)
-5. [Daemon 测试](#daemon-测试)
-6. [E2E 测试](#e2e-测试)
-7. [OrbStack 真实部署测试](#orbstack-真实部署测试)
-8. [CI/CD 集成](#cicd-集成)
-9. [故障排除](#故障排除)
-10. [测试策略总结](#测试策略总结)
-11. [agent-browser 测试](#agent-browser-测试ai-驾驶浏览器)
+2. [前端测试](#前端测试)
+3. [Tauri 后端测试](#tauri-后端测试)
+4. [Daemon 测试](#daemon-测试)
+5. [E2E 测试](#e2e-测试)
+6. [OrbStack 真实部署测试](#orbstack-真实部署测试)
+7. [CI/CD 集成](#cicd-集成)
+8. [故障排除](#故障排除)
+9. [测试策略总结](#测试策略总结)
+10. [agent-browser 测试](#agent-browser-测试ai-驾驶浏览器)
 
 ---
 
@@ -50,13 +50,12 @@
 ```bash
 # 安装所有依赖
 npm install
-cd server && npm install && cd ..
+cd src-tauri && cargo check && cd ..
 cd daemon && cargo check && cd ..
 
 # 1. 自动化测试
 npm run test                    # 前端测试
-cd server && npm run test       # Server 测试（单元 + 集成 + 安全 + 性能）
-cd src-tauri && cargo test      # Tauri 后端 Rust 测试
+cd src-tauri && cargo test      # Tauri/API 后端 Rust 测试（含 services / commands / http）
 cd daemon && cargo test         # Daemon 测试
 npx playwright test             # i18n 自动化测试（i18n.spec.ts）
 
@@ -65,74 +64,6 @@ lsof -ti:16666,16667,16668 | xargs kill -9 2>/dev/null || true
 npm run dev &
 # → 告诉 Claude Code 执行 agent-browser 测试
 ```
-
----
-
-## Server 测试
-
-### 测试框架
-
-- **测试框架**: Vitest v2.0
-- **HTTP 测试**: supertest
-- **覆盖率**: v8
-
-### 目录结构
-
-```
-server/
-├── __tests__/
-│   ├── helpers/
-│   │   ├── db.js          # 测试数据库工厂
-│   │   └── app.js         # Express App 工厂
-│   ├── unit/              # 单元测试
-│   │   ├── opc.test.js
-│   │   ├── agent.test.js
-│   │   ├── channel.test.js
-│   │   ├── binding.test.js
-│   │   ├── boundary.test.js
-│   │   ├── office.test.js
-│   │   ├── snapshot.test.js
-│   │   ├── log.test.js
-│   │   ├── skill.test.js
-│   │   ├── tool.test.js
-│   │   ├── model.test.js
-│   │   └── process.test.js
-│   ├── integration/       # 集成测试
-│   │   └── opc-lifecycle.test.js
-│   ├── security/          # 安全测试
-│   │   └── security.test.js
-│   └── performance/       # 性能测试
-│       └── performance.test.js
-└── vitest.config.js
-```
-
-### 运行测试
-
-```bash
-cd server
-
-# 运行所有测试
-npm test
-
-# 监视模式（开发时使用）
-npm run test:watch
-
-# 生成覆盖率报告
-npm run test:coverage
-```
-
-### 测试特点
-
-- **内存数据库**: 每个测试使用独立 SQLite `:memory:`
-- **隔离性**: 每个测试文件在独立 worker 中运行
-- **工厂函数**: 使用 `makeOpc()`, `makeAgent()` 等辅助函数创建测试数据
-
-### 覆盖率目标
-
-| 指标 | 目标 |
-|------|------|
-| Lines | 85% |
-| Functions | 85% |
 
 ---
 
@@ -177,7 +108,7 @@ npm run test:coverage
 
 ### API Mock
 
-前端测试使用 MSW 拦截 API 请求，不依赖真实 Server：
+前端测试使用 MSW 拦截 API 请求，不依赖真实后端（dev-server / Tauri）：
 
 ```typescript
 import { server } from './mocks/server'
@@ -348,7 +279,7 @@ npx playwright test --ui
 | Office 管理 | `office.md` | CRUD / 地址模式 / 门禁认证 / 物业安装 / Daemon 健康 |
 | 部署流程 | `scenarios.md` | 完整部署、撤销部署、部署包下载 |
 | 日志 | `scenarios.md` | 实时流、级别 / 组件过滤、清除旧日志 |
-| 网络异常处理 | `scenarios.md` | Server 离线时页面降级展示 |
+| 网络异常处理 | `scenarios.md` | API 后端离线时页面降级展示 |
 | 表单验证 | `scenarios.md` | 必填字段校验拦截提交 |
 
 执行方式：
@@ -511,17 +442,6 @@ name: Tests
 on: [push, pull_request]
 
 jobs:
-  server-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: cd server && npm ci
-      - run: cd server && npm test          # 单元 + 集成 + 安全 + 性能
-      - run: cd server && npm run test:coverage
-
   tauri-backend-test:
     runs-on: ubuntu-latest
     steps:
@@ -562,13 +482,10 @@ jobs:
 
 | 测试类型 | 本地 | CI/CD | 发布前 |
 |---------|------|-------|--------|
-| Server 单元 | ✅ | ✅ | ✅ |
-| Server 集成 | ✅ | ✅ | ✅ |
-| Server 安全 | ✅ | ✅ | ✅ |
-| Server 性能 | ✅ | ✅ | ✅ |
 | 前端单元 | ✅ | ✅ | ✅ |
-| Tauri 后端（Rust）| ✅ | ✅ | ✅ |
-| Daemon 单元 | ✅ | ✅ | ✅ |
+| Tauri/API 后端 Rust 单元 | ✅ | ✅ | ✅ |
+| Tauri/API 后端 Rust 集成 | ✅ | ✅ | ✅ |
+| Daemon Rust 单元/集成 | ✅ | ✅ | ✅ |
 | E2E (Playwright) | ✅ | ✅ | ✅ |
 | agent-browser | ✅ | - | ✅ |
 | OrbStack 真实部署 | ✅ | - | ✅ |
@@ -576,25 +493,6 @@ jobs:
 ---
 
 ## 故障排除
-
-### Server 测试
-
-**问题**: `better-sqlite3` 安装失败
-```bash
-# macOS
-brew install python3 sqlite3
-npm rebuild better-sqlite3
-
-# Linux
-sudo apt-get install python3 libsqlite3-dev
-npm rebuild better-sqlite3
-```
-
-**问题**: 测试超时
-```bash
-# 增加超时时间
-npm test -- --testTimeout=30000
-```
 
 ### 前端测试
 
@@ -693,13 +591,11 @@ orbctl stop && open -a OrbStack
     ├─────────────────────────────┤
     │   Daemon 集成 (axum-test)   │  ← 验证 HTTP API
     ├─────────────────────────────┤
-    │  Server 集成 (supertest)    │  ← 验证业务流程
+    │ Tauri/API 后端集成 (axum)   │  ← 验证业务流程 / 安全边界 / 响应时间
     ├─────────────────────────────┤
-    │  Server 安全 / 性能测试      │  ← 验证安全边界与响应时间
+    │ Tauri/API 后端 Rust 测试    │  ← 验证命令层 / 服务层 / 数据层
     ├─────────────────────────────┤
-    │  Tauri 后端 Rust 测试        │  ← 验证命令层 / 服务层 / 数据层
-    ├─────────────────────────────┤
-    │     单元测试 (~150)          │  ← 验证单个功能
+    │     单元测试 (~200)          │  ← 验证单个功能
     └─────────────────────────────┘
 ```
 

@@ -1,5 +1,7 @@
 # 重构计划：统一后端，砍掉 Node.js Server
 
+> ✅ **已完成**（截止 2026-04-23）：`server/` 目录及所有 Node.js 路由已删除，业务逻辑全部迁至 `src-tauri/src/services/`，通过 `src-tauri/src/http/mod.rs` 暴露为 `POST /api/<cmd>`；dev-server 独立二进制在 `src-tauri/src/bin/dev_server.rs`。下文保留作为迁移决策/路径的历史记录。
+
 ## 背景
 
 当前维护两套后端（Node.js 9,800 行 + Rust 16,600 行），99 个 Tauri command 与 15 个 Node.js 路由模块功能重复。每次改字段要同步两边，维护成本高。

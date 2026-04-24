@@ -2,6 +2,12 @@
 
 **创建日期**: 2026-03-20
 **状态**: 设计定稿
+
+> 📜 **路径更新注**（2026-04-23）：设计文档内引用的 `server/routes/*.js` 已随 Node Server 下线统一迁移至 Rust：
+> - `server/routes/office.js` → `src-tauri/src/services/office/` + `src-tauri/src/commands/office.rs`
+> - `server/routes/deployment.js` → `src-tauri/src/services/deployment/` + `src-tauri/src/commands/deployment.rs`
+> 设计内容本身仍然有效，仅实现语言和路径改变。
+
 **关联文档**: [remote-deployment.md](./remote-deployment.md) · [architecture.md](./architecture.md)
 
 ---

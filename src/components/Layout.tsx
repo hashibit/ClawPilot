@@ -11,6 +11,17 @@ import { formatUptime } from '../lib/formatting'
 // Pages inside a company space
 const COMPANY_PATHS = ['/agents', '/bindings', '/deploy']
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= breakpoint)
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [breakpoint])
+  return isMobile
+}
+
 export default function Layout() {
   const { t, i18n } = useTranslation()
   const location = useLocation()
@@ -20,10 +31,17 @@ export default function Layout() {
   const [process, setProcess] = useState<ProcessStatus | null>(null)
   const [processLoading, setProcessLoading] = useState(true)
   const [acting, setActing] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   const inCompany = COMPANY_PATHS.some(p => location.pathname.startsWith(p))
   const statusColor = processLoading && !process ? 'var(--warning)' : process?.is_running ? 'var(--success)' : 'var(--text-dimmer)'
   const sidebarWidth = collapsed ? '48px' : '204px'
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    if (isMobile) setMobileMenuOpen(false)
+  }, [location.pathname, isMobile])
 
   useEffect(() => {
     loadStatus(true)
@@ -54,21 +72,31 @@ export default function Layout() {
     navigate('/agents')
   }
 
+  const showLabels = isMobile || !collapsed
+
   const NavItem = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => (
-    <NavLink to={to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} title={collapsed ? label : undefined}>
+    <NavLink to={to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} title={!showLabels ? label : undefined}>
       <span className="nav-icon ic-18" style={{ flexShrink: 0 }}>{icon}</span>
-      {!collapsed && <span className="text-sm">{label}</span>}
+      {showLabels && <span className="text-sm">{label}</span>}
     </NavLink>
   )
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw' }}>
-      <aside className="sidebar" style={{ width: sidebarWidth, transition: 'width 0.2s ease', overflow: 'hidden' }}>
+      {/* Mobile sidebar overlay */}
+      <div
+        className={`sidebar-overlay${mobileMenuOpen ? ' visible' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+      <aside
+        className={`sidebar${mobileMenuOpen ? ' mobile-open' : ''}`}
+        style={isMobile ? undefined : { width: sidebarWidth, transition: 'width 0.2s ease', overflow: 'hidden' }}
+      >
         {/* Header */}
         <div data-tauri-drag-region className="toolbar sidebar-header">
           {inCompany ? (
             /* Company space: show back button */
-            !collapsed ? (
+            showLabels ? (
               <button
                 onClick={() => navigate('/companies')}
                 style={{
@@ -89,7 +117,7 @@ export default function Layout() {
           ) : (
             /* Global: show logo */
             <>
-              {!collapsed && (
+              {showLabels && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div className="logo-box">
                     <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
@@ -97,17 +125,16 @@ export default function Layout() {
                   <span className="text-sm text-bold">{t('app.name')}</span>
                 </div>
               )}
-              {collapsed && (
+              {!showLabels && (
                 <div className="logo-box" style={{ margin: '0 auto' }}>
                   <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
                 </div>
               )}
-              {/* collapse button moved to sidebar footer */}
             </>
           )}
         </div>
 
-        {collapsed && (
+        {!isMobile && collapsed && (
           <button
             className="sidebar-toggle"
             onClick={() => setCollapsed(false)}
@@ -123,7 +150,7 @@ export default function Layout() {
           {inCompany ? (
             /* ── Company space: back + name + nav ── */
             <>
-              {currentOpc && !collapsed && (
+              {currentOpc && showLabels && (
                 <div style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div className="avatar avatar-md" style={{ background: currentOpc.avatar_color ?? 'var(--accent)' }}>
                     {currentOpc.avatar_initials ?? currentOpc.display_name.slice(0, 1)}
@@ -161,8 +188,8 @@ export default function Layout() {
           )}
         </div>
 
-        {/* Collapse toggle — only on global pages */}
-        {!inCompany && !collapsed && (
+        {/* Collapse toggle — only on global pages, hidden on mobile */}
+        {!isMobile && !inCompany && !collapsed && (
           <div style={{ padding: '0 6px 4px' }}>
             <button
               className="nav-item"
@@ -176,8 +203,8 @@ export default function Layout() {
         )}
 
         {/* Status footer */}
-        <div className={collapsed ? 'sidebar-footer-collapsed' : 'sidebar-footer'}>
-          {collapsed ? (
+        <div className={!showLabels ? 'sidebar-footer-collapsed' : 'sidebar-footer'}>
+          {!showLabels ? (
             <div title={process?.is_running ? `PID ${process.pid}` : t('process.stopped')} style={{ display: 'flex', justifyContent: 'center' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block', background: statusColor }} />
             </div>
@@ -212,7 +239,16 @@ export default function Layout() {
       </aside>
 
       {/* Content */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+        {/* Mobile hamburger menu button */}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Menu"
+          style={{ position: 'absolute', top: '11px', left: '10px', zIndex: 10 }}
+        >
+          <Icon name="menu" size={20} />
+        </button>
         <Outlet />
       </div>
     </div>
