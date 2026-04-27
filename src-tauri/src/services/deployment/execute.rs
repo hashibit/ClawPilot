@@ -160,12 +160,13 @@ pub async fn undeploy(pool: &DbPool, opc_id: &str) -> Result<()> {
         if let Ok(bytes) = tar_gz_bytes {
             let url = format!("{}/deploy", daemon_url.trim_end_matches('/'));
             let client = reqwest::Client::new();
-            let _ = client
+            let mut req = client
                 .post(&url)
-                .header("Content-Type", "application/octet-stream")
-                .body(bytes)
-                .send()
-                .await;
+                .header("Content-Type", "application/octet-stream");
+            if let Some(bearer) = crate::utils::daemon_token::bearer_header_value() {
+                req = req.header(reqwest::header::AUTHORIZATION, bearer);
+            }
+            let _ = req.body(bytes).send().await;
             // Errors are intentionally ignored — undeploy DB update already succeeded
         }
     }

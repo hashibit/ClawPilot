@@ -616,9 +616,13 @@ pub async fn install_decoration(
         "sha256_url": sha256_url,
     });
 
-    let resp = daemon_client
+    let mut install_builder = daemon_client
         .post(format!("{}/install_openclaw", access_url.trim_end_matches('/')))
-        .json(&install_req)
+        .json(&install_req);
+    if let Some(bearer) = crate::utils::daemon_token::bearer_header_value() {
+        install_builder = install_builder.header(reqwest::header::AUTHORIZATION, bearer);
+    }
+    let resp = install_builder
         .send()
         .await
         .map_err(|e| AppError::Internal(format!("daemon 请求失败: {}", e)))?;
@@ -647,10 +651,12 @@ pub async fn install_decoration(
     loop {
         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
-        let status_resp = daemon_client
-            .get(format!("{}/install_openclaw/{}", access_url.trim_end_matches('/'), task_id))
-            .send()
-            .await;
+        let mut status_builder = daemon_client
+            .get(format!("{}/install_openclaw/{}", access_url.trim_end_matches('/'), task_id));
+        if let Some(bearer) = crate::utils::daemon_token::bearer_header_value() {
+            status_builder = status_builder.header(reqwest::header::AUTHORIZATION, bearer);
+        }
+        let status_resp = status_builder.send().await;
 
         match status_resp {
             Ok(resp) if resp.status().is_success() => {

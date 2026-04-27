@@ -20,6 +20,24 @@ let eventSource: EventSource | null = null
 let ws: WebSocket | null = null
 const callbacks = new Set<ActivityCallback>()
 
+/**
+ * Fetch the daemon bearer token from the local server. The browser WebSocket
+ * API has no way to set an Authorization header (W3C limitation), so the
+ * daemon's /ws/activities accepts the token via `?token=` query string and
+ * validates it in constant time. The server proxies the token because it can
+ * read `~/.clawpilot/daemon.key` and the frontend cannot.
+ */
+async function fetchDaemonToken(): Promise<string | null> {
+  try {
+    const res = await fetch('/api/daemon_token')
+    if (!res.ok) return null
+    const data = await res.json() as { token?: string }
+    return data.token ?? null
+  } catch {
+    return null
+  }
+}
+
 function dispatchEvent(event: ActivityEvent) {
   callbacks.forEach(cb => cb(event))
 }
@@ -62,10 +80,17 @@ function disconnectSSE(): void {
 
 // ── WebSocket (Tauri mode) ────────────────────────────────────────────────────
 
-function connectWS(): void {
+async function connectWS(): Promise<void> {
   if (ws && ws.readyState !== WebSocket.CLOSED) return
 
-  ws = new WebSocket(DAEMON_WS_URL)
+  const token = await fetchDaemonToken()
+  if (!token) {
+    console.warn('[ActivityStream] daemon token unavailable, retrying in 3s')
+    if (callbacks.size > 0) setTimeout(() => { void connectWS() }, 3000)
+    return
+  }
+
+  ws = new WebSocket(`${DAEMON_WS_URL}?token=${encodeURIComponent(token)}`)
 
   ws.onopen = () => {
     console.log('[ActivityStream] WebSocket connected to daemon')
@@ -82,7 +107,7 @@ function connectWS(): void {
   ws.onclose = () => {
     ws = null
     if (callbacks.size > 0) {
-      setTimeout(() => connectWS(), 3000)
+      setTimeout(() => { void connectWS() }, 3000)
     }
   }
 
@@ -102,7 +127,7 @@ function disconnectWS(): void {
 
 export function connectActivityStream(): void {
   if (IS_TAURI) {
-    connectWS()
+    void connectWS()
   } else {
     connectSSE()
   }

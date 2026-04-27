@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react'
 import { getLicenseStatus, activateLicense } from '../lib/api'
 import { Icon } from './Icon'
 
-// Check if we're in development mode (skip license gate during development)
-const IS_DEV = process.env.NODE_ENV === 'development' || import.meta.env.DEV
+// Check if we're in development mode (skip license gate during development).
+// `import.meta.env.DEV` is a Vite build-time constant: `vite build` replaces
+// it with the literal `false`, so this can never be flipped at runtime by an
+// attacker. (See A4 in docs/issues-review.md — confirmed P3 not P0/P1.)
+const IS_DEV = import.meta.env.DEV
 
 export default function LicenseGate({ children }: { children: React.ReactNode }) {
   const [activated, setActivated] = useState<boolean | null>(null) // null = loading

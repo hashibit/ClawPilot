@@ -3,22 +3,59 @@
 //! Provides `/ws/activities` endpoint for server to subscribe to agent activity events.
 
 use axum::{
-    extract::{State, ws::{Message, WebSocket, WebSocketUpgrade}},
-    response::Response,
+    extract::{Query, State, ws::{Message, WebSocket, WebSocketUpgrade}},
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
 use futures_util::{SinkExt, StreamExt};
+use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::error::Result;
 use crate::state::AppState;
 use crate::scheduler::ActivityEvent;
 
-/// GET /ws/activities - WebSocket endpoint for activity events
+#[derive(Debug, Deserialize)]
+pub struct WsAuthQuery {
+    /// Bearer-equivalent token. Required because the browser WebSocket API
+    /// (W3C spec) does not allow custom request headers, so we authenticate
+    /// the upgrade via query string instead.
+    #[serde(default)]
+    token: String,
+}
+
+/// GET /ws/activities?token=<bearer> — WebSocket endpoint for activity events.
+///
+/// Auth: validates `?token=` against the daemon bearer token in constant time.
+/// This route is intentionally exempt from the HTTP Bearer middleware because
+/// browsers cannot attach an `Authorization` header to WebSocket connects.
 pub async fn ws_activities(
     State(state): State<AppState>,
+    Query(q): Query<WsAuthQuery>,
     ws: WebSocketUpgrade,
 ) -> Response {
+    let expected = match state.bearer_token.as_deref() {
+        Some(t) if !t.is_empty() => t,
+        _ => {
+            tracing::error!("[ws] bearer_token not configured in state; rejecting WS upgrade");
+            return (StatusCode::UNAUTHORIZED, "auth not configured").into_response();
+        }
+    };
+    if !constant_time_eq(q.token.as_bytes(), expected.as_bytes()) {
+        return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
+    }
     ws.on_upgrade(move |socket| handle_ws(socket, state))
+}
+
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff: u8 = 0;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 async fn handle_ws(socket: WebSocket, state: AppState) {

@@ -116,6 +116,10 @@ pub struct AppState {
     pub scheduler_dag: Option<DagScheduler>,
     /// Broadcast sender for activity events (daemon -> server)
     pub activity_tx: Option<broadcast::Sender<ActivityEvent>>,
+    /// Bearer token used to validate `?token=` query parameter on
+    /// /ws/activities (the WS handler is exempt from the HTTP middleware
+    /// because browser WebSocket can't send Authorization headers).
+    pub bearer_token: Option<String>,
 }
 
 impl AppState {
@@ -126,6 +130,7 @@ impl AppState {
             scheduler_worker: None,
             scheduler_dag: None,
             activity_tx: None,
+            bearer_token: None,
         }
     }
 
@@ -143,6 +148,11 @@ impl AppState {
 
     pub fn with_activity_sender(mut self, tx: broadcast::Sender<ActivityEvent>) -> Self {
         self.activity_tx = Some(tx);
+        self
+    }
+
+    pub fn with_bearer_token(mut self, token: String) -> Self {
+        self.bearer_token = Some(token);
         self
     }
 }

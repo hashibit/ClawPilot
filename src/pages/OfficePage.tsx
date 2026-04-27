@@ -876,7 +876,7 @@ export default function OfficePage() {
                                         {selected.current_opc_id ? (
                                             <span className="group-value flex-center gap-5">
                                                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }}></span>
-                                                <a href="#/opc" style={{ color: 'var(--accent-hover)', fontSize: '13px', textDecoration: 'none' }}>
+                                                <a href="#/companies" style={{ color: 'var(--accent-hover)', fontSize: '13px', textDecoration: 'none' }}>
                                                     {selected.current_opc_name}
                                                 </a>
                                             </span>

@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import OverviewPage from './pages/OverviewPage'
-import OpcPage from './pages/OpcPage'
 import AgentsPage from './pages/AgentsPage'
 import ProvidersPage from './pages/ProvidersPage'
 import BindingsPage from './pages/BindingsPage'
@@ -42,7 +41,6 @@ export default function App() {
               <Route index element={<Navigate to="/overview" replace />} />
               <Route path="overview" element={<OverviewPage />} />
               <Route path="companies" element={<CompanyListPage />} />
-              <Route path="opc" element={<OpcPage />} />
               <Route path="agents" element={<AgentsPage />} />
               <Route path="providers" element={<ProvidersPage />} />
               <Route path="bindings" element={<BindingsPage />} />

@@ -1,3 +1,4 @@
+mod auth;
 mod deploy;
 mod error;
 mod install;
@@ -21,7 +22,9 @@ use axum::{
 use clap::Parser;
 use state::AppState;
 use std::{fs, net::SocketAddr, path::PathBuf, time::Duration};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
+use axum::http::{header, Method};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use scheduler::{Db, DagScheduler, Worker, Recovery, artifacts, EventStream, event_stream::load_openclaw_token};
@@ -142,7 +145,11 @@ async fn main() {
         }
     });
 
-    // Deploy and install routes
+    // A7: Bearer-token authentication. Token shared with the local server
+    // via ~/.clawpilot/daemon.key (mode 0600). Generated on first start.
+    let bearer_token = auth::load_or_create_token();
+
+    // Deploy and install routes — protected by bearer middleware.
     let deploy_routes = Router::new()
         .route("/restart_openclaw", post(routes::restart_openclaw))
         .route("/deploy", post(routes::deploy))
@@ -153,15 +160,53 @@ async fn main() {
         .route("/install_openclaw/:task_id/sse", get(routes::install_sse))
         .layer(DefaultBodyLimit::max(MAX_DEPLOY_BODY_SIZE));
 
-    let app = Router::new()
-        .route("/health", get(routes::health))
-        .route("/ws/activities", get(ws_routes::ws_activities));
-
-    let app = app.merge(deploy_routes);
-
     let scheduler_routes = scheduler::routes::scheduler_router();
 
-    let app = app.merge(scheduler_routes)
+    // Routes requiring Bearer auth: deploy/install/scheduler.
+    // The .layer() call must come AFTER all protected routes are merged in
+    // — axum applies middleware to routes registered before the layer call.
+    let protected = deploy_routes
+        .merge(scheduler_routes)
+        .layer(axum::middleware::from_fn_with_state(
+            bearer_token.clone(),
+            auth::require_bearer,
+        ));
+
+    // Public routes — exempt from bearer middleware:
+    // - /health: liveness probes (systemd watchdog, k8s readinessProbe,
+    //   monitoring) need to reach this without credentials. Returns no
+    //   sensitive data.
+    // - /ws/activities: browser WebSocket API cannot attach an
+    //   `Authorization` header (W3C spec limitation). Auth is performed
+    //   inside the WS handler via `?token=` query parameter, validated
+    //   against the same bearer_token in constant time.
+    let public = Router::new()
+        .route("/health", get(routes::health))
+        .route(
+            "/ws/activities",
+            get(ws_routes::ws_activities),
+        );
+
+    // A3: CORS whitelist — only allow the local Vite dev origin and the
+    // embedded Tauri origin. Permissive CORS would let any web page in the
+    // user's browser hit 127.0.0.1:16668 and trigger remote SSH commands.
+    let cors = CorsLayer::new()
+        .allow_origin([
+            "http://127.0.0.1:16666".parse().unwrap(),
+            "http://localhost:16666".parse().unwrap(),
+            "tauri://localhost".parse().unwrap(),
+        ])
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
+
+    // The WS handler needs the bearer token for query-param validation;
+    // we stash it in AppState so ws_activities can compare without
+    // re-reading the file on every connection.
+    let state = state.with_bearer_token(bearer_token.clone());
+
+    let app = public
+        .merge(protected)
+        .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
 

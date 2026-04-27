@@ -384,6 +384,10 @@ export default function AgentsPage() {
                 description: result.description || prev.description,
                 personality: result.personality || prev.personality,
                 guardrail_allow: result.guardrail_allow?.length ? result.guardrail_allow : prev.guardrail_allow,
+                // guardrail_rules is a legacy alias for guardrail_allow (see types.ts comment).
+                // The AI result struct has no separate `guardrail_rules` field, so we
+                // intentionally mirror guardrail_allow into both. Confirmed not a bug —
+                // see cccombat seq-4 for the back-and-forth.
                 guardrail_rules: result.guardrail_allow?.length ? result.guardrail_allow : prev.guardrail_rules,
                 guardrail_deny: result.guardrail_deny?.length ? result.guardrail_deny : prev.guardrail_deny,
                 enabled_tools: result.enabled_tools?.length ? result.enabled_tools : prev.enabled_tools,

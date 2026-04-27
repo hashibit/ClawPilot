@@ -3,8 +3,13 @@
 //! Provides SSH connection and authentication testing capabilities.
 //! Uses system ssh command instead of ssh2 crate for better network compatibility
 //! (especially for OrbStack and other virtual network configurations).
+//!
+//! All commands are executed via `std::process::Command` argv form so the local
+//! shell is never involved — this prevents shell injection from any field
+//! (host / username / key_path / password / remote cmd).
 
 use std::path::Path;
+use std::process::Command;
 
 /// SSH authentication type
 #[derive(Debug, Clone)]
@@ -30,21 +35,47 @@ pub struct AuthTestResult {
     pub message: Option<String>,
 }
 
-/// Run an SSH command and return stdout
-pub fn run_ssh_command(host: &str, port: u16, username: &str, key_path: Option<&str>, cmd: &str, timeout_secs: u64) -> Result<String, String> {
-    let mut ssh = format!(
-        "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout={timeout_secs} -o LogLevel=ERROR -p {port}"
-    );
+/// Build the canonical ssh argv (without the trailing remote command).
+///
+/// Returns a vec like `["-o", "...", "-p", "22", "-i", "/key", "user@host"]`.
+/// Caller appends the remote command as a single additional arg.
+fn build_ssh_args(
+    host: &str,
+    port: u16,
+    username: &str,
+    key_path: Option<&str>,
+    timeout_secs: u64,
+) -> Vec<String> {
+    let mut args: Vec<String> = vec![
+        "-o".into(), "StrictHostKeyChecking=no".into(),
+        "-o".into(), "BatchMode=yes".into(),
+        "-o".into(), format!("ConnectTimeout={timeout_secs}"),
+        "-o".into(), "LogLevel=ERROR".into(),
+        "-p".into(), port.to_string(),
+    ];
     if let Some(key) = key_path {
         let expanded = expand_tilde(key);
-        ssh.push_str(&format!(" -i \"{expanded}\""));
+        args.push("-i".into());
+        args.push(expanded);
     }
-    ssh.push_str(&format!(" {username}@{host}"));
+    args.push(format!("{username}@{host}"));
+    args
+}
 
-    let full_cmd = format!("{ssh} {cmd}");
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&full_cmd)
+/// Run an SSH command and return stdout
+pub fn run_ssh_command(
+    host: &str,
+    port: u16,
+    username: &str,
+    key_path: Option<&str>,
+    cmd: &str,
+    timeout_secs: u64,
+) -> Result<String, String> {
+    let mut args = build_ssh_args(host, port, username, key_path, timeout_secs);
+    args.push(cmd.to_string());
+
+    let output = Command::new("ssh")
+        .args(&args)
         .output()
         .map_err(|e| format!("执行 SSH 命令失败：{e}"))?;
 
@@ -66,41 +97,20 @@ fn expand_tilde(path: &str) -> String {
     path.to_string()
 }
 
-/// Build SSH command with common options
-fn build_ssh_command(host: &str, port: u16, username: &str, key_path: Option<&str>) -> String {
-    let mut cmd = format!(
-        "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout={} -p {}",
-        5, // connection timeout
-        port
-    );
-
-    if let Some(key) = key_path {
-        let expanded = expand_tilde(key);
-        cmd.push_str(&format!(" -i \"{}\"", expanded));
-    }
-
-    cmd.push_str(&format!(" {}@{}", username, host));
-    cmd
-}
-
-/// Test SSH connection using system ping/ssh command
+/// Test SSH connection using system ssh command
 pub fn test_ssh_connection(
     host: &str,
     port: u16,
     username: &str,
     key_path: Option<&str>,
-    _timeout_secs: u64,
+    timeout_secs: u64,
 ) -> AuthTestResult {
     let start = std::time::Instant::now();
 
-    // Build SSH command to test connection
-    let ssh_cmd = build_ssh_command(host, port, username, key_path);
-    let test_cmd = format!("{} 'exit'", ssh_cmd);
+    let mut args = build_ssh_args(host, port, username, key_path, timeout_secs.max(5));
+    args.push("exit".into());
 
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&test_cmd)
-        .output();
+    let output = Command::new("ssh").args(&args).output();
 
     let elapsed = start.elapsed().as_millis() as u64;
 
@@ -138,7 +148,7 @@ pub fn test_ssh_key(
     port: u16,
     username: &str,
     key_path: &str,
-    _timeout_secs: u64,
+    timeout_secs: u64,
 ) -> AuthTestResult {
     let start = std::time::Instant::now();
 
@@ -155,14 +165,10 @@ pub fn test_ssh_key(
         };
     }
 
-    // Build SSH command to execute a simple command
-    let ssh_cmd = build_ssh_command(host, port, username, Some(&expanded_path));
-    let test_cmd = format!("{} 'whoami'", ssh_cmd);
+    let mut args = build_ssh_args(host, port, username, Some(&expanded_path), timeout_secs.max(5));
+    args.push("whoami".into());
 
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&test_cmd)
-        .output();
+    let output = Command::new("ssh").args(&args).output();
 
     let elapsed = start.elapsed().as_millis() as u64;
 
@@ -201,25 +207,20 @@ pub fn test_ssh_password(
     port: u16,
     username: &str,
     password: &str,
-    _timeout_secs: u64,
+    timeout_secs: u64,
 ) -> AuthTestResult {
     let start = std::time::Instant::now();
 
-    // Build SSH command with sshpass
-    let ssh_cmd = format!(
-        "sshpass -p '{}' ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout={} -p {} {}@{}",
-        password.replace('\'', "'\\''"),
-        5, // connection timeout
-        port,
-        username,
-        host
-    );
-    let test_cmd = format!("{} 'whoami'", ssh_cmd);
+    // sshpass argv form — password is a single arg, never reaches a shell
+    let mut args: Vec<String> = vec!["-p".into(), password.to_string(), "ssh".into()];
+    args.extend(build_ssh_args(host, port, username, None, timeout_secs.max(5)));
+    // Note: BatchMode=yes is set by build_ssh_args which would normally disable
+    // password prompts. Override here so sshpass can supply the password.
+    args.push("-o".into());
+    args.push("BatchMode=no".into());
+    args.push("whoami".into());
 
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&test_cmd)
-        .output();
+    let output = Command::new("sshpass").args(&args).output();
 
     let elapsed = start.elapsed().as_millis() as u64;
 
@@ -254,12 +255,23 @@ pub fn test_ssh_password(
                 }
             }
         }
-        Err(e) => AuthTestResult {
-            ok: false,
-            latency_ms: elapsed,
-            error: Some(format!("执行 SSH 命令失败：{}", e)),
-            message: None,
-        },
+        Err(e) => {
+            // Detect missing sshpass binary
+            if e.kind() == std::io::ErrorKind::NotFound {
+                return AuthTestResult {
+                    ok: false,
+                    latency_ms: elapsed,
+                    error: Some("sshpass 未安装，请使用密钥认证或安装 sshpass".into()),
+                    message: None,
+                };
+            }
+            AuthTestResult {
+                ok: false,
+                latency_ms: elapsed,
+                error: Some(format!("执行 SSH 命令失败：{}", e)),
+                message: None,
+            }
+        }
     }
 }
 
@@ -344,16 +356,36 @@ mod tests {
         assert_eq!(result2, "/absolute/path");
     }
 
-    // --- build_ssh_command 测试 ---
+    // --- build_ssh_args 测试 ---
     #[test]
-    fn test_build_ssh_command() {
-        let cmd = build_ssh_command("192.168.1.1", 22, "root", None);
-        assert!(cmd.contains("192.168.1.1"));
-        assert!(cmd.contains("root@"));
-        assert!(cmd.contains("-p 22"));
+    fn test_build_ssh_args_basic() {
+        let args = build_ssh_args("192.168.1.1", 22, "root", None, 5);
+        assert!(args.contains(&"-p".to_string()));
+        assert!(args.contains(&"22".to_string()));
+        assert!(args.contains(&"root@192.168.1.1".to_string()));
+        // No -i when key not provided
+        assert!(!args.contains(&"-i".to_string()));
+    }
 
-        let cmd_with_key = build_ssh_command("192.168.1.1", 2222, "user", Some("~/.ssh/id_rsa"));
-        assert!(cmd_with_key.contains("-i "));
-        assert!(cmd_with_key.contains("-p 2222"));
+    #[test]
+    fn test_build_ssh_args_with_key() {
+        let args = build_ssh_args("192.168.1.1", 2222, "user", Some("/tmp/key"), 5);
+        assert!(args.contains(&"-i".to_string()));
+        assert!(args.contains(&"/tmp/key".to_string()));
+        assert!(args.contains(&"-p".to_string()));
+        assert!(args.contains(&"2222".to_string()));
+    }
+
+    /// A2 regression: ensure that even a malicious username with shell metachars
+    /// cannot escape the argv boundary. We only check the args structure here —
+    /// since `Command::new("ssh").args()` passes argv directly to execve(),
+    /// the local shell never sees these characters.
+    #[test]
+    fn test_build_ssh_args_no_shell_interpretation() {
+        let evil = "user; rm -rf ~";
+        let args = build_ssh_args("h", 22, evil, None, 5);
+        // The malicious value sits intact as a single arg — execve() treats it
+        // as a literal string, no shell parses it.
+        assert!(args.iter().any(|a| a == &format!("{evil}@h")));
     }
 }

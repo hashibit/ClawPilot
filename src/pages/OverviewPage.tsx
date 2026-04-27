@@ -33,11 +33,8 @@ export default function OverviewPage() {
     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
         <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('overview.title')}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>{t('overview.today')}</button>
-          <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }}>{t('overview.thisWeek')}</button>
-          <button className="tbtn tbtn-accent" style={{ fontSize: '12px' }}>{t('overview.thisMonth')}</button>
-        </div>
+        {/* B2: time-range buttons (today/week/month) had no onClick — they were
+            decorative. Removed pending real backend filtering. See issues-review.md B2. */}
       </div>
       <div className="overview-content">
         {/* 核心指标 */}

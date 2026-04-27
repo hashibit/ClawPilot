@@ -50,7 +50,15 @@ pub async fn check_daemon_health(
         }
     };
 
-    match client.get(&url).send().await {
+    // A7: present Bearer token to local daemon. Remote daemons (no shared
+    // token file) will see this as a stale credential and reject — that is
+    // currently a known limitation; remote daemon access is not part of the
+    // supported topology for the embedded HTTP path.
+    let mut req = client.get(&url);
+    if let Some(bearer) = crate::utils::daemon_token::bearer_header_value() {
+        req = req.header(reqwest::header::AUTHORIZATION, bearer);
+    }
+    match req.send().await {
         Ok(resp) if resp.status().is_success() => match resp.json::<serde_json::Value>().await {
             Ok(json) => DaemonHealthResult {
                 ok: true,
@@ -185,7 +193,17 @@ pub async fn probe_remote_daemon(pool: &DbPool, office_id: &str) -> ProbeDaemonR
     let ssh_prefix: String;
     let ssh_prefix_with_pass: Option<String>;
 
-    if let Some(key_path) = &ssh_key_path {
+    // ssh_key_path may be stored encrypted (enc:...) per A1 rework. Decrypt
+    // before use; if it's stored as legacy plaintext just keep the value.
+    let ssh_key_path_plain: Option<String> = ssh_key_path.as_ref().map(|raw| {
+        if raw.starts_with("enc:") {
+            decrypt(raw).unwrap_or_default()
+        } else {
+            raw.clone()
+        }
+    });
+
+    if let Some(key_path) = &ssh_key_path_plain {
         let expanded_path = if key_path.starts_with("~/") {
             if let Some(home) = dirs::home_dir() {
                 home.join(&key_path[2..]).to_string_lossy().to_string()

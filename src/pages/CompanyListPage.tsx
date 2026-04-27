@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useOpc } from '../contexts/OpcContext'
-import { createOpc } from '../lib/api'
+import { createOpc, deleteOpc } from '../lib/api'
 import type { OpcConfig } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { toast } from '../components/Toast'
@@ -15,11 +15,42 @@ export default function CompanyListPage() {
   const [createName, setCreateName] = useState('')
   const [createDisplayName, setCreateDisplayName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [search, setSearch] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleEnterOpc = (opc: OpcConfig) => {
     selectOpc(opc)
     navigate('/agents')
   }
+
+  const handleDelete = async (opc: OpcConfig) => {
+    const confirmMsg = t(
+      'opc.delete_confirm',
+      `确定要删除公司「${opc.display_name}」吗？该操作无法撤销。`,
+      { name: opc.display_name },
+    )
+    if (!window.confirm(confirmMsg)) return
+    setDeletingId(opc.id)
+    try {
+      await deleteOpc(opc.id)
+      toast(t('opc.delete_success', '公司已删除'), 'success')
+      await reload()
+    } catch (e) {
+      toast(String(e), 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const filteredOpcs = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return opcs
+    return opcs.filter(
+      o =>
+        o.display_name.toLowerCase().includes(q) ||
+        o.name.toLowerCase().includes(q),
+    )
+  }, [opcs, search])
 
   const handleCreate = async () => {
     if (!createName.trim() || !createDisplayName.trim()) {
@@ -46,10 +77,19 @@ export default function CompanyListPage() {
     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
         <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('nav.company_list', '公司列表')}</span>
-        <button className="tbtn tbtn-accent" style={{ fontSize: '12px' }} onClick={() => setShowCreate(true)}>
-          <Icon name="plus" size={12} style={{ marginRight: '4px' }} />
-          {t('opc.button_create_new', '创建公司')}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input
+            className="field-input"
+            style={{ fontSize: '12px', width: '180px', height: '26px' }}
+            placeholder={t('opc.search_placeholder', '搜索公司...')}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <button className="tbtn tbtn-accent" style={{ fontSize: '12px' }} onClick={() => setShowCreate(true)}>
+            <Icon name="plus" size={12} style={{ marginRight: '4px' }} />
+            {t('opc.button_create_new', '创建公司')}
+          </button>
+        </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
@@ -70,7 +110,7 @@ export default function CompanyListPage() {
 
         {/* Company cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-          {opcs.map(opc => (
+          {filteredOpcs.map(opc => (
             <div key={opc.id} className="stat-card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? 'var(--accent)' }}>
@@ -85,6 +125,15 @@ export default function CompanyListPage() {
                     {opc.is_running ? t('common.status_running') : t('common.status_stopped')}
                   </div>
                 </div>
+                <button
+                  className="tbtn tbtn-ghost"
+                  title={t('common.button_delete', '删除')}
+                  style={{ padding: '4px 6px', fontSize: '11px', color: 'var(--danger, #ef4444)' }}
+                  disabled={deletingId === opc.id}
+                  onClick={() => handleDelete(opc)}
+                >
+                  <Icon name="trash" size={12} />
+                </button>
               </div>
               <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
                 <span>{opc.agent_count} {t('overview.agents')}</span>
@@ -102,6 +151,13 @@ export default function CompanyListPage() {
             <Icon name="grid" size={40} style={{ color: 'var(--text-tertiary)' }} />
             <div className="empty-state-title">{t('overview.noData', '还没有公司')}</div>
             <div className="empty-state-desc">{t('overview.empty_hint', '点击右上角创建第一个公司')}</div>
+          </div>
+        )}
+
+        {opcs.length > 0 && filteredOpcs.length === 0 && (
+          <div className="empty-state" style={{ paddingTop: '40px' }}>
+            <Icon name="search" size={32} style={{ color: 'var(--text-tertiary)' }} />
+            <div className="empty-state-title">{t('opc.search_no_results', '没有匹配的公司')}</div>
           </div>
         )}
       </div>

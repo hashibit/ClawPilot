@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Json, State},
-    http::StatusCode,
+    http::{header, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Router,
@@ -79,6 +79,9 @@ pub fn routes(state: AppState) -> Router {
     Router::new()
         // Health
         .route("/health", get(health))
+        // Daemon bearer token (read by frontend so /ws/activities can pass
+        // ?token=... — browser WebSocket can't attach Authorization header)
+        .route("/api/daemon_token", get(daemon_token))
         // OPC
         .route("/api/get_all_opcs", post(get_all_opcs))
         .route("/api/get_opc", post(get_opc))
@@ -196,7 +199,20 @@ pub fn routes(state: AppState) -> Router {
         .route("/api/chat_with_agent", post(chat_with_agent))
         // Middleware
         .layer(RequestBodyLimitLayer::new(50 * 1024 * 1024)) // 50MB
-        .layer(CorsLayer::permissive())
+        // A3: explicit CORS whitelist. Permissive CORS lets any web page in
+        // the user's browser hit 127.0.0.1:16667 and exfiltrate every OPC,
+        // provider key and binding via the API. We restrict to the local
+        // Vite dev origin and the embedded Tauri origin.
+        .layer(
+            CorsLayer::new()
+                .allow_origin([
+                    "http://127.0.0.1:16666".parse().unwrap(),
+                    "http://localhost:16666".parse().unwrap(),
+                    "tauri://localhost".parse().unwrap(),
+                ])
+                .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+                .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]),
+        )
         .with_state(state)
 }
 
@@ -204,6 +220,22 @@ pub fn routes(state: AppState) -> Router {
 
 async fn health() -> Json<Value> {
     Json(serde_json::json!({ "ok": true }))
+}
+
+/// Return the daemon bearer token so the frontend can append it as a query
+/// parameter on the WebSocket URL. Reading the token over CORS-restricted
+/// localhost is no broader than the existing trust boundary: the server
+/// already calls every protected daemon route on the user's behalf, so any
+/// caller able to reach the server can already exercise those routes.
+async fn daemon_token() -> impl IntoResponse {
+    match crate::utils::daemon_token::read_daemon_token() {
+        Some(token) => (StatusCode::OK, Json(serde_json::json!({ "token": token }))).into_response(),
+        None => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({ "error": "daemon token not yet available" })),
+        )
+            .into_response(),
+    }
 }
 
 // ── OPC handlers ─────────────────────────────────────────────────────────────
@@ -1532,14 +1564,17 @@ async fn install_decoration(
         "sha256_url": sha256_url,
     });
 
-    let resp = match daemon_client
+    let mut install_req_builder = daemon_client
         .post(format!(
             "{}/install_openclaw",
             access_url.trim_end_matches('/')
         ))
-        .json(&install_req)
-        .send()
-        .await
+        .json(&install_req);
+    if let Some(bearer) = crate::utils::daemon_token::bearer_header_value() {
+        install_req_builder =
+            install_req_builder.header(reqwest::header::AUTHORIZATION, bearer);
+    }
+    let resp = match install_req_builder.send().await
     {
         Ok(r) => r,
         Err(e) => {
@@ -1596,14 +1631,15 @@ async fn install_decoration(
     loop {
         tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
-        let status_resp = daemon_client
-            .get(format!(
-                "{}/install_openclaw/{}",
-                access_url.trim_end_matches('/'),
-                task_id
-            ))
-            .send()
-            .await;
+        let mut status_builder = daemon_client.get(format!(
+            "{}/install_openclaw/{}",
+            access_url.trim_end_matches('/'),
+            task_id
+        ));
+        if let Some(bearer) = crate::utils::daemon_token::bearer_header_value() {
+            status_builder = status_builder.header(reqwest::header::AUTHORIZATION, bearer);
+        }
+        let status_resp = status_builder.send().await;
 
         match status_resp {
             Ok(resp) if resp.status().is_success() => {

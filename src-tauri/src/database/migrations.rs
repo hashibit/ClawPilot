@@ -1,5 +1,6 @@
 use crate::database::pool::DbPool;
 use crate::error::Result;
+use crate::utils::crypto;
 
 /// 単一パスでスキーマを初期化する。
 ///
@@ -8,6 +9,51 @@ use crate::error::Result;
 pub fn run_migrations(pool: &DbPool) -> Result<()> {
     let conn = pool.get()?;
     conn.execute_batch(crate::database::schema::SCHEMA)?;
+    drop(conn);
+    backfill_office_password_encryption(pool)?;
+    Ok(())
+}
+
+/// One-shot data migration: encrypt any plaintext secrets in `offices`
+/// (`access_password` and `ssh_key_path`) left over from before A1 was fixed.
+/// Idempotent: rows whose value already starts with the `enc:` prefix are
+/// skipped, so safe to run on every startup.
+fn backfill_office_password_encryption(pool: &DbPool) -> Result<()> {
+    backfill_office_column(pool, "access_password")?;
+    backfill_office_column(pool, "ssh_key_path")?;
+    Ok(())
+}
+
+fn backfill_office_column(pool: &DbPool, column: &str) -> Result<()> {
+    let conn = pool.get()?;
+    // Collect rows that need re-encryption first (avoid holding a borrowed stmt while writing).
+    let select_sql = format!(
+        "SELECT id, {col} FROM offices WHERE {col} IS NOT NULL AND {col} <> ''",
+        col = column
+    );
+    let plaintext_rows: Vec<(String, String)> = {
+        let mut stmt = conn.prepare(&select_sql)?;
+        let mut out = Vec::new();
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            let id: String = row.get(0)?;
+            let value: String = row.get(1)?;
+            if !value.starts_with("enc:") {
+                out.push((id, value));
+            }
+        }
+        out
+    };
+
+    if plaintext_rows.is_empty() {
+        return Ok(());
+    }
+
+    let update_sql = format!("UPDATE offices SET {col} = ?1 WHERE id = ?2", col = column);
+    for (id, plaintext) in plaintext_rows {
+        let encrypted = crypto::encrypt(&plaintext)?;
+        conn.execute(&update_sql, rusqlite::params![encrypted, id])?;
+    }
     Ok(())
 }
 

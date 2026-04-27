@@ -4,6 +4,34 @@ use uuid::Uuid;
 use crate::database::pool::DbPool;
 use crate::error::{AppError, Result};
 use crate::models::office::{Office, OfficeDeployment};
+use crate::utils::crypto;
+
+/// Encrypt a secret for storage (used for both `access_password` and `ssh_key_path`).
+/// Empty stays empty; already-encrypted ("enc:") passes through.
+///
+/// Why ssh_key_path is treated as a secret: leaking the on-disk path
+/// (e.g. `~/.ssh/id_rsa_prod`, `/secrets/k8s.pem`) gives an attacker who
+/// already has SQLite read access a precise pointer to the private key file.
+fn encrypt_secret(value: &Option<String>) -> Result<Option<String>> {
+    match value {
+        None => Ok(None),
+        Some(s) if s.is_empty() => Ok(Some(String::new())),
+        Some(s) if s.starts_with("enc:") => Ok(Some(s.clone())),
+        Some(s) => Ok(Some(crypto::encrypt(s)?)),
+    }
+}
+
+/// Decrypt a stored secret. "enc:" prefix triggers decrypt; otherwise treat as
+/// legacy plaintext (forward-compatible with rows that predate A1).
+fn decrypt_secret(value: Option<String>) -> Option<String> {
+    value.map(|s| {
+        if s.starts_with("enc:") {
+            crypto::decrypt(&s).unwrap_or_default()
+        } else {
+            s
+        }
+    })
+}
 
 pub fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
     Ok(Office {
@@ -24,8 +52,8 @@ pub fn row_to_office(row: &rusqlite::Row<'_>) -> rusqlite::Result<Office> {
         description: row.get(10)?,
         access_auth_type: row.get(11)?,
         access_user: row.get(12)?,
-        access_password: row.get(13)?,
-        ssh_key_path: row.get(14)?,
+        access_password: decrypt_secret(row.get(13)?),
+        ssh_key_path: decrypt_secret(row.get(14)?),
         daemon_url: row.get(15)?,
         opc_root: row.get(16)?,
         initial_openclaw_config: row.get(17)?,
@@ -82,13 +110,20 @@ pub fn get_office(pool: &DbPool, id: &str) -> Result<Office> {
 
 pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
     let conn = pool.get()?;
-    let ts = now();
+    let _ = now();
     // Generate UUID if not provided
     let id = if office.id.is_empty() {
         Uuid::new_v4().to_string()
     } else {
         office.id.clone()
     };
+    let access_password_enc = encrypt_secret(&office.access_password)?;
+    let ssh_key_path_enc = encrypt_secret(
+        &office
+            .ssh_key_path
+            .as_ref()
+            .map(|s| s.trim().to_string()),
+    )?;
     conn.execute(
         "INSERT INTO offices
              (id, name, address, access_card, phone, receptionist_image,
@@ -113,8 +148,8 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
             office.description,
             office.access_auth_type,
             office.access_user,
-            office.access_password,
-            office.ssh_key_path.as_ref().map(|s| s.trim().to_string()),
+            access_password_enc,
+            ssh_key_path_enc,
             office.daemon_url,
             office.opc_root,
             office.initial_openclaw_config,
@@ -124,7 +159,7 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
             office.openclaw_nodejs_path,
             office.openclaw_nodejs_version,
             office.openclaw_installed_at,
-            office.created_at.max(1).min(i64::MAX - 1) + 0 * ts,
+            office.created_at.max(1).min(i64::MAX - 1),
             office.updated_at,
         ],
     )?;
@@ -133,6 +168,13 @@ pub fn create_office(pool: &DbPool, office: &Office) -> Result<String> {
 
 pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
     let conn = pool.get()?;
+    let access_password_enc = encrypt_secret(&office.access_password)?;
+    let ssh_key_path_enc = encrypt_secret(
+        &office
+            .ssh_key_path
+            .as_ref()
+            .map(|s| s.trim().to_string()),
+    )?;
     let affected = conn.execute(
         "UPDATE offices SET
              name=?2, address=?3, access_card=?4, phone=?5, receptionist_image=?6,
@@ -158,8 +200,8 @@ pub fn update_office(pool: &DbPool, id: &str, office: &Office) -> Result<()> {
             office.description,
             office.access_auth_type,
             office.access_user,
-            office.access_password,
-            office.ssh_key_path.as_ref().map(|s| s.trim().to_string()),
+            access_password_enc,
+            ssh_key_path_enc,
             office.daemon_url,
             office.opc_root,
             office.initial_openclaw_config,
