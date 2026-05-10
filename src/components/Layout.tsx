@@ -289,16 +289,6 @@ export default function Layout() {
 
           <div style={{ flex: 1 }} />
 
-          {/* Command palette trigger */}
-          <div
-            className="topbar-cmd"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px 6px 10px', borderRadius: '999px', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', fontSize: '12.5px', color: 'var(--text-tertiary)', width: '280px', cursor: 'pointer' }}
-          >
-            <Icon name="search" size={12} />
-            <span style={{ flex: 1 }}>搜索 · 跳转 · 操作…</span>
-            <span style={{ padding: '1px 6px', borderRadius: '4px', background: 'var(--bg-input)', fontSize: '11px', color: 'var(--text-secondary)' }}>⌘K</span>
-          </div>
-
           {/* Notification bell */}
           <div
             style={{ width: '32px', height: '32px', display: 'grid', placeItems: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', position: 'relative' }}
@@ -308,6 +298,7 @@ export default function Layout() {
             <Icon name="bell" size={15} />
             <span style={{ position: 'absolute', top: '6px', right: '6px', width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)' }} />
           </div>
+
         </div>
 
         {/* Page content */}

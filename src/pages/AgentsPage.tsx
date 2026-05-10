@@ -792,78 +792,77 @@ export default function AgentsPage() {
                         </div>
                     ) : (
                         <>
-                            {/* ── Agent toolbar ── */}
-                            <div className="agent-toolbar">
-                                <div className="agent-toolbar-name">
-                                    {toolbarName}
-                                    {selectedAgent.is_default && !isNewAgent && (
-                                        <span className="tag accent" style={{ marginLeft: 8 }}><Icon name="star" size={10} style={{ marginRight: 4 }} />{t('agents.leader')}</span>
-                                    )}
-                                    {(isNewAgent || editing) && (
-                                        <span className="unsaved-dot" style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--warning, orange)', marginLeft: 6, verticalAlign: 'middle' }} />
-                                    )}
-                                </div>
-                                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-                                    <button
-                                        className="btn btn-sm"
-                                        disabled={aiGenerating}
-                                        onClick={() => { if (!editing) setEditing(true); setAiPrompt(''); setAiModalOpen(true) }}
-                                    >
-                                        <Icon name="bolt" size={11} strokeWidth={2.2} style={{ display: 'inline', marginRight: 4 }} />
-                                        {aiGenerating ? t('agents.generating') : t('agents.ai_quick_gen')}
-                                    </button>
-                                    <button
-                                        className="btn btn-sm"
-                                        onClick={async () => {
-                                            if (activeDocTab === 'SOUL' && docContent.trim()) {
-                                                setChatSoulOverride(docContent)
-                                                setChatAgent(selectedAgent)
-                                            } else if (isNewAgent) {
-                                                toast(t('agents.save_first_warning'), 'error')
-                                            } else {
-                                                const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
-                                                if (!soul?.trim()) { toast(t('agents.soul_empty_warning'), 'error'); return }
-                                                setChatSoulOverride(undefined)
-                                                setChatAgent(selectedAgent)
-                                            }
-                                        }}
-                                    >
-                                        <Icon name="message" size={13} />
-                                        {t('agents.test_chat')}
-                                    </button>
-                                    {!selectedAgent.is_default && !editing && (
-                                        <div className="tip">
-                                            <button className="btn btn-sm" onClick={() => handleSetDefault(selectedAgent)}>
-                                                <Icon name="star" size={13} />
-                                                {t('agents.set_as_leader')}
-                                            </button>
-                                            <span className="tip-content">{t('agents.set_as_leader_tooltip')}</span>
-                                        </div>
-                                    )}
-                                    {editing ? (
-                                        <>
-                                            <button className="btn btn-sm" onClick={handleCancelEdit}>{t('common.button_cancel')}</button>
-                                            <button className="btn btn-sm btn-primary" onClick={handleSaveAgent} disabled={saving}>
-                                                <Icon name="check" size={13} />
-                                                {saving ? t('common.saving') : t('common.button_save')}
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button className="btn btn-sm btn-primary" onClick={() => setEditing(true)}>
-                                                <Icon name="edit" size={13} />
-                                                {t('common.button_edit')}
-                                            </button>
-                                            <button className="btn btn-sm btn-danger btn-icon" onClick={() => setConfirmDelete(selectedAgent)} title={t('common.button_delete')}>
-                                                <Icon name="trash" size={13} />
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* ── Agent detail ── */}
+                            {/* ── Agent detail (scrollable, includes toolbar) ── */}
                             <div className="agent-detail">
+                                {/* ── Agent toolbar ── */}
+                                <div className="agent-toolbar">
+                                    <div className="agent-toolbar-name">
+                                        {toolbarName}
+                                        {selectedAgent.is_default && !isNewAgent && (
+                                            <span className="tag accent" style={{ marginLeft: 8 }}><Icon name="star" size={10} style={{ marginRight: 4 }} />{t('agents.leader')}</span>
+                                        )}
+                                        {(isNewAgent || editing) && (
+                                            <span className="unsaved-dot" style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--warning, orange)', marginLeft: 6, verticalAlign: 'middle' }} />
+                                        )}
+                                    </div>
+                                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                                        <button
+                                            className="btn btn-sm"
+                                            disabled={aiGenerating}
+                                            onClick={() => { if (!editing) setEditing(true); setAiPrompt(''); setAiModalOpen(true) }}
+                                        >
+                                            <Icon name="bolt" size={11} strokeWidth={2.2} style={{ display: 'inline', marginRight: 4 }} />
+                                            {aiGenerating ? t('agents.generating') : t('agents.ai_quick_gen')}
+                                        </button>
+                                        <button
+                                            className="btn btn-sm"
+                                            onClick={async () => {
+                                                if (activeDocTab === 'SOUL' && docContent.trim()) {
+                                                    setChatSoulOverride(docContent)
+                                                    setChatAgent(selectedAgent)
+                                                } else if (isNewAgent) {
+                                                    toast(t('agents.save_first_warning'), 'error')
+                                                } else {
+                                                    const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
+                                                    if (!soul?.trim()) { toast(t('agents.soul_empty_warning'), 'error'); return }
+                                                    setChatSoulOverride(undefined)
+                                                    setChatAgent(selectedAgent)
+                                                }
+                                            }}
+                                        >
+                                            <Icon name="message" size={13} />
+                                            {t('agents.test_chat')}
+                                        </button>
+                                        {!selectedAgent.is_default && !editing && (
+                                            <div className="tip">
+                                                <button className="btn btn-sm" onClick={() => handleSetDefault(selectedAgent)}>
+                                                    <Icon name="star" size={13} />
+                                                    {t('agents.set_as_leader')}
+                                                </button>
+                                                <span className="tip-content">{t('agents.set_as_leader_tooltip')}</span>
+                                            </div>
+                                        )}
+                                        {editing ? (
+                                            <>
+                                                <button className="btn btn-sm" onClick={handleCancelEdit}>{t('common.button_cancel')}</button>
+                                                <button className="btn btn-sm btn-primary" onClick={handleSaveAgent} disabled={saving}>
+                                                    <Icon name="check" size={13} />
+                                                    {saving ? t('common.saving') : t('common.button_save')}
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button className="btn btn-sm btn-primary" onClick={() => setEditing(true)}>
+                                                    <Icon name="edit" size={13} />
+                                                    {t('common.button_edit')}
+                                                </button>
+                                                <button className="btn btn-sm btn-danger btn-icon" onClick={() => setConfirmDelete(selectedAgent)} title={t('common.button_delete')}>
+                                                    <Icon name="trash" size={13} />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
 
                                 {/* Basic Info */}
                                 <div className="section-card">
@@ -1107,7 +1106,7 @@ export default function AgentsPage() {
                                     <div className="editor">
                                         <textarea
                                             className="field-textarea"
-                                            rows={14}
+                                            rows={24}
                                             spellCheck={false}
                                             value={docLoading ? t('common.loading') : docContent}
                                             onChange={e => setDocContent(e.target.value)}
