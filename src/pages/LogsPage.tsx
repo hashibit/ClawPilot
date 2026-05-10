@@ -99,12 +99,12 @@ export default function LogsPage() {
 
   return (
     <div className="log-page fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex-between" style={{ alignItems: 'flex-end' }}>
         <div>
           <h1 className="page-title">{t('logs.title')}</h1>
           <p className="page-sub">操作审计 · 按时间倒序</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="flex-center gap-8">
           <input
             className="search-input"
             style={{ width: 240 }}
@@ -130,7 +130,7 @@ export default function LogsPage() {
         </div>
       </div>
 
-      <div className="log-list" ref={streamRef} style={{ flex: 1, overflowY: 'auto' }}>
+      <div className="log-list flex-1" ref={streamRef} style={{ overflowY: 'auto' }}>
         {/* Header row */}
         <div
           className="log-row"
@@ -147,11 +147,11 @@ export default function LogsPage() {
           <div>级别</div>
           <div>组件</div>
           <div>消息</div>
-          <div style={{ textAlign: 'right' }}>频道</div>
+          <div className="text-center" style={{ textAlign: 'right' }}>频道</div>
         </div>
 
         {displayLogs.length === 0 ? (
-          <div style={{ padding: '24px 14px', fontSize: 12, color: 'var(--text-muted)' }}>
+          <div className="text-xs muted" style={{ padding: '24px 14px' }}>
             {cleared ? t('logs.cleared') : t('logs.noLogs')}
           </div>
         ) : (
@@ -160,8 +160,8 @@ export default function LogsPage() {
               <div className="log-time">{formatTs(log.timestamp)}</div>
               <div><span className={tagClass(log.level)}>{log.level}</span></div>
               <div>{log.component || '—'}</div>
-              <div style={{ color: 'var(--text-secondary)' }}>{log.message}</div>
-              <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{log.channel || ''}</div>
+              <div className="text-dim">{log.message}</div>
+              <div className="muted" style={{ textAlign: 'right' }}>{log.channel || ''}</div>
             </div>
           ))
         )}

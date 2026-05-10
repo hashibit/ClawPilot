@@ -55,21 +55,22 @@ export function AgentSkills({ form, editing, onChange, onOpenSkillModal }: {
             <div className="section-card-body">
                 <div className="skill-list">
                     {enabledSkills.length === 0 && (
-                        <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('agents.no_skills')}</div>
+                        <div className="text-xs text-dimmer">{t('agents.no_skills')}</div>
                     )}
                     {enabledSkills.map(slug => {
                         const skill = SKILL_REGISTRY.find((s: { slug: string }) => s.slug === slug)
                         return (
                             <div key={slug} className="skill-card">
-                                <span style={{ fontSize: '14px', flexShrink: 0 }}>{skill?.icon ?? '🔌'}</span>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill?.name ?? slug}</div>
-                                    {skill && <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: 1 }}>{skill.desc}</div>}
+                                <span className="flex-shrink-0" style={{ fontSize: '14px' }}>{skill?.icon ?? '🔌'}</span>
+                                <div className="flex-grow">
+                                    <div className="text-xs" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{skill?.name ?? slug}</div>
+                                    {skill && <div className="text-xxs muted" style={{ marginTop: 1 }}>{skill.desc}</div>}
                                 </div>
                                 {editing && (
                                     <button
                                         onClick={() => onChange('enabled_skills', enabledSkills.filter(s => s !== slug))}
-                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: 'var(--border-subtle)', color: 'var(--text-dimmer)', border: 'none', cursor: 'pointer', fontSize: 11, lineHeight: 1, flexShrink: 0 }}
+                                        className="flex-center justify-center flex-shrink-0 muted"
+                                        style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--border-subtle)', border: 'none', cursor: 'pointer', fontSize: 11, lineHeight: 1 }}
                                     >×</button>
                                 )}
                             </div>

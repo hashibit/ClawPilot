@@ -22,13 +22,13 @@ export function AiGenerateModal({ onClose, onGenerate }: {
 
     return (
         <div className="modal-backdrop" onClick={() => { if (!generating) onClose() }}>
-            <div className="modal-panel" style={{ padding: '24px', width: '480px', maxWidth: '90vw', display: 'flex', flexDirection: 'column', gap: '16px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-panel flex flex-col gap-16" style={{ padding: '24px', width: '480px', maxWidth: '90vw' }} onClick={e => e.stopPropagation()}>
                 <div>
-                    <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>{t('agents.ai_quick_gen')}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{generating ? t('agents.generating') : t('agents.ai_generate_placeholder')}</div>
+                    <div className="text-title" style={{ marginBottom: '4px' }}>{t('agents.ai_quick_gen')}</div>
+                    <div className="text-xs text-dimmer">{generating ? t('agents.generating') : t('agents.ai_generate_placeholder')}</div>
                 </div>
                 {generating ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '20px 0', color: 'var(--accent-hover)', fontSize: '13px' }}>
+                    <div className="flex-center justify-center gap-10 text-sm" style={{ padding: '20px 0', color: 'var(--accent-hover)' }}>
                         <Icon name="loading" size={18} spin />
                         {t('agents.generating')}
                     </div>
@@ -44,7 +44,7 @@ export function AiGenerateModal({ onClose, onGenerate }: {
                         onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleGenerate() }}
                     />
                 )}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <div className="flex justify-end gap-8">
                     <button className="btn btn-ghost" disabled={generating} onClick={onClose}>{t('common.button_cancel')}</button>
                     <button className="btn btn-primary" disabled={generating || !prompt.trim()} onClick={handleGenerate}>{t('agents.ai_generate_btn')}</button>
                 </div>

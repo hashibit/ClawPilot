@@ -45,21 +45,21 @@ export function AgentStrip({ agents, selectedAgent, isNewAgent, editing, onSelec
             })}
 
             {agents.length === 0 && !isNewAgent && (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 11.5, padding: '16px 8px' }}>
+                <div className="text-xxs muted text-center" style={{ padding: '16px 8px' }}>
                     还没有智能体
                 </div>
             )}
 
-            <div style={{ flex: 1 }} />
+            <div className="flex-1" />
 
-            <div style={{ display: 'flex', gap: 6, padding: '8px 0 0', borderTop: '1px solid var(--border-subtle)' }}>
-                <div className="agent-pill" style={{ flex: 1 }} onClick={onAdd}>
+            <div className="flex gap-6" style={{ padding: '8px 0 0', borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="agent-pill flex-1" onClick={onAdd}>
                     <div className="agent-pill-add">
                         <Icon name="plus" size={14} stroke="var(--text-tertiary)" strokeWidth={2} />
                     </div>
                     <div className="agent-pill-name">{t('common.button_add', '添加')}</div>
                 </div>
-                <div className="agent-pill" style={{ flex: 1 }} onClick={onBatchAdd}>
+                <div className="agent-pill flex-1" onClick={onBatchAdd}>
                     <div className="agent-pill-add" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-border)' }}>
                         <Icon name="bolt" size={14} stroke="var(--accent)" strokeWidth={2} />
                     </div>

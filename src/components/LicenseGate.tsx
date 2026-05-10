@@ -45,11 +45,7 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
   // Loading state
   if (activated === null) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', background: 'var(--bg-base)', color: 'var(--text-dimmer)',
-        fontSize: '13px',
-      }}>
+      <div className="flex-center justify-center text-sm text-dimmer" style={{ height: '100vh', background: 'var(--bg-base)' }}>
         Loading...
       </div>
     )
@@ -60,24 +56,17 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
 
   // Activation screen
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      height: '100vh', background: 'var(--bg-base)',
-    }}>
-      <div style={{
-        width: '380px', padding: '40px 36px', borderRadius: '16px',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-      }}>
+    <div className="flex-center justify-center" style={{ height: '100vh', background: 'var(--bg-base)' }}>
+      <div style={{ width: '380px', padding: '40px 36px', borderRadius: '16px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <div className="flex-center gap-10" style={{ marginBottom: '8px' }}>
           <div className="logo-box">
             <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
           </div>
           <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>ClawPilot</span>
         </div>
 
-        <div style={{ fontSize: '13px', color: 'var(--text-dimmer)', marginBottom: '28px', lineHeight: 1.5 }}>
+        <div className="text-sm text-dimmer" style={{ marginBottom: '28px', lineHeight: 1.5 }}>
           Enter your license key to activate ClawPilot.
         </div>
 
@@ -91,9 +80,7 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
           autoFocus
           style={{
             width: '100%', padding: '12px 14px', borderRadius: '9px',
-            border: error
-              ? '1.5px solid var(--error)'
-              : '1px solid var(--border-subtle)',
+            border: error ? '1.5px solid var(--error)' : '1px solid var(--border-subtle)',
             background: 'var(--bg-elevated)',
             color: 'var(--text-primary)', fontSize: '14px', fontFamily: 'monospace',
             letterSpacing: '0.5px', outline: 'none', boxSizing: 'border-box',
@@ -101,9 +88,7 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
         />
 
         {error && (
-          <div style={{
-            marginTop: '8px', fontSize: '12px', color: 'var(--error)',
-          }}>
+          <div className="text-xs" style={{ marginTop: '8px', color: 'var(--error)' }}>
             {error}
           </div>
         )}
@@ -122,10 +107,7 @@ export default function LicenseGate({ children }: { children: React.ReactNode })
           {submitting ? 'Activating...' : 'Activate'}
         </button>
 
-        <div style={{
-          marginTop: '20px', fontSize: '11px', color: 'var(--text-dimmer)',
-          textAlign: 'center', lineHeight: 1.5,
-        }}>
+        <div className="text-xxs text-dimmer text-center" style={{ marginTop: '20px', lineHeight: 1.5 }}>
           Contact support to get your license key
         </div>
       </div>

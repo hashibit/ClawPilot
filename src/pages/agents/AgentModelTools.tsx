@@ -62,7 +62,7 @@ export function AgentModelTools({ form, editing, models, onChange }: {
                     <div className="field-label-cell"><div className="field-name">{t('agents.model_label')}</div></div>
                     <div className="field-value-cell">
                         {editing ? (
-                            <div style={{ position: 'relative', flex: 1 }}>
+                            <div className="flex-1" style={{ position: 'relative' }}>
                                 <select
                                     className="input"
                                     style={{ width: '100%', paddingRight: '24px' }}
@@ -91,9 +91,9 @@ export function AgentModelTools({ form, editing, models, onChange }: {
                     </div>
                 </div>
 
-                <div style={{ padding: '5px 0 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                <div className="section-title" style={{ padding: '5px 0 4px' }}>
                     {t('agents.tool_permissions')}
-                    <span style={{ marginLeft: 6, color: 'var(--text-tertiary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('agents.tools_enabled_count', { count: enabledTools.length })}</span>
+                    <span className="muted" style={{ marginLeft: 6, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('agents.tools_enabled_count', { count: enabledTools.length })}</span>
                 </div>
                 <div className="tools-grid">
                     {tools.map(tool => {

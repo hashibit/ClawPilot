@@ -141,15 +141,15 @@ export default function DeployPage() {
 
   if (!currentOpc) {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+      <div className="flex-1 flex-center justify-center text-sm text-dimmer">
         {t('agents.select_company_hint')}
       </div>
     )
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={() => pickedId && setPickedId(null)}>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 48px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="flex-1 flex-col" style={{ overflow: 'hidden' }} onClick={() => pickedId && setPickedId(null)}>
+      <div className="page-scroll">
 
         {/* ── Hero: OPC card + Status ── */}
         <div className="dpv-hero">
@@ -218,7 +218,7 @@ export default function DeployPage() {
           <div className="dpv-street-sky" />
           <div className="dpv-buildings-row">
             {offices.length === 0 ? (
-              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)', fontSize: '13px' }}>
+              <div className="text-sm text-center muted" style={{ gridColumn: '1/-1', padding: '48px 16px' }}>
                 尚未配置任何办公楼 · 先去 <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => navigate('/office')}>添加 Office</span>
               </div>
             ) : offices.map(o => {
@@ -328,15 +328,15 @@ export default function DeployPage() {
 
         {/* ── Deploy progress ── */}
         {currentTask && (
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+          <div className="section-card" style={{ padding: '16px 20px' }}>
+            <div className="flex-between" style={{ marginBottom: '10px' }}>
+              <span className="text-sm text-bold">
                 {t('deploy.deploy_progress')}
               </span>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: 'var(--font-mono)' }}>{currentTask.status}</span>
+              <div className="flex-center gap-8">
+                <span className="mono-xs text-dimmer">{currentTask.status}</span>
                 {deploying && (
-                  <button className="btn btn-sm btn-ghost" style={{ color: 'var(--error)', fontSize: '11px' }} onClick={handleCancel}>
+                  <button className="btn btn-sm btn-ghost btn-danger" onClick={handleCancel}>
                     {t('deploy.cancel_deploy')}
                   </button>
                 )}
@@ -363,16 +363,16 @@ export default function DeployPage() {
                 }[s]
                 return (
                   <div key={label} className={`step-card${s === 'done' ? ' done' : ''}`}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px' }}>
-                      <div style={{ width: 22, height: 22, borderRadius: 6, background: cfg.bg, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <div className="flex-center gap-8" style={{ marginBottom: '4px' }}>
+                      <div className="flex-shrink-0" style={{ width: 22, height: 22, borderRadius: 6, background: cfg.bg, display: 'grid', placeItems: 'center' }}>
                         {s === 'running' ? <Icon name="loading" size={11} stroke={cfg.c} strokeWidth={2.5} spin />
                           : s === 'failed' ? <Icon name="x" size={11} stroke={cfg.c} strokeWidth={2.5} />
                           : s === 'done' ? <Icon name="check" size={11} stroke={cfg.c} strokeWidth={2.5} />
                           : <Icon name="circle" size={11} stroke={cfg.c} strokeWidth={2.5} />}
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', fontWeight: 500, color: cfg.c }}>{stepLabel}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-dimmer)' }}>{cfg.sub}</div>
+                        <div className="text-xxs" style={{ fontWeight: 500, color: cfg.c }}>{stepLabel}</div>
+                        <div className="text-dimmer" style={{ fontSize: '10px' }}>{cfg.sub}</div>
                       </div>
                     </div>
                   </div>
@@ -385,14 +385,14 @@ export default function DeployPage() {
         {/* ── Recent deployments ── */}
         <div className="dpv-history">
           <div className="dpv-history-head">
-            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>最近搬迁</h3>
-            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+            <h3 className="text-title" style={{ margin: 0 }}>最近搬迁</h3>
+            <span className="text-xs muted">
               {recentDeployments.length > 0 ? `最近 ${recentDeployments.length} 次` : ''}
             </span>
           </div>
           <div className="dpv-history-list">
             {recentDeployments.length === 0 ? (
-              <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              <div className="text-sm text-center muted" style={{ padding: '32px 16px' }}>
                 暂无搬迁记录
               </div>
             ) : recentDeployments.map(d => (

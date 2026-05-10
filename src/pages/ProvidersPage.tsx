@@ -42,10 +42,7 @@ const API_AVATAR_GRADIENTS: Record<ProviderApi, string> = {
 function ApiBadge({ api }: { api: ProviderApi }) {
   const colors = API_BADGE_COLORS[api] ?? { bg: 'var(--border-subtle)', color: 'var(--text-dimmer)' }
   return (
-    <span style={{
-      fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
-      background: colors.bg, color: colors.color,
-    }}>
+    <span className="status-badge" style={{ background: colors.bg, color: colors.color }}>
       {API_LABELS[api] ?? api}
     </span>
   )
@@ -76,30 +73,30 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-dimmer)' }}>
+      <div className="flex-between mb-4">
+        <span className="text-xs text-bold text-dimmer">
           {t('providers.available_models')} ({models.length})
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className="flex-center gap-6">
           {editMode ? (
             <>
-              <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onAddModel}>
+              <button className="btn btn-sm btn-ghost" onClick={onAddModel}>
                 + {t('providers.button_add_model')}
               </button>
-              <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
+              <button className="btn btn-sm btn-ghost" onClick={onToggleEdit}>
                 {t('common.button_cancel')}
               </button>
-              <button className="btn btn-sm btn-primary" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onSaveModels}>
+              <button className="btn btn-sm btn-primary" onClick={onSaveModels}>
                 {t('common.button_save')}
               </button>
             </>
           ) : (
             <>
-              <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
+              <button className="btn btn-sm btn-ghost" onClick={onToggleEdit}>
                 {t('common.button_edit')}
               </button>
               {known && models.length > 0 && (
-                <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onReset}>
+                <button className="btn btn-sm btn-ghost" onClick={onReset}>
                   {t('providers.button_reset_models')}
                 </button>
               )}
@@ -108,16 +105,16 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
         </div>
       </div>
       {models.length === 0 && known ? (
-        <div style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>
+        <div className="flex-between" style={{ padding: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+          <span className="text-xs text-dimmer">
             {t('providers.inferred_provider', { name: known.suggest_name, count: known.models.length })}
           </span>
-          <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', flexShrink: 0 }} onClick={onReset}>
+          <button className="btn btn-sm btn-ghost flex-shrink-0" onClick={onReset}>
             {t('providers.button_apply_recommended')}
           </button>
         </div>
       ) : models.length === 0 ? (
-        <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '12px 0', textAlign: 'center' }}>
+        <div className="text-xs text-dimmer text-center" style={{ padding: '12px 0' }}>
           {t('providers.no_models')}
         </div>
       ) : (
@@ -140,24 +137,22 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                   <tr key={m.id}>
                     {editMode ? (
                       <>
-                        <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                        <td className="mono-xs">
                           <input
                             type="text"
                             value={m.model_id}
                             onChange={(e) => onUpdateModel?.(m.id, 'model_id', e.target.value)}
-                            className="field-input"
-                            style={{ width: '100%', padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
+                            className="field-input mono-xs"
                           />
                         </td>
-                        <td style={{ fontSize: '12px' }}>
+                        <td className="text-xs">
                           <input
                             type="text"
                             value={m.display_name}
                             onChange={(e) => onUpdateModel?.(m.id, 'display_name', e.target.value)}
                             className="field-input"
-                            style={{ width: '100%', padding: '4px 6px', fontSize: '12px' }}
                           />
-                          {isNew && <span style={{ fontSize: '10px', color: 'var(--warning)', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}
+                          {isNew && <span className="unsaved-tag" style={{ marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}
                         </td>
                         <td>
                           <input
@@ -165,22 +160,21 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                             value={m.context_window}
                             onChange={(e) => onUpdateModel?.(m.id, 'context_window', parseInt(e.target.value) || 0)}
                             className="field-input"
-                            style={{ width: '80px', padding: '4px 6px', fontSize: '11px' }}
+                            style={{ width: '80px' }}
                           />
                         </td>
-                        <td style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: 'monospace' }}>
+                        <td className="mono-xs text-dimmer">
                           <select
                             value={m.input_types}
                             onChange={(e) => onUpdateModel?.(m.id, 'input_types', e.target.value)}
-                            className="field-input"
-                            style={{ padding: '4px 6px', fontSize: '11px', fontFamily: 'monospace' }}
+                            className="field-input mono-xs"
                           >
                             <option value='["text"]'>text</option>
                             <option value='["text","image"]'>text+image</option>
                           </select>
                         </td>
                         <td>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                          <label className="flex-center gap-4" style={{ cursor: 'pointer' }}>
                             <input
                               type="checkbox"
                               checked={m.supports_vision}
@@ -190,21 +184,21 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                           </label>
                         </td>
                         <td>
-                          <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', color: 'var(--error)', padding: '2px 6px', background: 'var(--error-muted)' }} onClick={() => onDeleteModel?.(m.id)}>
+                          <button className="btn btn-sm btn-danger" onClick={() => onDeleteModel?.(m.id)}>
                             {t('common.button_delete')}
                           </button>
                         </td>
                       </>
                     ) : (
                       <>
-                        <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{m.model_id}</td>
-                        <td style={{ fontSize: '12px' }}>{m.display_name}{isNew && <span style={{ fontSize: '10px', color: 'var(--warning)', marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}</td>
+                        <td className="mono-xs">{m.model_id}</td>
+                        <td className="text-xs">{m.display_name}{isNew && <span className="unsaved-tag" style={{ marginLeft: '4px' }}>[{t('common.status_unsaved')}]</span>}</td>
                         <td>{m.context_window >= 1000000 ? `${(m.context_window / 1000000).toFixed(0)}M` : m.context_window >= 1000 ? `${Math.round(m.context_window / 1000)}K` : m.context_window}</td>
-                        <td style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: 'monospace' }}>{m.input_types}</td>
+                        <td className="mono-xs text-dimmer">{m.input_types}</td>
                         <td>
                           {m.supports_vision
                             ? <span className="tag" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>{t('providers.cap_vision')}</span>
-                            : <span style={{ color: '#555' }}>-</span>}
+                            : <span className="text-dimmer">-</span>}
                         </td>
                       </>
                     )}
@@ -497,9 +491,9 @@ export default function ProvidersPage() {
     <>
       {/* ── Left: Provider List ───────────────────────────── */}
       <div className="list-pane">
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div className="list-scroll">
           {providers.length === 0 && (
-            <div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-dimmer)', textAlign: 'center' }}>
+            <div className="text-xs text-dimmer text-center" style={{ padding: '12px' }}>
               {t('providers.no_providers')}
             </div>
           )}
@@ -516,19 +510,21 @@ export default function ProvidersPage() {
                   {initials}
                 </div>
                 <div className="list-row-info">
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                  <div className="flex-center items-baseline gap-5">
                     <span className="list-row-title">{p.name}</span>
                     {editMode === 'edit' && selectedId === p.id && (
-                      <span style={{ fontSize: '10px', color: 'var(--warning)' }}>[{t('common.status_unsaved')}]</span>
+                      <span className="unsaved-tag">[{t('common.status_unsaved')}]</span>
                     )}
                   </div>
                   <div className="list-row-meta">
                     <ApiBadge api={p.api} />
-                    <span style={{
-                      fontSize: '10px', padding: '1px 5px', borderRadius: '4px',
-                      background: p.is_available ? 'var(--success-muted)' : (p.is_enabled ? (p.last_tested ? 'var(--error-muted)' : 'var(--border-subtle)') : 'var(--border-subtle)'),
-                      color: p.is_available ? 'var(--success)' : (p.is_enabled ? (p.last_tested ? 'var(--error)' : 'var(--text-dimmer)') : 'var(--text-dimmer)'),
-                    }}>
+                    <span
+                      className="status-badge"
+                      style={{
+                        background: p.is_available ? 'var(--success-muted)' : (p.is_enabled ? (p.last_tested ? 'var(--error-muted)' : 'var(--border-subtle)') : 'var(--border-subtle)'),
+                        color: p.is_available ? 'var(--success)' : (p.is_enabled ? (p.last_tested ? 'var(--error)' : 'var(--text-dimmer)') : 'var(--text-dimmer)'),
+                      }}
+                    >
                       {p.is_available ? t('providers.status_connected') : (p.is_enabled ? (p.last_tested ? t('providers.status_failed') : t('providers.status_untested')) : t('providers.status_disabled'))}
                     </span>
                   </div>
@@ -537,13 +533,13 @@ export default function ProvidersPage() {
             )
           })}
         </div>
-        <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)' }}>
+        <div className="pane-footer">
           <button
-            className="btn btn-sm btn-ghost"
-            style={{ width: '100%', fontSize: '12px', justifyContent: 'center', color: editMode === 'create' ? 'var(--warning)' : undefined }}
+            className="btn btn-sm btn-ghost justify-center"
+            style={{ width: '100%', color: editMode === 'create' ? 'var(--warning)' : undefined }}
             onClick={handleAddProvider}
           >
-            + {t('common.button_add')}{editMode === 'create' && <span style={{ marginLeft: '4px', fontSize: '10px' }}>{t('common.status_unsaved')}</span>}
+            + {t('common.button_add')}{editMode === 'create' && <span className="unsaved-tag" style={{ marginLeft: '4px' }}>{t('common.status_unsaved')}</span>}
           </button>
         </div>
       </div>
@@ -551,36 +547,37 @@ export default function ProvidersPage() {
       {/* ── Right: Detail / Form ─────────────────────────── */}
       <main className="detail-pane">
         {/* Toolbar */}
-        <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div data-tauri-drag-region className="toolbar flex-between">
+          <div className="flex-center gap-8">
             {editMode === 'none' && selectedProvider && (
               <>
-                <span style={{ fontSize: '15px', fontWeight: 600 }}>{selectedProvider.name}</span>
+                <span className="text-title">{selectedProvider.name}</span>
                 <ApiBadge api={selectedProvider.api} />
-                <span style={{
-                  fontSize: '10px', padding: '1px 6px', borderRadius: '4px',
-                  background: selectedProvider.is_available ? 'var(--success-muted)' : 'var(--border-subtle)',
-                  color: selectedProvider.is_available ? 'var(--success)' : 'var(--text-dimmer)',
-                }}>
+                <span
+                  className="status-badge"
+                  style={{
+                    background: selectedProvider.is_available ? 'var(--success-muted)' : 'var(--border-subtle)',
+                    color: selectedProvider.is_available ? 'var(--success)' : 'var(--text-dimmer)',
+                  }}
+                >
                   {selectedProvider.is_available ? t('common.status_connected') : t('common.status_configured')}
                 </span>
               </>
             )}
             {editMode === 'create' && (
-              <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.add_provider')}</span>
+              <span className="text-title">{t('providers.add_provider')}</span>
             )}
             {editMode === 'edit' && (
-              <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.edit_provider')}</span>
+              <span className="text-title">{t('providers.edit_provider')}</span>
             )}
             {editMode === 'none' && !selectedProvider && (
-              <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
+              <span className="text-title">{t('providers.section_title')}</span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="flex-center gap-6">
             {(editMode !== 'none' || selectedProvider) && (
               <button
                 className="btn btn-sm"
-                style={{ fontSize: '11px' }}
                 onClick={handleTestConnection}
                 disabled={!canTest || testing}
               >
@@ -601,12 +598,11 @@ export default function ProvidersPage() {
             )}
             {editMode === 'none' && selectedProvider && (
               <>
-                <button className="btn btn-sm" style={{ fontSize: '11px' }} onClick={handleEditProvider}>
+                <button className="btn btn-sm" onClick={handleEditProvider}>
                   {t('common.button_edit')}
                 </button>
                 <button
                   className="btn btn-sm btn-danger"
-                  style={{ fontSize: '11px' }}
                   onClick={() => setConfirmDelete(selectedProvider.id)}
                 >
                   {t('common.button_delete')}
@@ -617,10 +613,10 @@ export default function ProvidersPage() {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="detail-scroll gap-14">
           {editMode === 'none' && !selectedProvider && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-dimmer)', textAlign: 'center' }}>
+            <div className="flex-center justify-center" style={{ height: '200px' }}>
+              <div className="text-sm text-dimmer text-center">
                 {t('providers.select_hint')}
               </div>
             </div>
@@ -628,39 +624,36 @@ export default function ProvidersPage() {
 
           {/* Create / Edit form */}
           {editMode !== 'none' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div className="group-row" style={{ gap: '8px' }}>
-                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Base URL</span>
+            <div className="flex-col gap-10">
+              <div className="group-row gap-8">
+                <span className="group-label flex-shrink-0">Base URL</span>
                 <input
                   type="text"
                   value={formBaseUrl}
                   onChange={e => setFormBaseUrl(e.target.value)}
                   placeholder="https://api.example.com/v1"
-                  className="field-input"
-                  style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px' }}
+                  className="field-input mono-xs flex-1"
                 />
-                {suggesting && <span style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>...</span>}
+                {suggesting && <span className="mono-xs text-dimmer">...</span>}
               </div>
 
-              <div className="group-row" style={{ gap: '8px' }}>
-                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Name</span>
+              <div className="group-row gap-8">
+                <span className="group-label flex-shrink-0">Name</span>
                 <input
                   type="text"
                   value={formName}
                   onChange={e => { setFormName(e.target.value); setNameTouched(true) }}
                   placeholder="my-provider"
-                  className="field-input"
-                  style={{ flex: 1, fontSize: '12px' }}
+                  className="field-input flex-1"
                 />
               </div>
 
-              <div className="group-row" style={{ gap: '8px' }}>
-                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>Protocol</span>
+              <div className="group-row gap-8">
+                <span className="group-label flex-shrink-0">Protocol</span>
                 <select
                   value={formApi}
                   onChange={e => setFormApi(e.target.value as ProviderApi)}
-                  className="field-input"
-                  style={{ flex: 1, fontSize: '12px' }}
+                  className="field-input flex-1"
                 >
                   <option value="openai-completions">openai-completions</option>
                   <option value="anthropic-messages">anthropic-messages</option>
@@ -668,29 +661,28 @@ export default function ProvidersPage() {
                 </select>
               </div>
 
-              <div className="group-row" style={{ gap: '8px' }}>
-                <span className="group-label" style={{ flexShrink: 0, width: '72px' }}>API Key</span>
+              <div className="group-row gap-8">
+                <span className="group-label flex-shrink-0">API Key</span>
                 <input
                   type="password"
                   value={formApiKey}
                   onChange={e => setFormApiKey(e.target.value)}
                   placeholder="sk-..."
-                  className="field-input"
-                  style={{ flex: 1, fontFamily: 'monospace', fontSize: '11px' }}
+                  className="field-input mono-xs flex-1"
                 />
               </div>
 
               {pendingModels.length > 0 && (
-                <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
-                  <div style={{ marginBottom: '6px', color: 'var(--accent-hover)' }}>{t('providers.auto_detected_models', { count: pendingModels.length })}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                <div className="mono-xs text-dimmer" style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px' }}>
+                  <div className="mb-4" style={{ color: 'var(--accent-hover)' }}>{t('providers.auto_detected_models', { count: pendingModels.length })}</div>
+                  <div className="flex flex-wrap gap-4">
                     {pendingModels.slice(0, 8).map((m, i) => (
-                      <span key={i} style={{ padding: '2px 6px', background: 'var(--accent-muted)', color: 'var(--accent-hover)', borderRadius: '4px', fontSize: '10px' }}>
+                      <span key={i} className="status-badge" style={{ background: 'var(--accent-muted)', color: 'var(--accent-hover)' }}>
                         {m.model_id}
                       </span>
                     ))}
                     {pendingModels.length > 8 && (
-                      <span style={{ padding: '2px 6px', color: 'var(--text-dimmer)', fontSize: '10px' }}>+{pendingModels.length - 8} more</span>
+                      <span className="text-dimmer mono-xs">+{pendingModels.length - 8} more</span>
                     )}
                   </div>
                 </div>
@@ -704,7 +696,7 @@ export default function ProvidersPage() {
               <div className="group">
                 <div className="group-row">
                   <span className="group-label">{t('providers.label_name')}</span>
-                  <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>{selectedProvider.name}</span>
+                  <span className="group-value mono-xs">{selectedProvider.name}</span>
                 </div>
                 <div className="group-row">
                   <span className="group-label">{t('providers.label_protocol')}</span>
@@ -712,29 +704,29 @@ export default function ProvidersPage() {
                 </div>
                 <div className="group-row">
                   <span className="group-label">Base URL</span>
-                  <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                  <span className="group-value mono-xs">
                     {selectedProvider.base_url || t('common.not_set')}
                   </span>
                 </div>
                 <div className="group-row">
                   <span className="group-label">API Key</span>
-                  <span className="group-value" style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                  <span className="group-value mono-xs">
                     {maskKey(selectedProvider.api_key, t('common.not_set'))}
                   </span>
                 </div>
                 <div className="group-row">
                   <span className="group-label">{t('providers.label_status')}</span>
-                  <span className="group-value" style={{
-                    color: selectedProvider.is_available ? 'var(--success)' : selectedProvider.last_tested ? 'var(--error)' : 'var(--text-dimmer)',
-                    fontSize: '12px',
-                  }}>
+                  <span
+                    className="group-value text-xs"
+                    style={{ color: selectedProvider.is_available ? 'var(--success)' : selectedProvider.last_tested ? 'var(--error)' : 'var(--text-dimmer)' }}
+                  >
                     {selectedProvider.is_available ? t('providers.status_connected') : selectedProvider.last_tested ? t('providers.status_failed') : t('providers.status_untested')}
                   </span>
                 </div>
                 {selectedProvider.last_tested && (
                   <div className="group-row">
                     <span className="group-label">{t('providers.label_last_tested')}</span>
-                    <span className="group-value" style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>
+                    <span className="group-value mono-xs text-dimmer">
                       {new Date(selectedProvider.last_tested * 1000).toLocaleString()}
                     </span>
                   </div>
@@ -743,19 +735,18 @@ export default function ProvidersPage() {
 
               {/* Delete confirmation */}
               {confirmDelete === selectedProvider.id && (
-                <div style={{ padding: '10px', background: 'var(--error-muted)', borderRadius: '8px', border: '1px solid rgba(244,63,94,0.2)' }}>
-                  <div style={{ fontSize: '12px', marginBottom: '8px', color: 'var(--error)' }}>
+                <div className="confirm-block">
+                  <div className="text-xs mb-4" style={{ color: 'var(--error)' }}>
                     {t('providers.delete_confirm_msg', { name: selectedProvider.name })}
                   </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                  <div className="flex-center gap-6">
                     <button
                       className="btn btn-sm btn-danger"
-                      style={{ fontSize: '11px' }}
                       onClick={() => handleDeleteProvider(selectedProvider.id)}
                     >
                       {t('providers.delete_confirm_btn')}
                     </button>
-                    <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px' }} onClick={() => setConfirmDelete(null)}>
+                    <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(null)}>
                       {t('common.button_cancel')}
                     </button>
                   </div>

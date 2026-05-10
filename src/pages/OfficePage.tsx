@@ -487,9 +487,9 @@ export default function OfficePage() {
         <>
             {/* COL2 - office list */}
             <div className="list-pane">
-                <div style={{ flex: 1, overflowY: 'auto', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div className="list-scroll">
                     {offices.length === 0 && (
-                        <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-dimmer)' }}>
+                        <div style={{ padding: '20px 12px', textAlign: 'center' }} className="text-xs text-dimmer">
                             {t('office.no_offices')}
                         </div>
                     )}
@@ -506,26 +506,20 @@ export default function OfficePage() {
                             >
                                 <div className="list-row-avatar" style={{ background: 'var(--accent)', overflow: 'hidden' }}>
                                     {office.receptionist_image
-                                        ? <img src={office.receptionist_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                        ? <img src={office.receptionist_image} alt="" className="img-cover" />
                                         : '💁‍♀️'}
                                 </div>
                                 {hoveredOfficeId === office.id && (
-                                    <div style={{
-                                        position: 'absolute', top: '0', left: '38px', zIndex: 300,
-                                        borderRadius: '10px', overflow: 'hidden',
-                                        boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-                                        border: '1px solid var(--border-default)',
-                                        pointerEvents: 'none',
-                                    }}>
-                                        <img src={office.receptionist_image!} alt="" style={{ width: '160px', height: '160px', objectFit: 'cover', display: 'block' }} />
+                                    <div className="avatar-preview" style={{ top: '0', left: '38px' }}>
+                                        <img src={office.receptionist_image!} alt="" className="img-cover" />
                                     </div>
                                 )}
                             </div>
                             <div className="list-row-info">
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', overflow: 'hidden' }}>
+                                <div className="flex items-baseline gap-5" style={{ overflow: 'hidden' }}>
                                     <span className="list-row-title">{office.name}</span>
                                     {selected?.id === office.id && editing && !isNewOffice && (
-                                        <span style={{ fontSize: '10px', color: 'var(--warning)', flexShrink: 0 }}>[未保存]</span>
+                                        <span className="unsaved-tag">[未保存]</span>
                                     )}
                                 </div>
                                 <div className="list-row-meta">
@@ -538,18 +532,18 @@ export default function OfficePage() {
                         <div className="list-row selected">
                             <div className="list-row-avatar" style={{ background: 'var(--border-subtle)' }}>🏢</div>
                             <div className="list-row-info">
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+                                <div className="flex items-baseline gap-5">
                                     <span className="list-row-title">{form.name || '新办公室'}</span>
-                                    <span style={{ fontSize: '10px', color: 'var(--warning)', flexShrink: 0 }}>[未保存]</span>
+                                    <span className="unsaved-tag">[未保存]</span>
                                 </div>
                             </div>
                         </div>
                     )}
                 </div>
-                <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+                <div className="pane-footer">
                     <button
                         className="btn btn-sm btn-ghost"
-                        style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
+                        style={{ width: '100%', justifyContent: 'center' }}
                         onClick={handleAdd}
                     >
                         + {t('office.add_office')}
@@ -560,25 +554,24 @@ export default function OfficePage() {
             {/* COL3 - detail/edit */}
             <main className="detail-pane">
                 {!selected ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+                    <div className="flex-center justify-center flex-1 text-sm text-dimmer">
                         {t('office.select_hint')}
                     </div>
                 ) : (
                     <>
-                        <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="toolbar flex-between">
+                            <div className="flex-center gap-8">
                                 <span style={{ fontSize: '18px' }}>🏢</span>
-                                <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{isNewOffice ? (form.name || '新办公室') : selected.name}</span>
-                                {(editing || isNewOffice) && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 400 }}>未保存</span>}
+                                <span className="text-title">{isNewOffice ? (form.name || '新办公室') : selected.name}</span>
+                                {(editing || isNewOffice) && <span className="text-xxs muted" style={{ fontWeight: 400 }}>未保存</span>}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div className="flex-center gap-6">
                                 {/* 测试连接按钮 - 只读和编辑模式都可用，仅远程办公室显示 */}
                                 {selected && selected.address && selected.address !== 'localhost' && (
                                     <button
                                         className="btn btn-sm"
                                         onClick={handleCheckSsh}
                                         disabled={sshChecking}
-                                        style={{ fontSize: '12px' }}
                                     >
                                         {sshChecking ? '测试中…' : '测试连接'}
                                     </button>
@@ -598,28 +591,25 @@ export default function OfficePage() {
                             </div >
                         </div >
 
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                        <div className="detail-scroll">
 
                             {/* 基本信息 */}
                             <section>
                                 <div className="section-label" style={{ padding: '0 0 5px' }}>{t('office.section_basic')}</div>
                                 <div className="group">
-                                    <div className="group-row" style={{ gap: '10px' }}>
+                                    <div className="group-row gap-10">
                                         <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_name')}</span>
-                                        <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1 }} disabled={!editing} />
+                                        <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input flex-1" disabled={!editing} />
                                     </div>
-                                    <div className="group-row" style={{ gap: '10px' }}>
+                                    <div className="group-row gap-10">
                                         <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_receptionist')}</span>
                                         <div style={{ position: 'relative' }} ref={avatarPickerRef}>
                                             <div
                                                 onClick={() => editing && setAvatarPickerOpen(v => !v)}
                                                 onMouseEnter={() => form.receptionist_image && setAvatarHovered(true)}
                                                 onMouseLeave={() => setAvatarHovered(false)}
-                                                style={{
-                                                    background: 'none', border: 'none',
-                                                    display: 'flex', alignItems: 'center',
-                                                    cursor: editing ? 'pointer' : 'default',
-                                                }}
+                                                className="flex-center"
+                                                style={{ background: 'none', border: 'none', cursor: editing ? 'pointer' : 'default' }}
                                             >
                                                 {form.receptionist_image ? (
                                                     <img src={form.receptionist_image} alt="" style={{ width: '36px', height: '36px', borderRadius: '7px', objectFit: 'cover', display: 'block' }} />
@@ -628,26 +618,14 @@ export default function OfficePage() {
                                                 )}
                                             </div>
                                             {avatarHovered && form.receptionist_image && (
-                                                <div style={{
-                                                    position: 'absolute', top: '0', left: '44px', zIndex: 300,
-                                                    borderRadius: '10px', overflow: 'hidden',
-                                                    boxShadow: '0 12px 40px rgba(0,0,0,0.6)',
-                                                    border: '1px solid var(--border-default)',
-                                                    pointerEvents: 'none',
-                                                }}>
-                                                    <img src={form.receptionist_image} alt="" style={{ width: '160px', height: '160px', objectFit: 'cover', display: 'block' }} />
+                                                <div className="avatar-preview" style={{ top: '0', left: '44px' }}>
+                                                    <img src={form.receptionist_image} alt="" className="img-cover" />
                                                 </div>
                                             )}
                                             {avatarPickerOpen && (
                                                 <>
-                                                    <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={() => setAvatarPickerOpen(false)} />
-                                                    <div style={{
-                                                        position: 'absolute', top: '34px', left: 0, zIndex: 200,
-                                                        background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
-                                                        borderRadius: '12px', padding: '10px',
-                                                        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                                                        display: 'grid', gridTemplateColumns: 'repeat(4, 52px)', gap: '6px',
-                                                    }}>
+                                                    <div className="popover-backdrop" onClick={() => setAvatarPickerOpen(false)} />
+                                                    <div className="popover" style={{ top: '34px', left: 0, display: 'grid', gridTemplateColumns: 'repeat(4, 52px)', gap: '6px' }}>
                                                         {RECEPTIONIST_PRESETS.map(url => (
                                                             <button
                                                                 key={url}
@@ -659,7 +637,7 @@ export default function OfficePage() {
                                                                     background: 'rgba(255,255,255,0.05)', outline: 'none',
                                                                 }}
                                                             >
-                                                                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                                                                <img src={url} alt="" className="img-cover" />
                                                             </button>
                                                         ))}
                                                     </div>
@@ -667,9 +645,9 @@ export default function OfficePage() {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="group-row" style={{ gap: '10px' }}>
+                                    <div className="group-row gap-10">
                                         <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_address')}</span>
-                                        <div style={{ display: 'flex', gap: '6px', flex: 1, alignItems: 'center' }}>
+                                        <div className="flex-center gap-6 flex-1">
                                             {(['local', 'remote'] as const).map(addrType => {
                                                 const active = addrType === 'local' ? addressMode === false : addressMode === true
                                                 return (
@@ -677,14 +655,7 @@ export default function OfficePage() {
                                                         if (!editing) return
                                                         if (addrType === 'local') handleFormChange('address', 'localhost')
                                                         else if (addressMode !== true) handleFormChange('address', '')
-                                                    }} style={{
-                                                        padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', flexShrink: 0,
-                                                        border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid var(--border-default)',
-                                                        background: active ? 'var(--accent-strong)' : 'rgba(255,255,255,0.04)',
-                                                        color: active ? 'var(--accent-hover)' : 'var(--text-tertiary)',
-                                                        fontWeight: active ? 500 : 400,
-                                                        opacity: editing ? 1 : 0.7,
-                                                    }}>
+                                                    }} className={`chip${active ? ' active' : ''}${!editing ? ' disabled' : ''}`}>
                                                         {addrType === 'local' ? t('office.local') : t('office.remote')}
                                                     </button>
                                                 )
@@ -694,8 +665,8 @@ export default function OfficePage() {
                                                 value={addressMode !== false ? (form.address ?? '') : ''}
                                                 onChange={e => handleFormChange('address', e.target.value)}
                                                 disabled={addressMode === false || !editing}
-                                                className="field-input"
-                                                style={{ flex: 1, opacity: addressMode === false ? 0.5 : 1 }}
+                                                className="field-input flex-1"
+                                                style={{ opacity: addressMode === false ? 0.5 : 1 }}
                                                 placeholder="如：192.168.1.100 或云主机 IP"
                                             />
                                         </div>
@@ -704,83 +675,71 @@ export default function OfficePage() {
                                     {addressMode === true && (
                                         <>
                                             {/* 用户名 */}
-                                            <div className="group-row" style={{ gap: '10px' }}>
+                                            <div className="group-row gap-10">
                                                 <span className="group-label" style={{ minWidth: '40px' }}>用户名</span>
-                                                <input type="text" value={form.access_user ?? ''} onChange={e => handleFormChange('access_user', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="root" disabled={!editing} />
+                                                <input type="text" value={form.access_user ?? ''} onChange={e => handleFormChange('access_user', e.target.value)} className="field-input flex-1" placeholder="root" disabled={!editing} />
                                             </div>
                                             {/* 认证方式 + 凭证 */}
-                                            <div className="group-row" style={{ gap: '10px', alignItems: 'center' }}>
+                                            <div className="group-row gap-10">
                                                 <span className="group-label" style={{ minWidth: '40px' }}>认证</span>
-                                                <div style={{ display: 'flex', gap: '6px', flex: 1, alignItems: 'center' }}>
+                                                <div className="flex-center gap-6 flex-1">
                                                     {(['password', 'ssh_key'] as AccessAuthType[]).map(authType => {
                                                         const active = (form.access_auth_type ?? 'password') === authType
                                                         return (
-                                                            <button key={authType} onClick={() => { if (editing) handleFormChange('access_auth_type', authType) }} style={{
-                                                                height: '28px', lineHeight: '28px', padding: '0 12px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default',
-                                                                border: active ? '1px solid rgba(139,92,246,0.6)' : '1px solid var(--border-default)',
-                                                                background: active ? 'var(--accent-strong)' : 'rgba(255,255,255,0.04)',
-                                                                color: active ? 'var(--accent-hover)' : 'var(--text-tertiary)',
-                                                                fontWeight: active ? 500 : 400,
-                                                            }}>
+                                                            <button key={authType} onClick={() => { if (editing) handleFormChange('access_auth_type', authType) }} className={`chip${active ? ' active' : ''}${!editing ? ' disabled' : ''}`}>
                                                                 {authType === 'password' ? '密码' : 'SSH 私钥'}
                                                             </button>
                                                         )
                                                     })}
                                                     {(form.access_auth_type ?? 'password') === 'password' ? (
-                                                        <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="登录密码" disabled={!editing} />
+                                                        <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input flex-1" placeholder="登录密码" disabled={!editing} />
                                                     ) : (
-                                                        <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input" style={{ flex: 1 }} placeholder="~/.ssh/id_ed25519" disabled={!editing} />
+                                                        <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input flex-1" placeholder="~/.ssh/id_ed25519" disabled={!editing} />
                                                     )}
                                                 </div>
                                             </div>
                                         </>
                                     )}
-                                    <div className="group-row" style={{ gap: '10px' }}>
+                                    <div className="group-row gap-10">
                                         <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_grade')}</span>
-                                        <div style={{ display: 'flex', gap: '8px', flex: 1 }}>
+                                        <div className="flex-center gap-8 flex-1">
                                             {(['HIGH', 'MEDIUM', 'LOW'] as OfficeGrade[]).map(v => (
                                                 <button
                                                     key={v}
                                                     onClick={() => { if (editing) handleFormChange('decoration_grade', v) }}
-                                                    style={{
-                                                        padding: '5px 14px', borderRadius: '6px', fontSize: '12px', cursor: editing ? 'pointer' : 'default', border: 'none',
-                                                        background: form.decoration_grade === v ? 'var(--accent-strong)' : 'var(--border-subtle)',
-                                                        color: form.decoration_grade === v ? 'var(--accent-hover)' : 'var(--text-secondary)',
-                                                        opacity: editing ? 1 : 0.8,
-                                                    }}
+                                                    className={`chip${form.decoration_grade === v ? ' active' : ''}${!editing ? ' disabled' : ''}`}
                                                 >
                                                     {GRADE_LABELS[v]}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="group-row" style={{ gap: '10px', alignItems: 'flex-start' }}>
+                                    <div className="group-row gap-10 items-start">
                                         <span className="group-label" style={{ paddingTop: '2px' }}>{t('office.label_notes')}</span>
-                                        <textarea className="field-input" rows={2} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} disabled={!editing} />
+                                        <textarea className="field-input flex-1" rows={2} style={{ padding: '5px 9px', lineHeight: 1.5, resize: 'none' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} disabled={!editing} />
                                     </div>
                                 </div>
                             </section>
 
                             {/* 物业信息 */}
                             <section>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 5px' }}>
+                                <div className="flex-between" style={{ padding: '0 0 5px' }}>
                                     <span className="section-label" style={{ padding: 0 }}>{t('office.section_property')}</span>
-                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                    <div className="flex-center gap-6">
                                         {selected.daemon_url && (
                                             <button
                                                 onClick={() => checkDaemon(selected.id)}
                                                 disabled={healthChecking || installStep === 'openclaw' || installStep === 'daemon'}
-                                                style={{ padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', border: '1px solid var(--border-default)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)', opacity: healthChecking ? 0.5 : 1 }}
+                                                className="btn btn-sm"
+                                                style={{ opacity: healthChecking ? 0.5 : 1 }}
                                             >
                                                 {healthChecking ? t('common.checking') : t('common.button_refresh')}
                                             </button>
                                         )}
                                         <button
                                             onClick={handleInstallLatest}
-                                            style={{
-                                                padding: '2px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer',
-                                                border: '1px solid rgba(139,92,246,0.4)', background: 'var(--accent-muted)', color: 'var(--accent-hover)',
-                                            }}
+                                            className="btn btn-sm"
+                                            style={{ border: '1px solid rgba(139,92,246,0.4)', background: 'var(--accent-muted)', color: 'var(--accent-hover)' }}
                                         >
                                             {(daemonHealth?.ok && daemonHealth.version && latestDaemonVersion && daemonHealth.version !== latestDaemonVersion)
                                                 ? t('office.update_property')
@@ -792,64 +751,64 @@ export default function OfficePage() {
                                     {/* Daemon 状态行 */}
                                     <div className="group-row">
                                         <span className="group-label">Daemon</span>
-                                        <span className="group-value" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                        <span className="group-value flex-center gap-6 flex-wrap">
                                             {!selected.daemon_url ? (
-                                                <span style={{ color: 'var(--text-dimmer)' }}>{t('office.not_installed')}</span>
+                                                <span className="text-dimmer">{t('office.not_installed')}</span>
                                             ) : healthChecking ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--warning)' }} />
-                                                    <span style={{ fontSize: '13px', color: 'var(--warning)' }}>{t('common.checking')}</span>
+                                                    <span className="dot-md warn" />
+                                                    <span className="text-sm" style={{ color: 'var(--warning)' }}>{t('common.checking')}</span>
                                                 </>
                                             ) : daemonHealth?.ok ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--success)' }} />
-                                                    <span style={{ fontSize: '13px', color: 'var(--success)' }}>运行中</span>
-                                                    {daemonHealth.version && <span style={{ color: 'var(--accent)', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.version}</span>}
+                                                    <span className="dot-md success" />
+                                                    <span className="text-sm" style={{ color: 'var(--success)' }}>运行中</span>
+                                                    {daemonHealth.version && <span className="mono-sm" style={{ color: 'var(--accent)' }}>v{daemonHealth.version}</span>}
                                                 </>
                                             ) : daemonHealth?.not_installed ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--warning)' }} />
-                                                    <span style={{ fontSize: '13px', color: 'var(--warning)' }}>{t('office.not_installed')}</span>
+                                                    <span className="dot-md warn" />
+                                                    <span className="text-sm" style={{ color: 'var(--warning)' }}>{t('office.not_installed')}</span>
                                                 </>
                                             ) : daemonHealth ? (
                                                 <>
-                                                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--text-dimmer)' }} />
-                                                    <span style={{ fontSize: '13px', color: 'var(--text-dimmer)' }}>离线</span>
+                                                    <span className="dot-md dim" />
+                                                    <span className="text-sm text-dimmer">离线</span>
                                                 </>
                                             ) : (
-                                                <span style={{ color: 'var(--text-dimmer)' }}>—</span>
+                                                <span className="text-dimmer">—</span>
                                             )}
                                         </span>
                                     </div>
                                     {/* OpenClaw 状态行 */}
                                     <div className="group-row">
                                         <span className="group-label">OpenClaw</span>
-                                        <span className="group-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span className="group-value flex-center gap-6">
                                             {daemonHealth?.ok ? (
                                                 daemonHealth.openclaw_version ? (
                                                     <>
-                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--success)' }} />
-                                                        <span style={{ fontSize: '13px', color: 'var(--success)' }}>运行中</span>
-                                                        <span style={{ color: 'var(--success)', fontFamily: 'monospace', fontSize: '12px' }}>v{daemonHealth.openclaw_version}</span>
+                                                        <span className="dot-md success" />
+                                                        <span className="text-sm" style={{ color: 'var(--success)' }}>运行中</span>
+                                                        <span className="mono-sm" style={{ color: 'var(--success)' }}>v{daemonHealth.openclaw_version}</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0, background: 'var(--text-dimmer)' }} />
-                                                        <span style={{ fontSize: '13px', color: 'var(--text-dimmer)' }}>{t('office.not_installed')}</span>
+                                                        <span className="dot-md dim" />
+                                                        <span className="text-sm text-dimmer">{t('office.not_installed')}</span>
                                                     </>
                                                 )
                                             ) : (
-                                                <span style={{ color: 'var(--text-dimmer)' }}>—</span>
+                                                <span className="text-dimmer">—</span>
                                             )}
                                         </span>
                                     </div>
                                     {daemonHealth && !daemonHealth.ok && daemonHealth.error && !daemonHealth.not_installed && (
-                                        <div style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--error)', background: 'rgba(244,63,94,0.06)', borderTop: '1px solid rgba(244,63,94,0.1)' }}>
+                                        <div className="text-xxs log-error" style={{ padding: '5px 10px', background: 'rgba(244,63,94,0.06)', borderTop: '1px solid rgba(244,63,94,0.1)' }}>
                                             {daemonHealth.error}
                                         </div>
                                     )}
                                     {daemonHealth?.not_installed && (
-                                        <div style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--warning)', background: 'rgba(251,191,36,0.06)', borderTop: '1px solid rgba(251,191,36,0.1)' }}>
+                                        <div className="text-xxs log-warning" style={{ padding: '5px 10px', background: 'rgba(251,191,36,0.06)', borderTop: '1px solid rgba(251,191,36,0.1)' }}>
                                             Daemon 未安装，点击「安装物业」开始安装
                                         </div>
                                     )}
@@ -864,13 +823,13 @@ export default function OfficePage() {
                                         <span className="group-label">{t('office.deploy_company')}</span>
                                         {selected.current_opc_id ? (
                                             <span className="group-value flex-center gap-5">
-                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }}></span>
-                                                <a href="#/companies" style={{ color: 'var(--accent-hover)', fontSize: '13px', textDecoration: 'none' }}>
+                                                <span className="dot-md success"></span>
+                                                <a href="#/companies" className="text-sm" style={{ color: 'var(--accent-hover)', textDecoration: 'none' }}>
                                                     {selected.current_opc_name}
                                                 </a>
                                             </span>
                                         ) : (
-                                            <span className="group-value" style={{ color: 'var(--text-dimmer)' }}>{t('office.not_deployed')}</span>
+                                            <span className="group-value text-dimmer">{t('office.not_deployed')}</span>
                                         )}
                                     </div>
                                 </div>
@@ -881,17 +840,13 @@ export default function OfficePage() {
                                     <div className="section-label" style={{ padding: '0 0 5px' }}>{t('office.deploy_history')}</div>
                                     <div className="group">
                                         {deployHistory.map(d => (
-                                            <div key={d.id} className="group-row" style={{ gap: '8px' }}>
-                                                <span style={{
-                                                    fontSize: '10px', padding: '1px 6px', borderRadius: '4px', flexShrink: 0,
-                                                    background: d.is_active ? 'var(--success-muted)' : 'var(--border-subtle)',
-                                                    color: d.is_active ? 'var(--success)' : 'var(--text-dimmer)',
-                                                }}>
+                                            <div key={d.id} className="group-row gap-8">
+                                                <span className={`status-badge${d.is_active ? ' status-green' : ' status-gray'}`}>
                                                     {d.is_active ? t('common.status_running') : t('office.status_revoked')}
                                                 </span>
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{d.opc_name}</div>
-                                                    <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>
+                                                <div className="flex-1">
+                                                    <div className="text-xs" style={{ color: 'var(--text-primary)' }}>{d.opc_name}</div>
+                                                    <div className="text-xxs text-dimmer">
                                                         {fmtDate(d.deployed_at)}
                                                         {d.undeployed_at ? ` → ${fmtDate(d.undeployed_at)}` : ''}
                                                     </div>
@@ -908,13 +863,17 @@ export default function OfficePage() {
             </main >
 
             {confirmDelete && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>删除办公室</div>
-                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                            确定要删除「<span style={{ color: 'var(--text-primary)' }}>{confirmDelete.name}</span>」吗？此操作不可撤销。
+                <div className="modal-backdrop">
+                    <div className="modal-panel" style={{ width: '360px' }}>
+                        <div className="modal-header">
+                            <span className="modal-title">删除办公室</span>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <div className="modal-body">
+                            <div className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                确定要删除「<span style={{ color: 'var(--text-primary)' }}>{confirmDelete.name}</span>」吗？此操作不可撤销。
+                            </div>
+                        </div>
+                        <div className="modal-footer">
                             <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
                             <button className="btn btn-sm btn-danger" onClick={() => handleDelete(confirmDelete)}>确认删除</button>
                         </div>
@@ -924,28 +883,14 @@ export default function OfficePage() {
 
             {/* 安装物业弹窗 */}
             {installModalOpen && (
-                <div style={{
-                    position: 'fixed', inset: 0, zIndex: 1000,
-                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                    <div style={{
-                        width: '520px', maxWidth: '90vw',
-                        background: 'var(--bg-elevated)', borderRadius: '14px',
-                        border: '1px solid var(--border-default)',
-                        boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
-                        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                    }}>
+                <div className="modal-backdrop">
+                    <div className="modal-panel">
                         {/* Header */}
-                        <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', flex: 1 }}>
+                        <div className="modal-header">
+                            <span className="modal-title flex-1">
                                 {installStep === 'done' ? '✅ 安装完成' : installStep === 'error' ? '❌ 安装失败' : '安装物业'}
                             </span>
-                            <span style={{
-                                fontSize: '11px', padding: '2px 8px', borderRadius: '4px',
-                                background: installStep === 'done' ? 'var(--success-muted)' : installStep === 'error' ? 'var(--error-muted)' : 'var(--accent-muted)',
-                                color: installStep === 'done' ? 'var(--success)' : installStep === 'error' ? 'var(--error)' : 'var(--accent-hover)',
-                            }}>
+                            <span className={`status-badge${installStep === 'done' ? ' status-green' : installStep === 'error' ? ' status-gray' : ' status-violet'}`}>
                                 {installStep === 'checking' ? '检查连通性…'
                                     : installStep === 'openclaw' ? '安装 OpenClaw…'
                                     : installStep === 'daemon' ? '安装 Daemon…'
@@ -956,7 +901,7 @@ export default function OfficePage() {
                         </div>
 
                         {/* Steps indicator */}
-                        <div style={{ padding: '12px 20px 8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        <div className="flex-center gap-6" style={{ padding: '12px 20px 8px' }}>
                             {[
                                 { key: 'checking', label: 'SSH 检查' },
                                 { key: 'openclaw', label: 'OpenClaw' },
@@ -969,15 +914,11 @@ export default function OfficePage() {
                                 const isError = installStep === 'error' && isActive
                                 const isPending = currentIdx !== -1 && currentIdx < i && installStep !== 'done'
                                 return (
-                                    <div key={step.key} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        {i > 0 && <div style={{ width: '20px', height: '1px', background: isDone ? '#34d399' : 'var(--border-default)' }} />}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <div style={{
-                                                width: '7px', height: '7px', borderRadius: '50%',
-                                                background: isDone ? 'var(--success)' : isError ? 'var(--error)' : isActive ? 'var(--accent-hover)' : 'var(--border-strong)',
-                                                boxShadow: isActive && !isDone ? '0 0 6px #a78bfa' : 'none',
-                                            }} />
-                                            <span style={{ fontSize: '11px', color: isPending ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>{step.label}</span>
+                                    <div key={step.key} className="flex-center gap-6">
+                                        {i > 0 && <div className={`step-line${isDone ? ' done' : ' pending'}`} />}
+                                        <div className="flex-center gap-4">
+                                            <span className={`dot-md${isDone ? ' success' : isError ? ' danger' : isActive ? ' accent-glow' : ' dim'}`} />
+                                            <span className={`text-xxs${isPending ? ' muted' : ''}`}>{step.label}</span>
                                         </div>
                                     </div>
                                 )
@@ -985,45 +926,13 @@ export default function OfficePage() {
                         </div>
 
                         {/* Log area */}
-                        <div style={{
-                            margin: '0 16px 12px',
-                            background: 'rgba(0,0,0,0.35)', borderRadius: '8px',
-                            padding: '10px 12px',
-                            fontFamily: 'monospace', fontSize: '11px', lineHeight: 1.8,
-                            height: '260px', overflowY: 'auto',
-                            border: '1px solid var(--border-subtle)',
-                        }}>
+                        <div className="log-terminal" style={{ margin: '0 16px 12px', height: '260px' }}>
                             {installLogs.length === 0 ? (
-                                <span style={{ color: 'var(--text-tertiary)' }}>等待开始…</span>
+                                <span className="muted">等待开始…</span>
                             ) : installLogs.map((entry, i) => {
-                                // Style based on log type
-                                const getLogStyle = (type: string): React.CSSProperties => {
-                                    const base: React.CSSProperties = {}
-                                    switch (type) {
-                                        case 'step':
-                                            return { color: '#60a5fa', fontWeight: 600 }  // Blue, bold
-                                        case 'success':
-                                            return { color: 'var(--success)' }  // Green
-                                        case 'detail':
-                                            return { color: '#9ca3af', paddingLeft: '12px' }  // Gray, indented
-                                        case 'progress':
-                                            return { color: 'var(--accent-hover)', fontWeight: 500 }  // Purple
-                                        case 'error':
-                                            return { color: 'var(--error)', fontWeight: 500 }  // Red
-                                        case 'warning':
-                                            return { color: 'var(--warning)' }  // Yellow
-                                        case 'banner':
-                                            return { color: 'var(--accent-hover)', fontWeight: 600, marginTop: '4px' }  // Light purple, bold
-                                        case 'keyvalue':
-                                            return { color: '#d1d5db' }  // Light gray
-                                        case 'empty':
-                                            return { display: 'none' }
-                                        default:
-                                            return { color: 'var(--text-primary)' }  // Default white
-                                    }
-                                }
+                                const logClass = entry.type === 'empty' ? 'hidden' : `log-${entry.type}`
                                 return (
-                                    <div key={i} style={getLogStyle(entry.type)}>
+                                    <div key={i} className={logClass}>
                                         {entry.message}
                                     </div>
                                 )
@@ -1031,19 +940,13 @@ export default function OfficePage() {
                         </div>
 
                         {/* Footer buttons */}
-                        <div style={{ padding: '0 16px 16px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <div className="modal-footer">
                             {(installStep === 'done' || installStep === 'error') ? (
-                                <button
-                                    onClick={handleInstallClose}
-                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid var(--border-strong)', background: 'rgba(255,255,255,0.07)', color: 'var(--text-primary)' }}
-                                >
+                                <button onClick={handleInstallClose} className="btn btn-sm">
                                     关闭
                                 </button>
                             ) : (
-                                <button
-                                    onClick={handleInstallStop}
-                                    style={{ padding: '6px 16px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', border: '1px solid rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: 'var(--error)' }}
-                                >
+                                <button onClick={handleInstallStop} className="btn btn-sm btn-danger">
                                     停止安装
                                 </button>
                             )}

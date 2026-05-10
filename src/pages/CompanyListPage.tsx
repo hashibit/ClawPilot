@@ -106,15 +106,13 @@ export default function CompanyListPage() {
       </div>
 
       {showCreate && (
-        <div className="stat-card" style={{ padding: '16px', marginTop: '16px', maxWidth: '480px' }}>
-          <div className="text-sm text-bold" style={{ marginBottom: '10px' }}>{t('opc.modal_title', '创建新公司')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <input className="field-input" placeholder={t('opc.form.internal_name_placeholder', 'my-company')} value={createName} onChange={e => setCreateName(e.target.value)} />
-            <input className="field-input" placeholder={t('opc.form.display_name_placeholder', '我的公司')} value={createDisplayName} onChange={e => setCreateDisplayName(e.target.value)} />
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button className="tbtn tbtn-ghost" onClick={() => { setShowCreate(false); setCreateName(''); setCreateDisplayName('') }}>{t('common.button_cancel')}</button>
-              <button className="tbtn tbtn-accent" disabled={creating} onClick={handleCreate}>{creating ? '...' : t('opc.button_create', '创建')}</button>
-            </div>
+        <div className="stat-card flex flex-col gap-8" style={{ padding: '16px', marginTop: '16px', maxWidth: '480px' }}>
+          <div className="text-sm text-bold" style={{ marginBottom: '2px' }}>{t('opc.modal_title', '创建新公司')}</div>
+          <input className="field-input" placeholder={t('opc.form.internal_name_placeholder', 'my-company')} value={createName} onChange={e => setCreateName(e.target.value)} />
+          <input className="field-input" placeholder={t('opc.form.display_name_placeholder', '我的公司')} value={createDisplayName} onChange={e => setCreateDisplayName(e.target.value)} />
+          <div className="flex justify-end gap-8">
+            <button className="tbtn tbtn-ghost" onClick={() => { setShowCreate(false); setCreateName(''); setCreateDisplayName('') }}>{t('common.button_cancel')}</button>
+            <button className="tbtn tbtn-accent" disabled={creating} onClick={handleCreate}>{creating ? '...' : t('opc.button_create', '创建')}</button>
           </div>
         </div>
       )}

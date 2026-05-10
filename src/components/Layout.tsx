@@ -89,15 +89,26 @@ export default function Layout() {
   const showLabels = isMobile || !collapsed
 
   const NavItem = ({ to, icon, label, count }: { to: string; icon: React.ReactNode; label: string; count?: number }) => (
-    <NavLink to={to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} title={!showLabels ? label : undefined} style={!showLabels ? { justifyContent: 'center', padding: '8px' } : undefined}>
-      <span className="nav-icon ic-18" style={{ flexShrink: 0 }}>{icon}</span>
+    <NavLink to={to} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}${!showLabels ? ' nav-item--icon-only' : ''}`} title={!showLabels ? label : undefined} style={!showLabels ? { justifyContent: 'center', padding: '8px' } : undefined}>
+      <span className="nav-icon ic-18 flex-shrink-0">{icon}</span>
       {showLabels && <span className="text-sm">{label}</span>}
       {showLabels && count != null && <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-tertiary)', fontVariantNumeric: 'tabular-nums' }}>{count}</span>}
     </NavLink>
   )
 
   return (
-    <div className="app" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `${sidebarWidth} 1fr`, height: '100vh', width: '100vw', overflow: 'hidden', background: 'var(--bg-base)', transition: 'grid-template-columns 0.2s ease' }}>
+    <div
+      className="app"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : `${sidebarWidth} 1fr`,
+        height: '100vh',
+        width: '100vw',
+        overflow: 'hidden',
+        background: 'var(--bg-base)',
+        transition: 'grid-template-columns 0.2s ease',
+      }}
+    >
       {/* Mobile sidebar overlay */}
       <div
         className={`sidebar-overlay${mobileMenuOpen ? ' visible' : ''}`}
@@ -110,7 +121,7 @@ export default function Layout() {
         style={isMobile ? undefined : { width: sidebarWidth, transition: 'width 0.2s ease', overflow: 'hidden', ...(collapsed ? { padding: '14px 4px 12px', alignItems: 'center' } : {}) }}
       >
         {/* Brand */}
-        <div data-tauri-drag-region style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 10px 12px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '4px' }}>
+        <div data-tauri-drag-region className="flex-center gap-10" style={{ padding: '4px 10px 12px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '4px' }}>
           {showLabels ? (
             <>
               <div className="logo-box" style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-on-accent)', letterSpacing: '-0.04em' }}>
@@ -118,7 +129,7 @@ export default function Layout() {
               </div>
               <div>
                 <div style={{ fontWeight: 600, fontSize: '14.5px', letterSpacing: '-0.015em' }}>ClawPilot</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '1px' }}>v0.4.2</div>
+                <div className="text-xxs muted" style={{ marginTop: '1px' }}>v0.4.2</div>
               </div>
             </>
           ) : (
@@ -132,9 +143,9 @@ export default function Layout() {
         {inCompany && showLabels && (
           <>
             <div
-              className="back-home"
+              className="back-home flex-center gap-8"
               onClick={() => navigate('/companies')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', marginBottom: '4px', borderRadius: 'var(--radius-md)', fontSize: '12.5px', color: 'var(--text-secondary)', border: '1px dashed var(--border-default)', cursor: 'pointer' }}
+              style={{ padding: '8px 10px', marginBottom: '4px', borderRadius: 'var(--radius-md)', fontSize: '12.5px', color: 'var(--text-secondary)', border: '1px dashed var(--border-default)', cursor: 'pointer' }}
             >
               <Icon name="home" size={14} />
               <span>{t('nav.back_home', '返回全局')}</span>
@@ -144,7 +155,7 @@ export default function Layout() {
                 <div className="avatar avatar-md" style={{ background: currentOpc.avatar_color ?? 'var(--accent)', borderRadius: '7px' }}>
                   {currentOpc.avatar_initials ?? currentOpc.display_name.slice(0, 1)}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-grow">
                   <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>公司空间</div>
                   <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {currentOpc.display_name}
@@ -166,7 +177,7 @@ export default function Layout() {
         {showLabels && <div className="section-label">{inCompany ? '工作区' : '全局'}</div>}
 
         {/* Navigation */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="flex-col flex-1" style={{ overflow: 'hidden' }}>
           {inCompany ? (
             <nav className="sidebar-nav">
               <NavItem to="/agents" label={t('nav.agents')} icon={<Icon name="users" size={16} />} count={currentOpc?.agent_count || undefined} />
@@ -194,7 +205,7 @@ export default function Layout() {
             style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? '8px' : undefined }}
             title={collapsed ? t('common.expand', '展开侧栏') : t('common.collapse', '收起侧栏')}
           >
-            <span className="nav-icon ic-18" style={{ flexShrink: 0 }}>
+            <span className="nav-icon ic-18 flex-shrink-0">
               <Icon name={collapsed ? 'panel-left-open' : 'panel-left-close'} size={16} />
             </span>
             {!collapsed && <span className="text-sm">{t('common.collapse', '收起侧栏')}</span>}
@@ -204,14 +215,20 @@ export default function Layout() {
         {/* Status footer */}
         <div className={!showLabels ? 'sidebar-footer-collapsed' : 'sidebar-footer'}>
           {!showLabels ? (
-            <div title={process?.is_running ? `PID ${process.pid}` : t('process.stopped')} style={{ display: 'flex', justifyContent: 'center' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block', background: statusColor }} />
+            <div className="flex-center" style={{ justifyContent: 'center' }} title={process?.is_running ? `PID ${process.pid}` : t('process.stopped')}>
+              <span
+                className={`dot-md pulse-dot ${process?.is_running ? 'success' : 'dim'}`}
+                style={{ background: statusColor }}
+              />
             </div>
           ) : (
             <div style={{ padding: '8px', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, background: statusColor, boxShadow: process?.is_running ? `0 0 6px ${statusColor}` : 'none' }} />
+              <div className="flex-between" style={{ marginBottom: '6px' }}>
+                <div className="flex-center gap-6">
+                  <span
+                    className="dot-md"
+                    style={{ background: statusColor, boxShadow: process?.is_running ? `0 0 6px ${statusColor}` : 'none' }}
+                  />
                   <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--text-secondary)' }}>
                     {processLoading && !process ? t('process.checking')
                       : process?.is_running ? 'OpenClaw'
@@ -219,14 +236,14 @@ export default function Layout() {
                       : 'OpenClaw'}
                   </span>
                 </div>
-                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: process?.is_running ? 'rgba(135,184,154,0.15)' : 'rgba(255,255,255,0.05)', color: process?.is_running ? 'var(--success)' : 'var(--text-muted)' }}>
+                <span className="status-badge" style={{ background: process?.is_running ? 'rgba(135,184,154,0.15)' : 'rgba(255,255,255,0.05)', color: process?.is_running ? 'var(--success)' : 'var(--text-muted)' }}>
                   {processLoading && !process ? '...'
                     : process?.is_running ? t('process.running')
                     : process?.daemon_available === false ? t('process.stopped')
                     : t('process.unknown')}
                 </span>
               </div>
-              <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              <div className="text-xxs muted" style={{ marginBottom: '8px' }}>
                 {processLoading && !process ? t('process.checkingDesc')
                   : process?.is_running && process.pid != null
                     ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${formatUptime(process.uptime_seconds, i18n.language)}` : ''}`
@@ -247,9 +264,9 @@ export default function Layout() {
       </aside>
 
       {/* ── Main content area ── */}
-      <div className="main" style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+      <div className="main flex-col" style={{ minWidth: 0, overflow: 'hidden' }}>
         {/* Topbar */}
-        <div className="topbar" style={{ height: '48px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', padding: '0 24px', gap: '16px', background: 'var(--bg-base)', flexShrink: 0 }}>
+        <div className="topbar flex-center" style={{ height: '48px', borderBottom: '1px solid var(--border-subtle)', padding: '0 24px', gap: '16px', background: 'var(--bg-base)', flexShrink: 0 }}>
           {/* Mobile hamburger */}
           <button
             className="mobile-menu-btn"
@@ -260,7 +277,7 @@ export default function Layout() {
           </button>
 
           {/* Breadcrumb */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--text-tertiary)' }}>
+          <div className="flex-center gap-8 text-xs muted">
             {inCompany ? (
               <>
                 <span style={{ cursor: 'pointer' }} onClick={() => navigate('/companies')}>全局</span>
@@ -278,7 +295,7 @@ export default function Layout() {
             )}
           </div>
 
-          <div style={{ flex: 1 }} />
+          <div className="flex-1" />
 
           {/* Notification bell */}
           <div
@@ -293,7 +310,7 @@ export default function Layout() {
         </div>
 
         {/* Page content */}
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+        <div className="flex flex-1" style={{ overflow: 'hidden' }}>
           <Outlet />
         </div>
       </div>

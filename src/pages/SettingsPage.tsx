@@ -35,7 +35,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ padding: '24px 32px 48px', display: 'flex', flexDirection: 'column', gap: 20, flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
+    <div className="page-scroll">
 
       <div>
         <h1 className="page-title">{t('settings.title')}</h1>
@@ -45,7 +45,7 @@ export default function SettingsPage() {
       {/* ── Workspace ── */}
       <div className="section-card">
         <div className="section-card-head">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex-center gap-10">
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elevated)', display: 'grid', placeItems: 'center' }}>
               <Icon name="folder" size={15} />
             </div>
@@ -62,8 +62,8 @@ export default function SettingsPage() {
               <div className="field-hint">所有公司配置的存放目录</div>
             </div>
             <div className="field-value-cell">
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input className="field-input mono" style={{ flex: 1, fontSize: 12 }} value={opcRoot} onChange={e => setOpcRoot(e.target.value)} placeholder="~/.openclaw/OPC" />
+              <div className="flex gap-8">
+                <input className="field-input mono flex-1 text-xs" value={opcRoot} onChange={e => setOpcRoot(e.target.value)} placeholder="~/.openclaw/OPC" />
                 <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? '...' : '保存'}
                 </button>
@@ -76,7 +76,7 @@ export default function SettingsPage() {
       {/* ── Language ── */}
       <div className="section-card">
         <div className="section-card-head">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex-center gap-10">
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elevated)', display: 'grid', placeItems: 'center' }}>
               <Icon name="cloud" size={15} />
             </div>
@@ -102,11 +102,11 @@ export default function SettingsPage() {
                     cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="flex-grow">
                     <div style={{ fontSize: 13, fontWeight: 500, color: active ? 'var(--accent)' : 'var(--text-primary)' }}>
                       {lang.label}
                     </div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+                    <div className="muted mt-1" style={{ fontSize: 10 }}>
                       {lang.code}
                     </div>
                   </div>
@@ -126,7 +126,7 @@ export default function SettingsPage() {
       {/* ── Theme ── */}
       <div className="section-card">
         <div className="section-card-head">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex-center gap-10">
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elevated)', display: 'grid', placeItems: 'center' }}>
               <Icon name="moon" size={15} />
             </div>
@@ -143,7 +143,7 @@ export default function SettingsPage() {
             border: '1.5px solid var(--accent)', background: 'var(--accent-soft)',
           }}>
             <Icon name="moon" size={14} stroke="var(--accent)" />
-            <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>{t('settings.dark')}</span>
+            <span className="text-sm" style={{ color: 'var(--accent)', fontWeight: 500 }}>{t('settings.dark')}</span>
             <Icon name="check" size={13} stroke="var(--accent)" strokeWidth={2.5} />
           </div>
         </div>
@@ -153,7 +153,7 @@ export default function SettingsPage() {
       {license && (
         <div className="section-card">
           <div className="section-card-head">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="flex-center gap-10">
               <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elevated)', display: 'grid', placeItems: 'center' }}>
                 <Icon name="key" size={15} />
               </div>
@@ -164,20 +164,20 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="section-card-body">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="flex-between">
+              <div className="flex-center gap-8">
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: license.activated ? 'var(--success)' : 'var(--text-muted)', boxShadow: license.activated ? '0 0 6px var(--success)' : 'none' }} />
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+                <span className="text-sm" style={{ fontWeight: 500 }}>
                   {license.activated ? '已激活' : '未激活'}
                 </span>
                 {license.license_key && (
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 8 }}>
+                  <span className="mono-xs muted" style={{ marginLeft: 8 }}>
                     {license.license_key}
                   </span>
                 )}
               </div>
               {license.activated && (
-                <button className="btn btn-sm" style={{ color: 'var(--error)' }} onClick={handleDeactivate}>
+                <button className="btn btn-sm btn-danger" onClick={handleDeactivate}>
                   停用
                 </button>
               )}
@@ -189,7 +189,7 @@ export default function SettingsPage() {
       {/* ── About ── */}
       <div className="section-card">
         <div className="section-card-head">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="flex-center gap-10">
             <div className="logo-box" style={{ width: 32, height: 32, borderRadius: 8, fontSize: 11 }}>CP</div>
             <div>
               <h3 className="section-card-title">ClawPilot</h3>
@@ -198,7 +198,7 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="section-card-body">
-          <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', lineHeight: 1.7 }}>
+          <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>
             {t('settings.appDesc')}
           </div>
         </div>

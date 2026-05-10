@@ -42,60 +42,76 @@ export function ChatDrawer({ agent, onClose, soulOverride }: ChatDrawerProps) {
     }
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
-            <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
-            <div style={{ position: 'relative', width: '400px', height: '100%', background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)' }}>
+        <div className="chat-drawer-overlay flex justify-end" style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
+            <div onClick={onClose} className="chat-drawer-backdrop" style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
+            <div className="chat-drawer-panel flex-col" style={{ position: 'relative', width: '400px', height: '100%', background: 'var(--bg-elevated)', display: 'flex', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)' }}>
                 {/* Header */}
-                <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: agent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isEmojiAvatar(agent) ? '16px' : '10px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
+                <div className="chat-drawer-header flex-center gap-10" style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div
+                        className="avatar flex-shrink-0"
+                        style={{
+                            width: '28px', height: '28px', borderRadius: '7px',
+                            background: agent.gradient_start ?? 'var(--accent)',
+                            fontSize: isEmojiAvatar(agent) ? '16px' : '10px',
+                            fontWeight: 700, color: 'var(--text-primary)',
+                        }}
+                    >
                         {agentAvatarText(agent)}
                     </div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{agent.display_name}</div>
-                        <div style={{ fontSize: '11px', color: soulOverride ? 'var(--warning)' : 'var(--text-dimmer)' }}>{soulOverride ? '临时测试-智能体尚未保存' : '测试对话 · 基于 SOUL.md'}</div>
+                    <div className="flex-1 flex-col gap-2" style={{ display: 'flex' }}>
+                        <div className="text-sm" style={{ fontWeight: 600 }}>{agent.display_name}</div>
+                        <div className="text-xxs" style={{ color: soulOverride ? 'var(--warning)' : 'var(--text-dimmer)' }}>
+                            {soulOverride ? '临时测试-智能体尚未保存' : '测试对话 · 基于 SOUL.md'}
+                        </div>
                     </div>
-                    <button onClick={() => setMessages([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dimmer)', fontSize: '11px', padding: '4px 8px', borderRadius: '5px' }}>{t('agents.clear_chat')}</button>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dimmer)', fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
+                    <button onClick={() => setMessages([])} className="btn-ghost text-xxs text-dimmer" style={{ padding: '4px 8px', borderRadius: '5px' }}>{t('agents.clear_chat')}</button>
+                    <button onClick={onClose} className="btn-ghost text-dimmer" style={{ fontSize: '18px', lineHeight: 1, padding: '2px 6px' }}>×</button>
                 </div>
 
                 {/* Messages */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="flex-1 flex-col gap-10" style={{ overflowY: 'auto', padding: '12px 14px', display: 'flex' }}>
                     {messages.length === 0 && (
-                        <div style={{ textAlign: 'center', color: 'var(--text-dimmer)', fontSize: '12px', marginTop: '40px' }}>{t('agents.chat_empty', { name: agent.display_name })}</div>
+                        <div className="text-center text-xs text-dimmer" style={{ marginTop: '40px' }}>{t('agents.chat_empty', { name: agent.display_name })}</div>
                     )}
                     {messages.map((m, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                            <div style={{
-                                maxWidth: '85%', padding: '9px 12px', borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
-                                background: m.role === 'user' ? 'rgba(139,92,246,0.25)' : 'var(--bg-surface)',
-                                color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                            }}>
+                        <div key={i} className="flex" style={{ justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                            <div
+                                className="text-sm"
+                                style={{
+                                    maxWidth: '85%', padding: '9px 12px',
+                                    borderRadius: m.role === 'user' ? '12px 12px 3px 12px' : '12px 12px 12px 3px',
+                                    background: m.role === 'user' ? 'rgba(139,92,246,0.25)' : 'var(--bg-surface)',
+                                    color: 'var(--text-primary)', lineHeight: '1.5', whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                                }}
+                            >
                                 {m.content}
                             </div>
                         </div>
                     ))}
                     {loading && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                            <div style={{ padding: '9px 14px', borderRadius: '12px 12px 12px 3px', background: 'var(--bg-surface)', color: 'var(--text-dimmer)', fontSize: '13px' }}>…</div>
+                        <div className="flex" style={{ justifyContent: 'flex-start' }}>
+                            <div className="text-sm text-dimmer" style={{ padding: '9px 14px', borderRadius: '12px 12px 12px 3px', background: 'var(--bg-surface)' }}>…</div>
                         </div>
                     )}
                     <div ref={bottomRef} />
                 </div>
 
                 {/* Input */}
-                <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '8px' }}>
+                <div className="flex-center gap-8" style={{ padding: '12px 14px', borderTop: '1px solid var(--border-subtle)' }}>
                     <textarea
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                         placeholder={t('agents.chat_placeholder')}
                         rows={2}
-                        style={{ flex: 1, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px', padding: '8px 10px', resize: 'none', outline: 'none', fontFamily: 'inherit' }}
+                        className="field-input flex-1 text-xs"
+                        style={{ height: 'auto', padding: '8px 10px', resize: 'none', borderRadius: '8px' }}
                     />
                     <button
                         onClick={send}
                         disabled={!input.trim() || loading}
-                        style={{ padding: '8px 14px', borderRadius: '8px', background: 'var(--accent)', color: 'var(--text-primary)', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 500, opacity: (!input.trim() || loading) ? 0.5 : 1, alignSelf: 'flex-end' }}
+                        className="btn btn-primary text-xs"
+                        style={{ padding: '8px 14px', borderRadius: '8px', opacity: (!input.trim() || loading) ? 0.5 : 1, alignSelf: 'flex-end', height: 'auto' }}
                     >{t('agents.send')}</button>
                 </div>
             </div>

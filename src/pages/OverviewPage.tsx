@@ -99,7 +99,7 @@ export default function OverviewPage() {
             <div className="chart-meta">今日</div>
           </div>
           {opcs.length === 0 ? (
-            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '12px 0' }}>暂无数据</div>
+            <div className="text-xs text-dimmer" style={{ padding: '12px 0' }}>暂无数据</div>
           ) : opcs.map((opc, i) => {
             const msgs = statsMap.get(opc.id)?.message_count_today ?? opc.message_count_today
             const pct = Math.round((msgs / maxMsg) * 100)
@@ -127,7 +127,7 @@ export default function OverviewPage() {
           </div>
           <div className="running-list">
             {runningOpcs.length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '12px 0' }}>暂无运行中公司</div>
+              <div className="text-xs text-dimmer" style={{ padding: '12px 0' }}>暂无运行中公司</div>
             ) : runningOpcs.map(opc => {
               const initials = opc.avatar_initials ?? opc.display_name.slice(0, 1)
               const color = opc.avatar_color ?? 'var(--accent)'

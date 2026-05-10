@@ -109,20 +109,24 @@ export default function ActivitiesPage() {
   }
 
   const connDot = connectionStatus === 'connected' ? 'var(--success)' : connectionStatus === 'connecting' ? 'var(--warning)' : 'var(--text-muted)'
+  const connDotClass = connectionStatus === 'connected' ? 'success' : connectionStatus === 'connecting' ? 'warn' : 'dim'
   const connText = connectionStatus === 'connected' ? '已连接' : connectionStatus === 'connecting' ? '连接中…' : '未连接'
 
   return (
-    <div style={{ padding: '24px 32px 48px', display: 'flex', flexDirection: 'column', gap: 20, flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto' }} ref={scrollRef}>
+    <div className="page-scroll" ref={scrollRef}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="flex-between items-start">
         <div>
           <h1 className="page-title">实时活动</h1>
           <p className="page-sub">所有 Agent 的消息、工具调用与生命周期事件</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: connDot, boxShadow: connectionStatus === 'connected' ? `0 0 6px ${connDot}` : 'none' }} />
-          <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{connText}</span>
+        <div className="flex-center gap-6">
+          <span
+            className={`dot-md ${connDotClass}`}
+            style={connectionStatus === 'connected' ? { boxShadow: `0 0 6px ${connDot}` } : undefined}
+          />
+          <span className="text-xs muted">{connText}</span>
         </div>
       </div>
 
@@ -134,13 +138,13 @@ export default function ActivitiesPage() {
           { label: '事件总数', value: totalEvents, icon: 'bolt' as const },
           { label: '运行中公司', value: runningOpcs.length, icon: 'building' as const },
         ].map((s, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg-elevated)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <div key={i} className="flex-center gap-12" style={{ padding: '14px 16px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
+            <div className="avatar avatar-lg" style={{ background: 'var(--bg-elevated)' }}>
               <Icon name={s.icon} size={15} />
             </div>
             <div>
               <div style={{ fontSize: 18, fontWeight: 700, color: s.accent ? 'var(--accent)' : 'var(--text-primary)', lineHeight: 1.2 }}>{s.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{s.label}</div>
+              <div className="mono-xs muted" style={{ marginTop: 2 }}>{s.label}</div>
             </div>
           </div>
         ))}
@@ -154,19 +158,19 @@ export default function ActivitiesPage() {
             <div className="section-card">
               <div className="section-card-head" style={{ padding: '10px 16px' }}>
                 <h3 className="section-card-title" style={{ fontSize: 13 }}>运行中公司</h3>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{runningOpcs.length}</span>
+                <span className="text-xxs muted">{runningOpcs.length}</span>
               </div>
               <div style={{ padding: '6px 10px 10px' }}>
                 {runningOpcs.map(opc => (
-                  <div key={opc.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 6px', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 7, background: opc.avatar_color || '#6366f1', display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                  <div key={opc.id} className="flex-center gap-10" style={{ padding: '7px 6px', borderRadius: 'var(--radius-md)' }}>
+                    <div className="avatar avatar-sm" style={{ background: opc.avatar_color || '#6366f1', borderRadius: 7 }}>
                       {opc.avatar_initials || opc.name.slice(0, 2).toUpperCase()}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)' }}>{opc.display_name || opc.name}</div>
-                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{opc.agent_count} Agent</div>
+                    <div className="flex-grow">
+                      <div className="text-xs" style={{ fontWeight: 500 }}>{opc.display_name || opc.name}</div>
+                      <div className="text-xxs muted">{opc.agent_count} Agent</div>
                     </div>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
+                    <span className="dot-md success" />
                   </div>
                 ))}
               </div>
@@ -182,15 +186,18 @@ export default function ActivitiesPage() {
               </div>
               <div style={{ padding: '6px 10px 10px' }}>
                 {Array.from(activities.values()).sort((a, b) => b.last_update - a.last_update).map(agent => (
-                  <div key={agent.agent_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 6px', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 7, background: hashColor(agent.agent_id), display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                  <div key={agent.agent_id} className="flex-center gap-10" style={{ padding: '7px 6px', borderRadius: 'var(--radius-md)' }}>
+                    <div className="avatar avatar-sm" style={{ background: hashColor(agent.agent_id), borderRadius: 7 }}>
                       {getInitials(agent.agent_id)}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.agent_id}</div>
-                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{agent.events.length} 事件 · {timeAgo(agent.last_update)}</div>
+                    <div className="flex-grow">
+                      <div className="text-xs" style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.agent_id}</div>
+                      <div className="text-xxs muted">{agent.events.length} 事件 · {timeAgo(agent.last_update)}</div>
                     </div>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: agent.status === 'busy' ? 'var(--success)' : agent.status === 'error' ? 'var(--error)' : 'var(--border-default)', boxShadow: agent.status === 'busy' ? '0 0 6px var(--success)' : 'none' }} />
+                    <span
+                      className={`dot-md ${agent.status === 'busy' ? 'success' : agent.status === 'error' ? 'danger' : 'dim'}`}
+                      style={agent.status === 'busy' ? { boxShadow: '0 0 6px var(--success)' } : undefined}
+                    />
                   </div>
                 ))}
               </div>
@@ -203,26 +210,26 @@ export default function ActivitiesPage() {
       <div className="section-card" style={{ overflow: 'hidden' }}>
         <div className="section-card-head" style={{ padding: '12px 16px' }}>
           <h3 className="section-card-title" style={{ fontSize: 13 }}>事件流</h3>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          <span className="text-xxs muted">
             {allEvents.length > 0 ? `${allEvents.length} 条` : ''}
           </span>
         </div>
 
         {runningOpcs.length === 0 ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <Icon name="building" size={32} style={{ color: 'var(--text-muted)', marginBottom: 10 }} />
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>尚无运行中的公司</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>先部署一个公司到办公室，再来查看实时活动</div>
+          <div className="empty-state">
+            <Icon name="building" size={32} className="empty-state-icon" />
+            <div className="empty-state-title">尚无运行中的公司</div>
+            <div className="empty-state-desc">先部署一个公司到办公室，再来查看实时活动</div>
           </div>
         ) : allEvents.length === 0 ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <Icon name="activity" size={32} style={{ color: 'var(--text-muted)', marginBottom: 10 }} />
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>等待事件流入</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Agent 开始工作后，消息和工具调用将实时显示在此处</div>
-            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center', gap: 5 }}>
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-dot 1.5s infinite' }} />
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-dot 1.5s infinite 0.3s' }} />
-              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-dot 1.5s infinite 0.6s' }} />
+          <div className="empty-state">
+            <Icon name="activity" size={32} className="empty-state-icon" />
+            <div className="empty-state-title">等待事件流入</div>
+            <div className="empty-state-desc">Agent 开始工作后，消息和工具调用将实时显示在此处</div>
+            <div className="flex-center gap-5" style={{ marginTop: 14 }}>
+              <span className="pulse-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
+              <span className="pulse-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animationDelay: '0.3s' }} />
+              <span className="pulse-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animationDelay: '0.6s' }} />
             </div>
           </div>
         ) : (
@@ -233,17 +240,17 @@ export default function ActivitiesPage() {
               const text = formatEventData(event)
               const streamInfo = STREAM_LABELS[event.stream] || { label: event.stream, color: 'var(--text-dimmer)' }
               return (
-                <div key={`${event.ts}-${idx}`} style={{ display: 'flex', gap: 12, padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: color, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                <div key={`${event.ts}-${idx}`} className="flex gap-12" style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div className="avatar avatar-sm" style={{ background: color, width: 28, height: 28, borderRadius: 7 }}>
                     {initials}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  <div className="flex-grow">
+                    <div className="flex-center gap-8 flex-wrap text-xs muted">
                       <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{event.agent_id}</span>
                       <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: `color-mix(in srgb, ${streamInfo.color} 15%, transparent)`, color: streamInfo.color }}>{streamInfo.label}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{timeAgo(event.ts)}</span>
+                      <span className="text-xxs muted" style={{ marginLeft: 'auto' }}>{timeAgo(event.ts)}</span>
                     </div>
-                    {text && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 3 }}>{text}</div>}
+                    {text && <div className="text-xs muted" style={{ marginTop: 3 }}>{text}</div>}
                   </div>
                 </div>
               )

@@ -162,7 +162,7 @@ export default function BindingsPage() {
 
     if (!currentOpc) {
         return (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+            <div className="flex-center justify-center flex-1 text-sm text-dimmer">
                 {t('bindings.select_opc_hint')}
             </div>
         )
@@ -171,7 +171,7 @@ export default function BindingsPage() {
     const enabledCount = bindings.filter(b => b.is_enabled).length
 
     return (
-        <div style={{ padding: '24px 32px 48px', display: 'flex', flexDirection: 'column', gap: 20, flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
+        <div className="page-scroll">
 
             {/* Page header */}
             <div>
@@ -182,22 +182,22 @@ export default function BindingsPage() {
             {/* ── Section 1: Channel ── */}
             <div className="section-card">
                 <div className="section-card-head" style={{ cursor: 'pointer' }} onClick={() => setChannelEditing(e => !e)}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div className="flex-center gap-12">
                         <span style={{ width: 36, height: 36, borderRadius: 9, background: '#0066FF', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0, letterSpacing: '0.02em' }}>飞书</span>
                         <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>飞书应用</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>{maskedAppId}</div>
+                            <div className="text-sm text-bold">飞书应用</div>
+                            <div className="text-xxs muted mono mt-1">{maskedAppId}</div>
                         </div>
                         {channel
                             ? <span className="tag success" style={{ marginLeft: 4 }}><span className="dot live" /> 已连接</span>
                             : <span className="tag" style={{ marginLeft: 4 }}>未配置</span>
                         }
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className="flex-center gap-8">
                         <button className="btn btn-sm" onClick={e => { e.stopPropagation(); handleTestConnection() }} disabled={testing || !appId || !appSecret}>
                             {testing ? '测试中…' : '测试连接'}
                         </button>
-                        <Icon name={channelEditing ? 'chevron-up' : 'chevron-down'} size={14} style={{ color: 'var(--text-tertiary)' }} />
+                        <Icon name={channelEditing ? 'chevron-up' : 'chevron-down'} size={14} className="muted" />
                     </div>
                 </div>
 
@@ -223,7 +223,7 @@ export default function BindingsPage() {
                                 </div>
                             </div>
                         </div>
-                        <div style={{ padding: '12px 22px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                        <div className="modal-footer">
                             <button className="btn btn-sm" onClick={() => setChannelEditing(false)}>取消</button>
                             <button className="btn btn-sm btn-primary" onClick={handleSaveChannel} disabled={savingChannel}>
                                 {savingChannel ? t('common.saving') : t('common.button_save')}
@@ -246,10 +246,10 @@ export default function BindingsPage() {
                 </div>
 
                 {bindings.length === 0 && !isNewBinding ? (
-                    <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                        <Icon name="link" size={28} style={{ color: 'var(--text-muted)', marginBottom: 10 }} />
-                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 4 }}>暂无绑定规则</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>点击「添加绑定」将飞书群组与 Agent 关联</div>
+                    <div className="empty-state text-center">
+                        <Icon name="link" size={28} className="empty-state-icon" />
+                        <div className="empty-state-title">暂无绑定规则</div>
+                        <div className="empty-state-desc">点击「添加绑定」将飞书群组与 Agent 关联</div>
                     </div>
                 ) : (
                     <div style={{ padding: '8px 12px' }}>
@@ -277,12 +277,12 @@ export default function BindingsPage() {
                                             <span>{b.trigger_mode === 'MENTION' ? '@触发' : '全部消息'}</span>
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                                        <Icon name="arrow-right" size={10} style={{ color: 'var(--text-muted)' }} />
+                                    <div className="flex-center gap-8 flex-shrink-0">
+                                        <Icon name="arrow-right" size={10} className="muted" />
                                         <div style={{ width: 24, height: 24, borderRadius: 6, background: agentColor, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
                                             {agentInitials}
                                         </div>
-                                        <span style={{ fontWeight: 500, fontSize: 12.5, color: 'var(--text-primary)' }}>{agentName}</span>
+                                        <span className="text-xs text-medium">{agentName}</span>
                                     </div>
                                     <div
                                         className={'toggle' + (b.is_enabled ? ' on' : '')}
@@ -299,7 +299,7 @@ export default function BindingsPage() {
                                 <div className="bind-card-info">
                                     <div className="bind-card-name">{bindingForm.channel_name || t('bindings.new_group')}</div>
                                     <div className="bind-card-meta">
-                                        <span style={{ color: 'var(--accent)' }}>新建 · 未保存</span>
+                                        <span className="unsaved-tag">新建 · 未保存</span>
                                     </div>
                                 </div>
                             </div>
@@ -318,9 +318,9 @@ export default function BindingsPage() {
                             </h3>
                             <div className="section-card-sub">{bindingForm.channel_name || '未命名'}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div className="flex gap-6">
                             {!isNewBinding && (
-                                <button className="btn btn-sm" style={{ color: 'var(--error)' }} onClick={handleDeleteBinding}>
+                                <button className="btn btn-sm btn-danger" onClick={handleDeleteBinding}>
                                     <Icon name="trash" size={12} /> 解绑
                                 </button>
                             )}
@@ -384,9 +384,9 @@ export default function BindingsPage() {
                                 <div className="field-name">{t('bindings.enable_status')}</div>
                                 <div className="field-hint">关闭后消息不再路由</div>
                             </div>
-                            <div className="field-value-cell" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 8 }}>
+                            <div className="flex-center gap-10" style={{ paddingTop: 8 }}>
                                 <div className={'toggle' + (bindingForm.is_enabled ? ' on' : '')} onClick={() => bindingEditing && handleBindingFormChange('is_enabled', !bindingForm.is_enabled)} style={{ cursor: bindingEditing ? 'pointer' : 'default', opacity: bindingEditing ? 1 : 0.7 }} />
-                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                <span className="text-sm text-dim">
                                     {bindingForm.is_enabled ? t('common.enabled') : t('common.disabled')}
                                 </span>
                             </div>

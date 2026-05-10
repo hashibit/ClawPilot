@@ -11,21 +11,22 @@ function SkillRow({ skill, installing, onInstall }: {
     const { t } = useTranslation()
     const isInstalling = installing === skill.slug
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-default)', background: 'var(--border-subtle)' }}>
-            <span style={{ fontSize: '18px', flexShrink: 0 }}>🔌</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill.name}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div className="flex-center gap-10" style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-default)', background: 'var(--border-subtle)' }}>
+            <span className="flex-shrink-0" style={{ fontSize: '18px' }}>🔌</span>
+            <div className="flex-grow">
+                <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{skill.name}</div>
+                <div className="text-xxs muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {skill.description_zh || skill.description}
                 </div>
-                <div style={{ fontSize: '10px', color: 'var(--text-dimmer)', marginTop: '1px' }}>
+                <div className="mt-1" style={{ fontSize: '10px', color: 'var(--text-dimmer)' }}>
                     {skill.ownerName} · ↓{skill.downloads.toLocaleString()} · ★{skill.stars} · v{skill.version}
                 </div>
             </div>
             <button
                 onClick={() => onInstall(skill.slug)}
                 disabled={isInstalling}
-                style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '5px', border: '1px solid rgba(6,182,212,0.4)', background: 'rgba(6,182,212,0.1)', color: isInstalling ? 'var(--text-dimmer)' : 'var(--info)', cursor: isInstalling ? 'not-allowed' : 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+                className="flex-shrink-0 status-badge"
+                style={{ border: '1px solid rgba(6,182,212,0.4)', background: 'rgba(6,182,212,0.1)', color: isInstalling ? 'var(--text-dimmer)' : 'var(--info)', cursor: isInstalling ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
             >{isInstalling ? t('agents.installing') : t('agents.install')}</button>
         </div>
     )
@@ -108,50 +109,55 @@ export function SkillModal({ enabled, onClose, onToggle }: {
         <div className="modal-backdrop" onClick={onClose}>
             <div
                 className="modal-panel"
-                style={{ width: '580px', maxWidth: '90vw', maxHeight: '70vh', display: 'flex', flexDirection: 'column' }}
+                style={{ width: '580px', maxWidth: '90vw', maxHeight: '70vh' }}
                 onClick={e => e.stopPropagation()}
             >
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* Header */}
+                <div className="modal-header" style={{ padding: '16px 20px' }}>
                     <div>
-                        <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('agents.skill_modal_title')}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', marginTop: '2px' }}>{t('agents.skill_modal_subtitle')}</div>
+                        <div className="modal-title">{t('agents.skill_modal_title')}</div>
+                        <div className="modal-sub">{t('agents.skill_modal_subtitle')}</div>
                     </div>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-dimmer)', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}>×</button>
+                    <button className="modal-close" onClick={onClose} style={{ fontSize: '20px', lineHeight: 1 }}>×</button>
                 </div>
 
+                {/* Search bar */}
                 <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-subtle)', position: 'relative' }}>
                     <input
                         type="text" placeholder={t('agents.skill_search_placeholder')} className="field-input"
-                        style={{ width: '100%' }} value={search} onChange={e => setSearch(e.target.value)}
+                        value={search} onChange={e => setSearch(e.target.value)}
                     />
                     {searching && (
-                        <span style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--text-dimmer)' }}>{t('agents.searching')}</span>
+                        <span className="text-xxs text-dimmer" style={{ position: 'absolute', right: '32px', top: '50%', transform: 'translateY(-50%)' }}>{t('agents.searching')}</span>
                     )}
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Body */}
+                <div className="flex-col flex-1" style={{ overflowY: 'auto', padding: '12px 20px', gap: '8px' }}>
                     {installedSkills.length > 0 && (
                         <>
-                            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', padding: '2px 0', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('agents.installed')}</div>
+                            <div className="section-label" style={{ padding: '2px 0' }}>{t('agents.installed')}</div>
                             {installedSkills.map(skill => {
                                 const slug = skill.slug ?? skill.name
                                 const added = enabled.includes(slug)
                                 return (
-                                    <div key={skill.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'var(--success-muted)' : 'var(--border-default)'}`, background: added ? 'var(--success-muted)' : 'var(--border-subtle)' }}>
-                                        <span style={{ fontSize: '18px', flexShrink: 0 }}>🔧</span>
-                                        <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => onToggle(slug)}>
-                                            <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill.display_name}</div>
-                                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{skill.description}</div>
-                                            {skill.version && <div style={{ fontSize: '10px', color: 'var(--text-dimmer)', marginTop: '1px' }}>v{skill.version}{skill.author ? ` · ${skill.author}` : ''}</div>}
+                                    <div key={skill.id} className="flex-center gap-10" style={{ padding: '10px 12px', borderRadius: '8px', border: `1px solid ${added ? 'var(--success-muted)' : 'var(--border-default)'}`, background: added ? 'var(--success-muted)' : 'var(--border-subtle)' }}>
+                                        <span className="flex-shrink-0" style={{ fontSize: '18px' }}>🔧</span>
+                                        <div className="flex-grow" style={{ cursor: 'pointer' }} onClick={() => onToggle(slug)}>
+                                            <div className="text-sm" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{skill.display_name}</div>
+                                            <div className="text-xxs muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{skill.description}</div>
+                                            {skill.version && <div className="mt-1" style={{ fontSize: '10px', color: 'var(--text-dimmer)' }}>v{skill.version}{skill.author ? ` · ${skill.author}` : ''}</div>}
                                         </div>
-                                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                        <div className="flex gap-6 flex-shrink-0">
                                             <span
                                                 onClick={() => onToggle(slug)}
-                                                style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: added ? 'var(--success-muted)' : 'var(--accent-muted)', color: added ? 'var(--success)' : 'var(--accent-hover)', cursor: 'pointer' }}
+                                                className="status-badge"
+                                                style={{ background: added ? 'var(--success-muted)' : 'var(--accent-muted)', color: added ? 'var(--success)' : 'var(--accent-hover)', cursor: 'pointer' }}
                                             >{added ? `✓ ${t('agents.added')}` : `+ ${t('agents.add')}`}</span>
                                             <span
                                                 onClick={() => handleUninstall(slug)}
-                                                style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'var(--error-muted)', color: 'var(--error)', cursor: 'pointer' }}
+                                                className="status-badge"
+                                                style={{ background: 'var(--error-muted)', color: 'var(--error)', cursor: 'pointer' }}
                                             >{t('agents.uninstall')}</span>
                                         </div>
                                     </div>
@@ -166,7 +172,7 @@ export function SkillModal({ enabled, onClose, onToggle }: {
 
                     {remoteNew.length > 0 && (
                         <>
-                            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', padding: '4px 0 2px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('agents.clawhub_results')}</div>
+                            <div className="section-label" style={{ padding: '4px 0 2px' }}>{t('agents.clawhub_results')}</div>
                             {remoteNew.map(skill => (
                                 <SkillRow key={skill.slug} skill={skill} installing={installing} onInstall={handleInstall} />
                             ))}
@@ -174,19 +180,22 @@ export function SkillModal({ enabled, onClose, onToggle }: {
                     )}
 
                     {installedSkills.length === 0 && remoteSkills.length === 0 && !searching && (
-                        <div style={{ textAlign: 'center', color: 'var(--text-dimmer)', fontSize: '13px', padding: '32px 0' }}>
-                            <div style={{ marginBottom: '8px' }}>{t('agents.no_installed_skills')}</div>
-                            <div style={{ fontSize: '11px' }}>{t('agents.skill_search_hint')}</div>
+                        <div className="empty-state">
+                            <div className="empty-state-title">{t('agents.no_installed_skills')}</div>
+                            <div className="empty-state-desc">{t('agents.skill_search_hint')}</div>
                         </div>
                     )}
 
                     {!searching && search.trim() && installedSkills.length === 0 && remoteSkills.length === 0 && (
-                        <div style={{ textAlign: 'center', color: 'var(--text-dimmer)', fontSize: '13px', padding: '24px 0' }}>{t('agents.no_skills_found')}</div>
+                        <div className="empty-state">
+                            <div className="empty-state-title">{t('agents.no_skills_found')}</div>
+                        </div>
                     )}
                 </div>
 
-                <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('agents.skill_selected_count', { selected: enabled.length, installed: dbSkills.filter(s => s.is_installed).length })}</span>
+                {/* Footer */}
+                <div className="modal-footer flex-between" style={{ padding: '12px 20px' }}>
+                    <span className="text-xs text-dimmer">{t('agents.skill_selected_count', { selected: enabled.length, installed: dbSkills.filter(s => s.is_installed).length })}</span>
                     <button className="tbtn tbtn-accent" onClick={onClose}>{t('common.button_done')}</button>
                 </div>
             </div>
