@@ -107,10 +107,10 @@ export default function Layout() {
       {/* ── Sidebar ── */}
       <aside
         className={`sidebar${mobileMenuOpen ? ' mobile-open' : ''}`}
-        style={isMobile ? undefined : { width: sidebarWidth, transition: 'width 0.2s ease', overflow: 'hidden', ...(collapsed ? { padding: '18px 4px 16px', alignItems: 'center' } : {}) }}
+        style={isMobile ? undefined : { width: sidebarWidth, transition: 'width 0.2s ease', overflow: 'hidden', ...(collapsed ? { padding: '14px 4px 12px', alignItems: 'center' } : {}) }}
       >
         {/* Brand */}
-        <div data-tauri-drag-region style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px 14px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '8px' }}>
+        <div data-tauri-drag-region style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 10px 12px', borderBottom: '1px solid var(--border-subtle)', marginBottom: '4px' }}>
           {showLabels ? (
             <>
               <div className="logo-box" style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-on-accent)', letterSpacing: '-0.04em' }}>
@@ -134,7 +134,7 @@ export default function Layout() {
             <div
               className="back-home"
               onClick={() => navigate('/companies')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 10px', marginBottom: '8px', borderRadius: 'var(--radius-md)', fontSize: '12.5px', color: 'var(--text-secondary)', border: '1px dashed var(--border-default)', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', marginBottom: '4px', borderRadius: 'var(--radius-md)', fontSize: '12.5px', color: 'var(--text-secondary)', border: '1px dashed var(--border-default)', cursor: 'pointer' }}
             >
               <Icon name="home" size={14} />
               <span>{t('nav.back_home', '返回全局')}</span>
@@ -200,16 +200,14 @@ export default function Layout() {
 
         {/* Collapse toggle */}
         {!isMobile && !inCompany && !collapsed && (
-          <div style={{ padding: '0 6px 4px' }}>
-            <button
-              className="nav-item"
-              onClick={() => setCollapsed(true)}
-              style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <span className="nav-icon ic-18" style={{ flexShrink: 0 }}><Icon name="menu" size={16} /></span>
-              <span className="text-sm">{t('common.collapse', '收起侧栏')}</span>
-            </button>
-          </div>
+          <button
+            className="nav-item"
+            onClick={() => setCollapsed(true)}
+            style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
+            <span className="nav-icon ic-18" style={{ flexShrink: 0 }}><Icon name="menu" size={16} /></span>
+            <span className="text-sm">{t('common.collapse', '收起侧栏')}</span>
+          </button>
         )}
 
         {/* Status footer */}
@@ -219,31 +217,40 @@ export default function Layout() {
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block', background: statusColor }} />
             </div>
           ) : (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', display: 'inline-block', flexShrink: 0, background: statusColor }} />
-                <span style={{ fontSize: '12px', color: statusColor, fontWeight: 500 }}>
-                  {processLoading && !process ? t('process.checking')
+            <div style={{ padding: '8px', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, background: statusColor, boxShadow: process?.is_running ? `0 0 6px ${statusColor}` : 'none' }} />
+                  <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'var(--text-secondary)' }}>
+                    {processLoading && !process ? t('process.checking')
+                      : process?.is_running ? 'OpenClaw'
+                      : process?.daemon_available === false ? t('process.localMachine')
+                      : 'OpenClaw'}
+                  </span>
+                </div>
+                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: process?.is_running ? 'rgba(135,184,154,0.15)' : 'rgba(255,255,255,0.05)', color: process?.is_running ? 'var(--success)' : 'var(--text-muted)' }}>
+                  {processLoading && !process ? '...'
                     : process?.is_running ? t('process.running')
-                    : process?.daemon_available === false ? `${t('process.localMachine')} ${t('process.stopped')}`
-                    : `${t('process.localMachine')} ${t('process.unknown')}`}
+                    : process?.daemon_available === false ? t('process.stopped')
+                    : t('process.unknown')}
                 </span>
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '7px' }}>
+              <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginBottom: '8px' }}>
                 {processLoading && !process ? t('process.checkingDesc')
                   : process?.is_running && process.pid != null
                     ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${formatUptime(process.uptime_seconds, i18n.language)}` : ''}`
                     : process?.daemon_available === false ? 'daemon 未运行' : t('process.notRunning')}
               </div>
               <button
-                className="tbtn tbtn-ghost"
-                style={{ width: '100%', textAlign: 'center', opacity: (acting || (processLoading && !process)) ? 0.5 : 1 }}
+                className="btn btn-sm"
+                style={{ width: '100%', justifyContent: 'center', fontSize: '11.5px', opacity: (acting || (processLoading && !process)) ? 0.5 : 1 }}
                 onClick={handleRestart}
                 disabled={acting || (processLoading && !process)}
               >
+                <Icon name="refresh" size={11} />
                 {acting ? t('process.acting') : (processLoading && !process) ? t('process.checking') : t('process.restart')}
               </button>
-            </>
+            </div>
           )}
         </div>
       </aside>

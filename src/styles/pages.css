@@ -211,6 +211,7 @@ html[dir='rtl'] .stat-card[data-accent="amber"] { border-right: 3px solid var(--
   display: flex; align-items: center; gap: 12px;
   padding: 18px 32px; border-bottom: 1px solid var(--border-subtle);
   min-width: 0; max-width: 100%; overflow: hidden;
+  flex-shrink: 0;
 }
 .agent-toolbar-name { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .unsaved-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; margin-left: 8px; vertical-align: middle; }

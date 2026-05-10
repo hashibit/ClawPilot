@@ -794,12 +794,6 @@ export default function AgentsPage() {
                         <>
                             {/* ── Agent toolbar ── */}
                             <div className="agent-toolbar">
-                                <div
-                                    className="agent-pill-avatar"
-                                    style={{ background: toolbarColor, width: 36, height: 36, fontSize: toolbarIsEmoji ? 22 : 16, borderRadius: 9, flexShrink: 0 }}
-                                >
-                                    {toolbarInitials}
-                                </div>
                                 <div className="agent-toolbar-name">
                                     {toolbarName}
                                     {selectedAgent.is_default && !isNewAgent && (

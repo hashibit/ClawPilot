@@ -5,7 +5,7 @@
   --bg-canvas: #0e1918;
   --bg-surface: #122220;
   --bg-elevated: #182d2a;
-  --bg-input: #0d1817;
+  --bg-input: #0a1210;
   --bg-hover: #1c322f;
   --bg-overlay: #182d2a;
   --bg-inset: #0d1817;
@@ -165,8 +165,8 @@ html[dir='rtl'] .section-label {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  padding: 18px 14px 16px;
-  gap: 6px;
+  padding: 14px 12px 12px;
+  gap: 4px;
 }
 .list-pane {
   width: 280px;
@@ -212,24 +212,24 @@ html[dir='rtl'] .section-label {
 }
 .sidebar-toggle:hover { color: var(--text-secondary); }
 .sidebar-nav {
-  flex: 1; padding: 6px 0; overflow-y: auto; overflow-x: hidden;
+  flex: 1; padding: 4px 0; overflow-y: auto; overflow-x: hidden;
 }
 .sidebar-footer {
-  padding: 12px 8px 4px; border-top: 1px solid var(--border-subtle); flex-shrink: 0;
+  padding: 10px 10px 4px; border-top: 1px solid var(--border-subtle); flex-shrink: 0;
   margin-top: auto;
 }
 .sidebar-footer-collapsed {
-  padding: 8px 6px; border-top: 1px solid var(--border-subtle); flex-shrink: 0;
+  padding: 8px 4px; border-top: 1px solid var(--border-subtle); flex-shrink: 0;
   margin-top: auto;
 }
 
 /* ── Navigation ───────────────────────────────────────── */
 .nav-item {
-  display: flex; align-items: center; gap: 11px;
-  padding: 8px 10px; border-radius: var(--radius-md);
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: var(--radius-md);
   cursor: pointer; transition: all var(--transition-default);
   text-decoration: none; color: var(--text-secondary);
-  margin: 3px 0;
+  margin: 1px 0;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: -0.005em;
@@ -243,9 +243,9 @@ html[dir='rtl'] .section-label {
 .nav-item.active::before {
   content: '';
   position: absolute;
-  left: -4px;
-  top: 8px; bottom: 8px;
-  width: 2px;
+  left: -12px;
+  top: 6px; bottom: 6px;
+  width: 3px;
   border-radius: 0 2px 2px 0;
   background: var(--accent);
 }
@@ -256,7 +256,7 @@ html[dir='rtl'] .section-label {
 .section-label {
   font-size: 10.5px; font-weight: 600;
   letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--text-muted); padding: 14px 10px 6px;
+  color: var(--text-muted); padding: 10px 10px 4px;
 }
 
 /* ── List rows ────────────────────────────────────────── */
