@@ -487,10 +487,7 @@ export default function OfficePage() {
         <>
             {/* COL2 - office list */}
             <div className="list-pane">
-                <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('office.section_title')}</span>
-                </div>
-                <div style={{ flex: 1, overflowY: 'auto' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {offices.length === 0 && (
                         <div style={{ padding: '20px 12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-dimmer)' }}>
                             {t('office.no_offices')}
@@ -501,19 +498,13 @@ export default function OfficePage() {
                             key={office.id}
                             className={`list-row${selected?.id === office.id && !isNewOffice ? ' selected' : ''}`}
                             onClick={() => handleSelect(office)}
-                            style={{ cursor: 'pointer' }}
                         >
                             <div
                                 style={{ position: 'relative', flexShrink: 0 }}
                                 onMouseEnter={() => office.receptionist_image && setHoveredOfficeId(office.id)}
                                 onMouseLeave={() => setHoveredOfficeId(null)}
                             >
-                                <div style={{
-                                    width: '30px', height: '30px', borderRadius: '8px',
-                                    background: 'var(--accent)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: '16px', overflow: 'hidden',
-                                }}>
+                                <div className="list-row-avatar" style={{ background: 'var(--accent)', overflow: 'hidden' }}>
                                     {office.receptionist_image
                                         ? <img src={office.receptionist_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                                         : '💁‍♀️'}
@@ -530,16 +521,14 @@ export default function OfficePage() {
                                     </div>
                                 )}
                             </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="list-row-info">
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px', overflow: 'hidden' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 500, color: selected?.id === office.id && !isNewOffice ? 'var(--text-primary)' : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {office.name}
-                                    </span>
+                                    <span className="list-row-title">{office.name}</span>
                                     {selected?.id === office.id && editing && !isNewOffice && (
                                         <span style={{ fontSize: '10px', color: 'var(--warning)', flexShrink: 0 }}>[未保存]</span>
                                     )}
                                 </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <div className="list-row-meta">
                                     {GRADE_LABELS[office.decoration_grade]}{office.address ? ` · ${office.address}` : ''}
                                 </div>
                             </div>
@@ -547,10 +536,10 @@ export default function OfficePage() {
                     ))}
                     {isNewOffice && (
                         <div className="list-row selected">
-                            <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>🏢</div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="list-row-avatar" style={{ background: 'var(--border-subtle)' }}>🏢</div>
+                            <div className="list-row-info">
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-                                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{form.name || '新办公室'}</span>
+                                    <span className="list-row-title">{form.name || '新办公室'}</span>
                                     <span style={{ fontSize: '10px', color: 'var(--warning)', flexShrink: 0 }}>[未保存]</span>
                                 </div>
                             </div>

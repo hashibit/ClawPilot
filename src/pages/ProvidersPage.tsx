@@ -497,10 +497,7 @@ export default function ProvidersPage() {
     <>
       {/* ── Left: Provider List ───────────────────────────── */}
       <div className="list-pane">
-        <div data-tauri-drag-region className="toolbar">
-          <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('providers.section_title')}</span>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {providers.length === 0 && (
             <div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-dimmer)', textAlign: 'center' }}>
               {t('providers.no_providers')}
@@ -515,17 +512,17 @@ export default function ProvidersPage() {
                 className={`list-row${selectedId === p.id ? ' selected' : ''}`}
                 onClick={() => handleSelectProvider(p.id)}
               >
-                <div className="avatar avatar-lg" style={{ background: gradient }}>
+                <div className="list-row-avatar" style={{ background: gradient, color: 'white' }}>
                   {initials}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="list-row-info">
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600 }}>{p.name}</span>
+                    <span className="list-row-title">{p.name}</span>
                     {editMode === 'edit' && selectedId === p.id && (
                       <span style={{ fontSize: '10px', color: 'var(--warning)' }}>[{t('common.status_unsaved')}]</span>
                     )}
                   </div>
-                  <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="list-row-meta">
                     <ApiBadge api={p.api} />
                     <span style={{
                       fontSize: '10px', padding: '1px 5px', borderRadius: '4px',
