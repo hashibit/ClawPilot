@@ -78,7 +78,9 @@ export type IconName =
   | 'activity'
   | 'moon'
   | 'circle'
-  | 'building';
+  | 'building'
+  | 'panel-left-close'
+  | 'panel-left-open';
 
 export interface IconProps {
   name: IconName;
@@ -303,6 +305,20 @@ const icons: Record<IconName, JSX.Element> = {
   ),
   'activity': (
     <path strokeLinecap="round" strokeLinejoin="round" d="M22 12h-4l-3 9L9 3l-3 9H2" />
+  ),
+  'panel-left-close': (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 15l-3-3 3-3" />
+    </>
+  ),
+  'panel-left-open': (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14 9l3 3-3 3" />
+    </>
   ),
 };
 

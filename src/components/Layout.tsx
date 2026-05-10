@@ -165,18 +165,6 @@ export default function Layout() {
         {/* Nav section label */}
         {showLabels && <div className="section-label">{inCompany ? '工作区' : '全局'}</div>}
 
-        {/* Collapsed expand toggle */}
-        {!isMobile && collapsed && !inCompany && (
-          <button
-            className="sidebar-toggle"
-            onClick={() => setCollapsed(false)}
-            title={t('common.expand')}
-            style={{ padding: '6px', justifyContent: 'center', width: '100%', borderBottom: '1px solid var(--border-subtle)' }}
-          >
-            <Icon name="chevron-right" size={14} />
-          </button>
-        )}
-
         {/* Navigation */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {inCompany ? (
@@ -198,15 +186,18 @@ export default function Layout() {
           )}
         </div>
 
-        {/* Collapse toggle */}
-        {!isMobile && !inCompany && !collapsed && (
+        {/* Collapse / Expand toggle */}
+        {!isMobile && (
           <button
             className="nav-item"
-            onClick={() => setCollapsed(true)}
-            style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+            onClick={() => setCollapsed(!collapsed)}
+            style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? '8px' : undefined }}
+            title={collapsed ? t('common.expand', '展开侧栏') : t('common.collapse', '收起侧栏')}
           >
-            <span className="nav-icon ic-18" style={{ flexShrink: 0 }}><Icon name="menu" size={16} /></span>
-            <span className="text-sm">{t('common.collapse', '收起侧栏')}</span>
+            <span className="nav-icon ic-18" style={{ flexShrink: 0 }}>
+              <Icon name={collapsed ? 'panel-left-open' : 'panel-left-close'} size={16} />
+            </span>
+            {!collapsed && <span className="text-sm">{t('common.collapse', '收起侧栏')}</span>}
           </button>
         )}
 
