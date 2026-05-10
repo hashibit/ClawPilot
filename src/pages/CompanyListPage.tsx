@@ -16,6 +16,7 @@ export default function CompanyListPage() {
   const [createDisplayName, setCreateDisplayName] = useState('')
   const [creating, setCreating] = useState(false)
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<'all' | 'running' | 'stopped'>('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleEnterOpc = (opc: OpcConfig) => {
@@ -44,13 +45,13 @@ export default function CompanyListPage() {
 
   const filteredOpcs = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return opcs
-    return opcs.filter(
-      o =>
-        o.display_name.toLowerCase().includes(q) ||
-        o.name.toLowerCase().includes(q),
-    )
-  }, [opcs, search])
+    return opcs.filter(o => {
+      if (filter === 'running' && !o.is_running) return false
+      if (filter === 'stopped' && o.is_running) return false
+      if (!q) return true
+      return o.display_name.toLowerCase().includes(q) || o.name.toLowerCase().includes(q)
+    })
+  }, [opcs, search, filter])
 
   const handleCreate = async () => {
     if (!createName.trim() || !createDisplayName.trim()) {
@@ -74,93 +75,112 @@ export default function CompanyListPage() {
   }
 
   return (
-    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('nav.company_list', '公司列表')}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            className="field-input"
-            style={{ fontSize: '12px', width: '180px', height: '26px' }}
-            placeholder={t('opc.search_placeholder', '搜索公司...')}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          <button className="tbtn tbtn-accent" style={{ fontSize: '12px' }} onClick={() => setShowCreate(true)}>
-            <Icon name="plus" size={12} style={{ marginRight: '4px' }} />
-            {t('opc.button_create_new', '创建公司')}
-          </button>
-        </div>
+    <div className="companies fade-in">
+      <div>
+        <h1 className="page-title">公司列表</h1>
+        <p className="page-sub">管理 OPC 团队配置</p>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
-        {/* Create form */}
-        {showCreate && (
-          <div className="stat-card" style={{ padding: '16px', marginBottom: '16px', maxWidth: '480px' }}>
-            <div className="text-sm text-bold" style={{ marginBottom: '10px' }}>{t('opc.modal_title', '创建新公司')}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <input className="field-input" placeholder={t('opc.form.internal_name_placeholder', 'my-company')} value={createName} onChange={e => setCreateName(e.target.value)} />
-              <input className="field-input" placeholder={t('opc.form.display_name_placeholder', '我的公司')} value={createDisplayName} onChange={e => setCreateDisplayName(e.target.value)} />
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                <button className="tbtn tbtn-ghost" onClick={() => { setShowCreate(false); setCreateName(''); setCreateDisplayName('') }}>{t('common.button_cancel')}</button>
-                <button className="tbtn tbtn-accent" disabled={creating} onClick={handleCreate}>{creating ? '...' : t('opc.button_create', '创建')}</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Company cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-          {filteredOpcs.map(opc => (
-            <div key={opc.id} className="stat-card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? 'var(--accent)' }}>
-                  {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="text-sm text-bold" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {opc.display_name}
-                  </div>
-                  <div className="text-xxs" style={{ color: opc.is_running ? 'var(--success)' : 'var(--text-dimmer)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', display: 'inline-block', background: opc.is_running ? 'var(--success)' : 'var(--text-dimmer)' }} />
-                    {opc.is_running ? t('common.status_running') : t('common.status_stopped')}
-                  </div>
-                </div>
-                <button
-                  className="tbtn tbtn-ghost"
-                  title={t('common.button_delete', '删除')}
-                  style={{ padding: '4px 6px', fontSize: '11px', color: 'var(--danger, #ef4444)' }}
-                  disabled={deletingId === opc.id}
-                  onClick={() => handleDelete(opc)}
-                >
-                  <Icon name="trash" size={12} />
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                <span>{opc.agent_count} {t('overview.agents')}</span>
-                <span>{opc.channel_count} {t('overview.channels')}</span>
-              </div>
-              <button className="tbtn tbtn-ghost" style={{ width: '100%', textAlign: 'center' }} onClick={() => handleEnterOpc(opc)}>
-                {t('opc.enter', '进入公司')} <Icon name="chevron-right" size={14} style={{ marginLeft: '4px' }} />
-              </button>
-            </div>
+      <div className="toolbar" style={{ marginTop: 24, height: 'auto', border: 'none', padding: 0 }}>
+        <input
+          className="search-input"
+          placeholder="搜索公司名称…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <div className="filter-tabs">
+          {(['all', 'running', 'stopped'] as const).map(f => (
+            <button
+              key={f}
+              className={`filter-tab${filter === f ? ' active' : ''}`}
+              onClick={() => setFilter(f)}
+            >
+              {f === 'all' ? '全部' : f === 'running' ? '运行中' : '已停止'}
+            </button>
           ))}
         </div>
-
-        {opcs.length === 0 && !showCreate && (
-          <div className="empty-state" style={{ paddingTop: '60px' }}>
-            <Icon name="grid" size={40} style={{ color: 'var(--text-tertiary)' }} />
-            <div className="empty-state-title">{t('overview.noData', '还没有公司')}</div>
-            <div className="empty-state-desc">{t('overview.empty_hint', '点击右上角创建第一个公司')}</div>
-          </div>
-        )}
-
-        {opcs.length > 0 && filteredOpcs.length === 0 && (
-          <div className="empty-state" style={{ paddingTop: '40px' }}>
-            <Icon name="search" size={32} style={{ color: 'var(--text-tertiary)' }} />
-            <div className="empty-state-title">{t('opc.search_no_results', '没有匹配的公司')}</div>
-          </div>
-        )}
+        <div className="toolbar-spacer" />
+        <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+          <Icon name="plus" size={14} /> 创建公司
+        </button>
       </div>
+
+      {showCreate && (
+        <div className="stat-card" style={{ padding: '16px', marginTop: '16px', maxWidth: '480px' }}>
+          <div className="text-sm text-bold" style={{ marginBottom: '10px' }}>{t('opc.modal_title', '创建新公司')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <input className="field-input" placeholder={t('opc.form.internal_name_placeholder', 'my-company')} value={createName} onChange={e => setCreateName(e.target.value)} />
+            <input className="field-input" placeholder={t('opc.form.display_name_placeholder', '我的公司')} value={createDisplayName} onChange={e => setCreateDisplayName(e.target.value)} />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="tbtn tbtn-ghost" onClick={() => { setShowCreate(false); setCreateName(''); setCreateDisplayName('') }}>{t('common.button_cancel')}</button>
+              <button className="tbtn tbtn-accent" disabled={creating} onClick={handleCreate}>{creating ? '...' : t('opc.button_create', '创建')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="company-grid">
+        {filteredOpcs.map(opc => (
+          <div key={opc.id} className="company-card">
+            <div className="company-card-head">
+              <div
+                className="company-avatar"
+                style={{ background: opc.avatar_color ?? 'var(--accent)' }}
+              >
+                {opc.avatar_initials || opc.display_name.slice(0, 1)}
+              </div>
+              <div className="company-card-info">
+                <div className="company-card-name">{opc.display_name}</div>
+                <div className="company-card-id">{opc.name}</div>
+              </div>
+              {opc.is_running
+                ? <span className="tag success"><span className="dot live" /> 运行中</span>
+                : <span className="tag"><span className="dot" /> 已停止</span>}
+            </div>
+            <div className="company-card-stats">
+              <div className="stat-item">
+                <div className="stat-num">{opc.agent_count}</div>
+                <div className="stat-lbl">智能体</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-num">{opc.channel_count}</div>
+                <div className="stat-lbl">频道</div>
+              </div>
+              <div className="stat-item">
+                <div className="stat-num">{opc.message_count_today || '—'}</div>
+                <div className="stat-lbl">今日消息</div>
+              </div>
+            </div>
+            <div className="company-card-actions">
+              <button className="btn btn-primary btn-sm" onClick={() => handleEnterOpc(opc)}>
+                进入公司 <Icon name="arrow-right" size={12} />
+              </button>
+              <button
+                className="btn btn-sm btn-ghost btn-icon"
+                disabled={deletingId === opc.id}
+                onClick={() => handleDelete(opc)}
+              >
+                <Icon name="trash" size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {opcs.length === 0 && !showCreate && (
+        <div className="empty-state" style={{ paddingTop: '60px' }}>
+          <Icon name="grid" size={40} style={{ color: 'var(--text-tertiary)' }} />
+          <div className="empty-state-title">{t('overview.noData', '还没有公司')}</div>
+          <div className="empty-state-desc">{t('overview.empty_hint', '点击右上角创建第一个公司')}</div>
+        </div>
+      )}
+
+      {opcs.length > 0 && filteredOpcs.length === 0 && (
+        <div className="empty-state" style={{ paddingTop: '40px' }}>
+          <Icon name="search" size={32} style={{ color: 'var(--text-tertiary)' }} />
+          <div className="empty-state-title">{t('opc.search_no_results', '没有匹配的公司')}</div>
+        </div>
+      )}
     </div>
   )
 }

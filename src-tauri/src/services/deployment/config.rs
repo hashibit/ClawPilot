@@ -108,7 +108,12 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
                     (None, None) => default_model.clone(),
                 }
             });
-            let emoji = initials.as_deref().and_then(|s| s.chars().next()).unwrap_or('🤖');
+            // Emoji: first char of initials (works for both emoji and ASCII), fallback to 🤖
+            let emoji_str = initials
+                .as_deref()
+                .and_then(|s| s.chars().next())
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "🤖".to_string());
             serde_json::json!({
                 "id": name,
                 "name": name,
@@ -118,7 +123,7 @@ pub fn generate_openclaw_config(pool: &DbPool, opc_id: &str) -> Result<serde_jso
                 },
                 "identity": {
                     "name": display_name,
-                    "emoji": emoji.to_string(),
+                    "emoji": emoji_str,
                 },
             })
         })

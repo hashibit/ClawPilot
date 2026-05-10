@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
 import { getOpcStats } from '../lib/api'
 import type { OpcStats } from '../lib/types'
@@ -14,8 +13,17 @@ function sumStats(stats: Map<string, OpcStats>) {
   return { agents, channels, messages, growth: n > 0 ? growth / n : 0 }
 }
 
+const CHART_COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#f43f5e', '#3b82f6']
+
+const OPC_EMOJIS: Record<string, string> = {}
+
+function opcEmoji(id: string, index: number): string {
+  const pool = ['🏢', '🚀', '💡', '🎯', '⚡', '🌐']
+  if (!OPC_EMOJIS[id]) OPC_EMOJIS[id] = pool[index % pool.length]
+  return OPC_EMOJIS[id]
+}
+
 export default function OverviewPage() {
-  const { t } = useTranslation()
   const { opcs } = useOpc()
   const [statsMap, setStatsMap] = useState<Map<string, OpcStats>>(new Map())
 
@@ -28,115 +36,116 @@ export default function OverviewPage() {
 
   const totals = sumStats(statsMap)
   const growthSign = totals.growth >= 0 ? '+' : ''
+  const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const maxMsg = Math.max(...opcs.map(o => statsMap.get(o.id)?.message_count_today ?? o.message_count_today), 1)
+  const runningOpcs = opcs.filter(o => o.is_running)
 
   return (
-    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('overview.title')}</span>
-        {/* B2: time-range buttons (today/week/month) had no onClick — they were
-            decorative. Removed pending real backend filtering. See issues-review.md B2. */}
+    <div className="overview-content fade-in">
+      {/* Page header */}
+      <div>
+        <h1 className="page-title">数据概览</h1>
+        <p className="page-sub">{date} · 全局运营大盘</p>
       </div>
-      <div className="overview-content">
-        {/* 核心指标 */}
-        <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('overview.coreMetrics')}</div>
-          <div className="stat-grid">
-            <div className="stat-card" data-accent="purple">
-              <div className="stat-value">{opcs.length}</div>
-              <div className="stat-label">{t('overview.companies')}</div>
-              <div className="stat-change neutral"><Icon name="minus" size={12} />{t('overview.noChange')}</div>
-            </div>
-            <div className="stat-card" data-accent="green">
-              <div className="stat-value">{totals.agents}</div>
-              <div className="stat-label">{t('overview.agents')}</div>
-              <div className="stat-change up"><Icon name="arrow-up" size={12} />{t('overview.realtime')}</div>
-            </div>
-            <div className="stat-card" data-accent="cyan">
-              <div className="stat-value">{totals.channels}</div>
-              <div className="stat-label">{t('overview.channels')}</div>
-              <div className="stat-change up"><Icon name="arrow-up" size={12} />{t('overview.realtime')}</div>
-            </div>
-            <div className="stat-card" data-accent="amber">
-              <div className="stat-value">{totals.messages.toLocaleString()}</div>
-              <div className="stat-label">{t('overview.todayMessages')}</div>
-              <div className={`stat-change ${totals.growth >= 0 ? 'up' : 'down'}`}>
-                <Icon name={totals.growth >= 0 ? 'arrow-up' : 'arrow-down'} size={12} />
-                {growthSign}{totals.growth.toFixed(1)}% {t('overview.vsYesterday')}
-              </div>
-            </div>
-          </div>
-        </section>
 
-        {/* 消息趋势 */}
-        <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('overview.messageTrend')}</div>
-          <div className="stat-card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)' }}>{totals.messages.toLocaleString()}</div>
-                <div className="stat-label">{t('overview.todayMessages')}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '13px', color: totals.growth >= 0 ? 'var(--success)' : 'var(--error)', fontWeight: 500 }}>
-                  {growthSign}{totals.growth.toFixed(1)}%
+      {/* Metric cards */}
+      <div className="metric-grid">
+        <div className="metric-card">
+          <div className="metric-card-head">
+            <div className="metric-card-label">公司总数</div>
+            <div className="metric-card-icon"><Icon name="grid" size={14} /></div>
+          </div>
+          <div className="metric-card-value">{opcs.length}</div>
+          <div className="metric-card-delta delta-up">↑ 实时</div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-card-head">
+            <div className="metric-card-label">智能体总数</div>
+            <div className="metric-card-icon"><Icon name="users" size={14} /></div>
+          </div>
+          <div className="metric-card-value">{totals.agents}</div>
+          <div className="metric-card-delta delta-up">↑ 实时</div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-card-head">
+            <div className="metric-card-label">飞书频道</div>
+            <div className="metric-card-icon"><Icon name="message" size={14} /></div>
+          </div>
+          <div className="metric-card-value">{totals.channels}</div>
+          <div className="metric-card-delta delta-up">↑ 实时</div>
+        </div>
+
+        <div className="metric-card">
+          <div className="metric-card-head">
+            <div className="metric-card-label">今日消息</div>
+            <div className="metric-card-icon"><Icon name="activity" size={14} /></div>
+          </div>
+          <div className="metric-card-value">{totals.messages.toLocaleString()}</div>
+          <div className={`metric-card-delta ${totals.growth >= 0 ? 'delta-up' : ''}`}>
+            {totals.growth >= 0 ? '↑' : '↓'} {growthSign}{totals.growth.toFixed(1)}% 较昨日
+          </div>
+        </div>
+      </div>
+
+      {/* Two-column row */}
+      <div className="row-2">
+        {/* Bar chart: company message volumes */}
+        <div className="chart-card">
+          <div className="chart-head">
+            <h3 className="chart-title">各公司消息量</h3>
+            <div className="chart-meta">今日</div>
+          </div>
+          {opcs.length === 0 ? (
+            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '12px 0' }}>暂无数据</div>
+          ) : opcs.map((opc, i) => {
+            const msgs = statsMap.get(opc.id)?.message_count_today ?? opc.message_count_today
+            const pct = Math.round((msgs / maxMsg) * 100)
+            const color = opc.avatar_color ?? CHART_COLORS[i % CHART_COLORS.length]
+            return (
+              <div key={opc.id} className="bar-row">
+                <div className="bar-label">
+                  <span style={{ fontSize: 14 }}>{opcEmoji(opc.id, i)}</span>
+                  <span>{opc.display_name}</span>
                 </div>
-                <div className="stat-label">{t('overview.vsYesterday')}</div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: pct + '%', background: color }} />
+                </div>
+                <div className="bar-value">{msgs > 0 ? msgs.toLocaleString() : '—'}</div>
               </div>
-            </div>
-            <div className="trend-bar"><div className="trend-fill" style={{ width: '68%' }} /></div>
-          </div>
-        </section>
+            )
+          })}
+        </div>
 
-        {/* 各公司消息量 */}
-        <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('overview.companyMessages')}</div>
-          <div className="stat-card">
-            {opcs.length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('overview.noData')}</div>
-            ) : (() => {
-              const maxMsg = Math.max(...opcs.map(o => statsMap.get(o.id)?.message_count_today ?? o.message_count_today), 1)
-              const colors = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#f43f5e', '#3b82f6']
-              return opcs.map((opc, i) => {
-                const msgs = statsMap.get(opc.id)?.message_count_today ?? opc.message_count_today
-                const pct = Math.round((msgs / maxMsg) * 100)
-                return (
-                  <div key={opc.id} className="overview-row">
-                    <div style={{ width: '80px', fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opc.display_name}</div>
-                    <div style={{ flex: 1 }}>
-                      <div className="trend-bar"><div className="trend-fill" style={{ width: `${pct}%`, background: colors[i % colors.length] }} /></div>
-                    </div>
-                    <div style={{ width: '60px', textAlign: 'right', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>{msgs.toLocaleString()}</div>
+        {/* Running companies list */}
+        <div className="chart-card">
+          <div className="chart-head">
+            <h3 className="chart-title">运行中公司</h3>
+            <div className="chart-meta">{runningOpcs.length}/{opcs.length}</div>
+          </div>
+          <div className="running-list">
+            {runningOpcs.length === 0 ? (
+              <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '12px 0' }}>暂无运行中公司</div>
+            ) : runningOpcs.map(opc => {
+              const initials = opc.avatar_initials ?? opc.display_name.slice(0, 1)
+              const color = opc.avatar_color ?? 'var(--accent)'
+              const stats = statsMap.get(opc.id)
+              const host = stats ? `${stats.agent_count} 个智能体` : '—'
+              return (
+                <div key={opc.id} className="running-row">
+                  <div className="running-avatar" style={{ background: color }}>{initials}</div>
+                  <div className="running-info">
+                    <div className="running-name">{opc.display_name}</div>
+                    <div className="running-host">{host}</div>
                   </div>
-                )
-              })
-            })()}
+                  <span className="dot live" />
+                </div>
+              )
+            })}
           </div>
-        </section>
-
-        {/* 运行中公司 */}
-        <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('overview.runningCompanies')}</div>
-          <div className="stat-card">
-            {opcs.filter(o => o.is_running).length === 0 ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('overview.noRunning')}</div>
-            ) : opcs.filter(o => o.is_running).map(opc => (
-              <div key={opc.id} className="overview-row">
-                <div className="avatar avatar-lg" style={{ background: opc.avatar_color ?? 'var(--accent)' }}>
-                  {opc.avatar_initials ?? opc.display_name.slice(0, 2)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{opc.display_name}</div>
-                  <div className="trend-bar">
-                    <div className="trend-fill" style={{ width: `${Math.min(100, (statsMap.get(opc.id)?.message_count_today ?? 0) / 5)}%`, background: 'var(--accent)' }} />
-                  </div>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                  {(statsMap.get(opc.id)?.message_count_today ?? opc.message_count_today).toLocaleString()}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        </div>
       </div>
     </div>
   )

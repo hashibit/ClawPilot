@@ -1,0 +1,195 @@
+{
+  "hifi": {
+    "url": "http://localhost:7777/ClawPilot.html",
+    "hash": "",
+    "topbar": {
+      "hasSearchInput": false,
+      "hasKbdHint": false,
+      "hasSegmentToggle": false,
+      "childCount": 4,
+      "text": "全局客服小队智能体管理搜索 · 跳转 · 操作…⌘K"
+    },
+    "brand": {
+      "text": "CPClawPilotv0.4.2",
+      "hasGradientLogo": false
+    },
+    "nav": {
+      "count": 3,
+      "withCount": 2,
+      "items": [
+        {
+          "text": "智能体管理5",
+          "hasCountBadge": true,
+          "hasIcon": true
+        },
+        {
+          "text": "渠道端管理6",
+          "hasCountBadge": true,
+          "hasIcon": true
+        },
+        {
+          "text": "一键部署",
+          "hasCountBadge": null,
+          "hasIcon": true
+        }
+      ]
+    },
+    "agentStrip": {
+      "total": 8,
+      "hasAddPill": true,
+      "hasBatchPill": true
+    },
+    "toolbar": {
+      "count": 4,
+      "btns": [
+        {
+          "text": "AI 一键生成",
+          "cls": "btn btn-sm",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(24, 45, 42)",
+          "border": "rgb(36, 53, 50)",
+          "color": "rgb(232, 230, 223)",
+          "variant": "default"
+        },
+        {
+          "text": "测试对话",
+          "cls": "btn btn-sm",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(24, 45, 42)",
+          "border": "rgb(36, 53, 50)",
+          "color": "rgb(232, 230, 223)",
+          "variant": "default"
+        },
+        {
+          "text": "编辑",
+          "cls": "btn btn-sm btn-primary",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(94, 234, 212)",
+          "border": "rgb(94, 234, 212)",
+          "color": "rgb(4, 32, 27)",
+          "variant": "primary"
+        },
+        {
+          "text": "",
+          "cls": "btn btn-sm btn-danger btn-icon",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(24, 45, 42)",
+          "border": "rgb(36, 53, 50)",
+          "color": "rgb(239, 111, 108)",
+          "variant": "danger"
+        }
+      ]
+    },
+    "leaderTag": {
+      "iconCount": 1,
+      "text": "领队"
+    },
+    "detailHeaderBtns": [
+      {
+        "text": "添加技能",
+        "cls": "btn btn-sm",
+        "iconCount": 1,
+        "filled": true,
+        "bg": "rgb(24, 45, 42)",
+        "border": "rgb(36, 53, 50)",
+        "color": "rgb(232, 230, 223)",
+        "variant": "default"
+      }
+    ]
+  },
+  "app": {
+    "url": "http://localhost:16666/#/agents",
+    "hash": "#/agents",
+    "topbar": {
+      "hasSearchInput": false,
+      "hasKbdHint": false,
+      "hasSegmentToggle": false,
+      "childCount": 5,
+      "text": "全局media-comp智能体管理搜索 · 跳转 · 操作…⌘K"
+    },
+    "brand": {
+      "text": "CP",
+      "hasGradientLogo": false
+    },
+    "nav": {
+      "count": 3,
+      "withCount": 1,
+      "items": [
+        {
+          "text": "智能体管理3",
+          "hasCountBadge": true,
+          "hasIcon": true
+        },
+        {
+          "text": "渠道端管理",
+          "hasCountBadge": null,
+          "hasIcon": true
+        },
+        {
+          "text": "一键部署",
+          "hasCountBadge": null,
+          "hasIcon": true
+        }
+      ]
+    },
+    "agentStrip": {
+      "total": 20,
+      "hasAddPill": true,
+      "hasBatchPill": true
+    },
+    "toolbar": {
+      "count": 4,
+      "btns": [
+        {
+          "text": "一键生成",
+          "cls": "btn btn-sm",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(24, 45, 42)",
+          "border": "rgb(36, 53, 50)",
+          "color": "rgb(232, 230, 223)",
+          "variant": "default"
+        },
+        {
+          "text": "测试对话",
+          "cls": "btn btn-sm",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(24, 45, 42)",
+          "border": "rgb(36, 53, 50)",
+          "color": "rgb(232, 230, 223)",
+          "variant": "default"
+        },
+        {
+          "text": "编辑",
+          "cls": "btn btn-sm btn-primary",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(94, 234, 212)",
+          "border": "rgb(94, 234, 212)",
+          "color": "rgb(4, 32, 27)",
+          "variant": "primary"
+        },
+        {
+          "text": "",
+          "cls": "btn btn-sm btn-danger btn-icon",
+          "iconCount": 1,
+          "filled": true,
+          "bg": "rgb(24, 45, 42)",
+          "border": "rgb(36, 53, 50)",
+          "color": "rgb(239, 111, 108)",
+          "variant": "danger"
+        }
+      ]
+    },
+    "leaderTag": {
+      "iconCount": 1,
+      "text": "领队"
+    },
+    "detailHeaderBtns": []
+  }
+}

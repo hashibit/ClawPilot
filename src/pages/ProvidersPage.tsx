@@ -83,23 +83,23 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {editMode ? (
             <>
-              <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onAddModel}>
+              <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onAddModel}>
                 + {t('providers.button_add_model')}
               </button>
-              <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
+              <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
                 {t('common.button_cancel')}
               </button>
-              <button className="tbtn tbtn-accent" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onSaveModels}>
+              <button className="btn btn-sm btn-primary" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onSaveModels}>
                 {t('common.button_save')}
               </button>
             </>
           ) : (
             <>
-              <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
+              <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onToggleEdit}>
                 {t('common.button_edit')}
               </button>
               {known && models.length > 0 && (
-                <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onReset}>
+                <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', padding: '2px 8px' }} onClick={onReset}>
                   {t('providers.button_reset_models')}
                 </button>
               )}
@@ -112,7 +112,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
           <span style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>
             {t('providers.inferred_provider', { name: known.suggest_name, count: known.models.length })}
           </span>
-          <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', flexShrink: 0 }} onClick={onReset}>
+          <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', flexShrink: 0 }} onClick={onReset}>
             {t('providers.button_apply_recommended')}
           </button>
         </div>
@@ -190,7 +190,7 @@ function ModelTable({ models, providerName, providerBaseUrl, knownProviders, onR
                           </label>
                         </td>
                         <td>
-                          <button className="tbtn tbtn-ghost" style={{ fontSize: '11px', color: 'var(--error)', padding: '2px 6px', background: 'var(--error-muted)' }} onClick={() => onDeleteModel?.(m.id)}>
+                          <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px', color: 'var(--error)', padding: '2px 6px', background: 'var(--error-muted)' }} onClick={() => onDeleteModel?.(m.id)}>
                             {t('common.button_delete')}
                           </button>
                         </td>
@@ -542,7 +542,7 @@ export default function ProvidersPage() {
         </div>
         <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)' }}>
           <button
-            className="tbtn tbtn-ghost"
+            className="btn btn-sm btn-ghost"
             style={{ width: '100%', fontSize: '12px', justifyContent: 'center', color: editMode === 'create' ? 'var(--warning)' : undefined }}
             onClick={handleAddProvider}
           >
@@ -582,7 +582,7 @@ export default function ProvidersPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {(editMode !== 'none' || selectedProvider) && (
               <button
-                className="tbtn tbtn-ghost"
+                className="btn btn-sm"
                 style={{ fontSize: '11px' }}
                 onClick={handleTestConnection}
                 disabled={!canTest || testing}
@@ -592,9 +592,9 @@ export default function ProvidersPage() {
             )}
             {editMode !== 'none' && (
               <>
-                <button className="tbtn tbtn-ghost" onClick={handleCancel}>{t('common.button_cancel')}</button>
+                <button className="btn btn-sm btn-ghost" onClick={handleCancel}>{t('common.button_cancel')}</button>
                 <button
-                  className="tbtn tbtn-accent"
+                  className="btn btn-sm btn-primary"
                   onClick={handleSave}
                   disabled={saving || !canSave}
                 >
@@ -604,12 +604,12 @@ export default function ProvidersPage() {
             )}
             {editMode === 'none' && selectedProvider && (
               <>
-                <button className="tbtn tbtn-ghost" style={{ fontSize: '11px' }} onClick={handleEditProvider}>
+                <button className="btn btn-sm" style={{ fontSize: '11px' }} onClick={handleEditProvider}>
                   {t('common.button_edit')}
                 </button>
                 <button
-                  className="tbtn tbtn-ghost"
-                  style={{ fontSize: '11px', color: 'var(--error)' }}
+                  className="btn btn-sm btn-danger"
+                  style={{ fontSize: '11px' }}
                   onClick={() => setConfirmDelete(selectedProvider.id)}
                 >
                   {t('common.button_delete')}
@@ -752,13 +752,13 @@ export default function ProvidersPage() {
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <button
-                      className="tbtn"
-                      style={{ fontSize: '11px', background: 'var(--error-muted)', color: 'var(--error)', border: '1px solid rgba(244,63,94,0.3)' }}
+                      className="btn btn-sm btn-danger"
+                      style={{ fontSize: '11px' }}
                       onClick={() => handleDeleteProvider(selectedProvider.id)}
                     >
                       {t('providers.delete_confirm_btn')}
                     </button>
-                    <button className="tbtn tbtn-ghost" style={{ fontSize: '11px' }} onClick={() => setConfirmDelete(null)}>
+                    <button className="btn btn-sm btn-ghost" style={{ fontSize: '11px' }} onClick={() => setConfirmDelete(null)}>
                       {t('common.button_cancel')}
                     </button>
                   </div>

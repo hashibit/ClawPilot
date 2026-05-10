@@ -559,7 +559,7 @@ export default function OfficePage() {
                 </div>
                 <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
                     <button
-                        className="tbtn tbtn-ghost"
+                        className="btn btn-sm btn-ghost"
                         style={{ width: '100%', fontSize: '12px', justifyContent: 'center' }}
                         onClick={handleAdd}
                     >
@@ -586,7 +586,7 @@ export default function OfficePage() {
                                 {/* 测试连接按钮 - 只读和编辑模式都可用，仅远程办公室显示 */}
                                 {selected && selected.address && selected.address !== 'localhost' && (
                                     <button
-                                        className="tbtn tbtn-ghost"
+                                        className="btn btn-sm"
                                         onClick={handleCheckSsh}
                                         disabled={sshChecking}
                                         style={{ fontSize: '12px' }}
@@ -596,13 +596,13 @@ export default function OfficePage() {
                                 )}
                                 {(editing || isNewOffice) ? (
                                     <>
-                                        <button className="tbtn tbtn-ghost" onClick={handleCancel}>{t('common.button_cancel')}</button>
-                                        <button className="tbtn tbtn-accent" onClick={handleSave} disabled={saving}>{saving ? t('common.saving') : t('common.button_save')}</button>
+                                        <button className="btn btn-sm btn-ghost" onClick={handleCancel}>{t('common.button_cancel')}</button>
+                                        <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={saving}>{saving ? t('common.saving') : t('common.button_save')}</button>
                                     </>
                                 ) : (
                                     <>
-                                        <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>{t('common.button_edit')}</button>
-                                        <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={() => setConfirmDelete(selected)}>{t('common.button_delete')}</button>
+                                        <button className="btn btn-sm" onClick={() => setEditing(true)}>{t('common.button_edit')}</button>
+                                        <button className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(selected)}>{t('common.button_delete')}</button>
                                     </>
                                 )
                                 }
@@ -926,8 +926,8 @@ export default function OfficePage() {
                             确定要删除「<span style={{ color: 'var(--text-primary)' }}>{confirmDelete.name}</span>」吗？此操作不可撤销。
                         </div>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
-                            <button className="tbtn" style={{ background: 'var(--error)', color: 'var(--text-primary)', border: 'none' }} onClick={() => handleDelete(confirmDelete)}>确认删除</button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
+                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(confirmDelete)}>确认删除</button>
                         </div>
                     </div>
                 </div>

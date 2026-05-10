@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { chatWithAgent } from '../lib/api'
 import { toast } from './Toast'
 import type { AgentConfig } from '../lib/types'
+import { agentAvatarText, isEmojiAvatar } from '../lib/agent-avatar'
 
 interface ChatMsg { role: 'user' | 'assistant'; content: string }
 
@@ -46,8 +47,8 @@ export function ChatDrawer({ agent, onClose, soulOverride }: ChatDrawerProps) {
             <div style={{ position: 'relative', width: '400px', height: '100%', background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 24px rgba(0,0,0,0.5)' }}>
                 {/* Header */}
                 <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: agent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
-                        {agent.initials ?? agent.display_name.slice(0, 2)}
+                    <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: agent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isEmojiAvatar(agent) ? '16px' : '10px', fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0 }}>
+                        {agentAvatarText(agent)}
                     </div>
                     <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{agent.display_name}</div>

@@ -10,6 +10,7 @@ import {
 import { toast } from '../components/Toast'
 import type { ChannelConfig, BindingRule, AgentConfig } from '../lib/types'
 import { Icon } from '../components/Icon'
+import { agentAvatarText } from '../lib/agent-avatar'
 
 export default function BindingsPage() {
     const { t } = useTranslation()
@@ -18,7 +19,6 @@ export default function BindingsPage() {
     const [channel, setChannel] = useState<ChannelConfig | null>(null)
     const [appId, setAppId] = useState('')
     const [appSecret, setAppSecret] = useState('')
-
     const [channelEditing, setChannelEditing] = useState(false)
     const [testing, setTesting] = useState(false)
     const [savingChannel, setSavingChannel] = useState(false)
@@ -46,7 +46,7 @@ export default function BindingsPage() {
                 setAppSecret(feishu?.feishu_config?.app_secret ?? '')
                 setChannelEditing(false)
                 setBindings(bindingList)
-                setAgents(agentList)
+                setAgents(agentList as AgentConfig[])
             },
             onError: (e) => toast(e.message, 'error'),
         }
@@ -68,11 +68,8 @@ export default function BindingsPage() {
             await upsertChannel(config)
             await reloadData()
             toast(t('bindings.channel_config_saved', { channel: t('bindings.feishu') }), 'success')
-        } catch (e) {
-            toast(String(e), 'error')
-        } finally {
-            setSavingChannel(false)
-        }
+        } catch (e) { toast(String(e), 'error') }
+        finally { setSavingChannel(false) }
     }
 
     const handleTestConnection = async () => {
@@ -81,9 +78,8 @@ export default function BindingsPage() {
         try {
             const ok = await testFeishuConnection(appId, appSecret)
             toast(ok ? t('bindings.feishu_connect_success') : t('bindings.feishu_connect_failed'), ok ? 'success' : 'error')
-        } catch (e) {
-            toast(String(e), 'error')
-        } finally { setTesting(false) }
+        } catch (e) { toast(String(e), 'error') }
+        finally { setTesting(false) }
     }
 
     const handleAddBinding = () => {
@@ -105,17 +101,13 @@ export default function BindingsPage() {
     const handleSelectBinding = (binding: BindingRule) => {
         setSelectedBinding(binding)
         setBindingForm({ ...binding })
-        setBindingEditing(false)
+        setBindingEditing(true)
         setIsNewBinding(false)
     }
 
     const handleCancelBinding = () => {
-        if (isNewBinding) {
-            setSelectedBinding(null)
-            setIsNewBinding(false)
-        } else {
-            if (selectedBinding) setBindingForm({ ...selectedBinding })
-        }
+        setSelectedBinding(null)
+        setIsNewBinding(false)
         setBindingEditing(false)
     }
 
@@ -132,34 +124,24 @@ export default function BindingsPage() {
 
     const handleSaveBinding = async () => {
         if (!selectedBinding) return
-        if (!bindingForm.channel_id?.trim()) {
-            toast(t('bindings.channel_id_required'), 'error')
-            return
-        }
+        if (!bindingForm.channel_id?.trim()) { toast(t('bindings.channel_id_required'), 'error'); return }
         setSavingBinding(true)
         try {
-            const updated: BindingRule = { ...selectedBinding, ...bindingForm, updated_at: Math.floor(Date.now() / 1000) } as BindingRule
-            if (isNewBinding) {
-                await createBinding(updated)
-                await reloadData()
-                setSelectedBinding(updated)
-            } else {
-                await updateBinding(selectedBinding.id, updated)
-                setBindings(prev => prev.map(b => b.id === updated.id ? updated : b))
-                setSelectedBinding(updated)
-            }
-            setIsNewBinding(false)
-            setBindingEditing(false)
+            const updated = { ...selectedBinding, ...bindingForm, updated_at: Math.floor(Date.now() / 1000) } as BindingRule
+            if (isNewBinding) { await createBinding(updated); await reloadData(); setSelectedBinding(updated) }
+            else { await updateBinding(selectedBinding.id, updated); setBindings(prev => prev.map(b => b.id === updated.id ? updated : b)); setSelectedBinding(updated) }
+            setIsNewBinding(false); setBindingEditing(false)
             toast(t('bindings.binding_saved'), 'success')
         } catch (e) { toast(String(e), 'error') }
         finally { setSavingBinding(false) }
     }
 
-    const handleDeleteBinding = async (id: string) => {
+    const handleDeleteBinding = async () => {
+        if (!selectedBinding) return
         try {
-            await deleteBinding(id)
-            setBindings(prev => prev.filter(b => b.id !== id))
-            if (selectedBinding?.id === id) { setSelectedBinding(null); setIsNewBinding(false) }
+            await deleteBinding(selectedBinding.id)
+            setBindings(prev => prev.filter(b => b.id !== selectedBinding.id))
+            setSelectedBinding(null); setIsNewBinding(false)
             toast(t('common.deleted'), 'success')
         } catch (e) { toast(String(e), 'error') }
     }
@@ -176,242 +158,242 @@ export default function BindingsPage() {
         } catch (e) { toast(String(e), 'error') }
     }
 
+    const maskedAppId = appId ? appId.slice(0, 8) + '···' : '—'
+
+    if (!currentOpc) {
+        return (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+                {t('bindings.select_opc_hint')}
+            </div>
+        )
+    }
+
+    const enabledCount = bindings.filter(b => b.is_enabled).length
+
     return (
-        <main style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            {/* Main config area */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {currentOpc?.display_name ?? t('bindings.section_title')}
-                    </span>
+        <div style={{ padding: '24px 32px 48px', display: 'flex', flexDirection: 'column', gap: 20, flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto' }}>
+
+            {/* Page header */}
+            <div>
+                <h1 className="page-title">渠道端管理</h1>
+                <p className="page-sub">配置飞书应用凭证，将群组消息路由到指定 Agent</p>
+            </div>
+
+            {/* ── Section 1: Channel ── */}
+            <div className="section-card">
+                <div className="section-card-head" style={{ cursor: 'pointer' }} onClick={() => setChannelEditing(e => !e)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ width: 36, height: 36, borderRadius: 9, background: '#0066FF', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0, letterSpacing: '0.02em' }}>飞书</span>
+                        <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>飞书应用</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>{maskedAppId}</div>
+                        </div>
+                        {channel
+                            ? <span className="tag success" style={{ marginLeft: 4 }}><span className="dot live" /> 已连接</span>
+                            : <span className="tag" style={{ marginLeft: 4 }}>未配置</span>
+                        }
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <button className="btn btn-sm" onClick={e => { e.stopPropagation(); handleTestConnection() }} disabled={testing || !appId || !appSecret}>
+                            {testing ? '测试中…' : '测试连接'}
+                        </button>
+                        <Icon name={channelEditing ? 'chevron-up' : 'chevron-down'} size={14} style={{ color: 'var(--text-tertiary)' }} />
+                    </div>
                 </div>
-                {!currentOpc ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
-                        {t('bindings.select_opc_hint')}
+
+                {channelEditing && (
+                    <>
+                        <div className="section-card-body">
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">App ID</div>
+                                    <div className="field-hint">cli_ 开头的应用 ID</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <input type="text" className="field-input" value={appId} onChange={e => setAppId(e.target.value)} placeholder="cli_..." />
+                                </div>
+                            </div>
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">App Secret</div>
+                                    <div className="field-hint">应用凭证密钥</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <input type="password" className="field-input" value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" />
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ padding: '12px 22px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button className="btn btn-sm" onClick={() => setChannelEditing(false)}>取消</button>
+                            <button className="btn btn-sm btn-primary" onClick={handleSaveChannel} disabled={savingChannel}>
+                                {savingChannel ? t('common.saving') : t('common.button_save')}
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* ── Section 2: Bindings ── */}
+            <div className="section-card">
+                <div className="section-card-head">
+                    <div>
+                        <h3 className="section-card-title">绑定规则</h3>
+                        <div className="section-card-sub">{bindings.length} 条规则，{enabledCount} 条启用</div>
+                    </div>
+                    <button className="btn btn-sm btn-primary" onClick={handleAddBinding}>
+                        <Icon name="plus" size={12} /> 添加绑定
+                    </button>
+                </div>
+
+                {bindings.length === 0 && !isNewBinding ? (
+                    <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                        <Icon name="link" size={28} style={{ color: 'var(--text-muted)', marginBottom: 10 }} />
+                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 4 }}>暂无绑定规则</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>点击「添加绑定」将飞书群组与 Agent 关联</div>
                     </div>
                 ) : (
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        {/* 飞书渠道配置 */}
-                        <section>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <span className="section-label" style={{ padding: 0 }}>{t('bindings.channel_config')}</span>
-                                <button className="tbtn tbtn-ghost" style={{ fontSize: '12px' }} onClick={() => setChannelEditing(e => !e)}>
-                                    {channelEditing ? t('common.button_cancel') : t('bindings.reconfig')}
-                                </button>
-                            </div>
-
-                            <div className="group">
-                                <div className="group-row">
-                                    <span className="group-label">{t('bindings.connection_status')}</span>
-                                    <span className="group-value" style={{ color: channel?.is_connected ? 'var(--success)' : 'var(--text-dimmer)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        {channel?.is_connected && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}></span>}
-                                        {channel?.is_connected ? t('common.status_connected') : t('common.status_not_connected')}
-                                    </span>
-                                </div>
-                                <div className="group-row" style={{ gap: '10px' }}>
-                                    <span className="group-label">App ID</span>
-                                    <input type="text" value={channelEditing ? appId : (appId ? appId.slice(0, 8) + '***' : '')} onChange={e => setAppId(e.target.value)} placeholder="cli_..." className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
-                                </div>
-                                <div className="group-row" style={{ gap: '10px' }}>
-                                    <span className="group-label">App Secret</span>
-                                    <input type={channelEditing ? 'password' : 'text'} value={channelEditing ? appSecret : (appSecret ? '已配置' : '')} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" className="field-input" style={{ flex: 1 }} disabled={!channelEditing} />
-                                </div>
-                                {channelEditing && (
-                                    <div style={{ display: 'flex', gap: '6px', padding: '6px 12px 8px' }}>
-                                        <button className="tbtn tbtn-accent" onClick={handleSaveChannel} disabled={savingChannel}>{savingChannel ? t('common.saving') : t('common.button_save')}</button>
-                                        <button className="tbtn tbtn-ghost" onClick={handleTestConnection} disabled={testing || !appId || !appSecret}>{testing ? '测试中...' : '测试连接'}</button>
+                    <div style={{ padding: '8px 12px' }}>
+                        {bindings.map(b => {
+                            const agent = agents.find(a => a.id === b.agent_id)
+                            const agentName = agent?.display_name ?? b.agent_name ?? '—'
+                            const agentColor = agent?.gradient_start ?? 'var(--accent)'
+                            const agentInitials = agent ? agentAvatarText(agent) : agentName.slice(0, 1)
+                            const isSelected = selectedBinding?.id === b.id
+                            return (
+                                <div
+                                    key={b.id}
+                                    className={'bind-card' + (isSelected ? ' is-selected' : '')}
+                                    onClick={() => handleSelectBinding(b)}
+                                    style={{ marginBottom: 6 }}
+                                >
+                                    <div className="bind-card-icon" style={{ background: 'var(--bg-elevated)' }}>
+                                        <Icon name="message" size={14} />
                                     </div>
-                                )}
+                                    <div className="bind-card-info">
+                                        <div className="bind-card-name">{b.channel_name || '（未命名群组）'}</div>
+                                        <div className="bind-card-meta">
+                                            <span className="mono">{b.channel_id ? b.channel_id.slice(0, 16) + '…' : '—'}</span>
+                                            <span>·</span>
+                                            <span>{b.trigger_mode === 'MENTION' ? '@触发' : '全部消息'}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                        <Icon name="arrow-right" size={10} style={{ color: 'var(--text-muted)' }} />
+                                        <div style={{ width: 24, height: 24, borderRadius: 6, background: agentColor, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                                            {agentInitials}
+                                        </div>
+                                        <span style={{ fontWeight: 500, fontSize: 12.5, color: 'var(--text-primary)' }}>{agentName}</span>
+                                    </div>
+                                    <div
+                                        className={'toggle' + (b.is_enabled ? ' on' : '')}
+                                        onClick={e => { e.stopPropagation(); handleToggleBinding(b) }}
+                                    />
+                                </div>
+                            )
+                        })}
+                        {isNewBinding && selectedBinding && (
+                            <div className="bind-card is-selected" style={{ marginBottom: 6 }}>
+                                <div className="bind-card-icon" style={{ background: 'var(--accent-soft)' }}>
+                                    <Icon name="plus" size={14} />
+                                </div>
+                                <div className="bind-card-info">
+                                    <div className="bind-card-name">{bindingForm.channel_name || t('bindings.new_group')}</div>
+                                    <div className="bind-card-meta">
+                                        <span style={{ color: 'var(--accent)' }}>新建 · 未保存</span>
+                                    </div>
+                                </div>
                             </div>
-                        </section>
-
-                        {/* 飞书群组列表 */}
-                        <section>
-                            <div className="flex-between" style={{ marginBottom: '6px' }}>
-                                <span className="section-label" style={{ padding: 0 }}>{t('bindings.groups_section')}</span>
-                                <button className="tbtn tbtn-accent" style={{ fontSize: '11px' }} onClick={handleAddBinding}>+ {t('bindings.add_group')}</button>
-                            </div>
-                            <div className="group">
-                                {bindings.length === 0 && !isNewBinding ? (
-                                    <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('bindings.no_bindings')}</div>
-                                ) : (
-                                    <>
-                                        {bindings.map(binding => (
-                                            <div
-                                                key={binding.id}
-                                                className="list-row"
-                                                onClick={() => handleSelectBinding(binding)}
-                                                style={{
-                                                    cursor: 'pointer',
-                                                    background: selectedBinding?.id === binding.id ? 'var(--accent-muted)' : undefined,
-                                                }}
-                                            >
-                                                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <Icon name="users" size={14} stroke="var(--accent-hover)" strokeWidth={1.75} />
-                                                </div>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div className="text-xs text-medium">{binding.channel_name || '（未命名群组）'}</div>
-                                                    <div className="text-xs text-dimmer">
-                                                        {binding.is_enabled ? t('bindings.status_bound') : t('bindings.status_disabled')} · {binding.agent_name || t('bindings.no_agent')}
-                                                    </div>
-                                                </div>
-                                                <Icon name="chevron-right" size={14} style={{ color: selectedBinding?.id === binding.id ? 'var(--accent)' : 'var(--border-subtle)', flexShrink: 0 }} />
-                                            </div>
-                                        ))}
-                                        {isNewBinding && selectedBinding && (
-                                            <div
-                                                className="list-row"
-                                                style={{ background: 'var(--accent-muted)', cursor: 'default' }}
-                                            >
-                                                <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <Icon name="plus" size={14} stroke="var(--accent-hover)" strokeWidth={1.75} />
-                                                </div>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div className="text-xs text-medium">{bindingForm.channel_name || t('bindings.new_group')}</div>
-                                                    <div className="text-xs text-dimmer">{t('bindings.unsaved')}</div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </section>
+                        )}
                     </div>
                 )}
             </div>
 
-            {/* Detail panel */}
+            {/* ── Section 3: Selected binding detail ── */}
             {selectedBinding && (
-                <aside style={{ width: '480px', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
-                    <div className="toolbar" style={{ justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {bindingForm.channel_name || t('bindings.group_config')}
-                            {isNewBinding && <span style={{ fontSize: '11px', color: 'var(--accent-hover)', marginLeft: '6px', fontWeight: 400 }}>{t('bindings.unsaved')}</span>}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                            {bindingEditing ? (
-                                <>
-                                    <button className="tbtn tbtn-ghost" onClick={handleCancelBinding}>{t('common.button_cancel')}</button>
-                                    <button className="tbtn tbtn-accent" onClick={handleSaveBinding} disabled={savingBinding}>{savingBinding ? t('common.saving') : t('common.button_save')}</button>
-                                </>
-                            ) : (
-                                <>
-                                    <button className="tbtn tbtn-ghost" onClick={() => setBindingEditing(true)}>{t('common.button_edit')}</button>
-                                    <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={() => handleDeleteBinding(selectedBinding.id)}>{t('common.button_delete')}</button>
-                                </>
+                <div className="section-card">
+                    <div className="section-card-head">
+                        <div>
+                            <h3 className="section-card-title">
+                                {isNewBinding ? '新建绑定' : '编辑绑定'}
+                            </h3>
+                            <div className="section-card-sub">{bindingForm.channel_name || '未命名'}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            {!isNewBinding && (
+                                <button className="btn btn-sm" style={{ color: 'var(--error)' }} onClick={handleDeleteBinding}>
+                                    <Icon name="trash" size={12} /> 解绑
+                                </button>
                             )}
-                            <button
-                                onClick={() => { setSelectedBinding(null); setIsNewBinding(false) }}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-dimmer)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, marginLeft: '2px' }}
-                            >×</button>
+                            <button className="btn btn-sm" onClick={handleCancelBinding}>取消</button>
+                            <button className="btn btn-sm btn-primary" onClick={handleSaveBinding} disabled={savingBinding}>
+                                <Icon name="check" size={12} /> {savingBinding ? t('common.saving') : '保存'}
+                            </button>
                         </div>
                     </div>
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-                        {/* 群组信息 */}
-                        <section>
-                            <span className="section-label" style={{ padding: '0 0 8px', display: 'block' }}>{t('bindings.group_info')}</span>
-                            <div className="group">
-                                <div className="group-row" style={{ gap: '10px' }}>
-                                    <span className="group-label">群组名称</span>
-                                    <input
-                                        type="text"
-                                        value={bindingForm.channel_name ?? ''}
-                                        onChange={e => handleBindingFormChange('channel_name', e.target.value)}
-                                        className="field-input"
-                                        style={{ flex: 1 }}
-                                        disabled={!bindingEditing}
-                                    />
-                                </div>
-                                <div className="group-row" style={{ gap: '10px' }}>
-                                    <span className="group-label">群组 ID</span>
-                                    <input
-                                        type="text"
-                                        value={bindingForm.channel_id ?? ''}
-                                        onChange={e => handleBindingFormChange('channel_id', e.target.value)}
-                                        placeholder="oc_xxx..."
-                                        className="field-input"
-                                        style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace", fontSize: '11px' }}
-                                        disabled={!bindingEditing}
-                                    />
-                                </div>
-                                <div className="group-row" style={{ gap: '10px' }}>
-                                    <span className="group-label">类型</span>
-                                    <select
-                                        className="field-input"
-                                        style={{ flex: 1 }}
-                                        value={bindingForm.channel_type ?? 'GROUP'}
-                                        onChange={e => handleBindingFormChange('channel_type', e.target.value)}
-                                        disabled={!bindingEditing}
-                                    >
-                                        <option value="GROUP">群组</option>
-                                        <option value="DM">私聊</option>
-                                    </select>
+                    <div className="section-card-body">
+                        <div className="field-row">
+                            <div className="field-label-cell">
+                                <div className="field-name">群组名称</div>
+                                <div className="field-hint">飞书群组的显示名称</div>
+                            </div>
+                            <div className="field-value-cell">
+                                <input type="text" className="field-input" value={bindingForm.channel_name ?? ''} onChange={e => handleBindingFormChange('channel_name', e.target.value)} disabled={!bindingEditing} />
+                            </div>
+                        </div>
+                        <div className="field-row">
+                            <div className="field-label-cell">
+                                <div className="field-name">群组 ID</div>
+                                <div className="field-hint">oc_ 开头的群组标识</div>
+                            </div>
+                            <div className="field-value-cell">
+                                <input type="text" className="field-input mono" value={bindingForm.channel_id ?? ''} onChange={e => handleBindingFormChange('channel_id', e.target.value)} placeholder="oc_xxx..." disabled={!bindingEditing} />
+                            </div>
+                        </div>
+                        <div className="field-row">
+                            <div className="field-label-cell">
+                                <div className="field-name">关联 Agent</div>
+                                <div className="field-hint">处理该群组消息的智能体</div>
+                            </div>
+                            <div className="field-value-cell">
+                                <select className="field-input" value={bindingForm.agent_id ?? ''} onChange={e => handleBindingFormChange('agent_id', e.target.value)} disabled={!bindingEditing}>
+                                    <option value="">— 未选择 —</option>
+                                    {agents.map(a => (
+                                        <option key={a.id} value={a.id}>{a.display_name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="field-row">
+                            <div className="field-label-cell">
+                                <div className="field-name">触发模式</div>
+                                <div className="field-hint">何时将消息路由给 Agent</div>
+                            </div>
+                            <div className="field-value-cell">
+                                <div className="seg">
+                                    <span className={'seg-item' + (bindingForm.trigger_mode === 'MENTION' ? ' active' : '')} onClick={() => bindingEditing && handleBindingFormChange('trigger_mode', 'MENTION')} style={{ cursor: bindingEditing ? 'pointer' : 'default' }}>
+                                        @ 触发
+                                    </span>
+                                    <span className={'seg-item' + (bindingForm.trigger_mode === 'ALL' ? ' active' : '')} onClick={() => bindingEditing && handleBindingFormChange('trigger_mode', 'ALL')} style={{ cursor: bindingEditing ? 'pointer' : 'default' }}>
+                                        全部消息
+                                    </span>
                                 </div>
                             </div>
-                        </section>
-
-                        {/* 绑定配置 */}
-                        <section>
-                            <span className="section-label" style={{ padding: '0 0 8px', display: 'block' }}>{t('bindings.binding_config')}</span>
-                            <div className="group">
-                                <div className="group-row" style={{ gap: '10px' }}>
-                                    <span className="group-label">关联智能体</span>
-                                    <select
-                                        className="field-input"
-                                        style={{ flex: 1 }}
-                                        value={bindingForm.agent_id ?? ''}
-                                        onChange={e => handleBindingFormChange('agent_id', e.target.value)}
-                                        disabled={!bindingEditing}
-                                    >
-                                        <option value="">— 未选择 —</option>
-                                        {agents.map(a => (
-                                            <option key={a.id} value={a.id}>{a.display_name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="group-row" style={{ gap: '10px' }}>
-                                    <span className="group-label">触发模式</span>
-                                    <select
-                                        className="field-input"
-                                        style={{ flex: 1 }}
-                                        value={bindingForm.trigger_mode ?? 'MENTION'}
-                                        onChange={e => handleBindingFormChange('trigger_mode', e.target.value)}
-                                        disabled={!bindingEditing}
-                                    >
-                                        <option value="MENTION">@机器人触发</option>
-                                        <option value="ALL">所有消息</option>
-                                    </select>
-                                </div>
-                                <div className="group-row">
-                                    <span className="group-label">{t('bindings.enable_status')}</span>
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: bindingEditing ? 'pointer' : 'default', flex: 1 }}>
-                                        <button
-                                            onClick={() => bindingEditing && handleBindingFormChange('is_enabled', !bindingForm.is_enabled)}
-                                            disabled={!bindingEditing}
-                                            style={{
-                                                width: '32px', height: '18px', borderRadius: '9px', border: 'none', cursor: bindingEditing ? 'pointer' : 'default',
-                                                background: bindingForm.is_enabled ? 'var(--accent)' : 'var(--bg-overlay)',
-                                                position: 'relative', transition: 'background 0.15s',
-                                                flexShrink: 0, opacity: bindingEditing ? 1 : 0.7,
-                                            }}
-                                        >
-                                            <span style={{
-                                                position: 'absolute', top: '2px',
-                                                left: bindingForm.is_enabled ? '16px' : '2px',
-                                                width: '14px', height: '14px', borderRadius: '50%',
-                                                background: 'var(--text-primary)', transition: 'left 0.15s',
-                                            }}></span>
-                                        </button>
-                                        <span style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{bindingForm.is_enabled ? t('common.enabled') : t('common.disabled')}</span>
-                                    </label>
-                                </div>
+                        </div>
+                        <div className="field-row">
+                            <div className="field-label-cell">
+                                <div className="field-name">{t('bindings.enable_status')}</div>
+                                <div className="field-hint">关闭后消息不再路由</div>
                             </div>
-                        </section>
-
+                            <div className="field-value-cell" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 8 }}>
+                                <div className={'toggle' + (bindingForm.is_enabled ? ' on' : '')} onClick={() => bindingEditing && handleBindingFormChange('is_enabled', !bindingForm.is_enabled)} style={{ cursor: bindingEditing ? 'pointer' : 'default', opacity: bindingEditing ? 1 : 0.7 }} />
+                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                    {bindingForm.is_enabled ? t('common.enabled') : t('common.disabled')}
+                                </span>
+                            </div>
+                        </div>
                     </div>
-                </aside>
+                </div>
             )}
-        </main>
+        </div>
     )
 }

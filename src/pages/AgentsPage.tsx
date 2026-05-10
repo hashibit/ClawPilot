@@ -12,6 +12,7 @@ import {
 } from '../lib/api'
 import { toast } from '../components/Toast'
 import type { AgentConfig, DocumentType, ModelInfo, OpcConfig } from '../lib/types'
+import { agentAvatarText, isEmojiAvatar } from '../lib/agent-avatar'
 import { Icon } from '../components/Icon'
 import { TagInput } from '../components/TagInput'
 import { ChatDrawer } from '../components/ChatDrawer'
@@ -627,8 +628,16 @@ export default function AgentsPage() {
     const guardrailAllow = form.guardrail_allow ?? form.guardrail_rules ?? []
     const guardrailDeny = form.guardrail_deny ?? []
 
+    // Derived display values for the selected agent toolbar
+    const toolbarColor = selectedAgent?.gradient_start ?? 'var(--accent)'
+    const toolbarInitials = selectedAgent ? agentAvatarText(selectedAgent) : ''
+    const toolbarIsEmoji = selectedAgent ? isEmojiAvatar(selectedAgent) : false
+    const toolbarName = editing
+        ? ((form as AgentConfig).display_name || selectedAgent?.display_name || '')
+        : (selectedAgent?.display_name || '')
+
     return (
-        <main className="detail-pane">
+        <div className="agents-page">
             {/* ── AI 一键生成 Modal ── */}
             {aiModalOpen && (
                 <div className="modal-backdrop" onClick={() => { if (!aiGenerating) setAiModalOpen(false) }}>
@@ -655,8 +664,8 @@ export default function AgentsPage() {
                             />
                         )}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                            <button className="tbtn tbtn-ghost" disabled={aiGenerating} onClick={() => setAiModalOpen(false)}>{t('common.button_cancel')}</button>
-                            <button className="tbtn tbtn-accent" disabled={aiGenerating || !aiPrompt.trim()} onClick={handleAiGenerate}>{t('agents.ai_generate_btn')}</button>
+                            <button className="btn btn-ghost" disabled={aiGenerating} onClick={() => setAiModalOpen(false)}>{t('common.button_cancel')}</button>
+                            <button className="btn btn-primary" disabled={aiGenerating || !aiPrompt.trim()} onClick={handleAiGenerate}>{t('agents.ai_generate_btn')}</button>
                         </div>
                     </div>
                 </div>
@@ -697,13 +706,13 @@ export default function AgentsPage() {
                                 )
                             })}
                             {!batchRunning && (
-                                <button className="tbtn tbtn-ghost" style={{ alignSelf: 'flex-start', fontSize: '12px' }} onClick={() => setBatchPrompts(prev => [...prev, ''])}>+ 添加一行</button>
+                                <button className="btn btn-ghost" style={{ alignSelf: 'flex-start', fontSize: '12px' }} onClick={() => setBatchPrompts(prev => [...prev, ''])}>+ 添加一行</button>
                             )}
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                            <button className="tbtn tbtn-ghost" disabled={batchRunning} onClick={() => setBatchModalOpen(false)}>{batchProgress.every(s => s === 'done' || s === 'error') && batchRunning === false && batchProgress.length > 0 ? '关闭' : t('common.button_cancel')}</button>
+                            <button className="btn btn-ghost" disabled={batchRunning} onClick={() => setBatchModalOpen(false)}>{batchProgress.every(s => s === 'done' || s === 'error') && batchRunning === false && batchProgress.length > 0 ? '关闭' : t('common.button_cancel')}</button>
                             {!batchProgress.length || batchProgress.some(s => s === 'idle') ? (
-                                <button className="tbtn tbtn-accent" disabled={batchRunning || !batchPrompts.some(p => p.trim())} onClick={handleBatchGenerate}>
+                                <button className="btn btn-primary" disabled={batchRunning || !batchPrompts.some(p => p.trim())} onClick={handleBatchGenerate}>
                                     {batchRunning ? t('agents.generating') : '开始生成'}
                                 </button>
                             ) : null}
@@ -712,335 +721,407 @@ export default function AgentsPage() {
                 </div>
             )}
 
-            {/* ── Toolbar ──────────────────────────────────────── */}
-            <div data-tauri-drag-region className="toolbar">
-                <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('agents.section_title')}</span>
-            </div>
-
             {!currentOpc ? (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
                     {t('agents.select_company_hint')}
                 </div>
             ) : (
                 <>
-                    {/* Agents strip */}
-                    <div style={{ flexShrink: 0, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center' }}>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '2px', padding: '10px 12px', overflowX: 'auto', minWidth: 0 }}>
-                            {(() => {
-                                const base = [...(opcAgentsMap[currentOpc.id] ?? [])].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
-                                const list = isNewAgent && selectedAgent ? [...base, selectedAgent] : base
-                                return list
-                            })().map((agent) => {
-                                const isActive = selectedAgent?.id === agent.id
-                                return (
+                    {/* ── Agent strip ── */}
+                    <div className="agent-strip">
+                        {(() => {
+                            const base = [...(opcAgentsMap[currentOpc.id] ?? [])].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
+                            return isNewAgent && selectedAgent ? [...base, selectedAgent] : base
+                        })().map(agent => {
+                            const isActive = selectedAgent?.id === agent.id
+                            const avatarText = agentAvatarText(agent)
+                            return (
+                                <div
+                                    key={agent.id}
+                                    className={'agent-pill' + (isActive ? ' selected' : '') + (agent.is_default ? ' leader' : '')}
+                                    onClick={() => handleSelectAgent(agent)}
+                                >
                                     <div
-                                        key={agent.id}
-                                        onClick={() => handleSelectAgent(agent)}
-                                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', background: isActive ? 'var(--accent-muted)' : 'transparent', border: `1px solid ${isActive ? 'var(--accent-strong)' : 'transparent'}`, transition: 'all 0.15s' }}
+                                        className="agent-pill-avatar"
+                                        style={{ background: agent.gradient_start ?? 'var(--accent)', color: 'white', fontWeight: 700 }}
                                     >
-                                        <div style={{ position: 'relative' }}>
-                                            <div style={{ width: agent.is_default ? '44px' : '36px', height: agent.is_default ? '44px' : '36px', borderRadius: agent.is_default ? '12px' : '10px', background: agent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: agent.is_default ? '14px' : '12px', fontWeight: 700, color: 'white' }}>
-                                                {agent.initials ?? agent.display_name.slice(0, 2)}
-                                            </div>
-                                            {agent.is_default && (
-                                                <div style={{ position: 'absolute', top: '-3px', right: '-3px', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-hover)', border: '1.5px solid var(--bg-elevated)' }} />
-                                            )}
-                                        </div>
-                                        <span style={{ fontSize: '10px', color: isActive ? 'var(--accent-hover)' : 'var(--text-secondary)', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-                                            {agent.display_name}{(isNewAgent || editing) && selectedAgent?.id === agent.id ? ' *' : ''}
-                                        </span>
+                                        {avatarText}
                                     </div>
-                                )
-                            })}
-                        </div>
-                        {/* Add buttons — right-aligned */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '10px 12px', flexShrink: 0, borderLeft: '1px solid var(--border-subtle)' }}>
-                            <div
-                                onClick={() => handleAddAgent()}
-                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed var(--border-strong)', transition: 'all 0.15s' }}
-                            >
-                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Icon name="plus" size={16} stroke="var(--text-tertiary)" strokeWidth={2} />
+                                    <div className="agent-pill-name">
+                                        {agent.display_name}
+                                        {(isNewAgent || editing) && isActive ? ' *' : ''}
+                                    </div>
                                 </div>
-                                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>添加智能体</span>
+                            )
+                        })}
+
+                        {/* Empty hint */}
+                        {(opcAgentsMap[currentOpc.id] ?? []).length === 0 && !isNewAgent && (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, padding: '8px 0' }}>
+                                还没有智能体，点击右侧按钮添加
                             </div>
+                        )}
+
+                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                            {/* Add single agent */}
+                            <div className="agent-pill" onClick={() => handleAddAgent()}>
+                                <div className="agent-pill-add">
+                                    <Icon name="plus" size={18} stroke="var(--text-tertiary)" strokeWidth={2} />
+                                </div>
+                                <div className="agent-pill-name">添加</div>
+                            </div>
+
+                            {/* Batch add */}
                             <div
+                                className="agent-pill"
+                                style={{ borderColor: 'var(--accent-border)' }}
                                 onClick={() => { setBatchPrompts(['', '']); setBatchProgress([]); setBatchRunning(false); setBatchModalOpen(true) }}
-                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 4px', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, width: '68px', border: '1px dashed var(--accent-strong)', transition: 'all 0.15s' }}
                             >
-                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--accent-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div className="agent-pill-add" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-border)' }}>
                                     <Icon name="bolt" size={16} stroke="var(--accent)" strokeWidth={2} />
                                 </div>
-                                <span style={{ fontSize: '10px', color: 'var(--accent)' }}>批量添加</span>
+                                <div className="agent-pill-name" style={{ color: 'var(--accent)' }}>批量</div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Agent form */}
+                    {/* ── Agent detail area ── */}
                     {!selectedAgent ? (
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
                             {t('agents.select_agent_hint')}
                         </div>
                     ) : (
                         <>
-                            <div className="toolbar" style={{ justifyContent: 'space-between', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)', height: 'auto', padding: '12px 16px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: selectedAgent.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                                        {selectedAgent.initials ?? selectedAgent.display_name.slice(0, 2)}
-                                    </div>
-                                    <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{(editing ? (form as AgentConfig).display_name : null) || selectedAgent.display_name}</span>
-                                    {(isNewAgent || editing) && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: 400 }}>[{t('agents.unsaved')}]</span>}
+                            {/* ── Agent toolbar ── */}
+                            <div className="agent-toolbar">
+                                <div
+                                    className="agent-pill-avatar"
+                                    style={{ background: toolbarColor, width: 36, height: 36, fontSize: toolbarIsEmoji ? 22 : 16, borderRadius: 9, flexShrink: 0 }}
+                                >
+                                    {toolbarInitials}
+                                </div>
+                                <div className="agent-toolbar-name">
+                                    {toolbarName}
                                     {selectedAgent.is_default && !isNewAgent && (
-                                        <span style={{ fontSize: '11px', color: 'var(--accent-hover)', fontWeight: 500 }}>[{t('agents.leader')}]</span>
+                                        <span className="tag accent" style={{ marginLeft: 8 }}><Icon name="star" size={10} style={{ marginRight: 4 }} />{t('agents.leader')}</span>
+                                    )}
+                                    {(isNewAgent || editing) && (
+                                        <span className="unsaved-dot" style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--warning, orange)', marginLeft: 6, verticalAlign: 'middle' }} />
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    {editing && <button className="tbtn tbtn-ghost" style={{ color: 'var(--accent-hover)' }} disabled={aiGenerating} onClick={() => { setAiPrompt(''); setAiModalOpen(true) }}>
-                                        <Icon name="bolt" size={11} strokeWidth={2.2} style={{ display: 'inline', marginRight: '4px' }} />
+                                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                                    <button
+                                        className="btn btn-sm"
+                                        disabled={aiGenerating}
+                                        onClick={() => { if (!editing) setEditing(true); setAiPrompt(''); setAiModalOpen(true) }}
+                                    >
+                                        <Icon name="bolt" size={11} strokeWidth={2.2} style={{ display: 'inline', marginRight: 4 }} />
                                         {aiGenerating ? t('agents.generating') : t('agents.ai_quick_gen')}
-                                    </button>}
-                                    <button className="tbtn tbtn-ghost" style={{ color: 'var(--info)' }} onClick={async () => {
-                                        if (activeDocTab === 'SOUL' && docContent.trim()) {
-                                            // Use current editor content (may be unsaved)
-                                            setChatSoulOverride(docContent)
-                                            setChatAgent(selectedAgent)
-                                        } else if (isNewAgent) {
-                                            toast(t('agents.save_first_warning'), 'error')
-                                        } else {
-                                            const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
-                                            if (!soul?.trim()) { toast(t('agents.soul_empty_warning'), 'error'); return }
-                                            setChatSoulOverride(undefined)
-                                            setChatAgent(selectedAgent)
-                                        }
-                                    }}>{t('agents.test_chat')}</button>
+                                    </button>
+                                    <button
+                                        className="btn btn-sm"
+                                        onClick={async () => {
+                                            if (activeDocTab === 'SOUL' && docContent.trim()) {
+                                                setChatSoulOverride(docContent)
+                                                setChatAgent(selectedAgent)
+                                            } else if (isNewAgent) {
+                                                toast(t('agents.save_first_warning'), 'error')
+                                            } else {
+                                                const soul = await getAgentDocument(selectedAgent.id, 'SOUL').catch(() => '')
+                                                if (!soul?.trim()) { toast(t('agents.soul_empty_warning'), 'error'); return }
+                                                setChatSoulOverride(undefined)
+                                                setChatAgent(selectedAgent)
+                                            }
+                                        }}
+                                    >
+                                        <Icon name="message" size={13} />
+                                        {t('agents.test_chat')}
+                                    </button>
                                     {!selectedAgent.is_default && !editing && (
                                         <div className="tip">
-                                            <button className="tbtn tbtn-ghost" onClick={() => handleSetDefault(selectedAgent)}>{t('agents.set_as_leader')}</button>
+                                            <button className="btn btn-sm" onClick={() => handleSetDefault(selectedAgent)}>
+                                                <Icon name="star" size={13} />
+                                                {t('agents.set_as_leader')}
+                                            </button>
                                             <span className="tip-content">{t('agents.set_as_leader_tooltip')}</span>
                                         </div>
                                     )}
                                     {editing ? (
                                         <>
-                                            <button className="tbtn tbtn-ghost" onClick={handleCancelEdit}>{t('common.button_cancel')}</button>
-                                            <button className="tbtn tbtn-accent" onClick={handleSaveAgent} disabled={saving}>{saving ? t('common.saving') : t('common.button_save')}</button>
+                                            <button className="btn btn-sm" onClick={handleCancelEdit}>{t('common.button_cancel')}</button>
+                                            <button className="btn btn-sm btn-primary" onClick={handleSaveAgent} disabled={saving}>
+                                                <Icon name="check" size={13} />
+                                                {saving ? t('common.saving') : t('common.button_save')}
+                                            </button>
                                         </>
                                     ) : (
                                         <>
-                                            <button className="tbtn tbtn-ghost" onClick={() => setEditing(true)}>{t('common.button_edit')}</button>
-                                            <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={() => setConfirmDelete(selectedAgent)}>{t('common.button_delete')}</button>
+                                            <button className="btn btn-sm btn-primary" onClick={() => setEditing(true)}>
+                                                <Icon name="edit" size={13} />
+                                                {t('common.button_edit')}
+                                            </button>
+                                            <button className="btn btn-sm btn-danger btn-icon" onClick={() => setConfirmDelete(selectedAgent)} title={t('common.button_delete')}>
+                                                <Icon name="trash" size={13} />
+                                            </button>
                                         </>
                                     )}
                                 </div>
                             </div>
 
-                            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                            {/* ── Agent detail ── */}
+                            <div className="agent-detail">
 
-                                {/* ── 基本信息 ── */}
-                                <section>
-                                    <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_basic')}</div>
-                                    <div className="group">
-                                        <div className="group-row" style={{ gap: '10px' }}>
-                                            <span className="group-label">{t('agents.display_name')}</span>
-                                            {editing ? <input type="text" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.display_name || '—'}</span>}
-                                        </div>
-                                        <div className="group-row" style={{ gap: '10px' }}>
-                                            <span className="group-label">{t('agents.identifier')}</span>
-                                            {editing ? <input type="text" value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} className="field-input" style={{ flex: 1, fontFamily: "'SF Mono','Menlo',monospace" }} /> : <span className="group-value" style={{ fontFamily: "'SF Mono','Menlo',monospace" }}>{form.name || '—'}</span>}
-                                        </div>
-                                        <div className="group-row" style={{ gap: '10px' }}>
-                                            <span className="group-label">{t('agents.description')}</span>
-                                            {editing ? <textarea className="field-input" rows={1} style={{ flex: 1, padding: '5px 9px', lineHeight: 1.5, resize: 'none', height: '36px', overflowY: 'auto' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} /> : <span className="group-value">{form.description || '—'}</span>}
-                                        </div>
-                                        <div className="group-row" style={{ gap: '10px' }}>
-                                            <span className="group-label">{t('agents.job_title')}</span>
-                                            {editing ? <input type="text" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} className="field-input" style={{ flex: 1 }} /> : <span className="group-value">{form.job_title || '—'}</span>}
+                                {/* Basic Info */}
+                                <div className="section-card">
+                                    <div className="section-card-head">
+                                        <div>
+                                            <h3 className="section-card-title">{t('agents.section_basic')}</h3>
+                                            <div className="section-card-sub">名称、职位、简介</div>
                                         </div>
                                     </div>
-                                </section>
+                                    <div className="section-card-body">
+                                        <div className="field-row">
+                                            <div className="field-label-cell"><div className="field-name">{t('agents.display_name')}</div></div>
+                                            <div className="field-value-cell">
+                                                {editing
+                                                    ? <input type="text" className="input" value={form.display_name ?? ''} onChange={e => handleFormChange('display_name', e.target.value)} />
+                                                    : <div className="read-value">{form.display_name || '—'}</div>}
+                                            </div>
+                                        </div>
+                                        <div className="field-row">
+                                            <div className="field-label-cell"><div className="field-name">{t('agents.identifier')}</div></div>
+                                            <div className="field-value-cell">
+                                                {editing
+                                                    ? <input type="text" className="input" style={{ fontFamily: "'SF Mono','Menlo',monospace" }} value={form.name ?? ''} onChange={e => handleFormChange('name', e.target.value)} />
+                                                    : <div className="read-value" style={{ fontFamily: "'SF Mono','Menlo',monospace" }}>{form.name || '—'}</div>}
+                                            </div>
+                                        </div>
+                                        <div className="field-row">
+                                            <div className="field-label-cell"><div className="field-name">{t('agents.job_title')}</div></div>
+                                            <div className="field-value-cell">
+                                                {editing
+                                                    ? <input type="text" className="input" value={form.job_title ?? ''} onChange={e => handleFormChange('job_title', e.target.value)} />
+                                                    : <div className="read-value">{form.job_title || '—'}</div>}
+                                            </div>
+                                        </div>
+                                        <div className="field-row">
+                                            <div className="field-label-cell"><div className="field-name">{t('agents.description')}</div></div>
+                                            <div className="field-value-cell">
+                                                {editing
+                                                    ? <textarea className="input" rows={2} style={{ resize: 'none', height: 'auto', padding: '8px 12px' }} value={form.description ?? ''} onChange={e => handleFormChange('description', e.target.value)} />
+                                                    : <div className="read-value">{form.description || '—'}</div>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                {/* ── 模型与工具 ── */}
-                                <section>
-                                    <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_model_tools')}</div>
-                                    <div className="group">
-                                        <div className="group-row" style={{ gap: '10px' }}>
-                                            <span className="group-label">{t('agents.model_label')}</span>
-                                            {editing ? (
-                                                <div style={{ position: 'relative', flex: 1 }}>
-                                                    <select
-                                                        className="field-input"
-                                                        style={{ width: '100%', paddingRight: '24px' }}
-                                                        value={selectedModel}
-                                                        onChange={e => handleModelSelect(e.target.value)}
-                                                    >
-                                                        <option value="">{t('agents.model_none')}</option>
-                                                        {hasCustomModel && (
-                                                            <optgroup label={t('agents.model_stored')}>
-                                                                <option value={selectedModel}>{selectedModel} ({t('agents.model_stored')})</option>
-                                                            </optgroup>
-                                                        )}
-                                                        {Object.entries(modelsByProvider).map(([providerName, mlist]) => (
-                                                            <optgroup key={providerName} label={providerName}>
-                                                                {mlist.map(m => (
-                                                                    <option key={m.id} value={`${m.provider_name}/${m.model_id}`}>{m.display_name || m.model_id}</option>
-                                                                ))}
-                                                            </optgroup>
-                                                        ))}
-                                                    </select>
-                                                    <Icon name="chevron-down" size={10} stroke="var(--text-dimmer)" strokeWidth={2} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                                                </div>
-                                            ) : (
-                                                <span className="group-value">{selectedModel || t('agents.model_none')}</span>
-                                            )}
+                                {/* Model & Tools */}
+                                <div className="section-card">
+                                    <div className="section-card-head">
+                                        <div>
+                                            <h3 className="section-card-title">{t('agents.section_model_tools')}</h3>
+                                        </div>
+                                    </div>
+                                    <div className="section-card-body">
+                                        <div className="field-row">
+                                            <div className="field-label-cell"><div className="field-name">{t('agents.model_label')}</div></div>
+                                            <div className="field-value-cell">
+                                                {editing ? (
+                                                    <div style={{ position: 'relative', flex: 1 }}>
+                                                        <select
+                                                            className="input"
+                                                            style={{ width: '100%', paddingRight: '24px' }}
+                                                            value={selectedModel}
+                                                            onChange={e => handleModelSelect(e.target.value)}
+                                                        >
+                                                            <option value="">{t('agents.model_none')}</option>
+                                                            {hasCustomModel && (
+                                                                <optgroup label={t('agents.model_stored')}>
+                                                                    <option value={selectedModel}>{selectedModel} ({t('agents.model_stored')})</option>
+                                                                </optgroup>
+                                                            )}
+                                                            {Object.entries(modelsByProvider).map(([providerName, mlist]) => (
+                                                                <optgroup key={providerName} label={providerName}>
+                                                                    {mlist.map(m => (
+                                                                        <option key={m.id} value={`${m.provider_name}/${m.model_id}`}>{m.display_name || m.model_id}</option>
+                                                                    ))}
+                                                                </optgroup>
+                                                            ))}
+                                                        </select>
+                                                        <Icon name="chevron-down" size={10} stroke="var(--text-dimmer)" strokeWidth={2} style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                                                    </div>
+                                                ) : (
+                                                    <div className="read-value">{selectedModel || t('agents.model_none')}</div>
+                                                )}
+                                            </div>
                                         </div>
 
-                                        <div style={{ padding: '5px 12px 2px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-secondary)', textTransform: 'uppercase', borderTop: '1px solid var(--border-subtle)' }}>
+                                        <div style={{ padding: '5px 0 4px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
                                             {t('agents.tool_permissions')}
-                                            <span style={{ marginLeft: '6px', color: 'var(--text-tertiary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('agents.tools_enabled_count', { count: enabledTools.length })}</span>
+                                            <span style={{ marginLeft: 6, color: 'var(--text-tertiary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('agents.tools_enabled_count', { count: enabledTools.length })}</span>
                                         </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '4px 12px 8px' }}>
+                                        <div className="tools-grid">
                                             {AVAILABLE_TOOLS.map(tool => {
                                                 const active = enabledTools.includes(tool.id)
                                                 return (
-                                                    <button
+                                                    <div
                                                         key={tool.id}
+                                                        className={'tool-chip' + (active ? ' on' : '')}
                                                         onClick={() => editing && toggleTool(tool.id)}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: active ? 'var(--accent-muted)' : 'var(--border-subtle)', border: `1px solid ${active ? 'var(--accent-strong)' : 'var(--border-default)'}`, cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: active ? 'var(--accent-hover)' : 'var(--text-secondary)', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
+                                                        style={{ opacity: editing ? 1 : 0.7, cursor: editing ? 'pointer' : 'default' }}
                                                     >
-                                                        {tool.name}
-                                                    </button>
+                                                        <div className="tool-chip-name">{tool.name}</div>
+                                                    </div>
                                                 )
                                             })}
                                             {customTools.map(id => (
-                                                <button
-                                                    key={id}
-                                                    onClick={() => editing && toggleTool(id)}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '6px', background: 'var(--accent-muted)', border: '1px solid var(--accent-strong)', cursor: editing ? 'pointer' : 'default', fontSize: '12px', color: 'var(--accent-hover)', transition: 'all 0.15s', opacity: editing ? 1 : 0.7 }}
-                                                >
-                                                    {id} <span style={{ opacity: 0.6 }}>×</span>
-                                                </button>
-                                            ))}
-                                            {/* 自定义工具输入 */}
-                                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                                <input
-                                                    value={customToolInput}
-                                                    onChange={e => setCustomToolInput(e.target.value)}
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') {
-                                                            const v = customToolInput.trim()
-                                                            if (v && !enabledTools.includes(v)) {
-                                                                handleFormChange('enabled_tools', [...enabledTools, v])
-                                                            }
-                                                            setCustomToolInput('')
-                                                        }
-                                                    }}
-                                                    placeholder={t('agents.custom_tool_placeholder')}
-                                                    disabled={!editing}
-                                                    style={{ background: 'var(--border-subtle)', border: '1px dashed var(--border-default)', borderRadius: '6px', padding: '4px 9px', fontSize: '11px', color: 'var(--text-secondary)', outline: 'none', width: '130px', opacity: editing ? 1 : 0.5 }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* ── 技能配置 ── */}
-                                <section>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span className="section-label" style={{ padding: 0 }}>{t('agents.section_skills')}</span>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>{t('agents.skills_count', { count: enabledSkills.length })}</span>
-                                        </div>
-                                        {editing && <button
-                                            className="tbtn tbtn-ghost"
-                                            style={{ padding: '1px 8px', fontSize: '11px' }}
-                                            onClick={() => setSkillModalOpen(true)}
-                                        >
-                                            <Icon name="plus" size={10} strokeWidth={1.75} style={{ display: 'inline', marginRight: '3px' }} />
-                                            {t('common.button_add')}
-                                        </button>}
-                                    </div>
-                                    <div className="group" style={{ padding: '10px 12px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                        {enabledSkills.length === 0 && (
-                                            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('agents.no_skills')}</div>
-                                        )}
-                                        {enabledSkills.map(slug => {
-                                            const skill = SKILL_REGISTRY.find((s: { slug: string }) => s.slug === slug)
-                                            return (
                                                 <div
-                                                    key={slug}
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', background: 'var(--accent-muted)', border: '1px solid var(--accent-strong)', minWidth: '180px', maxWidth: '260px' }}
+                                                    key={id}
+                                                    className="tool-chip on"
+                                                    onClick={() => editing && toggleTool(id)}
+                                                    style={{ opacity: editing ? 1 : 0.7, cursor: editing ? 'pointer' : 'default' }}
                                                 >
-                                                    <span style={{ fontSize: '14px', flexShrink: 0 }}>{skill?.icon ?? '🔌'}</span>
-                                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                                        <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill?.name ?? slug}</div>
-                                                        {skill && <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '1px' }}>{skill.desc}</div>}
-                                                    </div>
-                                                    {editing && <button
-                                                        onClick={() => handleFormChange('enabled_skills', enabledSkills.filter(s => s !== slug))}
-                                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--border-subtle)', color: 'var(--text-dimmer)', border: 'none', cursor: 'pointer', fontSize: '11px', lineHeight: 1, flexShrink: 0 }}
-                                                    >×</button>}
+                                                    <div className="tool-chip-name">{id} <span style={{ opacity: 0.6 }}>×</span></div>
                                                 </div>
-                                            )
-                                        })}
-                                    </div>
-                                </section>
-
-                                {/* ── 护栏规则 ── */}
-                                <section>
-                                    <div className="section-label" style={{ padding: '0 0 5px' }}>{t('agents.section_guardrails')}</div>
-                                    <div className="group" style={{ padding: '12px', display: 'flex', gap: '12px' }}>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}></span>
-                                                {t('agents.guardrail_allow')}
-                                            </div>
-                                            <TagInput
-                                                tags={guardrailAllow}
-                                                onChange={v => { handleFormChange('guardrail_allow', v); handleFormChange('guardrail_rules', v) }}
-                                                placeholder={t('agents.guardrail_allow_placeholder')}
+                                            ))}
+                                            <input
+                                                value={customToolInput}
+                                                onChange={e => setCustomToolInput(e.target.value)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') {
+                                                        const v = customToolInput.trim()
+                                                        if (v && !enabledTools.includes(v)) {
+                                                            handleFormChange('enabled_tools', [...enabledTools, v])
+                                                        }
+                                                        setCustomToolInput('')
+                                                    }
+                                                }}
+                                                placeholder={t('agents.custom_tool_placeholder')}
                                                 disabled={!editing}
-                                            />
-                                        </div>
-                                        <div style={{ width: '1px', background: 'var(--border-subtle)', flexShrink: 0 }} />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontSize: '11px', color: 'var(--error)', fontWeight: 600, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--error)', display: 'inline-block' }}></span>
-                                                {t('agents.guardrail_deny')}
-                                            </div>
-                                            <TagInput
-                                                tags={guardrailDeny}
-                                                onChange={v => handleFormChange('guardrail_deny', v)}
-                                                placeholder={t('agents.guardrail_deny_placeholder')}
-                                                disabled={!editing}
+                                                style={{ background: 'var(--border-subtle)', border: '1px dashed var(--border-default)', borderRadius: '6px', padding: '4px 9px', fontSize: '11px', color: 'var(--text-secondary)', outline: 'none', width: '130px', opacity: editing ? 1 : 0.5 }}
                                             />
                                         </div>
                                     </div>
-                                </section>
+                                </div>
 
-                                {/* ── 人格配置 / 文档编辑 ── */}
-                                <section>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '7px' }}>
-                                        <span className="section-label" style={{ padding: 0 }}>{t('agents.section_persona')}</span>
+                                {/* Skills */}
+                                <div className="section-card">
+                                    <div className="section-card-head">
+                                        <div>
+                                            <h3 className="section-card-title">{t('agents.section_skills')}</h3>
+                                            <div className="section-card-sub">{t('agents.skills_count', { count: enabledSkills.length })}</div>
+                                        </div>
+                                        {editing && (
+                                            <button className="btn btn-sm btn-ghost" onClick={() => setSkillModalOpen(true)}>
+                                                <Icon name="plus" size={10} strokeWidth={1.75} style={{ display: 'inline', marginRight: 3 }} />
+                                                {t('common.button_add')}
+                                            </button>
+                                        )}
                                     </div>
-                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                    <div className="section-card-body">
+                                        <div className="skill-list">
+                                            {enabledSkills.length === 0 && (
+                                                <div style={{ fontSize: '12px', color: 'var(--text-dimmer)' }}>{t('agents.no_skills')}</div>
+                                            )}
+                                            {enabledSkills.map(slug => {
+                                                const skill = SKILL_REGISTRY.find((s: { slug: string }) => s.slug === slug)
+                                                return (
+                                                    <div key={slug} className="skill-card">
+                                                        <span style={{ fontSize: '14px', flexShrink: 0 }}>{skill?.icon ?? '🔌'}</span>
+                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                            <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{skill?.name ?? slug}</div>
+                                                            {skill && <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: 1 }}>{skill.desc}</div>}
+                                                        </div>
+                                                        {editing && (
+                                                            <button
+                                                                onClick={() => handleFormChange('enabled_skills', enabledSkills.filter(s => s !== slug))}
+                                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 18, height: 18, borderRadius: '50%', background: 'var(--border-subtle)', color: 'var(--text-dimmer)', border: 'none', cursor: 'pointer', fontSize: 11, lineHeight: 1, flexShrink: 0 }}
+                                                            >×</button>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Guardrails */}
+                                <div className="section-card">
+                                    <div className="section-card-head">
+                                        <div>
+                                            <h3 className="section-card-title">{t('agents.section_guardrails')}</h3>
+                                        </div>
+                                    </div>
+                                    <div className="section-card-body">
+                                        <div className="rail-grid">
+                                            <div className="rail-pane">
+                                                <div className="rail-head allow">
+                                                    <Icon name="check" size={12} />
+                                                    {t('agents.guardrail_allow')}
+                                                </div>
+                                                <div className="rail-body">
+                                                    <TagInput
+                                                        tags={guardrailAllow}
+                                                        onChange={v => { handleFormChange('guardrail_allow', v); handleFormChange('guardrail_rules', v) }}
+                                                        placeholder={t('agents.guardrail_allow_placeholder')}
+                                                        disabled={!editing}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="rail-pane">
+                                                <div className="rail-head deny">
+                                                    <Icon name="lock" size={12} />
+                                                    {t('agents.guardrail_deny')}
+                                                </div>
+                                                <div className="rail-body">
+                                                    <TagInput
+                                                        tags={guardrailDeny}
+                                                        onChange={v => handleFormChange('guardrail_deny', v)}
+                                                        placeholder={t('agents.guardrail_deny_placeholder')}
+                                                        disabled={!editing}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Persona docs */}
+                                <div className="section-card" style={{ padding: 0, overflow: 'hidden' }}>
+                                    <div className="section-card-head" style={{ padding: '14px 16px 12px' }}>
+                                        <div>
+                                            <h3 className="section-card-title">{t('agents.section_persona')}</h3>
+                                        </div>
+                                        {editing && (
+                                            <button className="btn btn-sm btn-primary" onClick={handleSaveDoc} disabled={docLoading}>
+                                                {t('agents.save_doc')}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="tabs" style={{ display: 'flex', gap: 2, padding: '0 12px', borderBottom: '1px solid var(--border-subtle)' }}>
                                         {DOC_TYPES.map(dt => (
-                                            <button key={dt} className={`soul-tab${activeDocTab === dt ? ' active' : ''}`} title={DOC_DESCRIPTIONS[dt]} onClick={() => setActiveDocTab(dt)}>{dt}</button>
+                                            <div
+                                                key={dt}
+                                                className={'tab' + (activeDocTab === dt ? ' active' : '')}
+                                                title={DOC_DESCRIPTIONS[dt]}
+                                                onClick={() => setActiveDocTab(dt)}
+                                            >
+                                                {dt}.md
+                                            </div>
                                         ))}
                                     </div>
-                                    <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-                                        <div style={{ height: '26px', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid var(--border-subtle)' }}>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: "'SF Mono','Menlo',monospace" }}>{activeDocTab}.md</span>
-                                            {editing && <button className="tbtn tbtn-accent" style={{ padding: '1px 8px', fontSize: '11px' }} onClick={handleSaveDoc} disabled={docLoading}>{t('agents.save_doc')}</button>}
-                                        </div>
+                                    <div className="editor">
                                         <textarea
                                             className="field-textarea"
-                                            rows={12}
+                                            rows={14}
                                             spellCheck={false}
                                             value={docLoading ? t('common.loading') : docContent}
                                             onChange={e => setDocContent(e.target.value)}
                                             disabled={docLoading || !editing}
+                                            style={{ borderRadius: 0, border: 'none', resize: 'vertical' }}
                                         />
                                     </div>
-                                </section>
+                                </div>
 
                             </div>
                         </>
@@ -1064,8 +1145,8 @@ export default function AgentsPage() {
                 <div className="modal-backdrop" style={{ zIndex: 200 }}>
                     <div className="modal-panel" style={{ padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: confirmDelete.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
-                                {confirmDelete.initials ?? confirmDelete.display_name.slice(0, 2)}
+                            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: confirmDelete.gradient_start ?? 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isEmojiAvatar(confirmDelete) ? '20px' : '13px', fontWeight: 700, color: 'white', flexShrink: 0 }}>
+                                {agentAvatarText(confirmDelete)}
                             </div>
                             <div>
                                 <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{confirmDelete.display_name}</div>
@@ -1085,12 +1166,12 @@ export default function AgentsPage() {
                             </div>
                         )}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                            <button className="tbtn tbtn-ghost" onClick={() => setConfirmDelete(null)}>{t('common.button_cancel')}</button>
-                            <button className="tbtn" style={{ background: 'var(--error-muted)', color: 'var(--error)' }} onClick={() => handleDeleteAgent(confirmDelete)}>{t('agents.confirm_delete')}</button>
+                            <button className="btn btn-ghost" onClick={() => setConfirmDelete(null)}>{t('common.button_cancel')}</button>
+                            <button className="btn" style={{ background: 'var(--error-muted)', color: 'var(--error)' }} onClick={() => handleDeleteAgent(confirmDelete)}>{t('agents.confirm_delete')}</button>
                         </div>
                     </div>
                 </div>
             )}
-        </main>
+        </div>
     )
 }

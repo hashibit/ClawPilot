@@ -6,13 +6,13 @@ import type { LogEntry } from '../lib/types'
 
 const LOG_LEVELS = ['INFO', 'WARN', 'ERROR', 'DEBUG', 'SYSTEM']
 
-function levelClass(level: string): string {
+function tagClass(level: string): string {
   const l = level.toUpperCase()
-  if (l === 'ERROR') return 'log-line error'
-  if (l === 'WARN') return 'log-line warn'
-  if (l === 'INFO') return 'log-line info'
-  if (l === 'DEBUG') return 'log-line debug'
-  return 'log-line system'
+  if (l === 'ERROR') return 'tag danger'
+  if (l === 'WARN') return 'tag warn'
+  if (l === 'INFO') return 'tag accent'
+  if (l === 'DEBUG') return 'tag'
+  return 'tag'
 }
 
 function formatTs(ts: number): string {
@@ -31,6 +31,7 @@ export default function LogsPage() {
   const [filterComponent, setFilterComponent] = useState<string>('')
   const [enabledLevels, setEnabledLevels] = useState<Set<string>>(new Set(LOG_LEVELS))
   const [cleared, setCleared] = useState(false)
+  const [search, setSearch] = useState('')
   const streamRef = useRef<HTMLDivElement>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -58,8 +59,20 @@ export default function LogsPage() {
       setDisplayLogs([])
       return
     }
-    setDisplayLogs(logs.filter(log => enabledLevels.has(log.level.toUpperCase())))
-  }, [logs, enabledLevels, cleared])
+    const filtered = logs.filter(log => {
+      if (!enabledLevels.has(log.level.toUpperCase())) return false
+      if (search) {
+        const q = search.toLowerCase()
+        return (
+          log.message.toLowerCase().includes(q) ||
+          (log.component || '').toLowerCase().includes(q) ||
+          (log.channel || '').toLowerCase().includes(q)
+        )
+      }
+      return true
+    })
+    setDisplayLogs(filtered)
+  }, [logs, enabledLevels, cleared, search])
 
   useEffect(() => {
     const el = streamRef.current
@@ -85,110 +98,74 @@ export default function LogsPage() {
   }
 
   return (
-    <>
-      {/* Log stream */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-        <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('logs.title')}</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>{t('logs.realtimeLabel')}</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {!cleared && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '2px 8px', background: 'var(--success-muted)', borderRadius: '5px' }}>
-                <span className="pulse-dot" style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }}></span>
-                <span style={{ fontSize: '11px', color: 'var(--success)' }}>{t('logs.live')}</span>
-              </div>
-            )}
-            {cleared ? (
-              <button className="tbtn tbtn-ghost" style={{ padding: '2px 8px' }} onClick={handleResume}>
-                {t('logs.resume')}
-              </button>
-            ) : (
-              <button className="tbtn tbtn-ghost" style={{ padding: '2px 8px' }} onClick={handleClear}>
-                {t('logs.clear')}
-              </button>
-            )}
-          </div>
+    <div className="log-page fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <h1 className="page-title">{t('logs.title')}</h1>
+          <p className="page-sub">操作审计 · 按时间倒序</p>
         </div>
-        <div
-          ref={streamRef}
-          className="log-stream"
-          style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-inset)', padding: '10px 14px' }}
-        >
-          {displayLogs.length === 0 ? (
-            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', padding: '8px 0' }}>
-              {cleared ? t('logs.cleared') : t('logs.noLogs')}
-            </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            className="search-input"
+            style={{ width: 240 }}
+            placeholder="搜索日志…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {LOG_LEVELS.map(level => (
+            <button
+              key={level}
+              onClick={() => toggleLevel(level)}
+              className={enabledLevels.has(level) ? tagClass(level) : 'tag'}
+              style={{ cursor: 'pointer', opacity: enabledLevels.has(level) ? 1 : 0.4 }}
+            >
+              {level}
+            </button>
+          ))}
+          {cleared ? (
+            <button className="btn btn-sm" onClick={handleResume}>{t('logs.resume')}</button>
           ) : (
-            displayLogs.map(log => (
-              <div key={log.id} className={levelClass(log.level)}>
-                [{formatTs(log.timestamp)}] [{log.level.padEnd(7)}]
-                {log.component ? ` [${log.component}]` : ''}
-                {log.channel ? ` [${log.channel}]` : ''}
-                {' '}{log.message}
-              </div>
-            ))
+            <button className="btn btn-sm" onClick={handleClear}>{t('logs.clear')}</button>
           )}
         </div>
       </div>
 
-      {/* Filters panel */}
-      <div style={{ width: '168px', borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-        <div className="toolbar" style={{ justifyContent: 'flex-start' }}>
-          <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>{t('logs.filter')}</span>
+      <div className="log-list" ref={streamRef} style={{ flex: 1, overflowY: 'auto' }}>
+        {/* Header row */}
+        <div
+          className="log-row"
+          style={{
+            background: 'var(--bg-canvas)',
+            fontWeight: 600,
+            color: 'var(--text-tertiary)',
+            fontSize: 11,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+          }}
+        >
+          <div>时间</div>
+          <div>级别</div>
+          <div>组件</div>
+          <div>消息</div>
+          <div style={{ textAlign: 'right' }}>频道</div>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-          <div className="section-label" style={{ padding: '0 0 5px' }}>{t('logs.levelFilter')}</div>
-          {LOG_LEVELS.map(level => {
-            const colorMap: Record<string, string> = {
-              INFO: 'var(--text-secondary)',
-              WARN: 'var(--warning)',
-              ERROR: 'var(--error)',
-              DEBUG: 'var(--text-dimmer)',
-              SYSTEM: 'var(--accent-hover)',
-            }
-            return (
-              <label key={level} className="filter-check">
-                <input
-                  type="checkbox"
-                  className="mac-check"
-                  checked={enabledLevels.has(level)}
-                  onChange={() => toggleLevel(level)}
-                />
-                <span style={{ color: colorMap[level] ?? 'var(--text-secondary)' }}>{level}</span>
-              </label>
-            )
-          })}
 
-          <div className="section-label" style={{ padding: '10px 0 5px' }}>{t('logs.componentFilter')}</div>
-          <input
-            type="text"
-            value={filterComponent}
-            onChange={e => setFilterComponent(e.target.value)}
-            placeholder={t('logs.componentPlaceholder')}
-            className="field-input"
-            style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
-          />
-
-          <div className="section-label" style={{ padding: '10px 0 5px' }}>{t('logs.levelSelect')}</div>
-          <select
-            value={filterLevel}
-            onChange={e => setFilterLevel(e.target.value)}
-            className="field-input"
-            style={{ width: '100%', fontSize: '11px', padding: '4px 8px' }}
-          >
-            <option value="">{t('logs.allLevels')}</option>
-            {LOG_LEVELS.map(l => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-
-          <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-dimmer)' }}>
-            {t('logs.total', { count: displayLogs.length })}
+        {displayLogs.length === 0 ? (
+          <div style={{ padding: '24px 14px', fontSize: 12, color: 'var(--text-muted)' }}>
+            {cleared ? t('logs.cleared') : t('logs.noLogs')}
           </div>
-        </div>
+        ) : (
+          displayLogs.map(log => (
+            <div key={log.id} className="log-row">
+              <div className="log-time">{formatTs(log.timestamp)}</div>
+              <div><span className={tagClass(log.level)}>{log.level}</span></div>
+              <div>{log.component || '—'}</div>
+              <div style={{ color: 'var(--text-secondary)' }}>{log.message}</div>
+              <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{log.channel || ''}</div>
+            </div>
+          ))
+        )}
       </div>
-    </>
+    </div>
   )
 }

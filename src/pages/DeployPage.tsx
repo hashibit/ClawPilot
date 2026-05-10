@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getAllOpcs, getOffices, startDeployment, getDeploymentStatus, cancelDeployment, undeploy, getRecentDeployments } from '../lib/api'
+import { useNavigate } from 'react-router-dom'
+import { getOffices, startDeployment, getDeploymentStatus, cancelDeployment, undeploy, getRecentDeployments } from '../lib/api'
 import { useApi } from '../hooks/useApi'
 import { toast } from '../components/Toast'
-import type { OpcConfig, Office, DeploymentTask } from '../lib/types'
+import type { Office, DeploymentTask } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { formatRelativeTime } from '../lib/formatting'
 import { useOpc } from '../contexts/OpcContext'
@@ -12,54 +13,44 @@ const DEPLOY_STEPS = ['prepare_config', 'write_dir', 'reload_process', 'health_c
 
 export default function DeployPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { currentOpc } = useOpc()
-  const [opcs, setOpcs] = useState<OpcConfig[]>([])
   const [offices, setOffices] = useState<Office[]>([])
-  const [selectedOpcId, setSelectedOpcId] = useState('')
-  const [selectedOfficeId, setSelectedOfficeId] = useState('')
   const [deploying, setDeploying] = useState(false)
   const [currentTask, setCurrentTask] = useState<DeploymentTask | null>(null)
   const [recentDeployments, setRecentDeployments] = useState<DeploymentTask[]>([])
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // drag & pick state
+  const [dragging, setDragging] = useState(false)
+  const [hoverId, setHoverId] = useState<string | null>(null)
+  const [pickedId, setPickedId] = useState<string | null>(null)
 
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
   }
 
   const { reload: reloadData } = useApi(
-    () => Promise.all([getAllOpcs(), getOffices()]),
+    () => getOffices(),
     [],
     {
-      onSuccess: ([allOpcs, allOffices]) => {
-        setOpcs(allOpcs)
-        setOffices(allOffices)
-        setSelectedOpcId(prev => prev || currentOpc?.id || '')
-      },
+      onSuccess: (allOffices) => setOffices(allOffices),
       onError: (e) => toast(e.message, 'error'),
     }
   )
 
   useEffect(() => () => stopPolling(), [])
 
+  useEffect(() => {
+    if (currentOpc?.id) loadHistory(currentOpc.id)
+  }, [currentOpc?.id])
+
   const loadHistory = async (opcId: string) => {
-    try {
-      const deployments = await getRecentDeployments(opcId, 5)
-      setRecentDeployments(deployments)
-    } catch (_) {}
+    try { setRecentDeployments(await getRecentDeployments(opcId, 5)) } catch {}
   }
 
-  const handleOpcChange = (opcId: string) => {
-    setSelectedOpcId(opcId)
-    setSelectedOfficeId('')
-    if (opcId) loadHistory(opcId)
-    else setRecentDeployments([])
-  }
-
-  // Free offices: not currently occupied (no current_opc_id)
-  const freeOffices = offices.filter(o => !o.current_opc_id)
-  const selectedOffice = freeOffices.find(o => o.id === selectedOfficeId)
-  // Running OPCs
-  const runningOpcs = opcs.filter(o => o.is_running && o.office_id)
+  const homeOffice = offices.find(o => o.current_opc_id === currentOpc?.id) ?? null
+  const agentCount = currentOpc?.agent_count ?? 0
 
   const pollStatus = async (taskId: string, opcId: string) => {
     try {
@@ -69,273 +60,358 @@ export default function DeployPage() {
         stopPolling()
         setDeploying(false)
         toast(
-          task.status === 'SUCCESS' ? t('deploy.deploy_success') : t('deploy.deploy_failed', { msg: task.message ?? t('common.unknown_error') }),
+          task.status === 'SUCCESS' ? t('deploy.deploy_success') : t('deploy.deploy_failed', { msg: task.message ?? '' }),
           task.status === 'SUCCESS' ? 'success' : 'error',
         )
         await reloadData()
         await loadHistory(opcId)
+        setPickedId(null)
       }
-    } catch (e) {
-      stopPolling(); setDeploying(false); toast(String(e), 'error')
-    }
+    } catch (e) { stopPolling(); setDeploying(false); toast(String(e), 'error') }
   }
 
-  const handleDeploy = async () => {
-    if (!selectedOpcId || !selectedOfficeId || deploying) return
+  const handleDeploy = async (officeId: string) => {
+    if (!currentOpc?.id || !officeId || deploying) return
+    const target = offices.find(o => o.id === officeId)
+    if (!target?.daemon_url) { toast(t('deploy.office_no_daemon'), 'error'); return }
     setDeploying(true)
     setCurrentTask(null)
     try {
-      const taskId = await startDeployment(selectedOpcId, selectedOfficeId)
+      const taskId = await startDeployment(currentOpc.id, officeId)
       const task = await getDeploymentStatus(taskId)
       setCurrentTask(task)
-      pollRef.current = setInterval(() => pollStatus(taskId, selectedOpcId), 2000)
-    } catch (e) {
-      setDeploying(false)
-      toast(String(e), 'error')
-    }
+      pollRef.current = setInterval(() => pollStatus(taskId, currentOpc.id), 2000)
+    } catch (e) { setDeploying(false); toast(String(e), 'error') }
   }
 
   const handleCancel = async () => {
     if (!currentTask) return
-    try {
-      await cancelDeployment(currentTask.id)
-      stopPolling(); setDeploying(false)
-      toast(t('deploy.deploy_cancelled'), 'info')
-    } catch (e) { toast(String(e), 'error') }
+    try { await cancelDeployment(currentTask.id); stopPolling(); setDeploying(false); toast(t('deploy.deploy_cancelled'), 'info') }
+    catch (e) { toast(String(e), 'error') }
   }
 
-  const handleUndeploy = async (opc: OpcConfig) => {
+  const handleUndeploy = async () => {
+    if (!currentOpc?.id) return
     try {
-      await undeploy(opc.id)
-      toast(t('deploy.undeploy_success', { name: opc.display_name }), 'success')
+      await undeploy(currentOpc.id)
+      toast(t('deploy.undeploy_success', { name: currentOpc.display_name ?? '' }), 'success')
       await reloadData()
     } catch (e) { toast(String(e), 'error') }
   }
 
-  const handleRedeploy = async (opc: OpcConfig) => {
-    if (!opc.office_id || deploying) return
-    setDeploying(true)
-    setCurrentTask(null)
-    try {
-      const taskId = await startDeployment(opc.id, opc.office_id)
-      const task = await getDeploymentStatus(taskId)
-      setCurrentTask(task)
-      pollRef.current = setInterval(() => pollStatus(taskId, opc.id), 2000)
-    } catch (e) {
-      setDeploying(false)
-      toast(String(e), 'error')
-    }
+  const handleBuildingDrop = (e: React.DragEvent, officeId: string) => {
+    e.preventDefault(); setDragging(false); setHoverId(null)
+    handleDeploy(officeId)
   }
 
-  const taskSteps: string[] = (() => {
-    if (!currentTask) return []
-    try { return JSON.parse(currentTask.steps) } catch { return [] }
-  })()
+  const handleBuildingClick = (office: Office) => {
+    if (!currentOpc?.id) return
+    const isHome = office.current_opc_id === currentOpc.id
+    const isOccupied = !!office.current_opc_id && !isHome
+    const isOffline = !office.daemon_url
+    if (isHome || isOccupied || isOffline) return
+    setPickedId(pickedId === office.id ? null : office.id)
+  }
 
-  const stepStatus = (stepIndex: number): 'done' | 'running' | 'pending' | 'failed' => {
+  // deploy progress for building floors
+  const deployFloors = currentTask
+    ? currentTask.status === 'SUCCESS' ? 4 : Math.min(4, currentTask.current_step)
+    : 0
+
+  const stepStatus = (idx: number): 'done' | 'running' | 'pending' | 'failed' => {
     if (!currentTask) return 'pending'
     if (currentTask.status === 'FAILED') {
-      if (stepIndex < currentTask.current_step) return 'done'
-      if (stepIndex === currentTask.current_step) return 'failed'
+      if (idx < currentTask.current_step) return 'done'
+      if (idx === currentTask.current_step) return 'failed'
       return 'pending'
     }
-    if (stepIndex < currentTask.current_step) return 'done'
-    if (stepIndex === currentTask.current_step && currentTask.status === 'RUNNING') return 'running'
+    if (idx < currentTask.current_step) return 'done'
+    if (idx === currentTask.current_step && currentTask.status === 'RUNNING') return 'running'
     if (currentTask.status === 'SUCCESS') return 'done'
     return 'pending'
   }
 
-  const progressPct = currentTask
-    ? currentTask.status === 'SUCCESS' ? 100
-      : Math.round((currentTask.current_step / DEPLOY_STEPS.length) * 100)
-    : 0
+  const statusLabelMap: Record<string, string> = {
+    SUCCESS: t('common.status_success'),
+    FAILED: t('common.status_failed'),
+    ROLLBACK: t('deploy.status_rollback'),
+    RUNNING: t('common.status_running'),
+    PENDING: t('common.status_waiting'),
+  }
 
-  const canDeploy = selectedOpcId && selectedOfficeId && selectedOffice?.daemon_url && !deploying
+  if (!currentOpc) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+        {t('agents.select_company_hint')}
+      </div>
+    )
+  }
 
   return (
-    <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('deploy.section_title')}</span>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          {deploying ? (
-            <button className="tbtn tbtn-ghost" style={{ color: 'var(--error)' }} onClick={handleCancel}>{t('deploy.cancel_deploy')}</button>
-          ) : (
-            <button className="tbtn tbtn-success" onClick={handleDeploy} disabled={!canDeploy}>
-              {t('deploy.deploy_now')}
-            </button>
-          )}
-        </div>
-      </div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={() => pickedId && setPickedId(null)}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 48px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-        {/* 部署配置 */}
-        <section>
-          <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.deploy_config')}</div>
-          <div className="group">
-            <div className="group-row" style={{ gap: '10px' }}>
-              <span className="group-label">{t('deploy.select_opc')}</span>
-              <select
-                value={selectedOpcId}
-                onChange={e => handleOpcChange(e.target.value)}
-                className="field-input"
-                style={{ flex: 1 }}
+        {/* ── Hero: OPC card + Status ── */}
+        <div className="dpv-hero">
+          {/* Left: company chip */}
+          <div className="dpv-hero-left">
+            <div
+              className="dpv-company-chip"
+              draggable
+              onDragStart={() => { setDragging(true); setPickedId(null) }}
+              onDragEnd={() => { setDragging(false); setHoverId(null) }}
+            >
+              <div
+                className="dpv-company-avatar"
+                style={{ background: currentOpc.avatar_color || 'var(--accent)', color: 'var(--text-on-accent)', fontWeight: 700 }}
               >
-                <option value="">{t('deploy.placeholder_select_opc')}</option>
-                {opcs.map(opc => (
-                  <option key={opc.id} value={opc.id}>
-                    {opc.display_name}
-                    {opc.is_running && opc.office_name ? ` (${t('common.status_running')}·${opc.office_name})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="group-row" style={{ gap: '10px' }}>
-              <span className="group-label">{t('deploy.select_office')}</span>
-              <select
-                value={selectedOfficeId}
-                onChange={e => setSelectedOfficeId(e.target.value)}
-                className="field-input"
-                style={{ flex: 1 }}
-                disabled={!selectedOpcId}
-              >
-                <option value="">{t('deploy.placeholder_select_office')}</option>
-                {freeOffices.map(office => (
-                  <option key={office.id} value={office.id} disabled={!office.daemon_url}>
-                    {office.daemon_url ? '✅ ' : '⚠️ '}{office.name}{!office.daemon_url ? ` · ${t('deploy.no_daemon')}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {selectedOfficeId && !selectedOffice?.daemon_url && (
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--warning)' }}>
-                {t('deploy.office_no_daemon')}
+                {currentOpc.avatar_initials || currentOpc.display_name.slice(0, 1)}
               </div>
-            )}
-            {freeOffices.length === 0 && (
-              <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--warning)' }}>
-                {t('deploy.no_free_offices')}
+              <div className="dpv-company-info">
+                <div className="dpv-company-name">{currentOpc.display_name}</div>
+                <div className="dpv-company-meta">
+                  <Icon name="users" size={11} />
+                  <span>{agentCount} 个 Agent</span>
+                  <span>·</span>
+                  <span>v1.4.2</span>
+                </div>
+              </div>
+              <div className="dpv-drag-hint">
+                <Icon name="grid" size={14} />
+                <span>拖动我</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: status */}
+          <div className="dpv-hero-right">
+            {homeOffice ? (
+              <div className="dpv-status">
+                <div className="dpv-status-line">
+                  <span className="dpv-status-dot live" />
+                  <span>当前住在</span>
+                  <b>{homeOffice.receptionist_image || '🏢'} {homeOffice.name}</b>
+                </div>
+                <div className="dpv-status-actions">
+                  <button className="btn btn-sm" onClick={() => navigate('/logs')}>
+                    <Icon name="file" size={12} /> 日志
+                  </button>
+                  <button className="btn btn-sm" onClick={handleUndeploy} disabled={deploying}>
+                    <Icon name="external-link" size={12} /> 搬出
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="dpv-status nowhere">
+                <div className="dpv-status-line">
+                  <span className="dpv-status-dot idle" />
+                  <span>还没住进任何办公楼</span>
+                </div>
+                <div className="dpv-status-hint">点击空楼或拖动公司卡片入住</div>
               </div>
             )}
           </div>
-        </section>
+        </div>
 
-        {/* 部署进度 */}
+        {/* ── Street / Buildings ── */}
+        <div className={`dpv-street${dragging ? ' is-dragging' : ''}`}>
+          <div className="dpv-street-sky" />
+          <div className="dpv-buildings-row">
+            {offices.length === 0 ? (
+              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                尚未配置任何办公楼 · 先去 <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => navigate('/office')}>添加 Office</span>
+              </div>
+            ) : offices.map(o => {
+              const isHome = o.current_opc_id === currentOpc.id
+              const isOccupied = !!o.current_opc_id && !isHome
+              const isOffline = !o.daemon_url
+              const isHover = hoverId === o.id
+              const isPicked = pickedId === o.id
+              const deployingHere = deploying && currentTask?.office_id === o.id
+              const canDrop = !isOffline && !isOccupied && !isHome
+
+              let bldgClass = 'dpv-bldg'
+              if (isOffline) bldgClass += ' is-offline'
+              else if (isOccupied) bldgClass += ' is-occupied'
+              if (isPicked) bldgClass += ' is-picked'
+              if (isHover && canDrop) bldgClass += ' is-hover'
+              if (isHover && !canDrop) bldgClass += ' is-hover-blocked'
+              if (dragging && canDrop) bldgClass += ' is-droppable'
+
+              // badge
+              let badgeText = '空置 · 可入住'
+              let badgeClass = 'b-tag'
+              if (isOffline)       { badgeText = '△ 离线'; badgeClass = 'b-tag error' }
+              else if (isHome)     { badgeText = '✓ 当前住所'; badgeClass = 'b-tag success' }
+              else if (isOccupied) { badgeText = `${o.receptionist_image || '🏢'} ${o.current_opc_name || '已占用'}`; badgeClass = 'b-tag muted' }
+
+              // floor lit logic
+              const litFloor = (floorIdx: number): boolean => {
+                if (isHome && !deployingHere) return true
+                if (isOccupied) return true
+                if (deployingHere) return floorIdx < deployFloors
+                return false
+              }
+
+              const floorIsOther = isOccupied && !isHome
+
+              return (
+                <div
+                  key={o.id}
+                  className={bldgClass}
+                  onDragOver={e => { e.preventDefault(); setHoverId(o.id) }}
+                  onDragLeave={() => setHoverId(null)}
+                  onDrop={e => handleBuildingDrop(e, o.id)}
+                  onClick={e => { e.stopPropagation(); handleBuildingClick(o) }}
+                >
+                  {/* Flag on roof */}
+                  <div className="dpv-bldg-roof">
+                    {(isHome || isOccupied) && (
+                      <div
+                        className={`dpv-bldg-flag${isOccupied && !isHome ? ' muted' : ''}`}
+                        style={{ background: isHome ? (currentOpc.avatar_color || 'var(--accent)') : isOccupied ? 'var(--border-strong)' : 'var(--accent)' }}
+                      >
+                        <span style={{ fontSize: '10px' }}>
+                          {isHome ? (currentOpc.avatar_initials || currentOpc.display_name.slice(0, 1)) : o.receptionist_image || '🏢'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Building body */}
+                  <div className="dpv-bldg-body">
+                    {[3, 2, 1, 0].map(i => (
+                      <div
+                        key={i}
+                        className={`dpv-bldg-floor${litFloor(i) ? ' lit' : ''}${floorIsOther ? ' other-tenant' : ''}${deployingHere && i === deployFloors ? ' current-step' : ''}`}
+                      >
+                        {[0, 1, 2, 3].map(w => (
+                          <div key={w} className="dpv-bldg-window" />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Door */}
+                  <div className="dpv-bldg-door">
+                    <span className="dpv-bldg-receptionist">
+                      {o.receptionist_image || '🏠'}
+                    </span>
+                  </div>
+
+                  {/* Sign */}
+                  <div className="dpv-bldg-sign">
+                    <div className="dpv-bldg-name">{o.name}</div>
+                    <div className="dpv-bldg-host">{o.address || '127.0.0.1'}</div>
+                  </div>
+
+                  {/* Badge */}
+                  <div className="dpv-bldg-badge">
+                    <span className={badgeClass}>{badgeText}</span>
+                  </div>
+
+                  {/* Deploy action button */}
+                  {isPicked && canDrop && !deploying && (
+                    <div
+                      className="dpv-bldg-preview"
+                      onClick={e => { e.stopPropagation(); handleDeploy(o.id); setPickedId(null) }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <span className="dpv-bldg-preview-msg">点击部署到此</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* ── Deploy progress ── */}
         {currentTask && (
-          <section>
-            <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.deploy_progress')}</div>
-            <div style={{ height: '3px', background: 'var(--border-subtle)', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--accent)', borderRadius: '2px', transition: 'width 0.4s ease' }}></div>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '16px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {t('deploy.deploy_progress')}
+              </span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-dimmer)', fontFamily: 'var(--font-mono)' }}>{currentTask.status}</span>
+                {deploying && (
+                  <button className="btn btn-sm btn-ghost" style={{ color: 'var(--error)', fontSize: '11px' }} onClick={handleCancel}>
+                    {t('deploy.cancel_deploy')}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ height: '3px', background: 'var(--border-subtle)', borderRadius: '2px', marginBottom: '12px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${currentTask.status === 'SUCCESS' ? 100 : Math.round((currentTask.current_step / DEPLOY_STEPS.length) * 100)}%`,
+                background: currentTask.status === 'FAILED' ? 'var(--error)' : 'var(--accent)',
+                borderRadius: '2px',
+                transition: 'width 0.4s ease',
+              }} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
               {DEPLOY_STEPS.map((label, i) => {
-                const status = stepStatus(i)
-                const stepLabel = taskSteps[i] ?? label
-                const stepLabelI18n = t(`deploy.step_${DEPLOY_STEPS[i]}`)
-                const colorMap = {
-                  done: { bg: 'var(--success-muted)', stroke: 'var(--success)', text: 'var(--success)', sub: t('common.status_done') },
-                  running: { bg: 'var(--accent-muted)', stroke: 'var(--accent-hover)', text: 'var(--accent-hover)', sub: t('common.status_running_ellipsis') },
-                  pending: { bg: 'var(--border-subtle)', stroke: 'var(--text-dimmer)', text: 'var(--text-dimmer)', sub: t('common.status_waiting') },
-                  failed: { bg: 'var(--error-muted)', stroke: 'var(--error)', text: 'var(--error)', sub: t('common.status_failed') },
-                }[status]
+                const s = stepStatus(i)
+                const stepLabel = t(`deploy.step_${label}`)
+                const cfg = {
+                  done:    { bg: 'var(--success-muted)', c: 'var(--success)',      sub: t('common.status_done') },
+                  running: { bg: 'var(--accent-muted)',  c: 'var(--accent-hover)', sub: t('common.status_running_ellipsis') },
+                  pending: { bg: 'var(--border-subtle)', c: 'var(--text-dimmer)',   sub: t('common.status_waiting') },
+                  failed:  { bg: 'var(--error-muted)',   c: 'var(--error)',         sub: t('common.status_failed') },
+                }[s]
                 return (
-                  <div key={label} className={`step-card${status === 'done' ? ' done' : ''}`}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: colorMap.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {status === 'running' ? (
-                          <Icon name="loading" size={12} stroke={colorMap.stroke} strokeWidth={2.5} spin />
-                        ) : status === 'failed' ? (
-                          <Icon name="x" size={12} stroke={colorMap.stroke} strokeWidth={2.5} />
-                        ) : status === 'done' ? (
-                          <Icon name="check" size={12} stroke={colorMap.stroke} strokeWidth={2.5} />
-                        ) : (
-                          <Icon name="circle" size={12} stroke={colorMap.stroke} strokeWidth={2.5} />
-                        )}
+                  <div key={label} className={`step-card${s === 'done' ? ' done' : ''}`}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px' }}>
+                      <div style={{ width: 22, height: 22, borderRadius: 6, background: cfg.bg, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                        {s === 'running' ? <Icon name="loading" size={11} stroke={cfg.c} strokeWidth={2.5} spin />
+                          : s === 'failed' ? <Icon name="x" size={11} stroke={cfg.c} strokeWidth={2.5} />
+                          : s === 'done' ? <Icon name="check" size={11} stroke={cfg.c} strokeWidth={2.5} />
+                          : <Icon name="circle" size={11} stroke={cfg.c} strokeWidth={2.5} />}
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', fontWeight: 500, color: colorMap.text }}>{stepLabelI18n}</div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-dimmer)' }}>{colorMap.sub}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 500, color: cfg.c }}>{stepLabel}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-dimmer)' }}>{cfg.sub}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>{stepLabel}</div>
                   </div>
                 )
               })}
             </div>
-          </section>
+          </div>
         )}
 
-        {/* 运行中的子公司 */}
-        {runningOpcs.length > 0 && (
-          <section>
-            <div className="section-label" style={{ padding: '0 0 7px' }}>{t('common.status_running')}</div>
-            <div className="group">
-              {runningOpcs.map(opc => (
-                <div key={opc.id} className="group-row" style={{ gap: '8px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', flexShrink: 0, alignSelf: 'center' }}></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{opc.display_name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>
-                      🏢 {opc.office_name ?? t('deploy.unknown_office')}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                    <button
-                      className="tbtn tbtn-ghost"
-                      style={{ fontSize: '11px', color: 'var(--accent)' }}
-                      onClick={() => handleRedeploy(opc)}
-                      disabled={deploying}
-                    >
-                      {t('deploy.redeploy')}
-                    </button>
-                    <button
-                      className="tbtn tbtn-ghost"
-                      style={{ fontSize: '11px', color: 'var(--error)' }}
-                      onClick={() => handleUndeploy(opc)}
-                    >
-                      {t('deploy.undeploy')}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 最近部署记录 */}
-        {recentDeployments.length > 0 && (
-          <section>
-            <div className="section-label" style={{ padding: '0 0 7px' }}>{t('deploy.recent_deployments')}</div>
-            <div className="group">
-              {recentDeployments.map(task => {
-                const statusColorMap: Record<string, { bg: string; color: string; label: string }> = {
-                  SUCCESS:  { bg: 'var(--success-muted)',  color: 'var(--success)',    label: t('common.status_success') },
-                  FAILED:   { bg: 'var(--error-muted)',    color: 'var(--error)',      label: t('common.status_failed') },
-                  ROLLBACK: { bg: 'var(--warning-muted)',  color: 'var(--warning)',    label: t('deploy.status_rollback') },
-                  RUNNING:  { bg: 'var(--accent-muted)',   color: 'var(--accent-hover)', label: t('common.status_running') },
-                  PENDING:  { bg: 'var(--border-subtle)',  color: 'var(--text-dimmer)', label: t('common.status_waiting') },
-                }
-                const sc = statusColorMap[task.status] ?? statusColorMap.PENDING
-                return (
-                  <div key={task.id} className="group-row" style={{ gap: '8px' }}>
-                    <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: sc.bg, color: sc.color, flexShrink: 0 }}>{sc.label}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>{task.opc_name}</div>
-                      {task.office_name && (
-                        <div style={{ fontSize: '11px', color: 'var(--text-dimmer)' }}>🏢 {task.office_name}</div>
-                      )}
-                    </div>
-                    <span style={{ fontSize: '11px', color: 'var(--text-dimmer)', flexShrink: 0 }}>
-                      {formatRelativeTime(task.completed_at ?? task.created_at, t)}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
+        {/* ── Recent deployments ── */}
+        <div className="dpv-history">
+          <div className="dpv-history-head">
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>最近搬迁</h3>
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+              {recentDeployments.length > 0 ? `最近 ${recentDeployments.length} 次` : ''}
+            </span>
+          </div>
+          <div className="dpv-history-list">
+            {recentDeployments.length === 0 ? (
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                暂无搬迁记录
+              </div>
+            ) : recentDeployments.map(d => (
+              <div key={d.id} className="dpv-history-row">
+                <span className="dpv-history-time">{formatRelativeTime(d.completed_at ?? d.created_at, t)}</span>
+                <span className="dpv-history-co">{d.opc_name}</span>
+                <span className="dpv-history-arrow">
+                  {d.office_name && <>→ {d.office_name}</>}
+                </span>
+                <span className="dpv-history-who" />
+                <span className={`dpv-history-status${d.status === 'SUCCESS' ? ' ok' : d.status === 'FAILED' ? ' warn' : ''}`}>
+                  {d.status === 'SUCCESS' ? '✓ ' : ''}{statusLabelMap[d.status] ?? d.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
 
       </div>
-    </main>
+    </div>
   )
 }

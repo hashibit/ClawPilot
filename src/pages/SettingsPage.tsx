@@ -43,230 +43,196 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div data-tauri-drag-region className="toolbar" style={{ justifyContent: 'flex-start' }}>
-        <span style={{ fontSize: '15px', fontWeight: 600 }}>{t('settings.title')}</span>
+    <div className="settings-page fade-in">
+      <div style={{ marginBottom: 8 }}>
+        <h1 className="page-title">{t('settings.title')}</h1>
+        <p className="page-sub">全局系统配置</p>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', maxWidth: '600px' }}>
-
-        {/* Language */}
-        <section style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-            {t('settings.language')}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
-            {t('settings.languageDesc')}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-            {LANGUAGES.map(lang => {
-              const active = currentLang === lang.code
-              return (
-                <button
-                  key={lang.code}
-                  onClick={() => setLanguage(lang.code)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '10px 14px',
-                    borderRadius: '9px',
-                    border: active
-                      ? '1.5px solid var(--accent-hover)'
-                      : '1px solid var(--border-subtle)',
-                    background: active
-                      ? 'var(--accent-muted)'
-                      : 'rgba(255,255,255,0.04)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.15s ease',
-                    direction: 'ltr',
-                  }}
-                >
-                  <span style={{ fontSize: '20px', lineHeight: 1, flexShrink: 0 }}>{lang.flag}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: '13px', fontWeight: 500,
-                      color: active ? 'var(--accent-hover)' : 'var(--text-primary)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>
-                      {lang.label}
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-dimmer)', marginTop: '1px' }}>
-                      {lang.code}{lang.rtl ? ' · RTL' : ''}
-                    </div>
-                  </div>
-                  {active && (
-                    <div style={{ flexShrink: 0 }}>
-                      <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />
-                    </div>
-                  )}
+      {/* Workspace section */}
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">工作区</h3>
+          <p className="settings-section-sub">OPC 配置根目录</p>
+        </div>
+        <div className="settings-section-body">
+          <div className="field-row">
+            <div className="field-label-cell">
+              <div className="field-name">opc_root</div>
+              <div className="field-hint">
+                存放所有公司配置的目录，格式：{opcRoot}/{'{'}{`opc_id`}{'}'}/workspace-{'{'}{`agent_name`}{'}'}
+              </div>
+            </div>
+            <div className="field-value-cell">
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  className="input mono"
+                  style={{ flex: 1 }}
+                  value={opcRoot}
+                  onChange={e => setOpcRoot(e.target.value)}
+                  placeholder="~/.openclaw/OPC"
+                />
+                <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={saving}>
+                  {saving ? '保存中…' : '保存'}
                 </button>
-              )
-            })}
-          </div>
-
-          {isRtl(currentLang) && (
-            <div style={{
-              marginTop: '10px', padding: '8px 12px', borderRadius: '7px',
-              background: 'var(--accent-muted)', border: '1px solid rgba(167,139,250,0.25)',
-              fontSize: '11px', color: 'var(--accent-hover)', display: 'flex', alignItems: 'center', gap: '6px',
-            }}>
-              <Icon name="info" size={12} />
-              RTL layout active — text flows right to left
+              </div>
+              {saveMsg && (
+                <div style={{ fontSize: 12, color: saveMsg.includes('失败') ? 'var(--danger)' : 'var(--success)' }}>
+                  {saveMsg}
+                </div>
+              )}
             </div>
-          )}
-        </section>
+          </div>
+        </div>
+      </div>
 
-        {/* Theme */}
-        <section style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-            {t('settings.theme')}
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
-            {t('settings.themeDesc')}
-          </div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '10px',
-            padding: '10px 14px', borderRadius: '9px',
-            border: '1.5px solid var(--accent-hover)',
-            background: 'var(--accent-muted)',
-            width: 'fit-content',
-          }}>
-            <Icon name="moon" size={16} stroke="#a78bfa" strokeWidth={2} />
-            <span style={{ fontSize: '13px', color: 'var(--accent-hover)', fontWeight: 500 }}>{t('settings.dark')}</span>
-            <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />
-          </div>
-        </section>
-
-        {/* Deployment Directory */}
-        <section style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-            部署目录
-          </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
-            OPC 部署根目录，格式：{opcRoot}/{'{opc_id}'}/workspace-{'{agent_name}'}
-          </div>
-
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-          }}>
-            <input
-              type="text"
-              value={opcRoot}
-              onChange={e => setOpcRoot(e.target.value)}
-              placeholder="~/.openclaw/OPC"
-              style={{
-                flex: 1,
-                padding: '10px 14px',
-                borderRadius: '9px',
-                border: '1px solid var(--border-subtle)',
-                background: 'rgba(255,255,255,0.04)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                outline: 'none',
-                fontFamily: 'monospace',
-              }}
-            />
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '9px',
-                border: 'none',
-                background: saving ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.7)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: saving ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {saving ? '保存中…' : '保存'}
-            </button>
-          </div>
-          {saveMsg && (
-            <div style={{
-              marginTop: '8px', fontSize: '12px',
-              color: saveMsg.includes('失败') ? 'var(--error)' : 'var(--success)',
-            }}>
-              {saveMsg}
+      {/* Appearance section */}
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">外观</h3>
+          <p className="settings-section-sub">{t('settings.languageDesc')}</p>
+        </div>
+        <div className="settings-section-body">
+          {/* Language */}
+          <div className="field-row">
+            <div className="field-label-cell">
+              <div className="field-name">{t('settings.language')}</div>
             </div>
-          )}
-        </section>
+            <div className="field-value-cell">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                {LANGUAGES.map(lang => {
+                  const active = currentLang === lang.code
+                  return (
+                    <button
+                      key={lang.code}
+                      onClick={() => setLanguage(lang.code)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 14px',
+                        borderRadius: 9,
+                        border: active ? '1.5px solid var(--accent-hover)' : '1px solid var(--border-subtle)',
+                        background: active ? 'var(--accent-muted)' : 'rgba(255,255,255,0.04)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
+                        direction: 'ltr',
+                      }}
+                    >
+                      <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{lang.flag}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 13, fontWeight: 500,
+                          color: active ? 'var(--accent-hover)' : 'var(--text-primary)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {lang.label}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>
+                          {lang.code}{lang.rtl ? ' · RTL' : ''}
+                        </div>
+                      </div>
+                      {active && <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />}
+                    </button>
+                  )
+                })}
+              </div>
+              {isRtl(currentLang) && (
+                <div style={{
+                  marginTop: 10, padding: '8px 12px', borderRadius: 7,
+                  background: 'var(--accent-muted)', border: '1px solid rgba(167,139,250,0.25)',
+                  fontSize: 11, color: 'var(--accent-hover)', display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <Icon name="info" size={12} />
+                  RTL layout active — text flows right to left
+                </div>
+              )}
+            </div>
+          </div>
 
-        {/* License */}
-        {license && (
-          <section style={{ marginBottom: '28px' }}>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
-              License
+          {/* Theme */}
+          <div className="field-row">
+            <div className="field-label-cell">
+              <div className="field-name">{t('settings.theme')}</div>
+              <div className="field-hint">{t('settings.themeDesc')}</div>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginBottom: '12px' }}>
-              Your license activation status
+            <div className="field-value-cell">
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 9,
+                border: '1.5px solid var(--accent-hover)',
+                background: 'var(--accent-muted)',
+                width: 'fit-content',
+              }}>
+                <Icon name="moon" size={16} stroke="#a78bfa" strokeWidth={2} />
+                <span style={{ fontSize: 13, color: 'var(--accent-hover)', fontWeight: 500 }}>{t('settings.dark')}</span>
+                <Icon name="check" size={14} stroke="#a78bfa" strokeWidth={2.5} />
+              </div>
             </div>
-            <div style={{
-              padding: '14px 16px', borderRadius: '9px',
-              border: '1px solid var(--border-subtle)',
-              background: 'rgba(255,255,255,0.03)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <div style={{
-                    width: '8px', height: '8px', borderRadius: '50%',
-                    background: license.activated ? 'var(--success)' : 'var(--error)',
-                  }} />
-                  <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {license.activated ? 'Activated' : 'Not activated'}
-                  </span>
+          </div>
+        </div>
+      </div>
+
+      {/* License section */}
+      {license && (
+        <div className="settings-section">
+          <div className="settings-section-head">
+            <h3 className="settings-section-title">License</h3>
+            <p className="settings-section-sub">Your license activation status</p>
+          </div>
+          <div className="settings-section-body">
+            <div className="field-row">
+              <div className="field-label-cell">
+                <div className="field-name">激活状态</div>
+              </div>
+              <div className="field-value-cell">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className={license.activated ? 'dot live' : 'dot danger'} style={{ width: 8, height: 8, borderRadius: '50%', display: 'inline-block' }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
+                      {license.activated ? 'Activated' : 'Not activated'}
+                    </span>
+                  </div>
+                  {license.activated && (
+                    <button
+                      onClick={handleDeactivate}
+                      className="btn btn-sm btn-danger"
+                    >
+                      Deactivate
+                    </button>
+                  )}
                 </div>
                 {license.license_key && (
-                  <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', fontFamily: 'monospace' }}>
+                  <div className="mono" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                     {license.license_key}
                   </div>
                 )}
               </div>
-              {license.activated && (
-                <button
-                  onClick={handleDeactivate}
-                  style={{
-                    padding: '6px 12px', borderRadius: '7px',
-                    border: '1px solid rgba(255,69,58,0.3)',
-                    background: 'transparent', color: 'var(--error)',
-                    fontSize: '12px', cursor: 'pointer',
-                  }}
-                >
-                  Deactivate
-                </button>
-              )}
             </div>
-          </section>
-        )}
+          </div>
+        </div>
+      )}
 
-        {/* About */}
-        <section>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
-            {t('settings.about')}
+      {/* About section */}
+      <div className="settings-section">
+        <div className="settings-section-head">
+          <h3 className="settings-section-title">{t('settings.about')}</h3>
+        </div>
+        <div className="settings-section-body">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div className="logo-box">
+              <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>ClawPilot</span>
           </div>
-          <div style={{
-            padding: '14px 16px', borderRadius: '9px',
-            border: '1px solid var(--border-subtle)',
-            background: 'rgba(255,255,255,0.03)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <div className="logo-box">
-                <Icon name="bolt" size={13} stroke="white" strokeWidth={2.2} />
-              </div>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>ClawPilot</span>
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-dimmer)', lineHeight: 1.6 }}>
-              {t('settings.appDesc')}
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-dimmer)', marginTop: '8px' }}>
-              {t('settings.version')} 0.1.0
-            </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            {t('settings.appDesc')}
           </div>
-        </section>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+            {t('settings.version')} 0.1.0
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { subscribeToActivities, type ActivityEvent, getActivityStreamStatus } from '../lib/activityStream'
 import { useOpc } from '../contexts/OpcContext'
 import { getAgents } from '../lib/api'
-import type { OpcConfig, AgentConfig } from '../lib/types'
+import type { OpcConfig } from '../lib/types'
 import { Icon } from '../components/Icon'
 
 interface AgentActivity {
@@ -22,6 +22,26 @@ interface OpcActivities {
 
 // Max events to keep per agent
 const MAX_EVENTS_PER_AGENT = 50
+
+// Derive initials from agent id
+function getInitials(id: string): string {
+  return id.slice(0, 2).toUpperCase()
+}
+
+// Deterministic color from string
+function hashColor(s: string): string {
+  const palette = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#3b82f6', '#f59e0b', '#14b8a6']
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff
+  return palette[h % palette.length]
+}
+
+function timeAgo(ts: number): string {
+  const diff = Math.floor(Date.now() / 1000 - ts)
+  if (diff < 60) return `${diff}s ago`
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  return `${Math.floor(diff / 3600)}h ago`
+}
 
 export default function ActivitiesPage() {
   const { t } = useTranslation()
@@ -117,16 +137,19 @@ export default function ActivitiesPage() {
     return { opc, agents }
   }).filter(oa => oa.agents.length > 0)
 
-  // Format timestamp
-  const formatTime = (ts: number) => {
-    const date = new Date(ts * 1000)
-    return date.toLocaleTimeString()
-  }
+  // Flat event stream: all events from all agents, sorted newest first
+  const allEvents = Array.from(activities.values())
+    .flatMap(a => a.events.map(e => ({ ...e, _agent: a })))
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, 200)
+
+  // Count busy agents
+  const busyAgents = Array.from(activities.values()).filter(a => a.status === 'busy')
+  const busyCount = busyAgents.length
 
   // Format event data for display
   const formatEventData = (event: ActivityEvent): string => {
     const data = event.data as any
-
     switch (event.stream) {
       case 'lifecycle':
         return `[${data.status}]`
@@ -141,217 +164,118 @@ export default function ActivitiesPage() {
     }
   }
 
-  // Get status color
-  const getStatusColor = (status: AgentActivity['status']) => {
-    switch (status) {
-      case 'busy': return 'var(--success)'
-      case 'error': return 'var(--error)'
-      default: return 'var(--text-dimmer)'
-    }
-  }
-
-  // Get stream badge color
-  const getStreamColor = (stream: string) => {
-    switch (stream) {
-      case 'lifecycle': return 'var(--accent)'
-      case 'assistant': return '#3b82f6'
-      case 'tool': return '#f97316'
-      case 'error': return 'var(--error)'
-      default: return 'var(--text-dimmer)'
-    }
-  }
-
-  // Count busy agents
-  const busyCount = Array.from(activities.values()).filter(a => a.status === 'busy').length
-
   return (
-    <div style={{ padding: 24, height: '100%', overflow: 'auto' }} ref={scrollRef}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>
-          {t('activities.title', 'Agent Activities')}
-        </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {busyCount > 0 && (
-            <span style={{
-              fontSize: 12,
-              padding: '4px 12px',
-              borderRadius: 12,
-              background: 'var(--success-muted)',
-              color: 'var(--success)'
-            }}>
-              {busyCount} {t('activities.active', 'active')}
+    <div className="activity-page">
+      {/* Main stream */}
+      <div className="activity-stream" ref={scrollRef}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h1 className="page-title">{t('activities.title', '实时活动')}</h1>
+            <p className="page-sub">所有 Agent 的消息与工具调用</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="tag success">
+              <span className="dot live" style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5 }} />
+              实时
             </span>
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: connectionStatus === 'connected' ? 'var(--success)' : 'var(--error)'
-            }} />
-            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              {connectionStatus === 'connected' ? t('activities.connected', 'Connected') : t('activities.disconnected', 'Disconnected')}
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+              {connectionStatus === 'connected' ? '已连接' : connectionStatus === 'connecting' ? '连接中…' : '断开'}
             </span>
           </div>
         </div>
+
+        {runningOpcs.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', gap: 16 }}>
+            <Icon name="building" size={48} />
+            <p>{t('activities.noRunningOpc', '尚无运行中的公司')}</p>
+            <p style={{ fontSize: 12 }}>{t('activities.deployHint', '先部署一个公司，再来查看活动')}</p>
+          </div>
+        ) : allEvents.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: 'var(--text-tertiary)', gap: 16 }}>
+            <Icon name="activity" size={48} />
+            <p>{t('activities.noActivity', '暂无 Agent 活动')}</p>
+            <p style={{ fontSize: 12 }}>{t('activities.waitingHint', '等待 Agent 开始工作…')}</p>
+          </div>
+        ) : (
+          allEvents.map((event, idx) => {
+            const agentId = event.agent_id
+            const color = hashColor(agentId)
+            const initials = getInitials(agentId)
+            const text = formatEventData(event)
+            return (
+              <div key={`${event.ts}-${idx}`} className="activity-row">
+                <div className="activity-avatar" style={{ background: color, color: 'white', fontSize: 12, fontWeight: 600 }}>
+                  {initials}
+                </div>
+                <div className="activity-content">
+                  <div className="activity-meta">
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{agentId}</span>
+                    <span>{event.stream}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{timeAgo(event.ts)}</span>
+                  </div>
+                  {text && (
+                    <div className="activity-text activity-text-muted">{text}</div>
+                  )}
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
-      {runningOpcs.length === 0 ? (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: 200,
-          color: 'var(--text-tertiary)',
-          gap: 16
-        }}>
-          <Icon name="building" size={48} />
-          <p>{t('activities.noRunningOpc', 'No deployed companies')}</p>
-          <p style={{ fontSize: 12 }}>{t('activities.deployHint', 'Deploy a company first to see activities')}</p>
-        </div>
-      ) : opcActivities.length === 0 ? (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: 200,
-          color: 'var(--text-tertiary)',
-          gap: 16
-        }}>
-          <Icon name="activity" size={48} />
-          <p>{t('activities.noActivity', 'No agent activity yet')}</p>
-          <p style={{ fontSize: 12 }}>{t('activities.waitingHint', 'Waiting for agents to start working...')}</p>
-          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-tertiary)' }}>
-            {t('activities.runningCompanies', 'Running companies')}: {runningOpcs.map(o => o.display_name || o.name).join(', ')}
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gap: 24 }}>
-          {opcActivities.map(({ opc, agents }) => (
-            <div key={opc.id}>
-              {/* Company header */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                marginBottom: 12
-              }}>
+      {/* Sidebar */}
+      <div className="activity-side">
+        <h3 className="section-title" style={{ marginBottom: 16 }}>活跃 Agent</h3>
+        {busyCount === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>暂无活跃 Agent</div>
+        ) : (
+          Array.from(activities.values())
+            .sort((a, b) => b.last_update - a.last_update)
+            .map(agent => (
+              <div key={agent.agent_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
                 <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
+                  width: 28, height: 28, borderRadius: 8,
+                  background: hashColor(agent.agent_id),
+                  display: 'grid', placeItems: 'center',
+                  fontSize: 11, fontWeight: 600, color: 'white', flexShrink: 0,
+                }}>
+                  {getInitials(agent.agent_id)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {agent.agent_id}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{agent.events.length} events</div>
+                </div>
+                {agent.status === 'busy' && (
+                  <span className="dot live" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0 }} />
+                )}
+                {agent.status === 'error' && (
+                  <span className="dot danger" style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0 }} />
+                )}
+              </div>
+            ))
+        )}
+
+        {runningOpcs.length > 0 && (
+          <div style={{ marginTop: 24 }}>
+            <h3 className="section-title" style={{ marginBottom: 12 }}>运行中公司</h3>
+            {runningOpcs.map(opc => (
+              <div key={opc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: 5,
                   background: opc.avatar_color || '#6366f1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'white'
+                  display: 'grid', placeItems: 'center',
+                  fontSize: 9, fontWeight: 600, color: 'white',
                 }}>
                   {opc.avatar_initials || opc.name.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <div style={{ fontWeight: 500 }}>{opc.display_name || opc.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                    {agents.length} {t('activities.agents', 'agents')}
-                  </div>
-                </div>
+                {opc.display_name || opc.name}
               </div>
-
-              {/* Agents grid */}
-              <div style={{ display: 'grid', gap: 12 }}>
-                {agents.map(agent => (
-                  <div
-                    key={agent.agent_id}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid var(--border-default)',
-                      borderRadius: 12,
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {/* Agent header */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '12px 16px',
-                      borderBottom: '1px solid var(--border-default)',
-                      background: 'rgba(255,255,255,0.02)'
-                    }}>
-                      <span style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: getStatusColor(agent.status),
-                        animation: agent.status === 'busy' ? 'pulse 2s infinite' : 'none'
-                      }} />
-                      <span style={{ fontWeight: 500 }}>{agent.agent_id}</span>
-                      <span style={{
-                        fontSize: 11,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        background: agent.status === 'busy' ? 'var(--success-muted)' : 'var(--border-default)',
-                        color: agent.status === 'busy' ? 'var(--success)' : 'var(--text-secondary)'
-                      }}>
-                        {agent.status}
-                      </span>
-                      <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-tertiary)' }}>
-                        {agent.events.length} events
-                      </span>
-                    </div>
-
-                    {/* Events list */}
-                    <div style={{ maxHeight: 250, overflow: 'auto' }}>
-                      {agent.events.slice(0, 10).map((event, idx) => (
-                        <div
-                          key={`${event.ts}-${idx}`}
-                          style={{
-                            display: 'flex',
-                            gap: 12,
-                            padding: '8px 16px',
-                            borderBottom: idx < Math.min(agent.events.length, 10) - 1 ? '1px solid var(--border-subtle)' : 'none',
-                            fontSize: 13
-                          }}
-                        >
-                          <span style={{
-                            fontSize: 10,
-                            padding: '2px 6px',
-                            borderRadius: 3,
-                            background: getStreamColor(event.stream),
-                            color: 'white',
-                            minWidth: 70,
-                            textAlign: 'center',
-                            textTransform: 'uppercase'
-                          }}>
-                            {event.stream}
-                          </span>
-                          <span style={{ flex: 1, color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
-                            {formatEventData(event)}
-                          </span>
-                          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
-                            {formatTime(event.ts)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Pulse animation style */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
