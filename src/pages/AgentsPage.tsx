@@ -757,28 +757,28 @@ export default function AgentsPage() {
 
                         {/* Empty hint */}
                         {(opcAgentsMap[currentOpc.id] ?? []).length === 0 && !isNewAgent && (
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 12, padding: '8px 0' }}>
-                                还没有智能体，点击右侧按钮添加
+                            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 11.5, padding: '16px 8px' }}>
+                                还没有智能体
                             </div>
                         )}
 
-                        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                            {/* Add single agent */}
-                            <div className="agent-pill" onClick={() => handleAddAgent()}>
+                        {/* Spacer */}
+                        <div style={{ flex: 1 }} />
+
+                        {/* Add actions */}
+                        <div style={{ display: 'flex', gap: 6, padding: '8px 0 0', borderTop: '1px solid var(--border-subtle)' }}>
+                            <div className="agent-pill" style={{ flex: 1 }} onClick={() => handleAddAgent()}>
                                 <div className="agent-pill-add">
-                                    <Icon name="plus" size={18} stroke="var(--text-tertiary)" strokeWidth={2} />
+                                    <Icon name="plus" size={14} stroke="var(--text-tertiary)" strokeWidth={2} />
                                 </div>
                                 <div className="agent-pill-name">添加</div>
                             </div>
-
-                            {/* Batch add */}
                             <div
-                                className="agent-pill"
-                                style={{ borderColor: 'var(--accent-border)' }}
+                                className="agent-pill" style={{ flex: 1 }}
                                 onClick={() => { setBatchPrompts(['', '']); setBatchProgress([]); setBatchRunning(false); setBatchModalOpen(true) }}
                             >
                                 <div className="agent-pill-add" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-border)' }}>
-                                    <Icon name="bolt" size={16} stroke="var(--accent)" strokeWidth={2} />
+                                    <Icon name="bolt" size={14} stroke="var(--accent)" strokeWidth={2} />
                                 </div>
                                 <div className="agent-pill-name" style={{ color: 'var(--accent)' }}>批量</div>
                             </div>
@@ -787,13 +787,11 @@ export default function AgentsPage() {
 
                     {/* ── Agent detail area ── */}
                     {!selectedAgent ? (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px' }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dimmer)', fontSize: '13px', minWidth: 0 }}>
                             {t('agents.select_agent_hint')}
                         </div>
                     ) : (
-                        <>
-                            {/* ── Agent detail (scrollable, includes toolbar) ── */}
-                            <div className="agent-detail">
+                        <div className="agent-detail">
                                 {/* ── Agent toolbar ── */}
                                 <div className="agent-toolbar">
                                     <div className="agent-toolbar-name">
@@ -1116,8 +1114,7 @@ export default function AgentsPage() {
                                     </div>
                                 </div>
 
-                            </div>
-                        </>
+                        </div>
                     )}
                 </>
             )}

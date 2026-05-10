@@ -167,43 +167,45 @@ html[dir='rtl'] .stat-card[data-accent="amber"] { border-right: 3px solid var(--
 .tmpl-footer { display: flex; align-items: center; justify-content: space-between; }
 
 /* ── Agents Page ──────────────────────────────────────── */
-.agents-page { display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; overflow: hidden; }
+.agents-page { display: flex; flex-direction: row; height: 100%; width: 100%; min-height: 0; min-width: 0; overflow: hidden; }
 
 .agent-strip {
-  padding: 18px 32px 14px;
-  border-bottom: 1px solid var(--border-subtle);
-  display: flex; align-items: center; gap: 8px;
-  overflow-x: auto; flex-shrink: 0;
+  width: 220px; flex-shrink: 0;
+  padding: 14px 10px;
+  border-right: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column; gap: 4px;
+  overflow-y: auto;
   background: var(--bg-canvas);
 }
 .agent-pill {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 8px 12px 10px; border-radius: var(--radius-md);
-  cursor: pointer; position: relative; flex-shrink: 0; min-width: 84px;
+  display: flex; flex-direction: row; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius-md);
+  cursor: pointer; position: relative; flex-shrink: 0;
 }
 .agent-pill:hover { background: var(--bg-hover); }
 .agent-pill.selected { background: var(--bg-elevated); box-shadow: 0 0 0 1px var(--accent-border); }
 .agent-pill-avatar {
-  width: 44px; height: 44px; border-radius: 12px;
-  display: grid; place-items: center; font-size: 14px;
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center; font-size: 12px;
   flex-shrink: 0; position: relative;
 }
-.agent-pill.leader .agent-pill-avatar { width: 52px; height: 52px; font-size: 16px; box-shadow: 0 0 0 2px var(--accent); }
+.agent-pill.leader .agent-pill-avatar { width: 32px; height: 32px; font-size: 12px; box-shadow: 0 0 0 2px var(--accent); }
 .agent-pill.leader .agent-pill-avatar::after {
-  content: '★'; position: absolute; bottom: -4px; right: -4px;
-  width: 18px; height: 18px; border-radius: 50%;
+  content: '★'; position: absolute; bottom: -3px; right: -3px;
+  width: 14px; height: 14px; border-radius: 50%;
   background: var(--accent); color: var(--text-on-accent);
-  font-size: 10px; display: grid; place-items: center; font-weight: 700;
+  font-size: 8px; display: grid; place-items: center; font-weight: 700;
 }
 .agent-pill-name {
-  font-size: 11.5px; color: var(--text-secondary);
-  max-width: 76px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+  font-size: 12px; color: var(--text-secondary);
+  flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .agent-pill.selected .agent-pill-name { color: var(--text-primary); font-weight: 500; }
 .agent-pill-add {
-  width: 44px; height: 44px; border-radius: 12px;
+  width: 32px; height: 32px; border-radius: 8px;
   border: 1px dashed var(--border-default);
   display: grid; place-items: center; color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 .agent-pill-add:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -216,7 +218,7 @@ html[dir='rtl'] .stat-card[data-accent="amber"] { border-right: 3px solid var(--
 .agent-toolbar-name { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .unsaved-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; margin-left: 8px; vertical-align: middle; }
 
-.agent-detail { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 32px 56px; display: flex; flex-direction: column; gap: 18px; }
+.agent-detail { flex: 1; min-height: 0; min-width: 0; overflow-y: auto; padding: 20px 32px 56px; display: flex; flex-direction: column; gap: 18px; }
 
 /* Tools grid */
 .tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); align-content: start; gap: 8px; }
