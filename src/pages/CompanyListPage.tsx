@@ -24,7 +24,8 @@ export default function CompanyListPage() {
     navigate('/agents')
   }
 
-  const handleDelete = async (opc: OpcConfig) => {
+  const handleDelete = async (e: React.MouseEvent, opc: OpcConfig) => {
+    e.stopPropagation()
     const confirmMsg = t(
       'opc.delete_confirm',
       `确定要删除公司「${opc.display_name}」吗？该操作无法撤销。`,
@@ -119,7 +120,14 @@ export default function CompanyListPage() {
 
       <div className="company-grid">
         {filteredOpcs.map(opc => (
-          <div key={opc.id} className="company-card">
+          <div key={opc.id} className="company-card" onClick={() => handleEnterOpc(opc)}>
+            <button
+              className="company-card-delete"
+              disabled={deletingId === opc.id}
+              onClick={(e) => handleDelete(e, opc)}
+            >
+              <Icon name="trash" size={13} />
+            </button>
             <div className="company-card-head">
               <div
                 className="company-avatar"
@@ -132,34 +140,16 @@ export default function CompanyListPage() {
                 <div className="company-card-id">{opc.name}</div>
               </div>
               {opc.is_running
-                ? <span className="tag success"><span className="dot live" /> 运行中</span>
-                : <span className="tag"><span className="dot" /> 已停止</span>}
+                ? <span className="tag success" style={{ fontSize: 10.5 }}>运行中</span>
+                : <span className="tag" style={{ fontSize: 10.5 }}>已停止</span>}
             </div>
-            <div className="company-card-stats">
-              <div className="stat-item">
-                <div className="stat-num">{opc.agent_count}</div>
-                <div className="stat-lbl">智能体</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-num">{opc.channel_count}</div>
-                <div className="stat-lbl">频道</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-num">{opc.message_count_today || '—'}</div>
-                <div className="stat-lbl">今日消息</div>
-              </div>
-            </div>
-            <div className="company-card-actions">
-              <button className="btn btn-primary btn-sm" onClick={() => handleEnterOpc(opc)}>
-                进入公司 <Icon name="arrow-right" size={12} />
-              </button>
-              <button
-                className="btn btn-sm btn-ghost btn-icon"
-                disabled={deletingId === opc.id}
-                onClick={() => handleDelete(opc)}
-              >
-                <Icon name="trash" size={14} />
-              </button>
+            <div className="company-card-meta">
+              <span className="stat-chip"><strong>{opc.agent_count}</strong> 智能体</span>
+              <span className="stat-chip"><strong>{opc.channel_count}</strong> 频道</span>
+              {opc.message_count_today > 0 && (
+                <span className="stat-chip"><strong>{opc.message_count_today}</strong> 今日消息</span>
+              )}
+              <span className="company-card-status" />
             </div>
           </div>
         ))}

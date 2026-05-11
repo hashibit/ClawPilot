@@ -117,42 +117,64 @@ html[dir='rtl'] .stat-card[data-accent="amber"] { border-right: 3px solid var(--
 .filter-tab.active { background: var(--bg-elevated); color: var(--text-primary); }
 .filter-tab:hover:not(.active) { color: var(--text-primary); }
 
-.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 20px; }
+.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 20px; }
 .company-card {
   background: var(--bg-surface); border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg); padding: 22px;
-  position: relative; overflow: hidden;
-  transition: border-color 0.15s, transform 0.15s;
+  border-radius: var(--radius-lg); padding: 16px 18px;
+  position: relative; overflow: hidden; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
-.company-card:hover { border-color: var(--border-strong); }
-.company-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent); opacity: 0; transition: opacity 0.2s;
-}
-.company-card:hover::before { opacity: 0.7; }
-.company-card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.company-card:hover { border-color: var(--border-strong); background: var(--bg-elevated); }
+.company-card-head { display: flex; align-items: center; gap: 12px; }
 .company-avatar {
-  width: 44px; height: 44px; border-radius: 11px;
+  width: 38px; height: 38px; border-radius: 9px;
   display: grid; place-items: center;
-  font-size: 13px; font-weight: 600; color: var(--text-on-accent);
+  font-size: 12px; font-weight: 700; color: white;
+  flex-shrink: 0;
 }
 .company-card-info { flex: 1; min-width: 0; }
 .company-card-name {
-  font-size: 15px; font-weight: 600; letter-spacing: -0.015em;
-  color: var(--text-primary); margin: 0 0 3px;
+  font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.company-card-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
-.company-card-stats {
-  display: flex; gap: 22px; padding: 14px 0;
-  border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 14px;
+.company-card-id {
+  font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--text-muted); margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.stat-item { display: flex; flex-direction: column; gap: 2px; }
-.stat-num { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.stat-lbl { font-size: 11px; color: var(--text-tertiary); }
-.company-card-actions { display: flex; gap: 6px; align-items: center; }
+.company-card-meta {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+.company-card-meta .stat-chip {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text-tertiary);
+}
+.company-card-meta .stat-chip strong {
+  font-weight: 600; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.company-card-status {
+  margin-left: auto; flex-shrink: 0;
+}
+.company-card-delete {
+  position: absolute; top: 10px; right: 10px;
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  opacity: 0; transition: opacity 0.15s, background 0.12s, color 0.12s, border-color 0.12s;
+  z-index: 1;
+}
+.company-card:hover .company-card-delete { opacity: 1; }
+.company-card-delete:hover {
+  background: var(--error-muted); color: var(--error);
+  border-color: rgba(239,111,108,0.3);
+}
 
 /* ── Market (template) Page ──────────────────────────── */
 .tmpl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
