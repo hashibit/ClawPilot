@@ -61,8 +61,32 @@ export default function BindingsPage() {
     const agentPortRefs = useRef<Map<string, HTMLDivElement>>(new Map())
     const [curves, setCurves] = useState<{ id: string; d: string; color: string; enabled: boolean }[]>([])
 
-    // Free-position for group cards: { bindingId: { x, y } }
-    const [positions, setPositions] = useState<Map<string, Pt>>(new Map())
+    // Free-position for group cards, persisted to localStorage per OPC
+    const posKeyRef = useRef('')
+    posKeyRef.current = currentOpc ? `bind-pos-${currentOpc.id}` : ''
+
+    const [positions, setPositionsRaw] = useState<Map<string, Pt>>(new Map())
+
+    // Reload positions from localStorage when OPC changes
+    useEffect(() => {
+        if (!posKeyRef.current) { setPositionsRaw(new Map()); return }
+        try {
+            const raw = localStorage.getItem(posKeyRef.current)
+            if (raw) setPositionsRaw(new Map(JSON.parse(raw)))
+            else setPositionsRaw(new Map())
+        } catch { setPositionsRaw(new Map()) }
+    }, [currentOpc?.id])
+
+    const setPositions = useCallback((updater: Map<string, Pt> | ((prev: Map<string, Pt>) => Map<string, Pt>)) => {
+        setPositionsRaw(prev => {
+            const next = typeof updater === 'function' ? updater(prev) : updater
+            const key = posKeyRef.current
+            if (key) {
+                try { localStorage.setItem(key, JSON.stringify(Array.from(next.entries()))) } catch { /* ignore */ }
+            }
+            return next
+        })
+    }, [])
 
     // Drag modes: 'move' = reposition card, 'bind' = drag to agent
     const [dragMode, setDragMode] = useState<'move' | 'bind' | null>(null)
@@ -123,7 +147,7 @@ export default function BindingsPage() {
                     const next = new Map(prev)
                     bindingList.forEach((b: BindingRule, i: number) => {
                         if (!next.has(b.id)) {
-                            next.set(b.id, { x: 60, y: 50 + i * 70 })
+                            next.set(b.id, { x: 60, y: 55 + i * 100 })
                         }
                     })
                     return next
@@ -183,7 +207,7 @@ export default function BindingsPage() {
         setPendingGroup(group)
         setPositions(prev => {
             const next = new Map(prev)
-            next.set('__pending__', { x: 60, y: 50 + bindings.length * 70 })
+            next.set('__pending__', { x: 60, y: 55 + bindings.length * 100 })
             return next
         })
         setShowGroupModal(false)
@@ -301,6 +325,19 @@ export default function BindingsPage() {
         window.addEventListener('mouseup', onUp)
         return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
     }, [dragFrom, dragMode, dropTarget, pendingGroup, agents, bindings, dragOffset])
+
+    /* ── Esc key closes any open modal/popover ── */
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return
+            if (triggerConfirm) { setTriggerConfirm(null); return }
+            if (editBinding) { setEditBinding(null); return }
+            if (showGroupModal) { setShowGroupModal(false); return }
+            if (channelEditing) { setChannelEditing(false); return }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [triggerConfirm, editBinding, showGroupModal, channelEditing])
 
     /* ── Confirm trigger mode after drag-drop ── */
     const handleTriggerConfirm = async (mode: 'MENTION' | 'ALL') => {
