@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback, useLayoutEffect, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
 import { useApi } from '../hooks/useApi'
@@ -12,10 +12,24 @@ import type { ChannelConfig, BindingRule, AgentConfig } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { agentAvatarText } from '../lib/agent-avatar'
 
+/* ── Geometry helpers ── */
+interface Pt { x: number; y: number }
+
+function ptOf(el: HTMLElement, ctr: HTMLElement): Pt {
+    const r = el.getBoundingClientRect(), cr = ctr.getBoundingClientRect()
+    return { x: r.left + r.width / 2 - cr.left, y: r.top + r.height / 2 - cr.top }
+}
+
+function bPath(a: Pt, b: Pt): string {
+    const dx = Math.abs(b.x - a.x) * 0.5
+    return `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`
+}
+
 export default function BindingsPage() {
     const { t } = useTranslation()
     const { currentOpc } = useOpc()
 
+    /* ── Channel state ── */
     const [channel, setChannel] = useState<ChannelConfig | null>(null)
     const [appId, setAppId] = useState('')
     const [appSecret, setAppSecret] = useState('')
@@ -23,14 +37,71 @@ export default function BindingsPage() {
     const [testing, setTesting] = useState(false)
     const [savingChannel, setSavingChannel] = useState(false)
 
+    /* ── Binding state ── */
     const [bindings, setBindings] = useState<BindingRule[]>([])
     const [agents, setAgents] = useState<AgentConfig[]>([])
-    const [selectedBinding, setSelectedBinding] = useState<BindingRule | null>(null)
-    const [bindingForm, setBindingForm] = useState<Partial<BindingRule>>({})
-    const [bindingEditing, setBindingEditing] = useState(false)
-    const [isNewBinding, setIsNewBinding] = useState(false)
+    const [selectedBindingId, setSelectedBindingId] = useState<string | null>(null)
+
+    /* ── New-group modal ── */
+    const [showGroupModal, setShowGroupModal] = useState(false)
+    const [modalForm, setModalForm] = useState({ channel_name: '', channel_id: '' })
     const [savingBinding, setSavingBinding] = useState(false)
 
+    /* ── Edit-group modal (click existing group) ── */
+    const [editBinding, setEditBinding] = useState<BindingRule | null>(null)
+
+    /* ── Trigger mode confirm (shown after drag-drop before saving) ── */
+    const [triggerConfirm, setTriggerConfirm] = useState<{
+        agentId: string; agentName: string; sourceId: string; pos: Pt
+    } | null>(null)
+
+    /* ── Drag state ── */
+    const canvasRef = useRef<HTMLDivElement>(null)
+    const groupPortRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+    const agentPortRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+    const [curves, setCurves] = useState<{ id: string; d: string; color: string; enabled: boolean }[]>([])
+
+    // Free-position for group cards: { bindingId: { x, y } }
+    const [positions, setPositions] = useState<Map<string, Pt>>(new Map())
+
+    // Drag modes: 'move' = reposition card, 'bind' = drag to agent
+    const [dragMode, setDragMode] = useState<'move' | 'bind' | null>(null)
+    const [dragFrom, setDragFrom] = useState<string | null>(null)
+    const [dragPt, setDragPt] = useState<Pt | null>(null)
+    const [dragOffset, setDragOffset] = useState<Pt>({ x: 0, y: 0 })
+    const [dragCurve, setDragCurve] = useState<string | null>(null)
+    const [dropTarget, setDropTarget] = useState<string | null>(null)
+    const [dragLabel, setDragLabel] = useState<string>('')
+
+    /* ── Pending group (created via modal, waiting for drag) ── */
+    const [pendingGroup, setPendingGroup] = useState<Omit<BindingRule, 'agent_id' | 'agent_name' | 'trigger_mode'> | null>(null)
+
+    /* ── Recalculate Bézier curves ── */
+    const recalcCurves = useCallback(() => {
+        const ctr = canvasRef.current
+        if (!ctr) return
+        const result: typeof curves = []
+        for (const b of bindings) {
+            if (dragMode === 'bind' && dragFrom === b.id) continue // hide curve only when re-binding
+            const gEl = groupPortRefs.current.get(b.id)
+            const aEl = agentPortRefs.current.get(b.agent_id)
+            if (!gEl || !aEl) continue
+            const from = ptOf(gEl, ctr)
+            const to = ptOf(aEl, ctr)
+            // Color by trigger mode: MENTION = accent, ALL = warning/orange
+            const color = b.trigger_mode === 'ALL' ? 'var(--warning, #f59e0b)' : 'var(--accent)'
+            result.push({ id: b.id, d: bPath(from, to), color, enabled: b.is_enabled })
+        }
+        setCurves(result)
+    }, [bindings, agents, dragFrom, dragMode, positions])
+
+    useLayoutEffect(() => {
+        recalcCurves()
+        window.addEventListener('resize', recalcCurves)
+        return () => window.removeEventListener('resize', recalcCurves)
+    }, [recalcCurves])
+
+    /* ── Data loading ── */
     const { reload: reloadData } = useApi(
         () => currentOpc
             ? Promise.all([getChannels(currentOpc.id), getBindings(currentOpc.id), getAgents(currentOpc.id)])
@@ -47,11 +118,22 @@ export default function BindingsPage() {
                 setChannelEditing(false)
                 setBindings(bindingList)
                 setAgents(agentList as AgentConfig[])
+                // Assign default positions for new bindings
+                setPositions(prev => {
+                    const next = new Map(prev)
+                    bindingList.forEach((b: BindingRule, i: number) => {
+                        if (!next.has(b.id)) {
+                            next.set(b.id, { x: 60, y: 50 + i * 70 })
+                        }
+                    })
+                    return next
+                })
             },
             onError: (e) => toast(e.message, 'error'),
         }
     )
 
+    /* ── Channel handlers ── */
     const handleSaveChannel = async () => {
         if (!currentOpc) return
         setSavingChannel(true)
@@ -82,80 +164,205 @@ export default function BindingsPage() {
         finally { setTesting(false) }
     }
 
-    const handleAddBinding = () => {
+    /* ── New group modal ── */
+    const openGroupModal = () => {
+        setModalForm({ channel_name: '', channel_id: '' })
+        setShowGroupModal(true)
+    }
+
+    const handleCreateGroup = () => {
         if (!currentOpc) return
+        if (!modalForm.channel_id.trim()) { toast(t('bindings.channel_id_required'), 'error'); return }
         const now = Math.floor(Date.now() / 1000)
-        const draft: BindingRule = {
+        const group: Omit<BindingRule, 'agent_id' | 'agent_name' | 'trigger_mode'> = {
             id: crypto.randomUUID(), opc_id: currentOpc.id,
-            channel_id: '', channel_name: t('bindings.new_group'), channel_type: 'GROUP',
-            agent_id: agents[0]?.id ?? '', agent_name: agents[0]?.display_name ?? '',
-            trigger_mode: 'MENTION', is_enabled: true,
-            created_at: now, updated_at: now,
+            channel_id: modalForm.channel_id, channel_name: modalForm.channel_name || modalForm.channel_id,
+            channel_type: 'GROUP',
+            is_enabled: true, created_at: now, updated_at: now,
         }
-        setSelectedBinding(draft)
-        setBindingForm(draft)
-        setBindingEditing(true)
-        setIsNewBinding(true)
-    }
-
-    const handleSelectBinding = (binding: BindingRule) => {
-        setSelectedBinding(binding)
-        setBindingForm({ ...binding })
-        setBindingEditing(true)
-        setIsNewBinding(false)
-    }
-
-    const handleCancelBinding = () => {
-        setSelectedBinding(null)
-        setIsNewBinding(false)
-        setBindingEditing(false)
-    }
-
-    const handleBindingFormChange = (field: keyof BindingRule, value: unknown) => {
-        setBindingForm(prev => {
-            const next = { ...prev, [field]: value }
-            if (field === 'agent_id') {
-                const agent = agents.find(a => a.id === value)
-                if (agent) next.agent_name = agent.display_name
-            }
+        setPendingGroup(group)
+        setPositions(prev => {
+            const next = new Map(prev)
+            next.set('__pending__', { x: 60, y: 50 + bindings.length * 70 })
             return next
         })
+        setShowGroupModal(false)
+        toast('拖动右侧圆点到智能体完成绑定', 'info')
     }
 
-    const handleSaveBinding = async () => {
-        if (!selectedBinding) return
-        if (!bindingForm.channel_id?.trim()) { toast(t('bindings.channel_id_required'), 'error'); return }
+    /* ── Drag: start from group card (move) or port (bind) ── */
+    const startMove = (id: string, label: string, e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const ctr = canvasRef.current
+        if (!ctr) return
+        const cr = ctr.getBoundingClientRect()
+        const pos = positions.get(id) ?? { x: 60, y: 40 }
+        setDragMode('move')
+        setDragFrom(id)
+        setDragLabel(label)
+        setDragOffset({ x: e.clientX - cr.left - pos.x, y: e.clientY - cr.top - pos.y })
+    }
+
+    const startBind = (id: string, label: string, e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const ctr = canvasRef.current
+        if (!ctr) return
+        const cr = ctr.getBoundingClientRect()
+        setDragMode('bind')
+        setDragFrom(id)
+        setDragPt({ x: e.clientX - cr.left, y: e.clientY - cr.top })
+        setDragLabel(label)
+        setDragOffset({ x: 0, y: 0 })
+    }
+
+    /* ── Global mouse move/up for drag ── */
+    useEffect(() => {
+        if (!dragFrom || !dragMode) return
+        const ctr = canvasRef.current
+        if (!ctr) return
+
+        const onMove = (e: MouseEvent) => {
+            const cr = ctr.getBoundingClientRect()
+            const pt = { x: e.clientX - cr.left, y: e.clientY - cr.top }
+
+            if (dragMode === 'move') {
+                const leftCol = ctr.querySelector('.bind-freeform') as HTMLElement
+                if (leftCol) {
+                    const w = leftCol.offsetWidth
+                    const h = leftCol.offsetHeight
+                    // Half-tile + port overhang + margin
+                    const hx = 56, hy = 48
+                    const x = Math.max(hx, Math.min(w - hx, pt.x - dragOffset.x))
+                    const y = Math.max(hy, Math.min(h - hy, pt.y - dragOffset.y))
+                    setPositions(prev => new Map(prev).set(dragFrom!, { x, y }))
+                }
+                return
+            }
+
+            // Bind mode
+            setDragPt(pt)
+
+            // Check if hovering an agent tile
+            let hit: string | null = null
+            agentPortRefs.current.forEach((el, agentId) => {
+                const tile = el.closest('.bind-tile')
+                if (!tile) return
+                const r = tile.getBoundingClientRect()
+                if (e.clientX >= r.left - 4 && e.clientX <= r.right + 4 &&
+                    e.clientY >= r.top - 4 && e.clientY <= r.bottom + 4) {
+                    hit = agentId
+                }
+            })
+            setDropTarget(hit)
+
+            // Curve from group port to cursor/agent
+            const srcEl = groupPortRefs.current.get(dragFrom!)
+            if (srcEl) {
+                const from = ptOf(srcEl, ctr)
+                const to = hit
+                    ? ptOf(agentPortRefs.current.get(hit)!, ctr)
+                    : pt
+                setDragCurve(bPath(from, to))
+            }
+        }
+
+        const onUp = async (e: MouseEvent) => {
+            if (dragMode === 'bind' && dropTarget && dragFrom) {
+                const agent = agents.find(a => a.id === dropTarget)
+                if (!agent) { cleanup(); return }
+
+                const cr = ctr.getBoundingClientRect()
+                const pos: Pt = { x: e.clientX - cr.left, y: e.clientY - cr.top }
+
+                if (dragFrom === '__pending__' && pendingGroup) {
+                    setTriggerConfirm({ agentId: agent.id, agentName: agent.display_name, sourceId: '__pending__', pos })
+                } else {
+                    const existing = bindings.find(b => b.id === dragFrom)
+                    if (existing && existing.agent_id !== dropTarget) {
+                        setTriggerConfirm({ agentId: agent.id, agentName: agent.display_name, sourceId: existing.id, pos })
+                    }
+                }
+            }
+            cleanup()
+        }
+
+        const cleanup = () => {
+            setDragMode(null)
+            setDragFrom(null)
+            setDragPt(null)
+            setDragCurve(null)
+            setDropTarget(null)
+            setDragLabel('')
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+        return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    }, [dragFrom, dragMode, dropTarget, pendingGroup, agents, bindings, dragOffset])
+
+    /* ── Confirm trigger mode after drag-drop ── */
+    const handleTriggerConfirm = async (mode: 'MENTION' | 'ALL') => {
+        if (!triggerConfirm) return
+        const { agentId, agentName, sourceId } = triggerConfirm
         setSavingBinding(true)
         try {
-            const updated = { ...selectedBinding, ...bindingForm, updated_at: Math.floor(Date.now() / 1000) } as BindingRule
-            if (isNewBinding) { await createBinding(updated); await reloadData(); setSelectedBinding(updated) }
-            else { await updateBinding(selectedBinding.id, updated); setBindings(prev => prev.map(b => b.id === updated.id ? updated : b)); setSelectedBinding(updated) }
-            setIsNewBinding(false); setBindingEditing(false)
+            if (sourceId === '__pending__' && pendingGroup) {
+                const binding: BindingRule = { ...pendingGroup, agent_id: agentId, agent_name: agentName, trigger_mode: mode }
+                await createBinding(binding)
+                await reloadData()
+                setPendingGroup(null)
+            } else {
+                const existing = bindings.find(b => b.id === sourceId)
+                if (existing) {
+                    const updated = { ...existing, agent_id: agentId, agent_name: agentName, trigger_mode: mode, updated_at: Math.floor(Date.now() / 1000) }
+                    await updateBinding(existing.id, updated)
+                    setBindings(prev => prev.map(b => b.id === updated.id ? updated : b))
+                }
+            }
             toast(t('bindings.binding_saved'), 'success')
         } catch (e) { toast(String(e), 'error') }
-        finally { setSavingBinding(false) }
+        finally { setSavingBinding(false); setTriggerConfirm(null) }
     }
 
-    const handleDeleteBinding = async () => {
-        if (!selectedBinding) return
-        try {
-            await deleteBinding(selectedBinding.id)
-            setBindings(prev => prev.filter(b => b.id !== selectedBinding.id))
-            setSelectedBinding(null); setIsNewBinding(false)
-            toast(t('common.deleted'), 'success')
-        } catch (e) { toast(String(e), 'error') }
-    }
-
+    /* ── Toggle ── */
     const handleToggleBinding = async (binding: BindingRule) => {
         try {
             await toggleBinding(binding.id, !binding.is_enabled)
             const updated = { ...binding, is_enabled: !binding.is_enabled }
             setBindings(prev => prev.map(b => b.id === binding.id ? updated : b))
-            if (selectedBinding?.id === binding.id) {
-                setSelectedBinding(updated)
-                setBindingForm(prev => ({ ...prev, is_enabled: updated.is_enabled }))
-            }
         } catch (e) { toast(String(e), 'error') }
+    }
+
+    /* ── Delete ── */
+    const handleDeleteBinding = async (id: string) => {
+        try {
+            await deleteBinding(id)
+            setBindings(prev => prev.filter(b => b.id !== id))
+            setSelectedBindingId(null)
+            setEditBinding(null)
+            toast(t('common.deleted'), 'success')
+        } catch (e) { toast(String(e), 'error') }
+    }
+
+    /* ── Edit existing group info ── */
+    const openEditModal = (b: BindingRule) => {
+        setEditBinding({ ...b })
+    }
+
+    const handleSaveEdit = async () => {
+        if (!editBinding) return
+        if (!editBinding.channel_id.trim()) { toast(t('bindings.channel_id_required'), 'error'); return }
+        setSavingBinding(true)
+        try {
+            const updated = { ...editBinding, updated_at: Math.floor(Date.now() / 1000) }
+            await updateBinding(editBinding.id, updated)
+            setBindings(prev => prev.map(b => b.id === updated.id ? updated : b))
+            setEditBinding(null)
+            toast(t('bindings.binding_saved'), 'success')
+        } catch (e) { toast(String(e), 'error') }
+        finally { setSavingBinding(false) }
     }
 
     const maskedAppId = appId ? appId.slice(0, 8) + '···' : '—'
@@ -168,15 +375,22 @@ export default function BindingsPage() {
         )
     }
 
-    const enabledCount = bindings.filter(b => b.is_enabled).length
+    const hasDrag = dragMode === 'bind'
+
+    const boundAgentIds = new Set(bindings.map(b => b.agent_id))
 
     return (
         <div className="page-scroll">
 
             {/* Page header */}
-            <div>
-                <h1 className="page-title">渠道端管理</h1>
-                <p className="page-sub">配置飞书应用凭证，将群组消息路由到指定 Agent</p>
+            <div className="flex-center" style={{ justifyContent: 'space-between' }}>
+                <div>
+                    <h1 className="page-title">渠道端管理</h1>
+                    <p className="page-sub">配置飞书应用凭证，将群组消息路由到指定 Agent</p>
+                </div>
+                <button className="btn btn-sm btn-primary" onClick={openGroupModal}>
+                    <Icon name="plus" size={12} /> 添加群组
+                </button>
             </div>
 
             {/* ── Section 1: Channel ── */}
@@ -233,164 +447,268 @@ export default function BindingsPage() {
                 )}
             </div>
 
-            {/* ── Section 2: Bindings ── */}
+            {/* ── Section 2: Binding Canvas ── */}
             <div className="section-card">
-                <div className="section-card-head">
-                    <div>
-                        <h3 className="section-card-title">绑定规则</h3>
-                        <div className="section-card-sub">{bindings.length} 条规则，{enabledCount} 条启用</div>
-                    </div>
-                    <button className="btn btn-sm btn-primary" onClick={handleAddBinding}>
-                        <Icon name="plus" size={12} /> 添加绑定
-                    </button>
-                </div>
-
-                {bindings.length === 0 && !isNewBinding ? (
-                    <div className="empty-state text-center">
-                        <Icon name="link" size={28} className="empty-state-icon" />
-                        <div className="empty-state-title">暂无绑定规则</div>
-                        <div className="empty-state-desc">点击「添加绑定」将飞书群组与 Agent 关联</div>
-                    </div>
-                ) : (
-                    <div style={{ padding: '8px 12px' }}>
-                        {bindings.map(b => {
-                            const agent = agents.find(a => a.id === b.agent_id)
-                            const agentName = agent?.display_name ?? b.agent_name ?? '—'
-                            const agentColor = agent?.gradient_start ?? 'var(--accent)'
-                            const agentInitials = agent ? agentAvatarText(agent) : agentName.slice(0, 1)
-                            const isSelected = selectedBinding?.id === b.id
-                            return (
-                                <div
-                                    key={b.id}
-                                    className={'bind-card' + (isSelected ? ' is-selected' : '')}
-                                    onClick={() => handleSelectBinding(b)}
-                                    style={{ marginBottom: 6 }}
-                                >
-                                    <div className="bind-card-icon" style={{ background: 'var(--bg-elevated)' }}>
-                                        <Icon name="message" size={14} />
-                                    </div>
-                                    <div className="bind-card-info">
-                                        <div className="bind-card-name">{b.channel_name || '（未命名群组）'}</div>
-                                        <div className="bind-card-meta">
-                                            <span className="mono">{b.channel_id ? b.channel_id.slice(0, 16) + '…' : '—'}</span>
-                                            <span>·</span>
-                                            <span>{b.trigger_mode === 'MENTION' ? '@触发' : '全部消息'}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex-center gap-8 flex-shrink-0">
-                                        <Icon name="arrow-right" size={10} className="muted" />
-                                        <div style={{ width: 24, height: 24, borderRadius: 6, background: agentColor, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                                            {agentInitials}
-                                        </div>
-                                        <span className="text-xs text-medium">{agentName}</span>
-                                    </div>
+                <div className="bind-canvas" ref={canvasRef}>
+                    {/* ── Left: Groups (free-position) ── */}
+                    <div className="bind-col bind-col-left">
+                        <div className="bind-freeform">
+                            {bindings.map(b => {
+                                const agent = agents.find(a => a.id === b.agent_id)
+                                const agentColor = agent?.gradient_start ?? 'var(--accent)'
+                                const pos = positions.get(b.id) ?? { x: 60, y: 40 }
+                                const isMoving = dragMode === 'move' && dragFrom === b.id
+                                return (
                                     <div
-                                        className={'toggle' + (b.is_enabled ? ' on' : '')}
-                                        onClick={e => { e.stopPropagation(); handleToggleBinding(b) }}
-                                    />
-                                </div>
-                            )
-                        })}
-                        {isNewBinding && selectedBinding && (
-                            <div className="bind-card is-selected" style={{ marginBottom: 6 }}>
-                                <div className="bind-card-icon" style={{ background: 'var(--accent-soft)' }}>
-                                    <Icon name="plus" size={14} />
-                                </div>
-                                <div className="bind-card-info">
-                                    <div className="bind-card-name">{bindingForm.channel_name || t('bindings.new_group')}</div>
-                                    <div className="bind-card-meta">
-                                        <span className="unsaved-tag">新建 · 未保存</span>
+                                        key={b.id}
+                                        className={'bind-tile bind-tile-group' + (!b.is_enabled ? ' is-disabled' : '')}
+                                        style={{ position: 'absolute', left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)' }}
+                                        onMouseDown={e => { if (e.button === 0) startMove(b.id, b.channel_name || '(unnamed)', e) }}
+                                        onDoubleClick={() => openEditModal(b)}
+                                    >
+                                        <div className="bind-tile-avatar" style={{ background: 'var(--bg-elevated)' }}>
+                                            <Icon name="message" size={13} />
+                                        </div>
+                                        <div className="bind-tile-name">{b.channel_name || '(unnamed)'}</div>
+                                        {/* Port on right edge — drag to bind */}
+                                        <div
+                                            className={'bind-port bind-port-right' + (b.is_enabled ? ' is-active' : '')}
+                                            style={{ borderColor: b.is_enabled ? agentColor : undefined }}
+                                            ref={el => { if (el) groupPortRefs.current.set(b.id, el); else groupPortRefs.current.delete(b.id) }}
+                                            onMouseDown={e => { if (e.button === 0) startBind(b.id, b.channel_name || '', e) }}
+                                        />
                                     </div>
+                                )
+                            })}
+                            {/* Pending group */}
+                            {pendingGroup && (() => {
+                                const pos = positions.get('__pending__') ?? { x: 60, y: 40 + bindings.length * 56 }
+                                return (
+                                    <div
+                                        className="bind-tile bind-tile-group is-pending"
+                                        style={{ position: 'absolute', left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)' }}
+                                        onMouseDown={e => { if (e.button === 0) startMove('__pending__', pendingGroup.channel_name, e) }}
+                                    >
+                                        <div className="bind-tile-avatar" style={{ background: 'var(--accent-soft)' }}>
+                                            <Icon name="plus" size={13} />
+                                        </div>
+                                        <div className="bind-tile-name">{pendingGroup.channel_name}</div>
+                                        <div
+                                            className="bind-port bind-port-right is-pending-port"
+                                            ref={el => { if (el) groupPortRefs.current.set('__pending__', el); else groupPortRefs.current.delete('__pending__') }}
+                                            onMouseDown={e => { if (e.button === 0) startBind('__pending__', pendingGroup.channel_name, e) }}
+                                        />
+                                    </div>
+                                )
+                            })()}
+                            {bindings.length === 0 && !pendingGroup && (
+                                <div className="bind-empty-hint" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+                                    点击「添加群组」创建
                                 </div>
-                            </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── SVG curves (horizontal Bézier) ── */}
+                    <svg className="bind-svg">
+                        {curves.map(c => (
+                            <g key={c.id}>
+                                <path d={c.d} fill="none" stroke={c.color} strokeWidth={c.enabled ? 5 : 2} strokeOpacity={c.enabled ? 0.08 : 0.03} strokeLinecap="round" />
+                                <path
+                                    d={c.d} fill="none" stroke={c.color} strokeWidth={2} strokeLinecap="round"
+                                    strokeOpacity={c.enabled ? 0.6 : 0.2}
+                                    strokeDasharray={c.enabled ? 'none' : '5 4'}
+                                    className="bind-curve"
+                                    style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+                                    onClick={() => {
+                                        const b = bindings.find(x => x.id === c.id)
+                                        if (b) openEditModal(b)
+                                    }}
+                                />
+                                {c.enabled && (
+                                    <circle r="2.5" fill={c.color} opacity="0.8">
+                                        <animateMotion dur="2.5s" repeatCount="indefinite" path={c.d} />
+                                    </circle>
+                                )}
+                            </g>
+                        ))}
+                        {dragCurve && (
+                            <path d={dragCurve} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeDasharray="6 4" opacity={0.7} />
+                        )}
+                    </svg>
+
+                    {/* ── Right: Agents (grid of tiles) ── */}
+                    <div className="bind-col bind-col-right">
+                        <div className="bind-agent-grid">
+                            {agents.map(agent => {
+                                const agentColor = agent.gradient_start ?? 'var(--accent)'
+                                const initials = agentAvatarText(agent)
+                                const isBound = boundAgentIds.has(agent.id)
+                                const isHover = dropTarget === agent.id
+                                return (
+                                    <div
+                                        key={agent.id}
+                                        className={'bind-tile' + (isHover ? ' is-drop-target' : '') + (!isBound ? ' is-unbound' : '')}
+                                    >
+                                        <div
+                                            className="bind-port bind-port-left"
+                                            style={{ borderColor: isBound ? agentColor : undefined }}
+                                            ref={el => { if (el) agentPortRefs.current.set(agent.id, el); else agentPortRefs.current.delete(agent.id) }}
+                                        />
+                                        <div className="bind-tile-avatar" style={{ background: agentColor }}>
+                                            {initials}
+                                        </div>
+                                        <div className="bind-tile-name">{agent.display_name}</div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                        {agents.length === 0 && (
+                            <div className="bind-empty-hint">暂无智能体</div>
                         )}
                     </div>
+                </div>
+
+                {hasDrag && (
+                    <div className="bind-drag-hint">拖动到右侧智能体完成绑定</div>
                 )}
             </div>
 
-            {/* ── Section 3: Selected binding detail ── */}
-            {selectedBinding && (
-                <div className="section-card">
-                    <div className="section-card-head">
-                        <div>
-                            <h3 className="section-card-title">
-                                {isNewBinding ? '新建绑定' : '编辑绑定'}
-                            </h3>
-                            <div className="section-card-sub">{bindingForm.channel_name || '未命名'}</div>
-                        </div>
-                        <div className="flex gap-6">
-                            {!isNewBinding && (
-                                <button className="btn btn-sm btn-danger" onClick={handleDeleteBinding}>
-                                    <Icon name="trash" size={12} /> 解绑
-                                </button>
-                            )}
-                            <button className="btn btn-sm" onClick={handleCancelBinding}>取消</button>
-                            <button className="btn btn-sm btn-primary" onClick={handleSaveBinding} disabled={savingBinding}>
-                                <Icon name="check" size={12} /> {savingBinding ? t('common.saving') : '保存'}
+            {/* ── New Group Modal ── */}
+            {showGroupModal && (
+                <div className="modal-backdrop" onClick={() => setShowGroupModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">添加群组</h2>
+                            <button className="modal-close" onClick={() => setShowGroupModal(false)}>
+                                <Icon name="close" size={16} />
                             </button>
                         </div>
-                    </div>
-                    <div className="section-card-body">
-                        <div className="field-row">
-                            <div className="field-label-cell">
-                                <div className="field-name">群组名称</div>
-                                <div className="field-hint">飞书群组的显示名称</div>
+                        <div className="modal-body">
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">群组名称</div>
+                                    <div className="field-hint">飞书群组的显示名称</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <input type="text" className="field-input" value={modalForm.channel_name} onChange={e => setModalForm(p => ({ ...p, channel_name: e.target.value }))} placeholder="例：产品讨论群" autoFocus />
+                                </div>
                             </div>
-                            <div className="field-value-cell">
-                                <input type="text" className="field-input" value={bindingForm.channel_name ?? ''} onChange={e => handleBindingFormChange('channel_name', e.target.value)} disabled={!bindingEditing} />
-                            </div>
-                        </div>
-                        <div className="field-row">
-                            <div className="field-label-cell">
-                                <div className="field-name">群组 ID</div>
-                                <div className="field-hint">oc_ 开头的群组标识</div>
-                            </div>
-                            <div className="field-value-cell">
-                                <input type="text" className="field-input mono" value={bindingForm.channel_id ?? ''} onChange={e => handleBindingFormChange('channel_id', e.target.value)} placeholder="oc_xxx..." disabled={!bindingEditing} />
-                            </div>
-                        </div>
-                        <div className="field-row">
-                            <div className="field-label-cell">
-                                <div className="field-name">关联 Agent</div>
-                                <div className="field-hint">处理该群组消息的智能体</div>
-                            </div>
-                            <div className="field-value-cell">
-                                <select className="field-input" value={bindingForm.agent_id ?? ''} onChange={e => handleBindingFormChange('agent_id', e.target.value)} disabled={!bindingEditing}>
-                                    <option value="">— 未选择 —</option>
-                                    {agents.map(a => (
-                                        <option key={a.id} value={a.id}>{a.display_name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="field-row">
-                            <div className="field-label-cell">
-                                <div className="field-name">触发模式</div>
-                                <div className="field-hint">何时将消息路由给 Agent</div>
-                            </div>
-                            <div className="field-value-cell">
-                                <div className="seg">
-                                    <span className={'seg-item' + (bindingForm.trigger_mode === 'MENTION' ? ' active' : '')} onClick={() => bindingEditing && handleBindingFormChange('trigger_mode', 'MENTION')} style={{ cursor: bindingEditing ? 'pointer' : 'default' }}>
-                                        @ 触发
-                                    </span>
-                                    <span className={'seg-item' + (bindingForm.trigger_mode === 'ALL' ? ' active' : '')} onClick={() => bindingEditing && handleBindingFormChange('trigger_mode', 'ALL')} style={{ cursor: bindingEditing ? 'pointer' : 'default' }}>
-                                        全部消息
-                                    </span>
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">群组 ID</div>
+                                    <div className="field-hint">oc_ 开头的群组标识</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <input type="text" className="field-input mono" value={modalForm.channel_id} onChange={e => setModalForm(p => ({ ...p, channel_id: e.target.value }))} placeholder="oc_xxx..." />
                                 </div>
                             </div>
                         </div>
-                        <div className="field-row">
-                            <div className="field-label-cell">
-                                <div className="field-name">{t('bindings.enable_status')}</div>
-                                <div className="field-hint">关闭后消息不再路由</div>
+                        <div className="modal-footer">
+                            <button className="btn btn-sm" onClick={() => setShowGroupModal(false)}>取消</button>
+                            <button className="btn btn-sm btn-primary" onClick={handleCreateGroup} disabled={savingBinding}>
+                                创建群组
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Edit Binding Modal ── */}
+            {editBinding && (
+                <div className="modal-backdrop" onClick={() => setEditBinding(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">编辑绑定</h2>
+                            <button className="modal-close" onClick={() => setEditBinding(null)}>
+                                <Icon name="close" size={16} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">群组名称</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <input type="text" className="field-input" value={editBinding.channel_name} onChange={e => setEditBinding(p => p ? { ...p, channel_name: e.target.value } : p)} />
+                                </div>
                             </div>
-                            <div className="flex-center gap-10" style={{ paddingTop: 8 }}>
-                                <div className={'toggle' + (bindingForm.is_enabled ? ' on' : '')} onClick={() => bindingEditing && handleBindingFormChange('is_enabled', !bindingForm.is_enabled)} style={{ cursor: bindingEditing ? 'pointer' : 'default', opacity: bindingEditing ? 1 : 0.7 }} />
-                                <span className="text-sm text-dim">
-                                    {bindingForm.is_enabled ? t('common.enabled') : t('common.disabled')}
-                                </span>
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">群组 ID</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <input type="text" className="field-input mono" value={editBinding.channel_id} onChange={e => setEditBinding(p => p ? { ...p, channel_id: e.target.value } : p)} />
+                                </div>
+                            </div>
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">触发模式</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <div className="seg">
+                                        <span className={'seg-item' + (editBinding.trigger_mode === 'MENTION' ? ' active' : '')} onClick={() => setEditBinding(p => p ? { ...p, trigger_mode: 'MENTION' } : p)} style={{ cursor: 'pointer' }}>@ 触发</span>
+                                        <span className={'seg-item' + (editBinding.trigger_mode === 'ALL' ? ' active' : '')} onClick={() => setEditBinding(p => p ? { ...p, trigger_mode: 'ALL' } : p)} style={{ cursor: 'pointer' }}>全部消息</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="field-row">
+                                <div className="field-label-cell">
+                                    <div className="field-name">关联智能体</div>
+                                </div>
+                                <div className="field-value-cell">
+                                    <div className="text-sm" style={{ padding: '8px 0', color: 'var(--text-secondary)' }}>
+                                        {agents.find(a => a.id === editBinding.agent_id)?.display_name ?? '—'}
+                                        <span className="text-xxs muted" style={{ marginLeft: 8 }}>拖动连线可更改</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-sm btn-danger" onClick={() => { handleDeleteBinding(editBinding.id); setEditBinding(null) }}>
+                                <Icon name="trash" size={12} /> 解绑
+                            </button>
+                            <div style={{ flex: 1 }} />
+                            <button className="btn btn-sm" onClick={() => setEditBinding(null)}>取消</button>
+                            <button className="btn btn-sm btn-primary" onClick={handleSaveEdit} disabled={savingBinding}>
+                                <Icon name="check" size={12} /> 保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Trigger Mode Confirm Popover (after drag-drop) ── */}
+            {triggerConfirm && (
+                <div className="modal-backdrop" onClick={() => setTriggerConfirm(null)}>
+                    <div className="bind-trigger-popover" onClick={e => e.stopPropagation()}>
+                        <div className="bind-trigger-title">
+                            选择触发模式
+                        </div>
+                        <div className="bind-trigger-sub">
+                            绑定到 <strong>{triggerConfirm.agentName}</strong>
+                        </div>
+                        <div className="bind-trigger-options">
+                            <button
+                                className="bind-trigger-option"
+                                onClick={() => handleTriggerConfirm('MENTION')}
+                                disabled={savingBinding}
+                            >
+                                <div className="bind-trigger-option-title">@ 触发</div>
+                                <div className="bind-trigger-option-desc">仅 @机器人 时响应</div>
+                            </button>
+                            <button
+                                className="bind-trigger-option"
+                                onClick={() => handleTriggerConfirm('ALL')}
+                                disabled={savingBinding}
+                            >
+                                <div className="bind-trigger-option-title">全部消息</div>
+                                <div className="bind-trigger-option-desc">群内所有消息都响应</div>
+                            </button>
+                        </div>
+                        <button className="btn btn-xs" style={{ marginTop: 8, width: '100%' }} onClick={() => setTriggerConfirm(null)}>
+                            取消
+                        </button>
                     </div>
                 </div>
             )}
