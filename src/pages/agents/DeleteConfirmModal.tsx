@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import type { AgentConfig } from '../../lib/types'
 import { agentAvatarText, isEmojiAvatar } from '../../lib/agent-avatar'
+import { useEscClose } from '../../hooks/useEscClose'
 
 export function DeleteConfirmModal({ agent, onClose, onConfirm }: {
     agent: AgentConfig
@@ -8,6 +9,7 @@ export function DeleteConfirmModal({ agent, onClose, onConfirm }: {
     onConfirm: (agent: AgentConfig) => void
 }) {
     const { t } = useTranslation()
+    useEscClose(true, onClose)
 
     return (
         <div className="modal-backdrop" style={{ zIndex: 200 }}>

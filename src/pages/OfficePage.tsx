@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
+import { useEscClose } from '../hooks/useEscClose'
 import { getOffices, createOffice, updateOffice, deleteOffice, getOfficeDeployments, checkDaemonHealth, checkSshConnection, checkSshAuth, installDecoration, probeLocalDaemon, probeRemoteDaemon, getLocalDaemonVersion } from '../lib/api'
 import type { DaemonHealthResult } from '../lib/api'
 import { toast } from '../components/Toast'
@@ -59,6 +60,8 @@ export default function OfficePage() {
     const [installLogs, setInstallLogs] = useState<LogEntry[]>([])
     const [installStep, setInstallStep] = useState<'idle' | 'checking' | 'openclaw' | 'daemon' | 'done' | 'error'>('idle')
     const [installModalOpen, setInstallModalOpen] = useState(false)
+    useEscClose(!!confirmDelete, useCallback(() => setConfirmDelete(null), []))
+    useEscClose(installModalOpen, useCallback(() => setInstallModalOpen(false), []))
     const installAbortRef = useRef<boolean>(false)
     const healthCacheRef = useRef<Map<string, DaemonHealthResult>>(new Map())
     const [sshChecking, setSshChecking] = useState(false)

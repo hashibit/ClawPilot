@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../components/Icon'
+import { useEscClose } from '../../hooks/useEscClose'
 
 export type BatchStatus = 'idle' | 'generating' | 'done' | 'error'
 
@@ -9,6 +10,7 @@ export function BatchModal({ onClose, onGenerate }: {
     onGenerate: (prompts: string[]) => Promise<void>
 }) {
     const { t } = useTranslation()
+    useEscClose(true, onClose)
     const [prompts, setPrompts] = useState<string[]>(['', ''])
     const [progress, setProgress] = useState<BatchStatus[]>([])
     const [running, setRunning] = useState(false)

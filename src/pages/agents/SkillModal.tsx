@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../components/Icon'
 import type { RemoteSkillResult as RemoteSkill, LocalSkill } from '../../lib/api'
+import { useEscClose } from '../../hooks/useEscClose'
 
 function SkillRow({ skill, installing, onInstall }: {
     skill: RemoteSkill
@@ -38,6 +39,7 @@ export function SkillModal({ enabled, onClose, onToggle }: {
     onToggle: (slug: string) => void
 }) {
     const { t } = useTranslation()
+    useEscClose(true, onClose)
     const [search, setSearch] = useState('')
     const [dbSkills, setDbSkills] = useState<LocalSkill[]>([])
     const [remoteSkills, setRemoteSkills] = useState<RemoteSkill[]>([])

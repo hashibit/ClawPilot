@@ -11,6 +11,7 @@ import { toast } from '../components/Toast'
 import type { ChannelConfig, BindingRule, AgentConfig } from '../lib/types'
 import { Icon } from '../components/Icon'
 import { agentAvatarText } from '../lib/agent-avatar'
+import { useEscClose } from '../hooks/useEscClose'
 
 /* ── Geometry helpers ── */
 interface Pt { x: number; y: number }
@@ -326,18 +327,11 @@ export default function BindingsPage() {
         return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
     }, [dragFrom, dragMode, dropTarget, pendingGroup, agents, bindings, dragOffset])
 
-    /* ── Esc key closes any open modal/popover ── */
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key !== 'Escape') return
-            if (triggerConfirm) { setTriggerConfirm(null); return }
-            if (editBinding) { setEditBinding(null); return }
-            if (showGroupModal) { setShowGroupModal(false); return }
-            if (channelEditing) { setChannelEditing(false); return }
-        }
-        window.addEventListener('keydown', onKey)
-        return () => window.removeEventListener('keydown', onKey)
-    }, [triggerConfirm, editBinding, showGroupModal, channelEditing])
+    /* ── Esc key closes any open modal/popover (priority order) ── */
+    useEscClose(!!triggerConfirm, useCallback(() => setTriggerConfirm(null), []))
+    useEscClose(!!editBinding, useCallback(() => setEditBinding(null), []))
+    useEscClose(showGroupModal, useCallback(() => setShowGroupModal(false), []))
+    useEscClose(channelEditing, useCallback(() => setChannelEditing(false), []))
 
     /* ── Confirm trigger mode after drag-drop ── */
     const handleTriggerConfirm = async (mode: 'MENTION' | 'ALL') => {

@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../components/Icon'
+import { useEscClose } from '../../hooks/useEscClose'
 
 export function AiGenerateModal({ onClose, onGenerate }: {
     onClose: () => void
     onGenerate: (prompt: string) => Promise<void>
 }) {
     const { t } = useTranslation()
+    useEscClose(true, onClose)
     const [prompt, setPrompt] = useState('')
     const [generating, setGenerating] = useState(false)
 
