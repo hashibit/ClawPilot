@@ -78,38 +78,19 @@ export default function LogsPage() {
   return (
     <div className="log-page fade-in">
 
-      {/* Header */}
-      <div className="flex-between items-start">
+      {/* Header + Toolbar (single row) */}
+      <div className="flex-between" style={{ flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h1 className="page-title">{t('logs.title')}</h1>
           <p className="page-sub">操作审计 · 按时间倒序</p>
         </div>
-        <div className="log-stats">
-          <div className="log-stat">
-            <span className="log-stat-val">{logs.length}</span> 条日志
-          </div>
-          {levelCounts.ERROR > 0 && (
-            <div className="log-stat" style={{ color: 'var(--error)' }}>
-              <span className="log-stat-val" style={{ color: 'var(--error)' }}>{levelCounts.ERROR}</span> 错误
-            </div>
-          )}
-          {levelCounts.WARN > 0 && (
-            <div className="log-stat" style={{ color: 'var(--warning)' }}>
-              <span className="log-stat-val" style={{ color: 'var(--warning)' }}>{levelCounts.WARN}</span> 警告
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Toolbar: search + level chips + actions */}
-      <div className="log-toolbar">
-        <input
-          className="log-search"
-          placeholder="搜索日志…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <div className="flex-center gap-4" style={{ marginLeft: 4 }}>
+        <div className="flex-center gap-6" style={{ flexWrap: 'wrap' }}>
+          <input
+            className="log-search"
+            placeholder="搜索日志…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
           {LOG_LEVELS.map(level => (
             <button
               key={level}
@@ -123,8 +104,6 @@ export default function LogsPage() {
               )}
             </button>
           ))}
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
           {cleared ? (
             <button className="btn btn-sm" onClick={() => setCleared(false)}>{t('logs.resume')}</button>
           ) : (

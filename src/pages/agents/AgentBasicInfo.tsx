@@ -16,7 +16,7 @@ export function AgentBasicInfo({ form, editing, onChange }: {
                     <div className="section-card-sub">名称、职位、简介</div>
                 </div>
             </div>
-            <div className="section-card-body">
+            <div className="section-card-body has-rows">
                 <div className="field-row">
                     <div className="field-label-cell"><div className="field-name">{t('agents.display_name')}</div></div>
                     <div className="field-value-cell">

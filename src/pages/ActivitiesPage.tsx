@@ -116,10 +116,10 @@ export default function ActivitiesPage() {
     <div className="page-scroll" ref={scrollRef}>
 
       {/* Header */}
-      <div className="flex-between items-start">
+      <div className="flex-between">
         <div>
           <h1 className="page-title">实时活动</h1>
-          <p className="page-sub">所有 Agent 的消息、工具调用与生命周期事件</p>
+          <p className="page-sub">Agent 消息、工具调用与生命周期事件</p>
         </div>
         <div className="flex-center gap-6">
           <span

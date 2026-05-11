@@ -57,7 +57,7 @@ export function AgentModelTools({ form, editing, models, onChange }: {
                     <h3 className="section-card-title">{t('agents.section_model_tools')}</h3>
                 </div>
             </div>
-            <div className="section-card-body">
+            <div className="section-card-body has-rows">
                 <div className="field-row">
                     <div className="field-label-cell"><div className="field-name">{t('agents.model_label')}</div></div>
                     <div className="field-value-cell">

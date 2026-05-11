@@ -55,7 +55,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-        <div className="section-card-body">
+        <div className="section-card-body has-rows">
           <div className="field-row">
             <div className="field-label-cell">
               <div className="field-name">opc_root</div>

@@ -77,33 +77,33 @@ export default function CompanyListPage() {
 
   return (
     <div className="companies fade-in">
-      <div>
-        <h1 className="page-title">公司列表</h1>
-        <p className="page-sub">管理 OPC 团队配置</p>
-      </div>
-
-      <div className="toolbar" style={{ marginTop: 24, height: 'auto', border: 'none', padding: 0 }}>
-        <input
-          className="search-input"
-          placeholder="搜索公司名称…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <div className="filter-tabs">
-          {(['all', 'running', 'stopped'] as const).map(f => (
-            <button
-              key={f}
-              className={`filter-tab${filter === f ? ' active' : ''}`}
-              onClick={() => setFilter(f)}
-            >
-              {f === 'all' ? '全部' : f === 'running' ? '运行中' : '已停止'}
-            </button>
-          ))}
+      <div className="flex-between" style={{ flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 className="page-title">公司列表</h1>
+          <p className="page-sub">管理 OPC 团队配置</p>
         </div>
-        <div className="toolbar-spacer" />
-        <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-          <Icon name="plus" size={14} /> 创建公司
-        </button>
+        <div className="flex-center gap-8" style={{ flexWrap: 'wrap' }}>
+          <input
+            className="log-search"
+            placeholder="搜索公司名称…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <div className="filter-tabs">
+            {(['all', 'running', 'stopped'] as const).map(f => (
+              <button
+                key={f}
+                className={`filter-tab${filter === f ? ' active' : ''}`}
+                onClick={() => setFilter(f)}
+              >
+                {f === 'all' ? '全部' : f === 'running' ? '运行中' : '已停止'}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
+            <Icon name="plus" size={13} /> 创建公司
+          </button>
+        </div>
       </div>
 
       {showCreate && (
