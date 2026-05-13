@@ -61,7 +61,7 @@ export function ChatDrawer({ agent, onClose, soulOverride }: ChatDrawerProps) {
                     <div className="flex-1 flex-col gap-2" style={{ display: 'flex' }}>
                         <div className="text-sm" style={{ fontWeight: 600 }}>{agent.display_name}</div>
                         <div className="text-xxs" style={{ color: soulOverride ? 'var(--warning)' : 'var(--text-dimmer)' }}>
-                            {soulOverride ? '临时测试-智能体尚未保存' : '测试对话 · 基于 SOUL.md'}
+                            {soulOverride ? t('agents.chat_temp_test', '临时测试-智能体尚未保存') : t('agents.chat_subtitle', '测试对话 · 基于 SOUL.md')}
                         </div>
                     </div>
                     <button onClick={() => setMessages([])} className="btn-ghost text-xxs text-dimmer" style={{ padding: '4px 8px', borderRadius: '5px' }}>{t('agents.clear_chat')}</button>

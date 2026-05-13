@@ -11,18 +11,7 @@ import { formatUptime } from '../lib/formatting'
 // Pages inside a company space
 const COMPANY_PATHS = ['/agents', '/bindings', '/deploy']
 
-const PAGE_LABELS: Record<string, string> = {
-  '/overview': '数据概览',
-  '/companies': '公司列表',
-  '/providers': '模型管理',
-  '/office': '办公室管理',
-  '/logs': '运行日志',
-  '/activities': '实时活动',
-  '/settings': '设置',
-  '/agents': '智能体管理',
-  '/bindings': '渠道端管理',
-  '/deploy': '一键部署',
-}
+// PAGE_LABELS is now derived via t() inside the component
 
 function useIsMobile(breakpoint = 768) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= breakpoint)
@@ -51,7 +40,19 @@ export default function Layout() {
   const statusColor = processLoading && !process ? 'var(--warning)' : process?.is_running ? 'var(--success)' : 'var(--text-dimmer)'
   const sidebarWidth = collapsed ? '48px' : '232px'
 
-  const currentPageLabel = PAGE_LABELS[location.pathname] || ''
+  const pageLabels: Record<string, string> = {
+    '/overview': t('nav.overview'),
+    '/companies': t('nav.company_list', '公司列表'),
+    '/providers': t('nav.providers'),
+    '/office': t('nav.office'),
+    '/logs': t('nav.logs'),
+    '/activities': t('nav.activities'),
+    '/settings': t('nav.settings'),
+    '/agents': t('nav.agents'),
+    '/bindings': t('nav.bindings'),
+    '/deploy': t('nav.deploy'),
+  }
+  const currentPageLabel = pageLabels[location.pathname] || ''
 
   useEffect(() => {
     if (isMobile) setMobileMenuOpen(false)
@@ -156,7 +157,7 @@ export default function Layout() {
                   {currentOpc.avatar_initials ?? currentOpc.display_name.slice(0, 1)}
                 </div>
                 <div className="flex-grow">
-                  <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>公司空间</div>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>{t('layout.workspace', '公司空间')}</div>
                   <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {currentOpc.display_name}
                   </div>
@@ -174,7 +175,7 @@ export default function Layout() {
         )}
 
         {/* Nav section label */}
-        {showLabels && <div className="section-label">{inCompany ? '工作区' : '全局'}</div>}
+        {showLabels && <div className="section-label">{inCompany ? t('layout.workspace', '工作区') : t('layout.global', '全局')}</div>}
 
         {/* Navigation */}
         <div className="flex-col flex-1" style={{ overflow: 'hidden' }}>
@@ -247,7 +248,7 @@ export default function Layout() {
                 {processLoading && !process ? t('process.checkingDesc')
                   : process?.is_running && process.pid != null
                     ? `PID ${process.pid}${process.uptime_seconds != null ? ` · ${formatUptime(process.uptime_seconds, i18n.language)}` : ''}`
-                    : process?.daemon_available === false ? 'daemon 未运行' : t('process.notRunning')}
+                    : process?.daemon_available === false ? t('layout.daemon_not_running', 'daemon 未运行') : t('process.notRunning')}
               </div>
               <button
                 className="btn btn-sm"
@@ -280,9 +281,9 @@ export default function Layout() {
           <div className="flex-center gap-8 text-xs muted">
             {inCompany ? (
               <>
-                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/companies')}>全局</span>
+                <span style={{ cursor: 'pointer' }} onClick={() => navigate('/companies')}>{t('layout.global', '全局')}</span>
                 <Icon name="chevron-right" size={11} />
-                <span>{currentOpc?.display_name || '公司'}</span>
+                <span>{currentOpc?.display_name || t('nav.opc', '公司')}</span>
                 <Icon name="chevron-right" size={11} />
                 <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{currentPageLabel}</span>
               </>
@@ -300,7 +301,7 @@ export default function Layout() {
           {/* Notification bell */}
           <div
             style={{ width: '32px', height: '32px', display: 'grid', placeItems: 'center', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer', position: 'relative' }}
-            title="实时活动"
+            title={t('nav.activities', '实时活动')}
             onClick={() => navigate('/activities')}
           >
             <Icon name="bell" size={15} />

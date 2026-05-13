@@ -13,7 +13,7 @@ export function AgentBasicInfo({ form, editing, onChange }: {
             <div className="section-card-head">
                 <div>
                     <h3 className="section-card-title">{t('agents.section_basic')}</h3>
-                    <div className="section-card-sub">名称、职位、简介</div>
+                    <div className="section-card-sub">{t('agents.basic_info_desc', '名称、职位、简介')}</div>
                 </div>
             </div>
             <div className="section-card-body has-rows">

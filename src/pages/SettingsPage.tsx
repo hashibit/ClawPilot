@@ -19,7 +19,7 @@ export default function SettingsPage() {
   }, [])
 
   const handleDeactivate = async () => {
-    if (!confirm('确定要停用许可证吗？')) return
+    if (!confirm(t('settings.deactivate_license_confirm', '确定要停用许可证吗？'))) return
     try { await deactivateLicense(); window.location.reload() } catch {}
   }
 
@@ -39,7 +39,7 @@ export default function SettingsPage() {
 
       <div>
         <h1 className="page-title">{t('settings.title')}</h1>
-        <p className="page-sub">全局系统配置</p>
+        <p className="page-sub">{t('settings.global_config', '全局系统配置')}</p>
       </div>
 
       {/* ── Workspace ── */}
@@ -50,8 +50,8 @@ export default function SettingsPage() {
               <Icon name="folder" size={15} />
             </div>
             <div>
-              <h3 className="section-card-title">工作区</h3>
-              <div className="section-card-sub">OPC 配置根目录</div>
+              <h3 className="section-card-title">{t('settings.workspace', '工作区')}</h3>
+              <div className="section-card-sub">{t('settings.workspace_subtitle', 'OPC 配置根目录')}</div>
             </div>
           </div>
         </div>
@@ -59,13 +59,13 @@ export default function SettingsPage() {
           <div className="field-row">
             <div className="field-label-cell">
               <div className="field-name">opc_root</div>
-              <div className="field-hint">所有公司配置的存放目录</div>
+              <div className="field-hint">{t('settings.workspace_desc', '所有公司配置的存放目录')}</div>
             </div>
             <div className="field-value-cell">
               <div className="flex gap-8">
                 <input className="field-input mono flex-1 text-xs" value={opcRoot} onChange={e => setOpcRoot(e.target.value)} placeholder="~/.openclaw/OPC" />
                 <button className="btn btn-sm btn-primary" onClick={handleSave} disabled={saving}>
-                  {saving ? '...' : '保存'}
+                  {saving ? '...' : t('common.button_save', '保存')}
                 </button>
               </div>
             </div>
@@ -81,7 +81,7 @@ export default function SettingsPage() {
               <Icon name="cloud" size={15} />
             </div>
             <div>
-              <h3 className="section-card-title">语言</h3>
+              <h3 className="section-card-title">{t('settings.language', '语言')}</h3>
               <div className="section-card-sub">{t('settings.languageDesc')}</div>
             </div>
           </div>
@@ -158,8 +158,8 @@ export default function SettingsPage() {
                 <Icon name="key" size={15} />
               </div>
               <div>
-                <h3 className="section-card-title">许可证</h3>
-                <div className="section-card-sub">激活状态与密钥信息</div>
+                <h3 className="section-card-title">{t('settings.license_section', '许可证')}</h3>
+                <div className="section-card-sub">{t('settings.license_subtitle', '激活状态与密钥信息')}</div>
               </div>
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function SettingsPage() {
               <div className="flex-center gap-8">
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: license.activated ? 'var(--success)' : 'var(--text-muted)', boxShadow: license.activated ? '0 0 6px var(--success)' : 'none' }} />
                 <span className="text-sm" style={{ fontWeight: 500 }}>
-                  {license.activated ? '已激活' : '未激活'}
+                  {license.activated ? t('settings.license_activated', '已激活') : t('settings.license_not_activated', '未激活')}
                 </span>
                 {license.license_key && (
                   <span className="mono-xs muted" style={{ marginLeft: 8 }}>
@@ -178,7 +178,7 @@ export default function SettingsPage() {
               </div>
               {license.activated && (
                 <button className="btn btn-sm btn-danger" onClick={handleDeactivate}>
-                  停用
+                  {t('settings.deactivate', '停用')}
                 </button>
               )}
             </div>

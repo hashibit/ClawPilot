@@ -82,12 +82,12 @@ export default function LogsPage() {
       <div className="flex-between" style={{ flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h1 className="page-title">{t('logs.title')}</h1>
-          <p className="page-sub">操作审计 · 按时间倒序</p>
+          <p className="page-sub">{t('logs.operation_audit', '操作审计 · 按时间倒序')}</p>
         </div>
         <div className="flex-center gap-6" style={{ flexWrap: 'wrap' }}>
           <input
             className="log-search"
-            placeholder="搜索日志…"
+            placeholder={t('logs.search_logs', '搜索日志…')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -115,17 +115,17 @@ export default function LogsPage() {
       {/* Log stream */}
       <div className="section-card log-stream">
         <div className="section-card-head" style={{ padding: '10px 16px' }}>
-          <h3 className="section-card-title" style={{ fontSize: 13 }}>日志流</h3>
+          <h3 className="section-card-title" style={{ fontSize: 13 }}>{t('logs.log_stream', '日志流')}</h3>
           <span className="log-count">{displayLogs.length}</span>
         </div>
 
         {/* Column headers */}
         <div className="log-thead">
-          <div>时间</div>
-          <div>级别</div>
-          <div>组件</div>
-          <div>消息</div>
-          <div style={{ textAlign: 'right' }}>频道</div>
+          <div>{t('logs.time_column', '时间')}</div>
+          <div>{t('logs.level_column', '级别')}</div>
+          <div>{t('logs.component_column', '组件')}</div>
+          <div>{t('logs.message_column', '消息')}</div>
+          <div style={{ textAlign: 'right' }}>{t('logs.channel_column', '频道')}</div>
         </div>
 
         {/* Scrollable log body */}
@@ -136,7 +136,7 @@ export default function LogsPage() {
                 {cleared ? t('logs.cleared') : t('logs.noLogs')}
               </div>
               <div className="log-empty-desc">
-                {cleared ? '点击「恢复」重新开始接收日志' : '暂无匹配的日志条目'}
+                {cleared ? t('logs.resume_log_stream', '点击「恢复」重新开始接收日志') : t('logs.no_matching_logs', '暂无匹配的日志条目')}
               </div>
             </div>
           ) : (

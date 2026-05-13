@@ -1,12 +1,14 @@
 import { Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 export default function ThreeColumnLayout() {
+  const { t } = useTranslation()
   return (
     <>
       {/* List Pane */}
       <div className="list-pane">
         <div className="toolbar flex-between">
-          <span className="text-title">列表</span>
+          <span className="text-title">{t('common.list', '列表')}</span>
         </div>
         <div className="flex-1" style={{ overflowY: 'auto' }}>
           {/* List content will be rendered here via nested Outlet */}
@@ -16,7 +18,7 @@ export default function ThreeColumnLayout() {
       {/* Detail Pane */}
       <main className="detail-pane">
         <div className="toolbar flex-between">
-          <span className="text-title">详情</span>
+          <span className="text-title">{t('common.detail', '详情')}</span>
         </div>
         <div className="flex-1" style={{ overflowY: 'auto', padding: '14px 16px' }}>
           {/* Detail content will be rendered here via nested Outlet */}

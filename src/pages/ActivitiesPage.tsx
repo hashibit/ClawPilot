@@ -24,23 +24,23 @@ function hashColor(s: string): string {
   return palette[h % palette.length]
 }
 
-function timeAgo(ts: number): string {
+function timeAgo(ts: number, t: (key: string, fallback: string, opts?: object) => string): string {
   const diff = Math.floor(Date.now() / 1000 - ts)
-  if (diff < 5) return '刚刚'
-  if (diff < 60) return `${diff}秒前`
-  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
-  return `${Math.floor(diff / 3600)}小时前`
-}
-
-const STREAM_LABELS: Record<string, { label: string; color: string }> = {
-  lifecycle: { label: '生命周期', color: 'var(--accent)' },
-  assistant: { label: '助手回复', color: '#8b5cf6' },
-  tool: { label: '工具调用', color: '#f59e0b' },
-  error: { label: '错误', color: 'var(--error)' },
+  if (diff < 5) return t('activities.time_just_now', '刚刚')
+  if (diff < 60) return t('activities.time_seconds_ago', `${diff}秒前`, { count: diff })
+  if (diff < 3600) return t('activities.time_minutes_ago', `${Math.floor(diff / 60)}分钟前`, { count: Math.floor(diff / 60) })
+  return t('activities.time_hours_ago', `${Math.floor(diff / 3600)}小时前`, { count: Math.floor(diff / 3600) })
 }
 
 export default function ActivitiesPage() {
   const { t } = useTranslation()
+
+  const streamLabels: Record<string, { label: string; color: string }> = {
+    lifecycle: { label: t('activities.lifecycle', '生命周期'), color: 'var(--accent)' },
+    assistant: { label: t('activities.assistant_reply', '助手回复'), color: '#8b5cf6' },
+    tool: { label: t('activities.tool_call', '工具调用'), color: '#f59e0b' },
+    error: { label: t('activities.error', '错误'), color: 'var(--error)' },
+  }
   const { opcs } = useOpc()
   const [activities, setActivities] = useState<Map<string, AgentActivity>>(new Map())
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected')
@@ -110,7 +110,11 @@ export default function ActivitiesPage() {
 
   const connDot = connectionStatus === 'connected' ? 'var(--success)' : connectionStatus === 'connecting' ? 'var(--warning)' : 'var(--text-muted)'
   const connDotClass = connectionStatus === 'connected' ? 'success' : connectionStatus === 'connecting' ? 'warn' : 'dim'
-  const connText = connectionStatus === 'connected' ? '已连接' : connectionStatus === 'connecting' ? '连接中…' : '未连接'
+  const connText = connectionStatus === 'connected'
+    ? t('activities.connected', '已连接')
+    : connectionStatus === 'connecting'
+      ? t('activities.connecting', '连接中…')
+      : t('activities.disconnected', '未连接')
 
   return (
     <div className="page-scroll" ref={scrollRef}>
@@ -118,8 +122,8 @@ export default function ActivitiesPage() {
       {/* Header */}
       <div className="flex-between">
         <div>
-          <h1 className="page-title">实时活动</h1>
-          <p className="page-sub">Agent 消息、工具调用与生命周期事件</p>
+          <h1 className="page-title">{t('activities.title', '实时活动')}</h1>
+          <p className="page-sub">{t('activities.subtitle', 'Agent 消息、工具调用与生命周期事件')}</p>
         </div>
         <div className="flex-center gap-6">
           <span
@@ -133,10 +137,10 @@ export default function ActivitiesPage() {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
         {[
-          { label: '活跃 Agent', value: busyAgents.length, icon: 'users' as const, accent: busyAgents.length > 0 },
-          { label: '已观测 Agent', value: totalAgents, icon: 'activity' as const },
-          { label: '事件总数', value: totalEvents, icon: 'bolt' as const },
-          { label: '运行中公司', value: runningOpcs.length, icon: 'building' as const },
+          { label: t('activities.busy_agents', '活跃 Agent'), value: busyAgents.length, icon: 'users' as const, accent: busyAgents.length > 0 },
+          { label: t('activities.observed_agents', '已观测 Agent'), value: totalAgents, icon: 'activity' as const },
+          { label: t('activities.total_events', '事件总数'), value: totalEvents, icon: 'bolt' as const },
+          { label: t('activities.running_companies', '运行中公司'), value: runningOpcs.length, icon: 'building' as const },
         ].map((s, i) => (
           <div key={i} className="flex-center gap-12" style={{ padding: '14px 16px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
             <div className="avatar avatar-lg" style={{ background: 'var(--bg-elevated)' }}>
@@ -157,7 +161,7 @@ export default function ActivitiesPage() {
           {runningOpcs.length > 0 && (
             <div className="section-card">
               <div className="section-card-head" style={{ padding: '10px 16px' }}>
-                <h3 className="section-card-title" style={{ fontSize: 13 }}>运行中公司</h3>
+                <h3 className="section-card-title" style={{ fontSize: 13 }}>{t('activities.running_companies', '运行中公司')}</h3>
                 <span className="text-xxs muted">{runningOpcs.length}</span>
               </div>
               <div style={{ padding: '6px 10px 10px' }}>
@@ -168,7 +172,7 @@ export default function ActivitiesPage() {
                     </div>
                     <div className="flex-grow">
                       <div className="text-xs" style={{ fontWeight: 500 }}>{opc.display_name || opc.name}</div>
-                      <div className="text-xxs muted">{opc.agent_count} Agent</div>
+                      <div className="text-xxs muted">{t('agents.agent_count', '{{count}} 个智能体', { count: opc.agent_count })}</div>
                     </div>
                     <span className="dot-md success" />
                   </div>
@@ -181,8 +185,8 @@ export default function ActivitiesPage() {
           {totalAgents > 0 && (
             <div className="section-card">
               <div className="section-card-head" style={{ padding: '10px 16px' }}>
-                <h3 className="section-card-title" style={{ fontSize: 13 }}>活跃 Agent</h3>
-                {busyAgents.length > 0 && <span className="tag success" style={{ fontSize: 10 }}>{busyAgents.length} 在线</span>}
+                <h3 className="section-card-title" style={{ fontSize: 13 }}>{t('activities.busy_agents', '活跃 Agent')}</h3>
+                {busyAgents.length > 0 && <span className="tag success" style={{ fontSize: 10 }}>{t('activities.online_agents', '{{count}} 在线', { count: busyAgents.length })}</span>}
               </div>
               <div style={{ padding: '6px 10px 10px' }}>
                 {Array.from(activities.values()).sort((a, b) => b.last_update - a.last_update).map(agent => (
@@ -192,7 +196,7 @@ export default function ActivitiesPage() {
                     </div>
                     <div className="flex-grow">
                       <div className="text-xs" style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.agent_id}</div>
-                      <div className="text-xxs muted">{agent.events.length} 事件 · {timeAgo(agent.last_update)}</div>
+                      <div className="text-xxs muted">{t('activities.agent_events', '{{count}} 事件 · {{timeAgo}}', { count: agent.events.length, timeAgo: timeAgo(agent.last_update, t) })}</div>
                     </div>
                     <span
                       className={`dot-md ${agent.status === 'busy' ? 'success' : agent.status === 'error' ? 'danger' : 'dim'}`}
@@ -209,23 +213,23 @@ export default function ActivitiesPage() {
       {/* Event stream */}
       <div className="section-card" style={{ overflow: 'hidden' }}>
         <div className="section-card-head" style={{ padding: '12px 16px' }}>
-          <h3 className="section-card-title" style={{ fontSize: 13 }}>事件流</h3>
+          <h3 className="section-card-title" style={{ fontSize: 13 }}>{t('activities.event_stream', '事件流')}</h3>
           <span className="text-xxs muted">
-            {allEvents.length > 0 ? `${allEvents.length} 条` : ''}
+            {allEvents.length > 0 ? t('activities.total_events_text', '{{count}} 条', { count: allEvents.length }) : ''}
           </span>
         </div>
 
         {runningOpcs.length === 0 ? (
           <div className="empty-state">
             <Icon name="building" size={32} className="empty-state-icon" />
-            <div className="empty-state-title">尚无运行中的公司</div>
-            <div className="empty-state-desc">先部署一个公司到办公室，再来查看实时活动</div>
+            <div className="empty-state-title">{t('activities.no_running_companies', '尚无运行中的公司')}</div>
+            <div className="empty-state-desc">{t('activities.deploy_first_hint', '先部署一个公司到办公室，再来查看实时活动')}</div>
           </div>
         ) : allEvents.length === 0 ? (
           <div className="empty-state">
             <Icon name="activity" size={32} className="empty-state-icon" />
-            <div className="empty-state-title">等待事件流入</div>
-            <div className="empty-state-desc">Agent 开始工作后，消息和工具调用将实时显示在此处</div>
+            <div className="empty-state-title">{t('activities.waiting_for_events', '等待事件流入')}</div>
+            <div className="empty-state-desc">{t('activities.waiting_desc', 'Agent 开始工作后，消息和工具调用将实时显示在此处')}</div>
             <div className="flex-center gap-5" style={{ marginTop: 14 }}>
               <span className="pulse-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block' }} />
               <span className="pulse-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', display: 'inline-block', animationDelay: '0.3s' }} />
@@ -238,7 +242,7 @@ export default function ActivitiesPage() {
               const color = hashColor(event.agent_id)
               const initials = getInitials(event.agent_id)
               const text = formatEventData(event)
-              const streamInfo = STREAM_LABELS[event.stream] || { label: event.stream, color: 'var(--text-dimmer)' }
+              const streamInfo = streamLabels[event.stream] || { label: event.stream, color: 'var(--text-dimmer)' }
               return (
                 <div key={`${event.ts}-${idx}`} className="flex gap-12" style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
                   <div className="avatar avatar-sm" style={{ background: color, width: 28, height: 28, borderRadius: 7 }}>
@@ -248,7 +252,7 @@ export default function ActivitiesPage() {
                     <div className="flex-center gap-8 flex-wrap text-xs muted">
                       <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{event.agent_id}</span>
                       <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: `color-mix(in srgb, ${streamInfo.color} 15%, transparent)`, color: streamInfo.color }}>{streamInfo.label}</span>
-                      <span className="text-xxs muted" style={{ marginLeft: 'auto' }}>{timeAgo(event.ts)}</span>
+                      <span className="text-xxs muted" style={{ marginLeft: 'auto' }}>{timeAgo(event.ts, t)}</span>
                     </div>
                     {text && <div className="text-xs muted" style={{ marginTop: 3 }}>{text}</div>}
                   </div>

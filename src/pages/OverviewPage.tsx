@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useOpc } from '../contexts/OpcContext'
 import { getOpcStats } from '../lib/api'
 import type { OpcStats } from '../lib/types'
@@ -24,6 +25,7 @@ function opcEmoji(id: string, index: number): string {
 }
 
 export default function OverviewPage() {
+  const { t, i18n } = useTranslation()
   const { opcs } = useOpc()
   const [statsMap, setStatsMap] = useState<Map<string, OpcStats>>(new Map())
 
@@ -36,7 +38,7 @@ export default function OverviewPage() {
 
   const totals = sumStats(statsMap)
   const growthSign = totals.growth >= 0 ? '+' : ''
-  const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+  const date = new Date().toLocaleDateString(i18n.language, { year: 'numeric', month: 'long', day: 'numeric' })
 
   const maxMsg = Math.max(...opcs.map(o => statsMap.get(o.id)?.message_count_today ?? o.message_count_today), 1)
   const runningOpcs = opcs.filter(o => o.is_running)
@@ -45,47 +47,47 @@ export default function OverviewPage() {
     <div className="overview-content fade-in">
       {/* Page header */}
       <div>
-        <h1 className="page-title">数据概览</h1>
-        <p className="page-sub">{date} · 全局运营大盘</p>
+        <h1 className="page-title">{t('overview.title', '数据概览')}</h1>
+        <p className="page-sub">{date}{t('overview.global_dashboard', ' · 全局运营大盘')}</p>
       </div>
 
       {/* Metric cards */}
       <div className="metric-grid">
         <div className="metric-card">
           <div className="metric-card-head">
-            <div className="metric-card-label">公司总数</div>
+            <div className="metric-card-label">{t('overview.companies', '公司总数')}</div>
             <div className="metric-card-icon"><Icon name="grid" size={14} /></div>
           </div>
           <div className="metric-card-value">{opcs.length}</div>
-          <div className="metric-card-delta delta-up">↑ 实时</div>
+          <div className="metric-card-delta delta-up">↑ {t('overview.realtime', '实时')}</div>
         </div>
 
         <div className="metric-card">
           <div className="metric-card-head">
-            <div className="metric-card-label">智能体总数</div>
+            <div className="metric-card-label">{t('overview.agents', '智能体总数')}</div>
             <div className="metric-card-icon"><Icon name="users" size={14} /></div>
           </div>
           <div className="metric-card-value">{totals.agents}</div>
-          <div className="metric-card-delta delta-up">↑ 实时</div>
+          <div className="metric-card-delta delta-up">↑ {t('overview.realtime', '实时')}</div>
         </div>
 
         <div className="metric-card">
           <div className="metric-card-head">
-            <div className="metric-card-label">飞书频道</div>
+            <div className="metric-card-label">{t('overview.channels', '飞书频道')}</div>
             <div className="metric-card-icon"><Icon name="message" size={14} /></div>
           </div>
           <div className="metric-card-value">{totals.channels}</div>
-          <div className="metric-card-delta delta-up">↑ 实时</div>
+          <div className="metric-card-delta delta-up">↑ {t('overview.realtime', '实时')}</div>
         </div>
 
         <div className="metric-card">
           <div className="metric-card-head">
-            <div className="metric-card-label">今日消息</div>
+            <div className="metric-card-label">{t('overview.todayMessages', '今日消息')}</div>
             <div className="metric-card-icon"><Icon name="activity" size={14} /></div>
           </div>
           <div className="metric-card-value">{totals.messages.toLocaleString()}</div>
           <div className={`metric-card-delta ${totals.growth >= 0 ? 'delta-up' : ''}`}>
-            {totals.growth >= 0 ? '↑' : '↓'} {growthSign}{totals.growth.toFixed(1)}% 较昨日
+            {totals.growth >= 0 ? '↑' : '↓'} {growthSign}{totals.growth.toFixed(1)}% {t('overview.vsYesterday', '较昨日')}
           </div>
         </div>
       </div>
@@ -95,11 +97,11 @@ export default function OverviewPage() {
         {/* Bar chart: company message volumes */}
         <div className="chart-card">
           <div className="chart-head">
-            <h3 className="chart-title">各公司消息量</h3>
-            <div className="chart-meta">今日</div>
+            <h3 className="chart-title">{t('overview.companyMessages', '各公司消息量')}</h3>
+            <div className="chart-meta">{t('overview.today', '今日')}</div>
           </div>
           {opcs.length === 0 ? (
-            <div className="text-xs text-dimmer" style={{ padding: '12px 0' }}>暂无数据</div>
+            <div className="text-xs text-dimmer" style={{ padding: '12px 0' }}>{t('overview.noData', '暂无数据')}</div>
           ) : opcs.map((opc, i) => {
             const msgs = statsMap.get(opc.id)?.message_count_today ?? opc.message_count_today
             const pct = Math.round((msgs / maxMsg) * 100)
@@ -122,17 +124,17 @@ export default function OverviewPage() {
         {/* Running companies list */}
         <div className="chart-card">
           <div className="chart-head">
-            <h3 className="chart-title">运行中公司</h3>
+            <h3 className="chart-title">{t('overview.runningCompanies', '运行中公司')}</h3>
             <div className="chart-meta">{runningOpcs.length}/{opcs.length}</div>
           </div>
           <div className="running-list">
             {runningOpcs.length === 0 ? (
-              <div className="text-xs text-dimmer" style={{ padding: '12px 0' }}>暂无运行中公司</div>
+              <div className="text-xs text-dimmer" style={{ padding: '12px 0' }}>{t('overview.noRunning', '暂无运行中公司')}</div>
             ) : runningOpcs.map(opc => {
               const initials = opc.avatar_initials ?? opc.display_name.slice(0, 1)
               const color = opc.avatar_color ?? 'var(--accent)'
               const stats = statsMap.get(opc.id)
-              const host = stats ? `${stats.agent_count} 个智能体` : '—'
+              const host = stats ? t('agents.agent_count', '{{count}} 个智能体', { count: stats.agent_count }) : '—'
               return (
                 <div key={opc.id} className="running-row">
                   <div className="running-avatar" style={{ background: color }}>{initials}</div>

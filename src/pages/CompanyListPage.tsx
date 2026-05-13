@@ -79,13 +79,13 @@ export default function CompanyListPage() {
     <div className="companies fade-in">
       <div className="flex-between" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="page-title">公司列表</h1>
-          <p className="page-sub">管理 OPC 团队配置</p>
+          <h1 className="page-title">{t('nav.company_list', '公司列表')}</h1>
+          <p className="page-sub">{t('opc.manage_desc', '管理 OPC 团队配置')}</p>
         </div>
         <div className="flex-center gap-8" style={{ flexWrap: 'wrap' }}>
           <input
             className="log-search"
-            placeholder="搜索公司名称…"
+            placeholder={t('opc.search_placeholder', '搜索公司名称…')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -96,12 +96,12 @@ export default function CompanyListPage() {
                 className={`filter-tab${filter === f ? ' active' : ''}`}
                 onClick={() => setFilter(f)}
               >
-                {f === 'all' ? '全部' : f === 'running' ? '运行中' : '已停止'}
+                {f === 'all' ? t('common.filter_all', '全部') : f === 'running' ? t('common.status_running', '运行中') : t('common.status_stopped', '已停止')}
               </button>
             ))}
           </div>
           <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
-            <Icon name="plus" size={13} /> 创建公司
+            <Icon name="plus" size={13} /> {t('opc.button_create_new', '创建公司')}
           </button>
         </div>
       </div>
@@ -140,14 +140,14 @@ export default function CompanyListPage() {
                 <div className="company-card-id">{opc.name}</div>
               </div>
               {opc.is_running
-                ? <span className="tag success" style={{ fontSize: 10.5 }}>运行中</span>
-                : <span className="tag" style={{ fontSize: 10.5 }}>已停止</span>}
+                ? <span className="tag success" style={{ fontSize: 10.5 }}>{t('common.status_running', '运行中')}</span>
+                : <span className="tag" style={{ fontSize: 10.5 }}>{t('common.status_stopped', '已停止')}</span>}
             </div>
             <div className="company-card-meta">
-              <span className="stat-chip"><strong>{opc.agent_count}</strong> 智能体</span>
-              <span className="stat-chip"><strong>{opc.channel_count}</strong> 频道</span>
+              <span className="stat-chip"><strong>{opc.agent_count}</strong> {t('nav.agents', '智能体')}</span>
+              <span className="stat-chip"><strong>{opc.channel_count}</strong> {t('overview.channels', '频道')}</span>
               {opc.message_count_today > 0 && (
-                <span className="stat-chip"><strong>{opc.message_count_today}</strong> 今日消息</span>
+                <span className="stat-chip"><strong>{opc.message_count_today}</strong> {t('overview.todayMessages', '今日消息')}</span>
               )}
               <span className="company-card-status" />
             </div>

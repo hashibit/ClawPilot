@@ -46,7 +46,7 @@ export function AgentStrip({ agents, selectedAgent, isNewAgent, editing, onSelec
 
             {agents.length === 0 && !isNewAgent && (
                 <div className="text-xxs muted text-center" style={{ padding: '16px 8px' }}>
-                    还没有智能体
+                    {t('agents.no_agents_yet', '还没有智能体')}
                 </div>
             )}
 
@@ -63,7 +63,7 @@ export function AgentStrip({ agents, selectedAgent, isNewAgent, editing, onSelec
                     <div className="agent-pill-add" style={{ background: 'var(--accent-soft)', color: 'var(--accent)', borderColor: 'var(--accent-border)' }}>
                         <Icon name="bolt" size={14} stroke="var(--accent)" strokeWidth={2} />
                     </div>
-                    <div className="agent-pill-name" style={{ color: 'var(--accent)' }}>批量</div>
+                    <div className="agent-pill-name" style={{ color: 'var(--accent)' }}>{t('agents.batch', '批量')}</div>
                 </div>
             </div>
         </div>

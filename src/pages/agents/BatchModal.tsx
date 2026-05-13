@@ -36,8 +36,8 @@ export function BatchModal({ onClose, onGenerate }: {
         <div className="modal-backdrop" onClick={() => { if (!running) onClose() }}>
             <div className="modal-panel modal-lg flex flex-col gap-16" style={{ padding: '24px', maxWidth: '90vw', maxHeight: '70vh' }} onClick={e => e.stopPropagation()}>
                 <div>
-                    <div className="text-title" style={{ marginBottom: '4px' }}>批量添加智能体</div>
-                    <div className="text-xs text-dimmer">每行描述一个智能体角色，AI 自动生成并立即保存</div>
+                    <div className="text-title" style={{ marginBottom: '4px' }}>{t('agents.batch_add_agents', '批量添加智能体')}</div>
+                    <div className="text-xs text-dimmer">{t('agents.batch_desc', '每行描述一个智能体角色，AI 自动生成并立即保存')}</div>
                 </div>
                 <div className="flex-1 flex flex-col gap-8" style={{ overflowY: 'auto' }}>
                     {prompts.map((p, i) => {
@@ -47,7 +47,7 @@ export function BatchModal({ onClose, onGenerate }: {
                                 <span className="text-xxs text-dimmer flex-shrink-0" style={{ width: '16px', textAlign: 'right' }}>{i + 1}</span>
                                 <input
                                     className="field-input flex-1"
-                                    placeholder={`智能体 ${i + 1} 的角色描述…`}
+                                    placeholder={t('agents.batch_placeholder', `智能体 ${i + 1} 的角色描述…`, { index: i + 1 })}
                                     value={p}
                                     disabled={running}
                                     onChange={e => setPrompts(prev => { const n = [...prev]; n[i] = e.target.value; return n })}
@@ -63,14 +63,14 @@ export function BatchModal({ onClose, onGenerate }: {
                         )
                     })}
                     {!running && (
-                        <button className="btn btn-ghost text-xs" style={{ alignSelf: 'flex-start' }} onClick={() => setPrompts(prev => [...prev, ''])}>+ 添加一行</button>
+                        <button className="btn btn-ghost text-xs" style={{ alignSelf: 'flex-start' }} onClick={() => setPrompts(prev => [...prev, ''])}>+ {t('agents.batch_add_row', '添加一行')}</button>
                     )}
                 </div>
                 <div className="flex justify-end gap-8">
-                    <button className="btn btn-ghost" disabled={running} onClick={onClose}>{allFinished ? '关闭' : t('common.button_cancel')}</button>
+                    <button className="btn btn-ghost" disabled={running} onClick={onClose}>{allFinished ? t('agents.close_batch_modal', '关闭') : t('common.button_cancel')}</button>
                     {!allFinished && (
                         <button className="btn btn-primary" disabled={running || !prompts.some(p => p.trim())} onClick={handleGenerate}>
-                            {running ? t('agents.generating') : '开始生成'}
+                            {running ? t('agents.generating') : t('agents.start_generation', '开始生成')}
                         </button>
                     )}
                 </div>

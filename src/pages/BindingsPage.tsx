@@ -212,7 +212,7 @@ export default function BindingsPage() {
             return next
         })
         setShowGroupModal(false)
-        toast('拖动右侧圆点到智能体完成绑定', 'info')
+        toast(t('bindings.drag_bind_tip'), 'info')
     }
 
     /* ── Drag: start from group card (move) or port (bind) ── */
@@ -416,11 +416,11 @@ export default function BindingsPage() {
             {/* Page header */}
             <div className="flex-center" style={{ justifyContent: 'space-between' }}>
                 <div>
-                    <h1 className="page-title">渠道端管理</h1>
-                    <p className="page-sub">配置飞书应用凭证，将群组消息路由到指定 Agent</p>
+                    <h1 className="page-title">{t('bindings.page_title')}</h1>
+                    <p className="page-sub">{t('bindings.page_subtitle')}</p>
                 </div>
                 <button className="btn btn-sm btn-primary" onClick={openGroupModal}>
-                    <Icon name="plus" size={12} /> 添加群组
+                    <Icon name="plus" size={12} /> {t('bindings.add_group')}
                 </button>
             </div>
 
@@ -428,19 +428,19 @@ export default function BindingsPage() {
             <div className="section-card">
                 <div className="section-card-head" style={{ cursor: 'pointer' }} onClick={() => setChannelEditing(e => !e)}>
                     <div className="flex-center gap-12">
-                        <span style={{ width: 36, height: 36, borderRadius: 9, background: '#0066FF', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0, letterSpacing: '0.02em' }}>飞书</span>
+                        <span style={{ width: 36, height: 36, borderRadius: 9, background: '#0066FF', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 11, flexShrink: 0, letterSpacing: '0.02em' }}>{t('bindings.feishu')}</span>
                         <div style={{ minWidth: 0 }}>
-                            <div className="text-sm text-bold">飞书应用</div>
+                            <div className="text-sm text-bold">{t('bindings.feishu_app')}</div>
                             <div className="text-xxs muted mono mt-1">{maskedAppId}</div>
                         </div>
                         {channel
-                            ? <span className="tag success" style={{ marginLeft: 4 }}><span className="dot live" /> 已连接</span>
-                            : <span className="tag" style={{ marginLeft: 4 }}>未配置</span>
+                            ? <span className="tag success" style={{ marginLeft: 4 }}><span className="dot live" /> {t('common.status_connected')}</span>
+                            : <span className="tag" style={{ marginLeft: 4 }}>{t('common.status_not_configured')}</span>
                         }
                     </div>
                     <div className="flex-center gap-8">
                         <button className="btn btn-sm" onClick={e => { e.stopPropagation(); handleTestConnection() }} disabled={testing || !appId || !appSecret}>
-                            {testing ? '测试中…' : '测试连接'}
+                            {testing ? t('bindings.test_connecting') : t('bindings.test_button')}
                         </button>
                         <Icon name={channelEditing ? 'chevron-up' : 'chevron-down'} size={14} className="muted" />
                     </div>
@@ -452,7 +452,7 @@ export default function BindingsPage() {
                             <div className="field-row">
                                 <div className="field-label-cell">
                                     <div className="field-name">App ID</div>
-                                    <div className="field-hint">cli_ 开头的应用 ID</div>
+                                    <div className="field-hint">{t('bindings.feishu_app_id_hint')}</div>
                                 </div>
                                 <div className="field-value-cell">
                                     <input type="text" className="field-input" value={appId} onChange={e => setAppId(e.target.value)} placeholder="cli_..." />
@@ -461,7 +461,7 @@ export default function BindingsPage() {
                             <div className="field-row">
                                 <div className="field-label-cell">
                                     <div className="field-name">App Secret</div>
-                                    <div className="field-hint">应用凭证密钥</div>
+                                    <div className="field-hint">{t('bindings.feishu_app_secret_hint')}</div>
                                 </div>
                                 <div className="field-value-cell">
                                     <input type="password" className="field-input" value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder="••••••••" />
@@ -469,7 +469,7 @@ export default function BindingsPage() {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button className="btn btn-sm" onClick={() => setChannelEditing(false)}>取消</button>
+                            <button className="btn btn-sm" onClick={() => setChannelEditing(false)}>{t('common.button_cancel')}</button>
                             <button className="btn btn-sm btn-primary" onClick={handleSaveChannel} disabled={savingChannel}>
                                 {savingChannel ? t('common.saving') : t('common.button_save')}
                             </button>
@@ -534,7 +534,7 @@ export default function BindingsPage() {
                             })()}
                             {bindings.length === 0 && !pendingGroup && (
                                 <div className="bind-empty-hint" style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-                                    点击「添加群组」创建
+                                    {t('bindings.empty_canvas_hint')}
                                 </div>
                             )}
                         </div>
@@ -595,13 +595,13 @@ export default function BindingsPage() {
                             })}
                         </div>
                         {agents.length === 0 && (
-                            <div className="bind-empty-hint">暂无智能体</div>
+                            <div className="bind-empty-hint">{t('bindings.no_agents_canvas')}</div>
                         )}
                     </div>
                 </div>
 
                 {hasDrag && (
-                    <div className="bind-drag-hint">拖动到右侧智能体完成绑定</div>
+                    <div className="bind-drag-hint">{t('bindings.drag_bind_hint')}</div>
                 )}
             </div>
 
@@ -610,7 +610,7 @@ export default function BindingsPage() {
                 <div className="modal-backdrop" onClick={() => setShowGroupModal(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2 className="modal-title">添加群组</h2>
+                            <h2 className="modal-title">{t('bindings.add_group')}</h2>
                             <button className="modal-close" onClick={() => setShowGroupModal(false)}>
                                 <Icon name="close" size={16} />
                             </button>
@@ -618,17 +618,17 @@ export default function BindingsPage() {
                         <div className="modal-body">
                             <div className="field-row">
                                 <div className="field-label-cell">
-                                    <div className="field-name">群组名称</div>
-                                    <div className="field-hint">飞书群组的显示名称</div>
+                                    <div className="field-name">{t('bindings.group_name')}</div>
+                                    <div className="field-hint">{t('bindings.group_name_hint')}</div>
                                 </div>
                                 <div className="field-value-cell">
-                                    <input type="text" className="field-input" value={modalForm.channel_name} onChange={e => setModalForm(p => ({ ...p, channel_name: e.target.value }))} placeholder="例：产品讨论群" autoFocus />
+                                    <input type="text" className="field-input" value={modalForm.channel_name} onChange={e => setModalForm(p => ({ ...p, channel_name: e.target.value }))} placeholder={t('bindings.drag_example')} autoFocus />
                                 </div>
                             </div>
                             <div className="field-row">
                                 <div className="field-label-cell">
-                                    <div className="field-name">群组 ID</div>
-                                    <div className="field-hint">oc_ 开头的群组标识</div>
+                                    <div className="field-name">{t('bindings.group_id')}</div>
+                                    <div className="field-hint">{t('bindings.group_id_hint')}</div>
                                 </div>
                                 <div className="field-value-cell">
                                     <input type="text" className="field-input mono" value={modalForm.channel_id} onChange={e => setModalForm(p => ({ ...p, channel_id: e.target.value }))} placeholder="oc_xxx..." />
@@ -636,9 +636,9 @@ export default function BindingsPage() {
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button className="btn btn-sm" onClick={() => setShowGroupModal(false)}>取消</button>
+                            <button className="btn btn-sm" onClick={() => setShowGroupModal(false)}>{t('common.button_cancel')}</button>
                             <button className="btn btn-sm btn-primary" onClick={handleCreateGroup} disabled={savingBinding}>
-                                创建群组
+                                {t('bindings.create_group')}
                             </button>
                         </div>
                     </div>
@@ -650,7 +650,7 @@ export default function BindingsPage() {
                 <div className="modal-backdrop" onClick={() => setEditBinding(null)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2 className="modal-title">编辑绑定</h2>
+                            <h2 className="modal-title">{t('bindings.edit_binding')}</h2>
                             <button className="modal-close" onClick={() => setEditBinding(null)}>
                                 <Icon name="close" size={16} />
                             </button>
@@ -658,7 +658,7 @@ export default function BindingsPage() {
                         <div className="modal-body">
                             <div className="field-row">
                                 <div className="field-label-cell">
-                                    <div className="field-name">群组名称</div>
+                                    <div className="field-name">{t('bindings.group_name')}</div>
                                 </div>
                                 <div className="field-value-cell">
                                     <input type="text" className="field-input" value={editBinding.channel_name} onChange={e => setEditBinding(p => p ? { ...p, channel_name: e.target.value } : p)} />
@@ -666,7 +666,7 @@ export default function BindingsPage() {
                             </div>
                             <div className="field-row">
                                 <div className="field-label-cell">
-                                    <div className="field-name">群组 ID</div>
+                                    <div className="field-name">{t('bindings.group_id')}</div>
                                 </div>
                                 <div className="field-value-cell">
                                     <input type="text" className="field-input mono" value={editBinding.channel_id} onChange={e => setEditBinding(p => p ? { ...p, channel_id: e.target.value } : p)} />
@@ -674,35 +674,35 @@ export default function BindingsPage() {
                             </div>
                             <div className="field-row">
                                 <div className="field-label-cell">
-                                    <div className="field-name">触发模式</div>
+                                    <div className="field-name">{t('bindings.trigger_mode')}</div>
                                 </div>
                                 <div className="field-value-cell">
                                     <div className="seg">
-                                        <span className={'seg-item' + (editBinding.trigger_mode === 'MENTION' ? ' active' : '')} onClick={() => setEditBinding(p => p ? { ...p, trigger_mode: 'MENTION' } : p)} style={{ cursor: 'pointer' }}>@ 触发</span>
-                                        <span className={'seg-item' + (editBinding.trigger_mode === 'ALL' ? ' active' : '')} onClick={() => setEditBinding(p => p ? { ...p, trigger_mode: 'ALL' } : p)} style={{ cursor: 'pointer' }}>全部消息</span>
+                                        <span className={'seg-item' + (editBinding.trigger_mode === 'MENTION' ? ' active' : '')} onClick={() => setEditBinding(p => p ? { ...p, trigger_mode: 'MENTION' } : p)} style={{ cursor: 'pointer' }}>{t('bindings.trigger_mention_label')}</span>
+                                        <span className={'seg-item' + (editBinding.trigger_mode === 'ALL' ? ' active' : '')} onClick={() => setEditBinding(p => p ? { ...p, trigger_mode: 'ALL' } : p)} style={{ cursor: 'pointer' }}>{t('bindings.trigger_all_label')}</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="field-row">
                                 <div className="field-label-cell">
-                                    <div className="field-name">关联智能体</div>
+                                    <div className="field-name">{t('bindings.linked_agent')}</div>
                                 </div>
                                 <div className="field-value-cell">
                                     <div className="text-sm" style={{ padding: '8px 0', color: 'var(--text-secondary)' }}>
                                         {agents.find(a => a.id === editBinding.agent_id)?.display_name ?? '—'}
-                                        <span className="text-xxs muted" style={{ marginLeft: 8 }}>拖动连线可更改</span>
+                                        <span className="text-xxs muted" style={{ marginLeft: 8 }}>{t('bindings.agent_change_hint')}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div className="modal-footer">
                             <button className="btn btn-sm btn-danger" onClick={() => { handleDeleteBinding(editBinding.id); setEditBinding(null) }}>
-                                <Icon name="trash" size={12} /> 解绑
+                                <Icon name="trash" size={12} /> {t('bindings.unbind')}
                             </button>
                             <div style={{ flex: 1 }} />
-                            <button className="btn btn-sm" onClick={() => setEditBinding(null)}>取消</button>
+                            <button className="btn btn-sm" onClick={() => setEditBinding(null)}>{t('common.button_cancel')}</button>
                             <button className="btn btn-sm btn-primary" onClick={handleSaveEdit} disabled={savingBinding}>
-                                <Icon name="check" size={12} /> 保存
+                                <Icon name="check" size={12} /> {t('common.button_save')}
                             </button>
                         </div>
                     </div>
@@ -714,10 +714,10 @@ export default function BindingsPage() {
                 <div className="modal-backdrop" onClick={() => setTriggerConfirm(null)}>
                     <div className="bind-trigger-popover" onClick={e => e.stopPropagation()}>
                         <div className="bind-trigger-title">
-                            选择触发模式
+                            {t('bindings.select_trigger_mode')}
                         </div>
                         <div className="bind-trigger-sub">
-                            绑定到 <strong>{triggerConfirm.agentName}</strong>
+                            {t('bindings.bind_to_agent')} <strong>{triggerConfirm.agentName}</strong>
                         </div>
                         <div className="bind-trigger-options">
                             <button
@@ -725,20 +725,20 @@ export default function BindingsPage() {
                                 onClick={() => handleTriggerConfirm('MENTION')}
                                 disabled={savingBinding}
                             >
-                                <div className="bind-trigger-option-title">@ 触发</div>
-                                <div className="bind-trigger-option-desc">仅 @机器人 时响应</div>
+                                <div className="bind-trigger-option-title">{t('bindings.trigger_mention_label')}</div>
+                                <div className="bind-trigger-option-desc">{t('bindings.mention_trigger_desc')}</div>
                             </button>
                             <button
                                 className="bind-trigger-option"
                                 onClick={() => handleTriggerConfirm('ALL')}
                                 disabled={savingBinding}
                             >
-                                <div className="bind-trigger-option-title">全部消息</div>
-                                <div className="bind-trigger-option-desc">群内所有消息都响应</div>
+                                <div className="bind-trigger-option-title">{t('bindings.trigger_all_label')}</div>
+                                <div className="bind-trigger-option-desc">{t('bindings.all_messages_desc')}</div>
                             </button>
                         </div>
                         <button className="btn btn-xs" style={{ marginTop: 8, width: '100%' }} onClick={() => setTriggerConfirm(null)}>
-                            取消
+                            {t('common.button_cancel')}
                         </button>
                     </div>
                 </div>

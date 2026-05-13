@@ -180,17 +180,17 @@ export default function OfficePage() {
         // 验证门禁设置（仅远程模式）
         if (!isLocalhost && form.address) {
             if (!form.access_user || form.access_user.trim() === '') {
-                toast('远程办公室必须填写用户名', 'error')
+                toast(t('office.remote_must_have_user'), 'error')
                 return
             }
             const hasPassword = form.access_password && form.access_password.trim() !== ''
             const hasSshKey = form.ssh_key_path && form.ssh_key_path.trim() !== ''
             if (form.access_auth_type === 'password' && !hasPassword) {
-                toast('密码认证模式下必须填写密码', 'error')
+                toast(t('office.ssh_password_required'), 'error')
                 return
             }
             if (form.access_auth_type === 'ssh_key' && !hasSshKey) {
-                toast('SSH 私钥认证模式下必须填写私钥路径', 'error')
+                toast(t('office.ssh_key_required'), 'error')
                 return
             }
         }
@@ -212,7 +212,7 @@ export default function OfficePage() {
                 setSelected(newOffice)
                 setIsNewOffice(false)
                 setEditing(false); setAvatarPickerOpen(false)
-                toast('办公室已创建', 'success')
+                toast(t('office.create_success'), 'success')
             } else {
                 const addressChanged = form.address !== selected.address
                 const daemonFields = addressChanged ? { daemon_url: undefined } : {}
@@ -222,7 +222,7 @@ export default function OfficePage() {
                 setSelected(updated)
                 setEditing(false); setAvatarPickerOpen(false)
                 setDaemonHealth(null)
-                toast('办公室信息已保存', 'success')
+                toast(t('office.save_success'), 'success')
                 if (!addressChanged && updated.daemon_url) {
                     checkDaemon(updated.id)
                 }
@@ -305,13 +305,13 @@ export default function OfficePage() {
 
         const addr = data.address?.trim()
         if (!addr || addr === 'localhost') {
-            toast('地址必须是 IP 或 IP:端口格式', 'error')
+            toast(t('office.address_must_be_ip'), 'error')
             return
         }
         // Validate IP/IP:port format
         const ipPortRe = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?$/
         if (!ipPortRe.test(addr)) {
-            toast('地址格式无效，请填写 IP 或 IP:端口', 'error')
+            toast(t('office.address_invalid'), 'error')
             return
         }
         setSshChecking(true)
@@ -324,13 +324,13 @@ export default function OfficePage() {
                 key_path: data.ssh_key_path,
             })
             if (r.ok) {
-                toast(`✓ SSH 连接成功（${r.latency_ms ?? '?'} ms）`, 'success')
+                toast(t('office.ssh_success', { latency: r.latency_ms ?? '?' }), 'success')
             } else {
-                toast(`✗ SSH 连接失败：${r.error ?? '未知错误'}`, 'error')
+                toast(t('office.ssh_failed', { error: r.error ?? t('common.unknown_error') }), 'error')
             }
         } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : String(e)
-            toast(`✗ SSH 连接失败：${msg}`, 'error')
+            toast(t('office.ssh_failed', { error: msg }), 'error')
         } finally {
             setSshChecking(false)
         }
@@ -338,10 +338,10 @@ export default function OfficePage() {
 
     const handleInstallLatest = () => {
         if (!selected) return
-        if (isNewOffice) { toast('请先保存办公室后再安装物业', 'error'); return }
+        if (isNewOffice) { toast(t('office.save_first'), 'error'); return }
         if (installStep !== 'idle' && installStep !== 'done' && installStep !== 'error') return
         if (!isValidAddress(selected.address)) {
-            toast('请先设置有效的办公室地址（本机或合法 IP/主机名）', 'error'); return
+            toast(t('office.address_required_for_install'), 'error'); return
         }
         installAbortRef.current = false
         setInstallLogs([])
@@ -377,7 +377,7 @@ export default function OfficePage() {
 
             if (IS_TAURI) {
                 // Tauri mode: listen to install-log events
-                lg('📡 监听 Tauri 安装日志事件...', 'info')
+                lg(String(t('office.install.tauri_listen_logs')), 'info')
                 // Dynamic import to avoid breaking non-Tauri builds
                 import('@tauri-apps/api/event').then(({ listen }) => {
                     listen<string>('install-log', (event) => {
@@ -411,7 +411,7 @@ export default function OfficePage() {
                     } catch { /* ignore */ }
                 }
                 sseConnection.onerror = () => {
-                    lg('⚠️ 实时日志连接失败，将等待完成后显示日志', 'warning')
+                    lg(String(t('office.install.sse_connect_failed')), 'warning')
                 }
             }
         }
@@ -429,18 +429,18 @@ export default function OfficePage() {
 
         // Step 0: SSH connectivity check (remote only)
         if (isRemote) {
-            lg(`🔍 检查与 ${saved.address} 的 SSH 连通性…`, 'banner')
+            lg(String(t('office.install.ssh_checking', { address: saved.address })), 'banner')
             try {
                 const keyPath = saved.access_auth_type === 'ssh_key' ? saved.ssh_key_path : undefined;
                 const r = await checkSshConnection(sshHost, sshPort, saved.access_user ?? 'root', keyPath)
                 if (!r.ok) {
-                    lg(`❌ SSH 连通性检查失败：${r.error ?? '无法连通远程主机'}`, 'error')
+                    lg(String(t('office.install.ssh_check_failed', { error: r.error ?? t('common.unknown_error') })), 'error')
                     setInstallStep('error')
                     return
                 }
-                lg(`✅ SSH 连通（延迟 ${r.latency_ms ?? '?'} ms）`, 'success')
+                lg(String(t('office.install.ssh_connected', { latency: r.latency_ms ?? '?' })), 'success')
             } catch (e) {
-                lg(`❌ SSH 检测异常：${String(e)}`, 'error')
+                lg(String(t('office.install.ssh_error', { error: String(e) })), 'error')
                 setInstallStep('error')
                 return
             }
@@ -522,7 +522,7 @@ export default function OfficePage() {
                                 <div className="flex items-baseline gap-5" style={{ overflow: 'hidden' }}>
                                     <span className="list-row-title">{office.name}</span>
                                     {selected?.id === office.id && editing && !isNewOffice && (
-                                        <span className="unsaved-tag">[未保存]</span>
+                                        <span className="unsaved-tag">[{t('common.status_unsaved')}]</span>
                                     )}
                                 </div>
                                 <div className="list-row-meta">
@@ -536,8 +536,8 @@ export default function OfficePage() {
                             <div className="list-row-avatar" style={{ background: 'var(--border-subtle)' }}>🏢</div>
                             <div className="list-row-info">
                                 <div className="flex items-baseline gap-5">
-                                    <span className="list-row-title">{form.name || '新办公室'}</span>
-                                    <span className="unsaved-tag">[未保存]</span>
+                                    <span className="list-row-title">{form.name || t('office.new_office_placeholder')}</span>
+                                    <span className="unsaved-tag">[{t('common.status_unsaved')}]</span>
                                 </div>
                             </div>
                         </div>
@@ -565,8 +565,8 @@ export default function OfficePage() {
                         <div className="toolbar flex-between">
                             <div className="flex-center gap-8">
                                 <span style={{ fontSize: '18px' }}>🏢</span>
-                                <span className="text-title">{isNewOffice ? (form.name || '新办公室') : selected.name}</span>
-                                {(editing || isNewOffice) && <span className="text-xxs muted" style={{ fontWeight: 400 }}>未保存</span>}
+                                <span className="text-title">{isNewOffice ? (form.name || t('office.new_office_placeholder')) : selected.name}</span>
+                                {(editing || isNewOffice) && <span className="text-xxs muted" style={{ fontWeight: 400 }}>{t('common.status_unsaved')}</span>}
                             </div>
                             <div className="flex-center gap-6">
                                 {/* 测试连接按钮 - 只读和编辑模式都可用，仅远程办公室显示 */}
@@ -576,7 +576,7 @@ export default function OfficePage() {
                                         onClick={handleCheckSsh}
                                         disabled={sshChecking}
                                     >
-                                        {sshChecking ? '测试中…' : '测试连接'}
+                                        {sshChecking ? t('common.testing') : t('common.button_test_connection')}
                                     </button>
                                 )}
                                 {(editing || isNewOffice) ? (
@@ -670,7 +670,7 @@ export default function OfficePage() {
                                                 disabled={addressMode === false || !editing}
                                                 className="field-input flex-1"
                                                 style={{ opacity: addressMode === false ? 0.5 : 1 }}
-                                                placeholder="如：192.168.1.100 或云主机 IP"
+                                                placeholder={t('office.placeholder_address')}
                                             />
                                         </div>
                                     </div>
@@ -679,23 +679,23 @@ export default function OfficePage() {
                                         <>
                                             {/* 用户名 */}
                                             <div className="group-row gap-10">
-                                                <span className="group-label" style={{ minWidth: '40px' }}>用户名</span>
+                                                <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_username')}</span>
                                                 <input type="text" value={form.access_user ?? ''} onChange={e => handleFormChange('access_user', e.target.value)} className="field-input flex-1" placeholder="root" disabled={!editing} />
                                             </div>
                                             {/* 认证方式 + 凭证 */}
                                             <div className="group-row gap-10">
-                                                <span className="group-label" style={{ minWidth: '40px' }}>认证</span>
+                                                <span className="group-label" style={{ minWidth: '40px' }}>{t('office.label_auth_method')}</span>
                                                 <div className="flex-center gap-6 flex-1">
                                                     {(['password', 'ssh_key'] as AccessAuthType[]).map(authType => {
                                                         const active = (form.access_auth_type ?? 'password') === authType
                                                         return (
                                                             <button key={authType} onClick={() => { if (editing) handleFormChange('access_auth_type', authType) }} className={`chip${active ? ' active' : ''}${!editing ? ' disabled' : ''}`}>
-                                                                {authType === 'password' ? '密码' : 'SSH 私钥'}
+                                                                {authType === 'password' ? t('office.auth_password_label') : t('office.auth_ssh_key_label')}
                                                             </button>
                                                         )
                                                     })}
                                                     {(form.access_auth_type ?? 'password') === 'password' ? (
-                                                        <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input flex-1" placeholder="登录密码" disabled={!editing} />
+                                                        <input type="password" value={form.access_password ?? ''} onChange={e => handleFormChange('access_password', e.target.value)} className="field-input flex-1" placeholder={t('office.placeholder_password_login')} disabled={!editing} />
                                                     ) : (
                                                         <input type="text" value={form.ssh_key_path ?? ''} onChange={e => handleFormChange('ssh_key_path', e.target.value)} className="field-input flex-1" placeholder="~/.ssh/id_ed25519" disabled={!editing} />
                                                     )}
@@ -765,7 +765,7 @@ export default function OfficePage() {
                                             ) : daemonHealth?.ok ? (
                                                 <>
                                                     <span className="dot-md success" />
-                                                    <span className="text-sm" style={{ color: 'var(--success)' }}>运行中</span>
+                                                    <span className="text-sm" style={{ color: 'var(--success)' }}>{t('common.status_running')}</span>
                                                     {daemonHealth.version && <span className="mono-sm" style={{ color: 'var(--accent)' }}>v{daemonHealth.version}</span>}
                                                 </>
                                             ) : daemonHealth?.not_installed ? (
@@ -776,7 +776,7 @@ export default function OfficePage() {
                                             ) : daemonHealth ? (
                                                 <>
                                                     <span className="dot-md dim" />
-                                                    <span className="text-sm text-dimmer">离线</span>
+                                                    <span className="text-sm text-dimmer">{t('office.status_offline')}</span>
                                                 </>
                                             ) : (
                                                 <span className="text-dimmer">—</span>
@@ -791,7 +791,7 @@ export default function OfficePage() {
                                                 daemonHealth.openclaw_version ? (
                                                     <>
                                                         <span className="dot-md success" />
-                                                        <span className="text-sm" style={{ color: 'var(--success)' }}>运行中</span>
+                                                        <span className="text-sm" style={{ color: 'var(--success)' }}>{t('common.status_running')}</span>
                                                         <span className="mono-sm" style={{ color: 'var(--success)' }}>v{daemonHealth.openclaw_version}</span>
                                                     </>
                                                 ) : (
@@ -812,7 +812,7 @@ export default function OfficePage() {
                                     )}
                                     {daemonHealth?.not_installed && (
                                         <div className="text-xxs log-warning" style={{ padding: '5px 10px', background: 'rgba(251,191,36,0.06)', borderTop: '1px solid rgba(251,191,36,0.1)' }}>
-                                            Daemon 未安装，点击「安装物业」开始安装
+                                            {t('office.daemon_not_installed_hint')}
                                         </div>
                                     )}
                                 </div>
@@ -869,16 +869,16 @@ export default function OfficePage() {
                 <div className="modal-backdrop">
                     <div className="modal-panel" style={{ width: '360px' }}>
                         <div className="modal-header">
-                            <span className="modal-title">删除办公室</span>
+                            <span className="modal-title">{t('office.delete_modal_title')}</span>
                         </div>
                         <div className="modal-body">
                             <div className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                确定要删除「<span style={{ color: 'var(--text-primary)' }}>{confirmDelete.name}</span>」吗？此操作不可撤销。
+                                {t('office.delete_modal_body', { name: confirmDelete.name })}
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(null)}>取消</button>
-                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(confirmDelete)}>确认删除</button>
+                            <button className="btn btn-sm btn-ghost" onClick={() => setConfirmDelete(null)}>{t('common.button_cancel')}</button>
+                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(confirmDelete)}>{t('office.confirm_delete_btn')}</button>
                         </div>
                     </div>
                 </div>
@@ -891,22 +891,22 @@ export default function OfficePage() {
                         {/* Header */}
                         <div className="modal-header">
                             <span className="modal-title flex-1">
-                                {installStep === 'done' ? '✅ 安装完成' : installStep === 'error' ? '❌ 安装失败' : '安装物业'}
+                                {installStep === 'done' ? t('office.install_done_title') : installStep === 'error' ? t('office.install_failed_title') : t('office.install_modal_title')}
                             </span>
                             <span className={`status-badge${installStep === 'done' ? ' status-green' : installStep === 'error' ? ' status-gray' : ' status-violet'}`}>
-                                {installStep === 'checking' ? '检查连通性…'
-                                    : installStep === 'openclaw' ? '安装 OpenClaw…'
-                                    : installStep === 'daemon' ? '安装 Daemon…'
-                                    : installStep === 'done' ? '完成'
-                                    : installStep === 'error' ? '出错'
-                                    : '就绪'}
+                                {installStep === 'checking' ? t('office.step_checking')
+                                    : installStep === 'openclaw' ? t('office.installing_openclaw')
+                                    : installStep === 'daemon' ? t('office.installing_daemon')
+                                    : installStep === 'done' ? t('office.step_done')
+                                    : installStep === 'error' ? t('office.step_error')
+                                    : t('office.step_idle')}
                             </span>
                         </div>
 
                         {/* Steps indicator */}
                         <div className="flex-center gap-6" style={{ padding: '12px 20px 8px' }}>
                             {[
-                                { key: 'checking', label: 'SSH 检查' },
+                                { key: 'checking', label: t('office.install_step_ssh') },
                                 { key: 'openclaw', label: 'OpenClaw' },
                                 { key: 'daemon', label: 'Daemon' },
                             ].map((step, i) => {
@@ -931,7 +931,7 @@ export default function OfficePage() {
                         {/* Log area */}
                         <div className="log-terminal" style={{ margin: '0 16px 12px', height: '260px' }}>
                             {installLogs.length === 0 ? (
-                                <span className="muted">等待开始…</span>
+                                <span className="muted">{t('office.install_waiting')}</span>
                             ) : installLogs.map((entry, i) => {
                                 const logClass = entry.type === 'empty' ? 'hidden' : `log-${entry.type}`
                                 return (
@@ -946,11 +946,11 @@ export default function OfficePage() {
                         <div className="modal-footer">
                             {(installStep === 'done' || installStep === 'error') ? (
                                 <button onClick={handleInstallClose} className="btn btn-sm">
-                                    关闭
+                                    {t('office.install_close')}
                                 </button>
                             ) : (
                                 <button onClick={handleInstallStop} className="btn btn-sm btn-danger">
-                                    停止安装
+                                    {t('office.install_stop')}
                                 </button>
                             )}
                         </div>

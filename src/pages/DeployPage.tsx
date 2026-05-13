@@ -171,14 +171,14 @@ export default function DeployPage() {
                 <div className="dpv-company-name">{currentOpc.display_name}</div>
                 <div className="dpv-company-meta">
                   <Icon name="users" size={11} />
-                  <span>{agentCount} 个 Agent</span>
+                  <span>{t('deploy.agent_count_format', { count: agentCount })}</span>
                   <span>·</span>
                   <span>v1.4.2</span>
                 </div>
               </div>
               <div className="dpv-drag-hint">
                 <Icon name="grid" size={14} />
-                <span>拖动我</span>
+                <span>{t('deploy.drag_me')}</span>
               </div>
             </div>
           </div>
@@ -189,15 +189,15 @@ export default function DeployPage() {
               <div className="dpv-status">
                 <div className="dpv-status-line">
                   <span className="dpv-status-dot live" />
-                  <span>当前住在</span>
+                  <span>{t('deploy.currently_living_in')}</span>
                   <b>{homeOffice.receptionist_image || '🏢'} {homeOffice.name}</b>
                 </div>
                 <div className="dpv-status-actions">
                   <button className="btn btn-sm" onClick={() => navigate('/logs')}>
-                    <Icon name="file" size={12} /> 日志
+                    <Icon name="file" size={12} /> {t('nav.logs')}
                   </button>
                   <button className="btn btn-sm" onClick={handleUndeploy} disabled={deploying}>
-                    <Icon name="external-link" size={12} /> 搬出
+                    <Icon name="external-link" size={12} /> {t('deploy.move_out')}
                   </button>
                 </div>
               </div>
@@ -205,9 +205,9 @@ export default function DeployPage() {
               <div className="dpv-status nowhere">
                 <div className="dpv-status-line">
                   <span className="dpv-status-dot idle" />
-                  <span>还没住进任何办公楼</span>
+                  <span>{t('deploy.not_living_any_building')}</span>
                 </div>
-                <div className="dpv-status-hint">点击空楼或拖动公司卡片入住</div>
+                <div className="dpv-status-hint">{t('deploy.click_empty_building')}</div>
               </div>
             )}
           </div>
@@ -219,7 +219,7 @@ export default function DeployPage() {
           <div className="dpv-buildings-row">
             {offices.length === 0 ? (
               <div className="text-sm text-center muted" style={{ gridColumn: '1/-1', padding: '48px 16px' }}>
-                尚未配置任何办公楼 · 先去 <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => navigate('/office')}>添加 Office</span>
+                {t('deploy.no_buildings_configured')}<span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => navigate('/office')}>{t('deploy.add_office_link')}</span>
               </div>
             ) : offices.map(o => {
               const isHome = o.current_opc_id === currentOpc.id
@@ -239,11 +239,11 @@ export default function DeployPage() {
               if (dragging && canDrop) bldgClass += ' is-droppable'
 
               // badge
-              let badgeText = '空置 · 可入住'
+              let badgeText = t('deploy.vacant_available_move')
               let badgeClass = 'b-tag'
-              if (isOffline)       { badgeText = '△ 离线'; badgeClass = 'b-tag error' }
-              else if (isHome)     { badgeText = '✓ 当前住所'; badgeClass = 'b-tag success' }
-              else if (isOccupied) { badgeText = `${o.receptionist_image || '🏢'} ${o.current_opc_name || '已占用'}`; badgeClass = 'b-tag muted' }
+              if (isOffline)       { badgeText = t('deploy.offline_status'); badgeClass = 'b-tag error' }
+              else if (isHome)     { badgeText = t('deploy.current_residence'); badgeClass = 'b-tag success' }
+              else if (isOccupied) { badgeText = `${o.receptionist_image || '🏢'} ${o.current_opc_name || t('deploy.occupied_name')}`; badgeClass = 'b-tag muted' }
 
               // floor lit logic
               const litFloor = (floorIdx: number): boolean => {
@@ -317,7 +317,7 @@ export default function DeployPage() {
                       onClick={e => { e.stopPropagation(); handleDeploy(o.id); setPickedId(null) }}
                       style={{ cursor: 'pointer' }}
                     >
-                      <span className="dpv-bldg-preview-msg">点击部署到此</span>
+                      <span className="dpv-bldg-preview-msg">{t('deploy.click_deploy_here')}</span>
                     </div>
                   )}
                 </div>
@@ -385,15 +385,15 @@ export default function DeployPage() {
         {/* ── Recent deployments ── */}
         <div className="dpv-history">
           <div className="dpv-history-head">
-            <h3 className="text-title" style={{ margin: 0 }}>最近搬迁</h3>
+            <h3 className="text-title" style={{ margin: 0 }}>{t('deploy.recent_moves')}</h3>
             <span className="text-xs muted">
-              {recentDeployments.length > 0 ? `最近 ${recentDeployments.length} 次` : ''}
+              {recentDeployments.length > 0 ? t('deploy.recent_moves_count', { count: recentDeployments.length }) : ''}
             </span>
           </div>
           <div className="dpv-history-list">
             {recentDeployments.length === 0 ? (
               <div className="text-sm text-center muted" style={{ padding: '32px 16px' }}>
-                暂无搬迁记录
+                {t('deploy.no_move_history')}
               </div>
             ) : recentDeployments.map(d => (
               <div key={d.id} className="dpv-history-row">
