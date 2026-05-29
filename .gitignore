@@ -28,3 +28,4 @@ src-tauri/resources/clawpilot-daemon-*
 dist-release/
 dev.db
 *.png
+.claude
