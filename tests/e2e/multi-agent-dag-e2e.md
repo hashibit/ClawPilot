@@ -138,7 +138,7 @@ PROVIDER=$(curl -s -X POST $SERVER/create_provider \
     "name": "bailian",
     "api": "openai-completions",
     "base_url": "https://coding.dashscope.aliyuncs.com/v1",
-    "api_key": "sk-sp-0f756088f03943b29dc608c1c67a61fa",
+    "api_key": "读取环境变量ANTHROPIC_AUTH_TOKEN",
     "is_available": true
   }')
 echo $PROVIDER | python3 -m json.tool
