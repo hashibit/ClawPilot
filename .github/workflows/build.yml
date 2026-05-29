@@ -1,0 +1,106 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-macos-aarch64:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            APP_VER=$(grep '"version"' src-tauri/tauri.conf.json | head -1 | sed 's/.*"\([0-9][^"]*\)".*/\1/')
+            echo "tag=v${APP_VER}-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri,daemon
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # ── Build daemon ──────────────────────────────────────────────────────
+      - name: Build daemon (macOS aarch64)
+        run: |
+          cd daemon && cargo build --release --target aarch64-apple-darwin --features bundled-sqlite
+          mkdir -p dist-release src-tauri/resources
+          cp daemon/target/aarch64-apple-darwin/release/clawpilot-daemon \
+             src-tauri/resources/clawpilot-daemon-macos
+
+      # ── Build Tauri app ───────────────────────────────────────────────────
+      - name: Build Tauri app (macOS aarch64)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          args: --target aarch64-apple-darwin
+
+      # ── Collect artifacts ─────────────────────────────────────────────────
+      - name: Collect artifacts
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          mkdir -p artifacts
+
+          # daemon binary
+          cp daemon/target/aarch64-apple-darwin/release/clawpilot-daemon \
+             artifacts/clawpilot-daemon-${TAG}-macos-arm64
+          chmod +x artifacts/clawpilot-daemon-${TAG}-macos-arm64
+
+          # dmg (versioned)
+          find src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -name '*.dmg' -exec cp {} artifacts/ \;
+
+          # rename with version tag
+          cd artifacts
+          for f in *.dmg; do
+            mv "$f" "clawpilot-${TAG}-macos-arm64.dmg"
+          done
+          ls -lh
+
+      # ── Upload / Release ──────────────────────────────────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: artifacts/*
+          generate_release_notes: true
+          draft: false
+
+      - name: Upload artifacts (no tag)
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: clawpilot-${{ steps.version.outputs.tag }}
+          path: artifacts/
